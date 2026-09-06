@@ -1,0 +1,102 @@
+<Project>
+  <!--
+    Thin shim over the `dotnet-narrativetrace` CLI. No parsing or threshold logic
+    lives here; the CLI owns all of that. Install the tool with:
+      dotnet tool install -g NarrativeTrace.Cli
+    (or add it to a local tool manifest). NOTE: an XML comment must not contain a
+    double hyphen, so use the short `-g` form (not the long global flag) here.
+  -->
+
+  <PropertyGroup>
+    <_NarrativeTraceCli>dotnet-narrativetrace</_NarrativeTraceCli>
+    <_ClarityStamp>$(NarrativeTraceOutputDir)/clarity-check.stamp</_ClarityStamp>
+    <_ClarityWarnOnlyFlag Condition="'$(ClarityWarnOnly)' == 'true'">--warn-only</_ClarityWarnOnlyFlag>
+    <!-- The gate depends on ClarityScan (static) or ClarityAggregate (runtime).
+         Each producer owns its own filename so a scan can never overwrite the
+         runtime artifact, and vice versa; the gate therefore has to read the
+         file belonging to the selected source. -->
+    <_ClaritySourceTarget>ClarityScan</_ClaritySourceTarget>
+    <_ClarityResults>$(NarrativeTraceOutputDir)/clarity-scan-results.json</_ClarityResults>
+    <_ClaritySourceTarget Condition="'$(NarrativeTraceClaritySource)' == 'runtime'">ClarityAggregate</_ClaritySourceTarget>
+    <_ClarityResults Condition="'$(NarrativeTraceClaritySource)' == 'runtime'">$(NarrativeTraceOutputDir)/clarity-results.json</_ClarityResults>
+  </PropertyGroup>
+
+  <!--
+    Whether the gate joins the build (Gradle's plugin wires clarityCheck into
+    `check`; MSBuild has no such lifecycle, so it is wired here).
+
+    Default: join when a real threshold is configured. With the shipped defaults
+    the gate cannot fail, so running it would only cost time; the moment a
+    project sets ClarityMinScore or ClarityMaxHighIssues it is enforced without
+    anyone remembering `-t:ClarityCheck`. Set NarrativeTraceClarityGate
+    explicitly to force it on or off.
+
+    This is deliberately narrower than the Gradle plugin, which always joins:
+    the gate shells out to the separately installed dotnet-narrativetrace tool,
+    so joining unconditionally would break every consumer that installed this
+    package without the CLI. Derived here rather than in the .props because
+    consumer properties are not yet set when the .props is imported.
+  -->
+  <PropertyGroup>
+    <NarrativeTraceClarityGate
+        Condition="'$(NarrativeTraceClarityGate)' == '' and ('$(ClarityMinScore)' &gt; 0 or '$(ClarityMaxHighIssues)' &lt; 2147483647)">true</NarrativeTraceClarityGate>
+    <NarrativeTraceClarityGate Condition="'$(NarrativeTraceClarityGate)' == ''">false</NarrativeTraceClarityGate>
+  </PropertyGroup>
+
+  <!-- Fail the build early on an invalid NarrativeTraceLevel/Format instead of
+       silently forwarding a typo to the test host, mirroring the Gradle plugin's
+       validateExtension allow-list check. CLARITY-12. -->
+  <Target Name="_NarrativeTraceValidateConfig"
+          BeforeTargets="Build;VSTest;ClarityScan">
+    <Error Condition="'$(NarrativeTraceLevel)' != '' and !$([System.Text.RegularExpressions.Regex]::IsMatch('$(NarrativeTraceLevel)', '^(?i:OFF|ERRORS|SUMMARY|NARRATIVE|DETAIL)$'))"
+           Text="NarrativeTrace: invalid NarrativeTraceLevel '$(NarrativeTraceLevel)'. Expected one of: OFF, ERRORS, SUMMARY, NARRATIVE, DETAIL." />
+    <Error Condition="'$(NarrativeTraceFormat)' != '' and !$([System.Text.RegularExpressions.Regex]::IsMatch('$(NarrativeTraceFormat)', '^(?i:markdown|text|mermaid|plantuml)$'))"
+           Text="NarrativeTrace: invalid NarrativeTraceFormat '$(NarrativeTraceFormat)'. Expected one of: markdown, text, mermaid, plantuml." />
+    <Error Condition="'$(NarrativeTraceClaritySource)' != '' and !$([System.Text.RegularExpressions.Regex]::IsMatch('$(NarrativeTraceClaritySource)', '^(?i:scan|runtime)$'))"
+           Text="NarrativeTrace: invalid NarrativeTraceClaritySource '$(NarrativeTraceClaritySource)'. Expected one of: scan, runtime." />
+    <Error Condition="'$(NarrativeTraceClarityGate)' != '' and !$([System.Text.RegularExpressions.Regex]::IsMatch('$(NarrativeTraceClarityGate)', '^(?i:true|false)$'))"
+           Text="NarrativeTrace: invalid NarrativeTraceClarityGate '$(NarrativeTraceClarityGate)'. Expected true or false." />
+  </Target>
+
+  <!-- Pass NARRATIVETRACE_* to the test host when trace output is requested. -->
+  <Target Name="_NarrativeTraceExportEnv"
+          BeforeTargets="VSTest"
+          Condition="'$(NarrativeTraceOutput)' == 'true'">
+    <PropertyGroup>
+      <VSTestEnvironmentVariables>$(VSTestEnvironmentVariables);NARRATIVETRACE_OUTPUT=true;NARRATIVETRACE_OUTPUT_DIR=$(NarrativeTraceOutputDir);NARRATIVETRACE_FORMAT=$(NarrativeTraceFormat);NARRATIVETRACE_LEVEL=$(NarrativeTraceLevel)</VSTestEnvironmentVariables>
+    </PropertyGroup>
+  </Target>
+
+  <!-- Reflection-only scan of the built assembly into clarity-scan-results.json. -->
+  <Target Name="ClarityScan" DependsOnTargets="Build">
+    <Exec Command="$(_NarrativeTraceCli) clarity-scan --assembly &quot;$(TargetPath)&quot; --output-dir &quot;$(NarrativeTraceOutputDir)&quot;" />
+  </Target>
+
+  <!-- Aggregate the per-test *.clarity.json captured-trace artifacts into
+       clarity-results.json so the gate scores real runtime call depth/nesting
+       rather than the depth-1 static scan. CLARITY-13. -->
+  <Target Name="ClarityAggregate">
+    <Exec Command="$(_NarrativeTraceCli) clarity-aggregate --input-dir &quot;$(NarrativeTraceOutputDir)&quot; --output-dir &quot;$(NarrativeTraceOutputDir)&quot;" />
+  </Target>
+
+  <!-- Gate the build on clarity thresholds. Incremental: the stamp lets MSBuild
+       skip a re-check when the selected producer's results file has not
+       changed. The producer is selected by NarrativeTraceClaritySource
+       (scan | runtime). -->
+  <Target Name="ClarityCheck"
+          DependsOnTargets="$(_ClaritySourceTarget)"
+          Inputs="$(_ClarityResults)"
+          Outputs="$(_ClarityStamp)">
+    <Exec Command="$(_NarrativeTraceCli) clarity-check --results &quot;$(_ClarityResults)&quot; --min-score $(ClarityMinScore) --max-high-issues $(ClarityMaxHighIssues) $(_ClarityWarnOnlyFlag)" />
+    <!-- The producer normally creates this directory; without it the stamp
+         below fails with an opaque MSB3371 instead of a clarity result. -->
+    <MakeDir Directories="$(NarrativeTraceOutputDir)" />
+    <Touch Files="$(_ClarityStamp)" AlwaysCreate="true" />
+  </Target>
+
+  <!-- Joins the gate to the build; see NarrativeTraceClarityGate above. -->
+  <Target Name="_NarrativeTraceClarityGate"
+          AfterTargets="Build"
+          DependsOnTargets="ClarityCheck"
+          Condition="'$(NarrativeTraceClarityGate)' == 'true'" />
+</Project>

@@ -1,0 +1,18 @@
+<Project>
+
+  <!-- Inherit the repository-wide settings, then tighten them for shipped code. -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <!-- CS1591 ("missing XML comment for publicly visible type or member") is
+         suppressed repo-wide because tests, examples, benchmarks and the build
+         project have no public API contract to document. Shipped libraries do:
+         the XML-doc house conventions treat /// as a contract for AI consumers,
+         and a policy that nothing enforces decays. Undocumented public members
+         are therefore warnings here, promoted to errors by CS1591AsError below. -->
+    <NoWarn>$(NoWarn.Replace('CS1591', ''))</NoWarn>
+    <CS1591AsError Condition="'$(CS1591AsError)' == ''">true</CS1591AsError>
+    <WarningsAsErrors Condition="'$(CS1591AsError)' == 'true'">$(WarningsAsErrors);CS1591</WarningsAsErrors>
+  </PropertyGroup>
+
+</Project>

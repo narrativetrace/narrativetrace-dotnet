@@ -1,0 +1,98 @@
+{
+  "ConcurrencyBenchmarks.DetectOverlapping": {
+    "meanNs": 29.33,
+    "allocatedBytes": 40
+  },
+  "ConcurrencyBenchmarks.DetectSequential": {
+    "meanNs": 85.27,
+    "allocatedBytes": 40
+  },
+  "ConcurrencyBenchmarks.ExportForkJoinJson": {
+    "meanNs": 9326.33,
+    "allocatedBytes": 45660
+  },
+  "ConcurrencyBenchmarks.FireAndForget_Launch": {
+    "meanNs": 1718.9,
+    "allocatedBytes": 2320
+  },
+  "ConcurrencyBenchmarks.ForkJoin_TwoTasks": {
+    "meanNs": 3877.28,
+    "allocatedBytes": 5602
+  },
+  "ConcurrencyBenchmarks.ForkJoin_WhenAll": {
+    "meanNs": 3869.56,
+    "allocatedBytes": 5751
+  },
+  "ConcurrencyBenchmarks.RenderForkJoinIndented": {
+    "meanNs": 1015.37,
+    "allocatedBytes": 4352
+  },
+  "ConcurrencyBenchmarks.RenderForkJoinMarkdown": {
+    "meanNs": 1274.85,
+    "allocatedBytes": 3784
+  },
+  "CoreBenchmarks.BuildTree(NodeCount=10)": {
+    "meanNs": 16224.74,
+    "allocatedBytes": 11696
+  },
+  "CoreBenchmarks.BuildTree(NodeCount=100)": {
+    "meanNs": 157800.27,
+    "allocatedBytes": 109160
+  },
+  "CoreBenchmarks.BuildTree(NodeCount=1000)": {
+    "meanNs": 4030413.22,
+    "allocatedBytes": 1072262
+  },
+  "CoreBenchmarks.EnterExitCycle(NodeCount=10)": {
+    "meanNs": 2489.96,
+    "allocatedBytes": 2368
+  },
+  "CoreBenchmarks.EnterExitCycle(NodeCount=100)": {
+    "meanNs": 2645.25,
+    "allocatedBytes": 2368
+  },
+  "CoreBenchmarks.EnterExitCycle(NodeCount=1000)": {
+    "meanNs": 2533.55,
+    "allocatedBytes": 2368
+  },
+  "CoreBenchmarks.RenderObject(NodeCount=10)": {
+    "meanNs": 818.53,
+    "allocatedBytes": 1611
+  },
+  "CoreBenchmarks.RenderObject(NodeCount=100)": {
+    "meanNs": 786.43,
+    "allocatedBytes": 1611
+  },
+  "CoreBenchmarks.RenderObject(NodeCount=1000)": {
+    "meanNs": 802.95,
+    "allocatedBytes": 1611
+  },
+  "CoreBenchmarks.RenderPrimitive(NodeCount=10)": {
+    "meanNs": 76.81,
+    "allocatedBytes": 313
+  },
+  "CoreBenchmarks.RenderPrimitive(NodeCount=100)": {
+    "meanNs": 75.36,
+    "allocatedBytes": 313
+  },
+  "CoreBenchmarks.RenderPrimitive(NodeCount=1000)": {
+    "meanNs": 73.26,
+    "allocatedBytes": 313
+  },
+  "RendererBenchmarks.ClaritySmall": {
+    "meanNs": 2412.19,
+    "allocatedBytes": 3952
+  },
+  "RendererBenchmarks.JsonExportSmall": {
+    "meanNs": 3529.03,
+    "allocatedBytes": 16328
+  },
+  "RendererBenchmarks.MarkdownMedium": {
+    "meanNs": 3822.43,
+    "allocatedBytes": 17096
+  },
+  "RendererBenchmarks.MarkdownSmall": {
+    "meanNs": 594.99,
+    "allocatedBytes": 2704
+  }
+}

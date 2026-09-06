@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <RootNamespace>NarrativeTrace.Runtime</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../NarrativeTrace.Core/NarrativeTrace.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="NarrativeTrace.Core.Tests" />
+    <!-- AdoptionLedger is internal; the stress suite races it directly
+         (item-44 seams), matching the same-package access jcstress's own
+         context-package tests use against ThreadLocalNarrativeContext. -->
+    <InternalsVisibleTo Include="NarrativeTrace.StressTests" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="9.0.3" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- The build project is a NUKE console app outside the solution, so its
+         support code is compiled into this test assembly rather than
+         referenced: one source of truth, tested under the solution's
+         analyzers. -->
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/TranslationCheckSupport.cs"
+             Link="TranslationCheckSupport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/DemoWiringSupport.cs"
+             Link="DemoWiringSupport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/TestProjectSelection.cs"
+             Link="TestProjectSelection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/HeaderAbsenceSupport.cs"
+             Link="HeaderAbsenceSupport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/I18nManifestSupport.cs"
+             Link="I18nManifestSupport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/TranslationCompletenessSupport.cs"
+             Link="TranslationCompletenessSupport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/TranslationStructureSupport.cs"
+             Link="TranslationStructureSupport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/TranslationIndexSupport.cs"
+             Link="TranslationIndexSupport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/TranslationReviewSupport.cs"
+             Link="TranslationReviewSupport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/TranslationPlatformSupport.cs"
+             Link="TranslationPlatformSupport.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+</Project>

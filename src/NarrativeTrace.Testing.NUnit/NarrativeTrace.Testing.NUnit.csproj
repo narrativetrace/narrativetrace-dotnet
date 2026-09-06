@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- An integration library referencing nunit.framework, not a test project itself:
+         without this, Stryker's solution-wide test-project scan mistakes it for one
+         (it references every mutated project and carries the NUnit package) and warns
+         "did not report any test" on every run. See stryker-config*.json's "test-projects"
+         list, which was already correctly scoped — the noise came from Stryker's broader
+         discovery pass, not from that list. -->
+    <IsTestProject>false</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="NUnit" Version="3.14.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="NarrativeTrace.Testing.NUnit.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../NarrativeTrace.Core/NarrativeTrace.Core.csproj" />
+    <ProjectReference Include="../NarrativeTrace.Runtime/NarrativeTrace.Runtime.csproj" />
+    <ProjectReference Include="../NarrativeTrace.Proxy/NarrativeTrace.Proxy.csproj" />
+    <ProjectReference Include="../NarrativeTrace.Diagrams/NarrativeTrace.Diagrams.csproj" />
+    <ProjectReference Include="../NarrativeTrace.Clarity/NarrativeTrace.Clarity.csproj" />
+    <ProjectReference Include="../NarrativeTrace.Glossary/NarrativeTrace.Glossary.csproj" />
+  </ItemGroup>
+</Project>

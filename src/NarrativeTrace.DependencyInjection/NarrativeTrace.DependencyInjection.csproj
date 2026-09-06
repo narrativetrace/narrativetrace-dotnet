@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="NarrativeTrace.DependencyInjection.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../NarrativeTrace.Core/NarrativeTrace.Core.csproj" />
+    <ProjectReference Include="../NarrativeTrace.Runtime/NarrativeTrace.Runtime.csproj" />
+    <ProjectReference Include="../NarrativeTrace.Proxy/NarrativeTrace.Proxy.csproj" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
+  </ItemGroup>
+</Project>

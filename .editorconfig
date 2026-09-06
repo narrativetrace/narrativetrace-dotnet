@@ -1,0 +1,27 @@
+root = true
+
+[*.cs]
+# Method length — fail build if any method exceeds 20 lines
+dotnet_diagnostic.S138.severity = error
+
+# Missing XML comments. Suppressed by default: tests, examples, benchmarks and
+# the build project have no public API contract to document. Re-enabled for
+# src/ below, where the XML-doc house conventions make /// a contract for AI
+# consumers.
+dotnet_diagnostic.CS1591.severity = none
+
+# Allow empty types (abstract record bases, scaffold placeholders)
+dotnet_diagnostic.S2094.severity = none
+
+# Culture-invariant output is a parity contract with the Java edition:
+# trace files must be byte-identical across machine locales (RENDER-17)
+dotnet_diagnostic.CA1305.severity = error
+
+# ── Shipped libraries ─────────────────────────────────────────────────────────
+# Everything under src/ is packed and consumed by third parties, so every
+# public type and member must document itself per the XML-doc house
+# conventions. Kept at `warning` here so the list stays enumerable
+# (`-p:CS1591AsError=false`); src/Directory.Build.props promotes it to an
+# error for normal builds and CI.
+[src/**/*.cs]
+dotnet_diagnostic.CS1591.severity = warning

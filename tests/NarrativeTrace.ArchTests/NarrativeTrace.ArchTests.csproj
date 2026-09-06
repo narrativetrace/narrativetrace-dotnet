@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="NetArchTest.Rules" Version="1.3.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/NarrativeTrace.Core/NarrativeTrace.Core.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Runtime/NarrativeTrace.Runtime.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Proxy/NarrativeTrace.Proxy.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Clarity/NarrativeTrace.Clarity.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Glossary/NarrativeTrace.Glossary.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Logging/NarrativeTrace.Logging.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Observability/NarrativeTrace.Observability.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.AspNetCore/NarrativeTrace.AspNetCore.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Diagrams/NarrativeTrace.Diagrams.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Testing.Xunit/NarrativeTrace.Testing.Xunit.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Testing.NUnit/NarrativeTrace.Testing.NUnit.csproj" />
+  </ItemGroup>
+</Project>

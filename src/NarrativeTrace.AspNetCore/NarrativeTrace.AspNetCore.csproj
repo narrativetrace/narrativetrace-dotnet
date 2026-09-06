@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net10.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../NarrativeTrace.Core/NarrativeTrace.Core.csproj" />
+    <ProjectReference Include="../NarrativeTrace.Runtime/NarrativeTrace.Runtime.csproj" />
+    <ProjectReference Include="../NarrativeTrace.Proxy/NarrativeTrace.Proxy.csproj" />
+  </ItemGroup>
+</Project>

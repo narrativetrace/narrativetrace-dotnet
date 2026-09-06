@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <!--
+    Test-only, no coverage floor: same rationale as NarrativeTrace.SecurityTests
+    (see its csproj) — this project exercises production code that already
+    carries its own coverage gate. Picked up by Test/Coverage/Verify
+    automatically by name (ends in "Tests") plus solution membership; see
+    TestProjectSelectionTests.
+
+    Short vs. long mode: every [Fact] here reads its repetition count from
+    StressIterations, which defaults to a bounded, seconds-scale count so this
+    project runs inside every ./build.sh Test/Verify (the jcstress-analog
+    "Tier A"). The ./build.sh Stress target (see build/Build.cs) re-runs this
+    same project with NARRATIVETRACE_STRESS_ITERATIONS set much higher, for
+    the scheduled/manual long randomized sweep — the same split as Mutation
+    and Fuzz.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.msbuild" Version="6.0.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/NarrativeTrace.Core/NarrativeTrace.Core.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Runtime/NarrativeTrace.Runtime.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="NarrativeTrace.Examples.Common.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/NarrativeTrace.Core/NarrativeTrace.Core.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Runtime/NarrativeTrace.Runtime.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Diagrams/NarrativeTrace.Diagrams.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Logging/NarrativeTrace.Logging.csproj" />
+    <!-- The demo's translated mode renders each scenario through the
+         example's committed glossary in-process (DemoTraces). -->
+    <ProjectReference Include="../../src/NarrativeTrace.Glossary/NarrativeTrace.Glossary.csproj" />
+  </ItemGroup>
+</Project>

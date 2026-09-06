@@ -1,0 +1,109 @@
+#!/usr/bin/env sh
+# pre-commit — format and lint the staged files, and only those; scan every
+# staged change for secrets regardless of file type.
+#
+# Five rules keep this hook safe to have:
+#
+#   1. Format/lint touch staged paths only. They never sweep the working tree,
+#      so a commit never picks up reformatting of files you did not touch.
+#   2. Formatting skips any file that is staged *and* also has unstaged edits.
+#      Rewriting such a file and re-adding it would stage work you deliberately
+#      left out — the bug that silently breaks `git add -p`.
+#   3. Formatting never blocks. Linting and the secrets scan block on errors
+#      (or a finding); warnings alone are printed and let through.
+#   4. A missing or broken toolchain warns and passes — never blocks a commit
+#      just because a tool is not installed locally. CI still enforces.
+#   5. `git commit --no-verify` bypasses this hook entirely when you need to
+#      land work in progress.
+set -eu
+
+cd "$(git rev-parse --show-toplevel)"
+
+# --- repo-specific: which files, what formats them, what lints them ----------
+match_files() { grep -E '\.cs$'; }
+format_files() {
+	command -v dotnet >/dev/null 2>&1 || return 1
+	dotnet format whitespace "NarrativeTrace.sln" --no-restore --include "$@"
+}
+lint_files() { return 127; }  # no linter configured for this stack
+secrets_scan() {
+	command -v gitleaks >/dev/null 2>&1 || return 127
+	gitleaks protect --staged --redact --no-banner --source "$(git rev-parse --show-toplevel)"
+}
+# -----------------------------------------------------------------------------
+
+has_staged_changes=$(git diff --cached --name-only --diff-filter=ACMR)
+
+# --- secrets (blocks on a finding; every staged file, not just .cs) ----------
+if [ -n "$has_staged_changes" ]; then
+	secrets_out=$(secrets_scan 2>&1) && secrets_status=0 || secrets_status=$?
+	if [ "$secrets_status" -eq 127 ]; then
+		echo "pre-commit: gitleaks unavailable — secrets scan skipped. CI still runs it." >&2
+	elif [ "$secrets_status" -ne 0 ]; then
+		printf '%s\n' "$secrets_out" >&2
+		echo "" >&2
+		echo "pre-commit: gitleaks found a potential secret in the staged changes above." >&2
+		echo "  Remove/rotate it, or if it's a known-fake fixture, add a gitleaks:allow comment" >&2
+		echo "  or a .gitleaksignore entry with a one-line reason. Bypass: git commit --no-verify" >&2
+		exit 1
+	fi
+fi
+
+staged=$(printf '%s\n' "$has_staged_changes" | match_files || true)
+[ -n "$staged" ] || exit 0
+
+# Partition into files safe to rewrite vs. partially staged ones.
+set --
+partial=""
+while IFS= read -r f; do
+	[ -n "$f" ] || continue
+	[ -f "$f" ] || continue
+	if git diff --quiet -- "$f"; then
+		set -- "$@" "$f"
+	else
+		partial="$partial  $f
+"
+	fi
+done <<EOF
+$staged
+EOF
+
+if [ -n "$partial" ]; then
+	printf 'pre-commit: not touching these — they have unstaged edits too:\n%s' "$partial" >&2
+fi
+
+[ "$#" -gt 0 ] || exit 0
+
+# --- format (never blocks) ---------------------------------------------------
+if format_files "$@" >/dev/null 2>&1; then
+	# Re-stage only what the formatter changed. Each file had no unstaged edits
+	# before formatting, so any diff now is the formatter's own work.
+	changed=""
+	for f in "$@"; do
+		if ! git diff --quiet -- "$f"; then
+			git add -- "$f"
+			changed="$changed $f"
+		fi
+	done
+	[ -n "$changed" ] && echo "pre-commit: formatted and re-staged:$changed" >&2
+else
+	echo "pre-commit: formatter unavailable or errored — skipped. CI still checks formatting." >&2
+fi
+
+# --- lint (blocks on errors only) --------------------------------------------
+lint_out=$(lint_files "$@" 2>&1) && lint_status=0 || lint_status=$?
+
+if [ "$lint_status" -eq 127 ]; then
+	echo "pre-commit: linter unavailable — skipped." >&2
+elif [ "$lint_status" -ne 0 ]; then
+	printf '%s\n' "$lint_out" >&2
+	echo "" >&2
+	echo "pre-commit: lint errors in the staged files (warnings alone would not block)." >&2
+	echo "  Fix them, or bypass deliberately with: git commit --no-verify" >&2
+	exit 1
+elif [ -n "$lint_out" ]; then
+	printf '%s\n' "$lint_out" >&2
+	echo "pre-commit: lint warnings above — not blocking." >&2
+fi
+
+exit 0

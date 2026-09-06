@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../NarrativeTrace.Examples.Common/NarrativeTrace.Examples.Common.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Core/NarrativeTrace.Core.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Runtime/NarrativeTrace.Runtime.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Proxy/NarrativeTrace.Proxy.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Clarity/NarrativeTrace.Clarity.csproj" />
+  </ItemGroup>
+</Project>

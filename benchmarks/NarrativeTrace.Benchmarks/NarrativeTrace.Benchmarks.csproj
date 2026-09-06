@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/NarrativeTrace.Core/NarrativeTrace.Core.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Runtime/NarrativeTrace.Runtime.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Proxy/NarrativeTrace.Proxy.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Clarity/NarrativeTrace.Clarity.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Diagrams/NarrativeTrace.Diagrams.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.AspNetCore/NarrativeTrace.AspNetCore.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" Version="0.14.0" />
+  </ItemGroup>
+</Project>

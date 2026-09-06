@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="NarrativeTrace.Testing.Xunit.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../NarrativeTrace.Core/NarrativeTrace.Core.csproj" />
+    <ProjectReference Include="../NarrativeTrace.Runtime/NarrativeTrace.Runtime.csproj" />
+    <ProjectReference Include="../NarrativeTrace.Proxy/NarrativeTrace.Proxy.csproj" />
+    <ProjectReference Include="../NarrativeTrace.Diagrams/NarrativeTrace.Diagrams.csproj" />
+    <ProjectReference Include="../NarrativeTrace.Clarity/NarrativeTrace.Clarity.csproj" />
+    <ProjectReference Include="../NarrativeTrace.Glossary/NarrativeTrace.Glossary.csproj" />
+  </ItemGroup>
+</Project>

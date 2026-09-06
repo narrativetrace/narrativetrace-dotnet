@@ -1,0 +1,11 @@
+{
+  "stryker-config": {
+    "project": "src/NarrativeTrace.Clarity/NarrativeTrace.Clarity.csproj",
+    "test-projects": [
+      "tests/NarrativeTrace.Clarity.Tests/NarrativeTrace.Clarity.Tests.csproj"
+    ],
+    "reporters": ["progress", "html", "json"],
+    "thresholds": { "high": 85, "low": 80, "break": 80 },
+    "concurrency": 4
+  }
+}

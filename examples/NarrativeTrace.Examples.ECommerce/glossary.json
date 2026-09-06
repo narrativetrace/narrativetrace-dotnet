@@ -1,0 +1,707 @@
+{
+  "schemaVersion": 1,
+  "contexts": {
+    "_unassigned": {
+      "packages": [],
+      "description": "Harvested terms not yet mapped to a context"
+    },
+    "shop": {
+      "packages": ["NarrativeTrace.Examples.ECommerce"],
+      "description": "Domain vocabulary of the ecommerce example"
+    }
+  },
+  "terms": [
+    {
+      "term": "Customer {customerId} not found",
+      "context": "shop",
+      "kind": "template",
+      "status": "curated",
+      "translations": {
+        "es": "Cliente {customerId} no encontrado",
+        "zh-CN": "未找到顾客 {customerId}"
+      },
+      "sources": ["ICustomerService.FindCustomer"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "Failed to notify customer {customerId} about order {orderId}",
+      "context": "shop",
+      "kind": "template",
+      "status": "harvested",
+      "sources": ["INotificationService.NotifyOrderPlaced"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "Insufficient stock for {productId}, requested {quantity}",
+      "context": "shop",
+      "kind": "template",
+      "status": "curated",
+      "translations": {
+        "es": "Stock insuficiente de {productId}, se pidieron {quantity}",
+        "zh-CN": "{productId} 库存不足,请求数量 {quantity}"
+      },
+      "sources": ["IInventoryService.Reserve"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "Payment declined for customer {customerId}, amount was {amount}",
+      "context": "shop",
+      "kind": "template",
+      "status": "curated",
+      "translations": {
+        "es": "Pago rechazado para el cliente {customerId}, el importe era {amount}",
+        "zh-CN": "顾客 {customerId} 的支付被拒,金额为 {amount}"
+      },
+      "sources": ["IPaymentService.Charge"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "Placing order of {quantity} {productId} for customer {customerId}",
+      "context": "shop",
+      "kind": "template",
+      "status": "curated",
+      "translations": {
+        "es": "Realizando pedido de {quantity} {productId} para el cliente {customerId}",
+        "zh-CN": "正在为顾客 {customerId} 下 {quantity} 件 {productId} 的订单"
+      },
+      "sources": ["IOrderService.PlaceOrder"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "a",
+      "context": "shop",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["Svc.Do"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "amount",
+      "context": "shop",
+      "kind": "word",
+      "status": "curated",
+      "translations": {
+        "es": "importe",
+        "zh-CN": "金额"
+      },
+      "sources": ["IPaymentService.Charge", "InMemoryPaymentService.Charge"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "approval limit",
+      "context": "shop",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["ECommerceExample.BuildTracedOrderService"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "async",
+      "context": "shop",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["ConcurrencyScenario.RunAsync", "ECommerceDemo.RunAsync"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "b",
+      "context": "shop",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["Svc.Do"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "build container",
+      "context": "shop",
+      "kind": "verb-phrase",
+      "status": "harvested",
+      "sources": ["ECommerceExample.BuildContainer"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "build traced order service",
+      "context": "shop",
+      "kind": "verb-phrase",
+      "status": "harvested",
+      "sources": ["ECommerceExample.BuildTracedOrderService"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "calc",
+      "context": "shop",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["Svc.Calc"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "calculate order total",
+      "context": "shop",
+      "kind": "verb-phrase",
+      "status": "harvested",
+      "sources": ["OrderFulfillmentService.CalculateOrderTotal"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "card token",
+      "context": "shop",
+      "kind": "noun-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "token de tarjeta",
+        "zh-CN": "卡令牌"
+      },
+      "sources": ["IPaymentService.Charge", "InMemoryPaymentService.Charge"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "charge",
+      "context": "shop",
+      "kind": "verb-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "cobrar",
+        "zh-CN": "扣款"
+      },
+      "sources": ["IPaymentService.Charge", "InMemoryPaymentService.Charge"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "compare",
+      "context": "shop",
+      "kind": "verb-phrase",
+      "status": "harvested",
+      "sources": ["NamingComparison.Compare"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "concurrency scenario",
+      "context": "shop",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["ConcurrencyScenario"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "concurrency scenario result",
+      "context": "shop",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["ConcurrencyScenarioResult"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "confirm customer order",
+      "context": "shop",
+      "kind": "verb-phrase",
+      "status": "harvested",
+      "sources": ["OrderFulfillmentService.ConfirmCustomerOrder"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "container",
+      "context": "shop",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["ECommerceExample.BuildContainer"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "context",
+      "context": "shop",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["ConcurrencyScenario.RunAsync", "ECommerceExample.BuildContainer", "ECommerceExample.BuildTracedOrderService"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "customer",
+      "context": "shop",
+      "kind": "word",
+      "status": "curated",
+      "translations": {
+        "es": "cliente",
+        "zh-CN": "顾客"
+      },
+      "sources": ["FlakyNotificationService.NotifyOrderPlaced", "ICustomerService.FindCustomer", "INotificationService.NotifyOrderPlaced"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "customer order",
+      "context": "shop",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["OrderFulfillmentService.ConfirmCustomerOrder"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "do",
+      "context": "shop",
+      "kind": "verb-phrase",
+      "status": "harvested",
+      "sources": ["Svc.Do"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "e commerce demo",
+      "context": "shop",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["ECommerceDemo"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "e commerce example",
+      "context": "shop",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["ECommerceExample"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "find customer",
+      "context": "shop",
+      "kind": "verb-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "buscar cliente",
+        "zh-CN": "查找顾客"
+      },
+      "sources": ["ICustomerService.FindCustomer", "InMemoryCustomerService.FindCustomer"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "flaky notification",
+      "context": "shop",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["FlakyNotificationService"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "fork group id",
+      "context": "shop",
+      "kind": "verb-phrase",
+      "status": "harvested",
+      "sources": ["ConcurrencyScenarioResult.ForkGroupId"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "group id",
+      "context": "shop",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["ConcurrencyScenarioResult.ForkGroupId"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "id",
+      "context": "shop",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["Customer.Id", "OrderResult.OrderId"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "in memory customer",
+      "context": "shop",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["InMemoryCustomerService"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "in memory inventory",
+      "context": "shop",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["InMemoryInventoryService"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "in memory notification",
+      "context": "shop",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["InMemoryNotificationService"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "in memory payment",
+      "context": "shop",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["InMemoryPaymentService"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "in memory product catalog",
+      "context": "shop",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["InMemoryProductCatalogService"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "inventory",
+      "context": "shop",
+      "kind": "word",
+      "status": "curated",
+      "translations": {
+        "es": "inventario",
+        "zh-CN": "库存"
+      },
+      "sources": ["IInventoryService"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "lookup price",
+      "context": "shop",
+      "kind": "verb-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "consultar precio",
+        "zh-CN": "查询价格"
+      },
+      "sources": ["IProductCatalogService.LookupPrice", "InMemoryProductCatalogService.LookupPrice"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "n",
+      "context": "shop",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["Svc.Calc", "Svc.Do"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "name",
+      "context": "shop",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["Customer.Name"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "naming comparison",
+      "context": "shop",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["NamingComparison"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "notification",
+      "context": "shop",
+      "kind": "word",
+      "status": "curated",
+      "translations": {
+        "es": "notificación",
+        "zh-CN": "通知"
+      },
+      "sources": ["INotificationService"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "notification group id",
+      "context": "shop",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["ConcurrencyScenarioResult.NotificationGroupId"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "notify order placed",
+      "context": "shop",
+      "kind": "verb-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "notificar pedido realizado",
+        "zh-CN": "通知订单已下"
+      },
+      "sources": ["FlakyNotificationService.NotifyOrderPlaced", "INotificationService.NotifyOrderPlaced", "InMemoryNotificationService.NotifyOrderPlaced"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "order",
+      "context": "shop",
+      "kind": "word",
+      "status": "curated",
+      "translations": {
+        "es": "pedido",
+        "zh-CN": "订单"
+      },
+      "sources": ["FlakyNotificationService.NotifyOrderPlaced", "INotificationService.NotifyOrderPlaced", "IOrderService.PlaceOrder"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "order fulfillment",
+      "context": "shop",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["OrderFulfillmentService"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "order id",
+      "context": "shop",
+      "kind": "verb-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "id de pedido",
+        "zh-CN": "订单编号"
+      },
+      "sources": ["OrderResult.OrderId"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "order placed",
+      "context": "shop",
+      "kind": "noun-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "pedido realizado",
+        "zh-CN": "订单已下"
+      },
+      "sources": ["FlakyNotificationService.NotifyOrderPlaced", "INotificationService.NotifyOrderPlaced", "InMemoryNotificationService.NotifyOrderPlaced"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "order result",
+      "context": "shop",
+      "kind": "noun-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "resultado del pedido",
+        "zh-CN": "订单结果"
+      },
+      "sources": ["OrderResult"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "order total",
+      "context": "shop",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["OrderFulfillmentService.CalculateOrderTotal"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "payment",
+      "context": "shop",
+      "kind": "word",
+      "status": "curated",
+      "translations": {
+        "es": "pago",
+        "zh-CN": "支付"
+      },
+      "sources": ["IPaymentService"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "payment confirmation",
+      "context": "shop",
+      "kind": "noun-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "confirmación de pago",
+        "zh-CN": "支付确认"
+      },
+      "sources": ["PaymentConfirmation"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "place order",
+      "context": "shop",
+      "kind": "verb-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "realizar pedido",
+        "zh-CN": "下单"
+      },
+      "sources": ["IOrderService.PlaceOrder", "OrderService.PlaceOrder"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "price",
+      "context": "shop",
+      "kind": "word",
+      "status": "curated",
+      "translations": {
+        "es": "precio",
+        "zh-CN": "价格"
+      },
+      "sources": ["IProductCatalogService.LookupPrice", "InMemoryProductCatalogService.LookupPrice"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "product",
+      "context": "shop",
+      "kind": "word",
+      "status": "curated",
+      "translations": {
+        "es": "producto",
+        "zh-CN": "商品"
+      },
+      "sources": ["IInventoryService.Release", "IInventoryService.Reserve", "IOrderService.PlaceOrder"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "product catalog",
+      "context": "shop",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["IProductCatalogService"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "quantity",
+      "context": "shop",
+      "kind": "word",
+      "status": "curated",
+      "translations": {
+        "es": "cantidad",
+        "zh-CN": "数量"
+      },
+      "sources": ["IInventoryService.Release", "IInventoryService.Reserve", "IOrderService.PlaceOrder"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "release",
+      "context": "shop",
+      "kind": "verb-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "liberar",
+        "zh-CN": "释放"
+      },
+      "sources": ["IInventoryService.Release", "InMemoryInventoryService.Release"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "reserve",
+      "context": "shop",
+      "kind": "verb-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "reservar",
+        "zh-CN": "预留"
+      },
+      "sources": ["IInventoryService.Reserve", "InMemoryInventoryService.Reserve"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "run",
+      "context": "shop",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["ECommerceDemo.RunAsync"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "run async",
+      "context": "shop",
+      "kind": "verb-phrase",
+      "status": "harvested",
+      "sources": ["ConcurrencyScenario.RunAsync", "ECommerceDemo.RunAsync"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "sent count",
+      "context": "shop",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["InMemoryNotificationService.SentCount"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "simulated external notification",
+      "context": "shop",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["SimulatedExternalNotificationService"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "stock",
+      "context": "shop",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["ECommerceExample.BuildTracedOrderService"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "svc",
+      "context": "shop",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["Svc"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "tier",
+      "context": "shop",
+      "kind": "word",
+      "status": "curated",
+      "translations": {
+        "es": "nivel",
+        "zh-CN": "等级"
+      },
+      "sources": ["Customer.Tier"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "total",
+      "context": "shop",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["OrderResult.Total"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "trace",
+      "context": "shop",
+      "kind": "verb-phrase",
+      "status": "harvested",
+      "sources": ["ConcurrencyScenarioResult.Trace"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "traced order service",
+      "context": "shop",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["ECommerceExample.BuildTracedOrderService"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "transaction id",
+      "context": "shop",
+      "kind": "noun-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "id de transacción",
+        "zh-CN": "交易编号"
+      },
+      "sources": ["OrderResult.TransactionId", "PaymentConfirmation.TransactionId"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "unit price",
+      "context": "shop",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["OrderFulfillmentService.CalculateOrderTotal"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "x",
+      "context": "shop",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["Svc.Calc"],
+      "firstSeen": "2026-09-06"
+    }
+  ]
+}

@@ -1,0 +1,411 @@
+{
+  "schemaVersion": 1,
+  "contexts": {
+    "_unassigned": {
+      "packages": [],
+      "description": "Harvested terms not yet mapped to a context"
+    },
+    "hotel": {
+      "packages": ["NarrativeTrace.Examples.Clarity"],
+      "description": "Domain vocabulary of the clarity example"
+    }
+  },
+  "terms": [
+    {
+      "term": "amount",
+      "context": "hotel",
+      "kind": "word",
+      "status": "curated",
+      "translations": {
+        "es": "importe",
+        "zh-CN": "金额"
+      },
+      "sources": ["DefaultPaymentGateway.AuthorizePayment", "IPaymentGateway.AuthorizePayment"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "analyze",
+      "context": "hotel",
+      "kind": "verb-phrase",
+      "status": "harvested",
+      "sources": ["HotelClarityDemo.Analyze"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "authorize payment",
+      "context": "hotel",
+      "kind": "verb-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "autorizar pago",
+        "zh-CN": "授权支付"
+      },
+      "sources": ["DefaultPaymentGateway.AuthorizePayment", "IPaymentGateway.AuthorizePayment"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "availability checker",
+      "context": "hotel",
+      "kind": "noun-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "verificador de disponibilidad",
+        "zh-CN": "可用性检查器"
+      },
+      "sources": ["IAvailabilityChecker"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "available room",
+      "context": "hotel",
+      "kind": "noun-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "habitación disponible",
+        "zh-CN": "可用房间"
+      },
+      "sources": ["DefaultAvailabilityChecker.FindAvailableRooms", "IAvailabilityChecker.FindAvailableRooms"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "booking",
+      "context": "hotel",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["DefaultBookingManager.HandleBooking", "IBookingManager.HandleBooking"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "booking trace",
+      "context": "hotel",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["HotelClarityDemo.BookingTrace"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "check in",
+      "context": "hotel",
+      "kind": "noun-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "entrada",
+        "zh-CN": "入住"
+      },
+      "sources": ["DefaultAvailabilityChecker.FindAvailableRooms", "DefaultBookingManager.HandleBooking", "DefaultReservationService.ConfirmReservation"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "check out",
+      "context": "hotel",
+      "kind": "noun-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "salida",
+        "zh-CN": "退房"
+      },
+      "sources": ["DefaultAvailabilityChecker.FindAvailableRooms", "DefaultBookingManager.HandleBooking", "DefaultReservationService.ConfirmReservation"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "clarity example",
+      "context": "hotel",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["ClarityExample"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "confirm reservation",
+      "context": "hotel",
+      "kind": "verb-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "confirmar reserva",
+        "zh-CN": "确认预订"
+      },
+      "sources": ["DefaultReservationService.ConfirmReservation", "IReservationService.ConfirmReservation"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "context",
+      "context": "hotel",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["HotelClarityDemo.BookingTrace", "HotelClarityDemo.ProcessingTrace", "HotelClarityDemo.RepositoryTrace"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "count",
+      "context": "hotel",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["DefaultDataProcessor.Execute", "IDataProcessor.Execute"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "data",
+      "context": "hotel",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["DefaultDataProcessor.Execute", "IDataProcessor.Execute"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "default availability checker",
+      "context": "hotel",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["DefaultAvailabilityChecker"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "default booking",
+      "context": "hotel",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["DefaultBookingManager"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "default data",
+      "context": "hotel",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["DefaultDataProcessor"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "default guest",
+      "context": "hotel",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["DefaultGuestRepository"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "default payment",
+      "context": "hotel",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["DefaultPaymentGateway"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "default reservation",
+      "context": "hotel",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["DefaultReservationService"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "dispatch email",
+      "context": "hotel",
+      "kind": "verb-phrase",
+      "status": "harvested",
+      "sources": ["DefaultGuestRepository.DispatchEmail", "IGuestRepository.DispatchEmail"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "email",
+      "context": "hotel",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["DefaultGuestRepository.DispatchEmail", "IGuestRepository.DispatchEmail"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "execute",
+      "context": "hotel",
+      "kind": "verb-phrase",
+      "status": "harvested",
+      "sources": ["DefaultDataProcessor.Execute", "IDataProcessor.Execute"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "find available room",
+      "context": "hotel",
+      "kind": "verb-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "buscar habitación disponible",
+        "zh-CN": "查找可用房间"
+      },
+      "sources": ["DefaultAvailabilityChecker.FindAvailableRooms", "IAvailabilityChecker.FindAvailableRooms"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "find guest by id",
+      "context": "hotel",
+      "kind": "verb-phrase",
+      "status": "harvested",
+      "sources": ["DefaultGuestRepository.FindGuestById", "IGuestRepository.FindGuestById"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "full name",
+      "context": "hotel",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["Guest.FullName"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "guest",
+      "context": "hotel",
+      "kind": "word",
+      "status": "curated",
+      "translations": {
+        "es": "huésped",
+        "zh-CN": "宾客"
+      },
+      "sources": ["DefaultBookingManager.HandleBooking", "DefaultGuestRepository.DispatchEmail", "DefaultGuestRepository.FindGuestById"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "guest by id",
+      "context": "hotel",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["DefaultGuestRepository.FindGuestById", "IGuestRepository.FindGuestById"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "guest id",
+      "context": "hotel",
+      "kind": "noun-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "id de huésped",
+        "zh-CN": "宾客编号"
+      },
+      "sources": ["Reservation.GuestId"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "handle booking",
+      "context": "hotel",
+      "kind": "verb-phrase",
+      "status": "harvested",
+      "sources": ["DefaultBookingManager.HandleBooking", "IBookingManager.HandleBooking"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "hotel clarity demo",
+      "context": "hotel",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["HotelClarityDemo"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "id",
+      "context": "hotel",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["Guest.Id"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "message",
+      "context": "hotel",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["DefaultGuestRepository.DispatchEmail", "IGuestRepository.DispatchEmail"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "payment",
+      "context": "hotel",
+      "kind": "word",
+      "status": "curated",
+      "translations": {
+        "es": "pago",
+        "zh-CN": "支付"
+      },
+      "sources": ["DefaultPaymentGateway.AuthorizePayment", "IPaymentGateway.AuthorizePayment"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "processing trace",
+      "context": "hotel",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["HotelClarityDemo.ProcessingTrace"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "render report",
+      "context": "hotel",
+      "kind": "verb-phrase",
+      "status": "harvested",
+      "sources": ["DefaultGuestRepository.RenderReport", "HotelClarityDemo.RenderReport", "IGuestRepository.RenderReport"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "report",
+      "context": "hotel",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["DefaultGuestRepository.RenderReport", "HotelClarityDemo.RenderReport", "IGuestRepository.RenderReport"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "repository trace",
+      "context": "hotel",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["HotelClarityDemo.RepositoryTrace"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "reservation",
+      "context": "hotel",
+      "kind": "word",
+      "status": "curated",
+      "translations": {
+        "es": "reserva",
+        "zh-CN": "预订"
+      },
+      "sources": ["DefaultReservationService.ConfirmReservation", "IReservationService.ConfirmReservation"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "reservation trace",
+      "context": "hotel",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["HotelClarityDemo.ReservationTrace"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "room type",
+      "context": "hotel",
+      "kind": "noun-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "tipo de habitación",
+        "zh-CN": "房型"
+      },
+      "sources": ["DefaultAvailabilityChecker.FindAvailableRooms", "DefaultBookingManager.HandleBooking", "DefaultReservationService.ConfirmReservation"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "run",
+      "context": "hotel",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["ClarityExample.Run"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "total",
+      "context": "hotel",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["Reservation.Total"],
+      "firstSeen": "2026-09-06"
+    }
+  ]
+}

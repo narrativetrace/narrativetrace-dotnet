@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../NarrativeTrace.Core/NarrativeTrace.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="NarrativeTrace.Proxy.Tests" />
+    <!--
+      NarrationResolver.Resolve is the one seam that takes a template string at
+      runtime rather than as a compile-time [Narrated("...")] attribute
+      constant, which is what the security fuzz suite's corpus-driven template
+      cases need (a C# attribute argument cannot be a runtime JSON value). See
+      TemplateRedactionPropertyTest.
+    -->
+    <InternalsVisibleTo Include="NarrativeTrace.SecurityTests" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Reflection.DispatchProxy" Version="4.8.2" />
+    <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.6.3" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <!--
+    Test-only, no coverage floor: this project exercises production code that
+    already carries its own coverage gate (see build/Build.cs
+    CoverageThresholds) — it is not the project whose lines are being counted.
+    It is still picked up by the Test/Coverage/Verify sweeps automatically,
+    because selection there is by name (ends in "Tests") plus solution
+    membership, not by an opt-in list. See TestProjectSelectionTests.
+  -->
+  <ItemGroup>
+    <PackageReference Include="FsCheck" Version="3.3.2" />
+    <PackageReference Include="FsCheck.Xunit" Version="3.3.2" />
+    <PackageReference Include="JsonSchema.Net" Version="7.3.4" />
+    <PackageReference Include="YamlDotNet" Version="16.3.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.msbuild" Version="6.0.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Copied verbatim from ../../../narrative-trace-java (the golden source); see HostileCorpus/README.md. -->
+    <None Include="HostileCorpus/*.json;HostileCorpus/README.md" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/NarrativeTrace.Core/NarrativeTrace.Core.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Runtime/NarrativeTrace.Runtime.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Proxy/NarrativeTrace.Proxy.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Diagrams/NarrativeTrace.Diagrams.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Clarity/NarrativeTrace.Clarity.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Glossary/NarrativeTrace.Glossary.csproj" />
+  </ItemGroup>
+</Project>

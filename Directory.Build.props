@@ -1,0 +1,86 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <!-- "latest-recommended" leaves most of the CA5xxx security category off by
+         default (dataflow-heavy rules considered too noisy for the general
+         recommended set). This repository accepts that cost: crypto misuse, XML
+         XXE, deserialization and injection rules run on every Analyze/Verify —
+         offline, no extra tooling — and are triaged the same way a Semgrep
+         finding is (fix, or a targeted #pragma with a one-line reason). -->
+    <AnalysisModeSecurity>All</AnalysisModeSecurity>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- Restore reports known-vulnerable packages as NU1901 (low), NU1902
+         (moderate) and NU1903 (high/critical), transitive ones included via
+         NuGetAuditMode=all. All three fail the build: warnings-only would let
+         an advisory ride along unnoticed for months. The graph is clean today,
+         so this is enforceable; a new advisory is meant to stop work until the
+         package is upgraded or pinned forward. The DependencyAudit target runs
+         the same audit uncached. -->
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <WarningsAsErrors>$(WarningsAsErrors);NU1901;NU1902;NU1903</WarningsAsErrors>
+  </PropertyGroup>
+
+  <!-- Package metadata (inert on non-packed projects; only matters at pack time). -->
+  <PropertyGroup>
+    <Authors>Empower Agile</Authors>
+    <Company>Empower Agile</Company>
+    <Product>NarrativeTrace</Product>
+    <Copyright>Copyright 2026 Empower Agile</Copyright>
+    <!-- Pre-1.0 product version — keep in step with NarrativeTrace.Version.
+         Without this, packages default to 1.0.0 and imply an API commitment
+         the project has not made. -->
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <!-- BSL 1.1 is not OSI/FSF-approved, so NuGet rejects it as a PackageLicenseExpression; ship the file. -->
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <!-- Published packages are public artifacts built from the public GitHub
+         snapshot, so their metadata advertises the public home; the private
+         GitLab origin is sign-in-walled and must not appear in a nupkg.
+         Pinned by PackageMetadataTests. -->
+    <PackageProjectUrl>https://github.com/narrativetrace/narrativetrace-dotnet</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/narrativetrace/narrativetrace-dotnet.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- Conditional so pack works before the brand asset lands; the day
+         assets/icon.png exists it ships automatically. -->
+    <PackageIcon Condition="Exists('$(MSBuildThisFileDirectory)assets/icon.png')">icon.png</PackageIcon>
+    <PackageTags>tracing;observability;opentelemetry;code-comprehension;narrative</PackageTags>
+    <!-- Symbols + Source Link for debuggable, reproducible packages. -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Packed alongside every package because PackageLicenseFile points at it. -->
+    <None Include="$(MSBuildThisFileDirectory)LICENSE" Pack="true" PackagePath="" Visible="false" />
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.20.0.135146">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="PolySharp" Version="1.15.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <!-- GitHub, not GitLab: source link maps commits for consumers of the
+         published packages, which are built from the public GitHub snapshot.
+         Pinned by PackageMetadataTests. -->
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <None Include="$(MSBuildThisFileDirectory)assets/icon.png" Pack="true" PackagePath="" Visible="false" Condition="Exists('$(MSBuildThisFileDirectory)assets/icon.png')" />
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)SonarLint.xml" />
+  </ItemGroup>
+
+  <!-- Ship the README inside every package (required by PackageReadmeFile). -->
+  <ItemGroup Condition="'$(IsPackable)' != 'false'">
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
+</Project>

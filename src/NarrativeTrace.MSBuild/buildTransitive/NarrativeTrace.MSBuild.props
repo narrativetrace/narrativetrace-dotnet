@@ -1,0 +1,19 @@
+<Project>
+  <!--
+    Default NarrativeTrace knobs. Override any of these in the consuming project
+    (or on the `dotnet build`/`dotnet test` command line). Every decision lives in
+    the dotnet-narrativetrace CLI; this file only declares defaults.
+  -->
+  <PropertyGroup>
+    <NarrativeTraceOutput Condition="'$(NarrativeTraceOutput)' == ''">false</NarrativeTraceOutput>
+    <NarrativeTraceOutputDir Condition="'$(NarrativeTraceOutputDir)' == ''">$(MSBuildProjectDirectory)/narrativetrace</NarrativeTraceOutputDir>
+    <NarrativeTraceFormat Condition="'$(NarrativeTraceFormat)' == ''">markdown</NarrativeTraceFormat>
+    <NarrativeTraceLevel Condition="'$(NarrativeTraceLevel)' == ''">DETAIL</NarrativeTraceLevel>
+    <!-- Which producer the clarity gate scores: 'scan' (static reflection scan)
+         or 'runtime' (aggregate the per-test *.clarity.json captured traces). -->
+    <NarrativeTraceClaritySource Condition="'$(NarrativeTraceClaritySource)' == ''">scan</NarrativeTraceClaritySource>
+    <ClarityMinScore Condition="'$(ClarityMinScore)' == ''">0.0</ClarityMinScore>
+    <ClarityMaxHighIssues Condition="'$(ClarityMaxHighIssues)' == ''">2147483647</ClarityMaxHighIssues>
+    <ClarityWarnOnly Condition="'$(ClarityWarnOnly)' == ''">false</ClarityWarnOnly>
+  </PropertyGroup>
+</Project>

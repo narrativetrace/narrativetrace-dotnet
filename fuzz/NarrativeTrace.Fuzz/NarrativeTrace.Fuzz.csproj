@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Tier B — coverage-guided fuzzing (see documentation/security-testing.md). Not part of
+    ./build.sh Verify: this harness needs SharpFuzz's IL instrumentation (a .NET-only step, works
+    anywhere) driven by afl-fuzz or libFuzzer-dotnet (native binaries this repo does not ship and a
+    CI container may not have). ./build.sh Fuzz builds and instruments unconditionally, then runs
+    the driver only if it finds one on PATH — see the target's own doc comment in build/Build.cs for
+    what was verified and what was not, in this container.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CA2007</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="SharpFuzz" Version="2.3.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/NarrativeTrace.Core/NarrativeTrace.Core.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Runtime/NarrativeTrace.Runtime.csproj" />
+  </ItemGroup>
+</Project>

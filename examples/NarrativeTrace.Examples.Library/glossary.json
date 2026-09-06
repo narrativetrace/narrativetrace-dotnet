@@ -1,0 +1,291 @@
+{
+  "schemaVersion": 1,
+  "contexts": {
+    "_unassigned": {
+      "packages": [],
+      "description": "Harvested terms not yet mapped to a context"
+    },
+    "library": {
+      "packages": ["NarrativeTrace.Examples.Library"],
+      "description": "Domain vocabulary of the library example"
+    }
+  },
+  "terms": [
+    {
+      "term": "argv",
+      "context": "_unassigned",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["Program.main"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "library example",
+      "context": "_unassigned",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["LibraryExample"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "main",
+      "context": "_unassigned",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["Program.main"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "program",
+      "context": "_unassigned",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["Program"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "run",
+      "context": "_unassigned",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["LibraryExample.run"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "Book {isbn} not found in catalog",
+      "context": "library",
+      "kind": "template",
+      "status": "curated",
+      "translations": {
+        "es": "Libro {isbn} no encontrado en el catálogo",
+        "zh-CN": "目录中未找到图书 {isbn}"
+      },
+      "sources": ["ICatalogService.FindBook"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "Borrowing book {isbn} for member {memberId}",
+      "context": "library",
+      "kind": "template",
+      "status": "curated",
+      "translations": {
+        "es": "Prestando el libro {isbn} al socio {memberId}",
+        "zh-CN": "正在为会员 {memberId} 借出图书 {isbn}"
+      },
+      "sources": ["ILendingService.BorrowBook"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "author",
+      "context": "library",
+      "kind": "verb-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "autor",
+        "zh-CN": "作者"
+      },
+      "sources": ["Book.Author"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "available",
+      "context": "library",
+      "kind": "word",
+      "status": "curated",
+      "translations": {
+        "es": "disponible",
+        "zh-CN": "可借"
+      },
+      "sources": ["Book.Available"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "book",
+      "context": "library",
+      "kind": "word",
+      "status": "curated",
+      "translations": {
+        "es": "libro",
+        "zh-CN": "图书"
+      },
+      "sources": ["ICatalogService.FindBook", "ILendingService.BorrowBook"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "book title",
+      "context": "library",
+      "kind": "verb-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "título del libro",
+        "zh-CN": "书名"
+      },
+      "sources": ["LoanReceipt.BookTitle"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "borrow book",
+      "context": "library",
+      "kind": "verb-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "prestar libro",
+        "zh-CN": "借书"
+      },
+      "sources": ["ILendingService.BorrowBook"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "card number",
+      "context": "library",
+      "kind": "noun-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "número de carné",
+        "zh-CN": "借书证号"
+      },
+      "sources": ["IMemberService.LookupMember"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "catalog",
+      "context": "library",
+      "kind": "word",
+      "status": "curated",
+      "translations": {
+        "es": "catálogo",
+        "zh-CN": "目录"
+      },
+      "sources": ["ICatalogService"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "due date",
+      "context": "library",
+      "kind": "noun-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "fecha de devolución",
+        "zh-CN": "应还日期"
+      },
+      "sources": ["LoanReceipt.DueDate"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "find book",
+      "context": "library",
+      "kind": "verb-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "buscar libro",
+        "zh-CN": "查找图书"
+      },
+      "sources": ["ICatalogService.FindBook"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "id",
+      "context": "library",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["Member.Id"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "isbn",
+      "context": "library",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["ICatalogService.FindBook", "ILendingService.BorrowBook"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "lending",
+      "context": "library",
+      "kind": "word",
+      "status": "curated",
+      "translations": {
+        "es": "préstamos",
+        "zh-CN": "借阅"
+      },
+      "sources": ["ILendingService"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "loan receipt",
+      "context": "library",
+      "kind": "noun-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "recibo de préstamo",
+        "zh-CN": "借阅凭证"
+      },
+      "sources": ["LoanReceipt"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "lookup member",
+      "context": "library",
+      "kind": "verb-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "consultar socio",
+        "zh-CN": "查询会员"
+      },
+      "sources": ["IMemberService.LookupMember"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "member",
+      "context": "library",
+      "kind": "word",
+      "status": "curated",
+      "translations": {
+        "es": "socio",
+        "zh-CN": "会员"
+      },
+      "sources": ["ILendingService.BorrowBook", "IMemberService.LookupMember"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "member name",
+      "context": "library",
+      "kind": "noun-phrase",
+      "status": "curated",
+      "translations": {
+        "es": "nombre del socio",
+        "zh-CN": "会员姓名"
+      },
+      "sources": ["LoanReceipt.MemberName"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "name",
+      "context": "library",
+      "kind": "word",
+      "status": "harvested",
+      "sources": ["Member.Name"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "narrative summary",
+      "context": "library",
+      "kind": "noun-phrase",
+      "status": "harvested",
+      "sources": ["Book.NarrativeSummary", "LoanReceipt.NarrativeSummary", "Member.NarrativeSummary"],
+      "firstSeen": "2026-09-06"
+    },
+    {
+      "term": "title",
+      "context": "library",
+      "kind": "word",
+      "status": "curated",
+      "translations": {
+        "es": "título",
+        "zh-CN": "书名"
+      },
+      "sources": ["LoanReceipt.BookTitle", "Book.Title"],
+      "firstSeen": "2026-09-06"
+    }
+  ]
+}

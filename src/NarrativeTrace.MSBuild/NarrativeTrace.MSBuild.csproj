@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- A build-only package: it ships MSBuild props/targets, not a library. -->
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <PackageId>NarrativeTrace.MSBuild</PackageId>
+    <Description>MSBuild integration for NarrativeTrace: ClarityScan/ClarityCheck build targets and NARRATIVETRACE_* test configuration. A thin shim over the dotnet-narrativetrace CLI tool.</Description>
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <!-- The package carries only props/targets, so NuGet's NU5017 "no content"
+         check trips if we exclude the build output entirely. Ship the (empty)
+         assembly under build/ rather than lib/: it satisfies the check, is
+         inert (NuGet auto-imports only .props/.targets, never a stray dll), and
+         adds no compile reference for consumers. -->
+    <BuildOutputTargetFolder>build</BuildOutputTargetFolder>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Ship the shim under buildTransitive so it flows to consuming projects. -->
+    <None Include="buildTransitive/NarrativeTrace.MSBuild.props"
+          Pack="true" PackagePath="buildTransitive/" />
+    <None Include="buildTransitive/NarrativeTrace.MSBuild.targets"
+          Pack="true" PackagePath="buildTransitive/" />
+  </ItemGroup>
+</Project>

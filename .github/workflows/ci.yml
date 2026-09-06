@@ -1,0 +1,107 @@
+# SPDX-License-Identifier: BUSL-1.1
+# Licensed under the Business Source License 1.1 (see LICENSE); Change Date: four years from publication; Change License: Apache-2.0
+# Copyright (c) 2026 Empower Agile
+name: CI
+
+# Public CI for the released snapshot. Authored in the private tree because it
+# is a product artifact, not private CI: the private CI configuration is
+# stripped at publish time, so without this file the public repository has no
+# build at all.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # Cadence mirror of the private CI's schedule/web-only tier (OsvScan,
+  # VulnerablePackages) and MR+schedule tier (Semgrep) — see the security-
+  # tooling section of documentation/security-testing.md.
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.301'
+
+      # SecretsScan (gitleaks) rides Verify's offline DependsOn chain on every
+      # run — provision the binary the NUKE target itself does not download.
+      - name: Install gitleaks
+        run: sudo scripts/install-security-tools.sh gitleaks
+
+      # The single quality gate: clean, format check, static analysis,
+      # translation check, tests, coverage, dependency audit, metrics,
+      # coupling and benchmarks.
+      - name: Verify
+        run: ./build.sh Verify
+
+  # Semgrep's OSS community C# ruleset (p/csharp). Needs the network (the
+  # ruleset is fetched from the semgrep registry on every run), so — unlike
+  # SecretsScan — it cannot sit in the offline Verify gate: runs on pull
+  # requests, the weekly schedule, and manual dispatch; never on an ordinary
+  # push to main.
+  semgrep:
+    name: Semgrep
+    if: github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.301'
+
+      - name: Install semgrep
+        run: sudo scripts/install-security-tools.sh semgrep
+
+      - name: Semgrep
+        run: ./build.sh Semgrep
+
+  # OSV-Scanner (dependency advisories) and dotnet's own vulnerable-package
+  # check both query network vulnerability databases, so — like
+  # DependencyAudit — neither ever runs on a push or pull request: the
+  # weekly schedule and manual dispatch only.
+  osv-scanner:
+    name: OSV-Scanner
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.301'
+
+      - name: Install osv-scanner
+        run: sudo scripts/install-security-tools.sh osv-scanner
+
+      - name: OSV-Scanner
+        run: ./build.sh OsvScan
+
+  vulnerable-packages:
+    name: Vulnerable packages
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.301'
+
+      - name: Vulnerable packages
+        run: ./build.sh VulnerablePackages

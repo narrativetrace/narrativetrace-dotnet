@@ -1,0 +1,64 @@
+# NarrativeTrace .NET
+
+> Code is the log. Auto-generate human-readable execution narratives from method names, parameter names, and return values — no manual logging.
+
+NarrativeTrace is a .NET library that wraps interface-based services with
+`System.Reflection.DispatchProxy` tracing proxies to capture every method
+call and render the result as indented text, Markdown, prose, sequence
+diagrams, JSON, OpenTelemetry spans, or `Microsoft.Extensions.Logging`
+output. It also scores naming clarity so readability can be enforced in CI.
+It is a .NET port of the JVM NarrativeTrace project; APIs are idiomatic
+.NET, not literal translations.
+
+## Docs
+
+- [User Guides](README.md): installation, configuration, annotations, ASP.NET Core, clarity
+- [Complete Reference](llms-full.md): full API surface, data model, integration paths, CLI/MSBuild
+- [Repository README](../../README.md): value proposition and quick start
+
+## Target frameworks
+
+Libraries multi-target `net10.0` and `netstandard2.0` (the `Legacy`
+package adds `net48`). No compiler flag is needed — .NET retains parameter
+names in metadata by default.
+
+## Packages (NuGet id = project name)
+
+- `NarrativeTrace.Core` — trace model, `INarrativeContext`, config, redaction, text/Markdown/prose renderers; namespace `NarrativeTrace.Core.Annotation` holds `[Narrated]`/`[OnError]`/`[NotTraced]`/`[NarrativeSummary]`
+- `NarrativeTrace.Runtime` — capture engine (`SyncNarrativeContext`, `AsyncNarrativeContext`), JSON/chapter exporters
+- `NarrativeTrace.Proxy` — `NarrativeTraceProxy.Create`, `[Traced]`
+- `NarrativeTrace.DependencyInjection` — `AddNarrativeTracing` namespace auto-wrap
+- `NarrativeTrace.AspNetCore` — per-request middleware, `ITraceExporter`
+- `NarrativeTrace.Logging` — `Microsoft.Extensions.Logging` bridge
+- `NarrativeTrace.Observability` — OpenTelemetry (`ActivitySource` "NarrativeTrace", batch + live)
+- `NarrativeTrace.Diagrams` — Mermaid / PlantUML sequence renderers
+- `NarrativeTrace.Clarity` — naming-clarity analysis and reporting
+- `NarrativeTrace.Cli` — `dotnet-narrativetrace` global tool (`clarity-scan`, `clarity-check`)
+- `NarrativeTrace.MSBuild` — build-only shim wiring the CLI into `dotnet build`/`test`
+- `NarrativeTrace.Testing.Xunit` / `.NUnit` — per-test context + failure-narrative printing
+
+## Core API
+
+- `new SyncNarrativeContext(new NarrativeTraceConfig(TracingLevel.Detail))`
+- `NarrativeTraceProxy.Create<T>(target, context)` → traced proxy
+- `context.CaptureTrace()` → `TraceTree`; `context.Reset()`
+- `IndentedTextRenderer.Render(tree)` / `MarkdownRenderer.Render(tree)` / `ProseRenderer.Render(tree)`
+- `MarkdownRenderer.RenderDocument(tree, metadata)` — frontmatter + `## Trace:` header + call flow (what per-test `.md` artifacts contain)
+- `TracingLevel`: `Off`, `Errors`, `Summary`, `Narrative`, `Detail`
+
+## Configuration
+
+- Env: `NARRATIVETRACE_LEVEL`, `NARRATIVETRACE_OUTPUT`, `NARRATIVETRACE_OUTPUT_DIR`, `NARRATIVETRACE_FORMAT` (`ConfigResolver`, invalid values degrade to defaults)
+- DI: `services.AddNarrativeTracing(o => o.Namespaces("MyApp.Services"))`
+- ASP.NET Core: `services.AddNarrativeTrace(configuration)` + `app.UseMiddleware<NarrativeTraceMiddleware>()`; trace services via `HttpContext.GetNarrativeContext()`
+- MSBuild: `NarrativeTrace.MSBuild` package → `ClarityScan`/`ClarityCheck` targets
+
+## Clarity
+
+- `ClarityScanner.Scan([typeof(T)])` (reflection-only) or `ClarityAnalyzer.Analyze(tree)`
+- Five weighted components: Method 30%, Parameter 25%, Class 20%, Structural 15%, Cohesion 10%
+- CI gate: `dotnet-narrativetrace clarity-scan --assembly X.dll` then `clarity-check --results clarity-results.json --min-score 0.8 --max-high-issues 0`
+
+## Examples
+
+- `examples/NarrativeTrace.Examples.ECommerce` — nested order-flow narrative (success, declined payment, out of stock) + clear-vs-cryptic naming comparison

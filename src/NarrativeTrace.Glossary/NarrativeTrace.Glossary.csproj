@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="NarrativeTrace.Glossary.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../NarrativeTrace.Core/NarrativeTrace.Core.csproj" />
+    <ProjectReference Include="../NarrativeTrace.Clarity/NarrativeTrace.Clarity.csproj" />
+    <!--
+      Java's glossary module depends on narrativetrace-core, whose export
+      package holds CanonicalEntryMapper. This port splits that module into
+      Core (model, render, template) and Runtime (pipeline, export, context),
+      so the same single dependency reaches across both. The live
+      TranslationSubscriber is the only consumer.
+    -->
+    <ProjectReference Include="../NarrativeTrace.Runtime/NarrativeTrace.Runtime.csproj" />
+  </ItemGroup>
+</Project>

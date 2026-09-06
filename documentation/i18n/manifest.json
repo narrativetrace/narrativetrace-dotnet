@@ -1,0 +1,127 @@
+{
+  "sourceLanguage": "en",
+  "languages": [
+    {
+      "code": "es",
+      "displayName": "Español",
+      "directory": "documentation/guides/es",
+      "index": "documentation/guides/es/guias-de-usuario.md",
+      "rootReadme": "LEAME.md",
+      "status": "complete"
+    },
+    {
+      "code": "pt-BR",
+      "displayName": "Português",
+      "directory": "documentation/guides/pt-BR",
+      "index": "documentation/guides/pt-BR/guia-de-usuario.md",
+      "rootReadme": "LEIAME.md",
+      "status": "complete"
+    },
+    {
+      "code": "zh-CN",
+      "displayName": "简体中文",
+      "directory": "documentation/guides/zh-CN",
+      "index": "documentation/guides/zh-CN/用户指南.md",
+      "rootReadme": "自述文件.md",
+      "status": "complete"
+    }
+  ],
+  "documents": [
+    {
+      "source": "documentation/first-10-minutes.md",
+      "translations": {
+        "es": "es/primeros-10-minutos.md",
+        "pt-BR": "pt-BR/primeiros-10-minutos.md",
+        "zh-CN": "zh-CN/前10分钟.md"
+      }
+    },
+    {
+      "source": "documentation/choosing-an-integration.md",
+      "translations": {
+        "es": "es/elegir-una-integracion.md",
+        "pt-BR": "pt-BR/escolhendo-uma-integracao.md",
+        "zh-CN": "zh-CN/选择集成方式.md"
+      }
+    },
+    {
+      "source": "documentation/troubleshooting.md",
+      "translations": {
+        "es": "es/solucion-de-problemas.md",
+        "pt-BR": "pt-BR/solucao-de-problemas.md",
+        "zh-CN": "zh-CN/故障排查.md"
+      }
+    },
+    {
+      "source": "documentation/what-to-commit.md",
+      "translations": {
+        "es": "es/que-incluir-en-el-commit.md",
+        "pt-BR": "pt-BR/o-que-incluir-no-commit.md",
+        "zh-CN": "zh-CN/应提交的内容.md"
+      }
+    },
+    {
+      "source": "documentation/privacy-and-redaction.md",
+      "translations": {
+        "es": "es/privacidad-y-ocultacion.md",
+        "pt-BR": "pt-BR/privacidade-e-ocultacao.md",
+        "zh-CN": "zh-CN/隐私与脱敏.md"
+      }
+    },
+    {
+      "source": "documentation/guides/installation.md",
+      "translations": {
+        "es": "guides/es/guia-de-instalacion.md",
+        "pt-BR": "guides/pt-BR/guia-de-instalacao.md",
+        "zh-CN": "guides/zh-CN/安装指南.md"
+      }
+    },
+    {
+      "source": "documentation/guides/configuration.md",
+      "translations": {
+        "es": "guides/es/guia-de-configuracion.md",
+        "pt-BR": "guides/pt-BR/guia-de-configuracao.md",
+        "zh-CN": "guides/zh-CN/配置指南.md"
+      }
+    },
+    {
+      "source": "documentation/guides/annotations.md",
+      "translations": {
+        "es": "guides/es/guia-de-atributos.md",
+        "pt-BR": "guides/pt-BR/guia-de-atributos.md",
+        "zh-CN": "guides/zh-CN/特性指南.md"
+      }
+    },
+    {
+      "source": "documentation/guides/dependency-injection.md",
+      "translations": {
+        "es": "guides/es/guia-de-inyeccion-de-dependencias.md",
+        "pt-BR": "guides/pt-BR/guia-de-injecao-de-dependencias.md",
+        "zh-CN": "guides/zh-CN/依赖注入指南.md"
+      }
+    },
+    {
+      "source": "documentation/guides/aspnetcore.md",
+      "translations": {
+        "es": "guides/es/guia-de-integracion-con-aspnet-core.md",
+        "pt-BR": "guides/pt-BR/guia-de-integracao-com-aspnet-core.md",
+        "zh-CN": "guides/zh-CN/ASP.NET-Core集成指南.md"
+      }
+    },
+    {
+      "source": "documentation/guides/clarity.md",
+      "translations": {
+        "es": "guides/es/guia-de-claridad.md",
+        "pt-BR": "guides/pt-BR/guia-de-clareza.md",
+        "zh-CN": "guides/zh-CN/清晰度指南.md"
+      }
+    },
+    {
+      "source": "documentation/guides/msbuild-cli.md",
+      "translations": {
+        "es": "guides/es/guia-de-msbuild-y-cli.md",
+        "pt-BR": "guides/pt-BR/guia-de-msbuild-e-cli.md",
+        "zh-CN": "guides/zh-CN/MSBuild与CLI指南.md"
+      }
+    }
+  ]
+}
