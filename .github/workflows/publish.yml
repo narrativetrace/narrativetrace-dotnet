@@ -70,7 +70,13 @@ jobs:
       # by hand after review), so it runs again here rather than being
       # trusted.
       - name: Verify
-        run: ./build.sh Verify
+        # --skip Benchmark for the same reason the publish script's container
+        # verify skips it: the regression gate compares against baselines
+        # recorded on the bare dev host, and a shared 2-core runner can never
+        # meet host-native nanosecond numbers (proven on the first public CI
+        # run: every target green, then "Benchmark regressions: 42").
+        # Measurement gates run on matched hardware, host/nightly cadence.
+        run: ./build.sh Verify --skip Benchmark
 
       - name: Pack
         run: ./build.sh Pack

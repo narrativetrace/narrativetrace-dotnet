@@ -25,3 +25,11 @@ dotnet_diagnostic.CA1305.severity = error
 # error for normal builds and CI.
 [src/**/*.cs]
 dotnet_diagnostic.CS1591.severity = warning
+
+# ── Test naming ───────────────────────────────────────────────────────────────
+# Underscore method names (Given_state_then_outcome) are this repository's
+# deliberate test style, shared with every port. CA1707 firing on each of
+# them buried a release-run failure under thousands of warnings
+# (2026-09-06 publish run) — the rule simply does not apply to tests.
+[tests/**/*.cs]
+dotnet_diagnostic.CA1707.severity = none

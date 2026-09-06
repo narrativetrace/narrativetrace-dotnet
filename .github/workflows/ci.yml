@@ -44,7 +44,13 @@ jobs:
       # translation check, tests, coverage, dependency audit, metrics,
       # coupling and benchmarks.
       - name: Verify
-        run: ./build.sh Verify
+        # --skip Benchmark for the same reason the publish script's container
+        # verify skips it: the regression gate compares against baselines
+        # recorded on the bare dev host, and a shared 2-core runner can never
+        # meet host-native nanosecond numbers (proven on the first public CI
+        # run: every target green, then "Benchmark regressions: 42").
+        # Measurement gates run on matched hardware, host/nightly cadence.
+        run: ./build.sh Verify --skip Benchmark
 
   # Semgrep's OSS community C# ruleset (p/csharp). Needs the network (the
   # ruleset is fetched from the semgrep registry on every run), so — unlike

@@ -255,7 +255,17 @@ public sealed class TranslationSubscriberTests : IDisposable
 
         consumer.Publish(EnterEvent(RootSpanContext(), "PaymentService", "charge"));
         await consumer.WhenCountReached(1).WaitAsync(TimeSpan.FromSeconds(2));
-        consumer.Flush();
+
+        // Flush() only drains what is still queued. WhenCountReached signals
+        // once the event is stored — inside the drain lock, before
+        // NotifySubscribers runs outside it — so a Flush() right after can
+        // race an already-in-flight background-thread notification and
+        // observe the sink before the subscriber callback lands (the failure
+        // seen on slow/low-parallelism runners). Dispose() closes that race:
+        // it joins the drain thread, waiting out any in-flight notify, then
+        // runs its own final Flush(); every event published beforehand is
+        // guaranteed delivered by the time it returns.
+        consumer.Dispose();
 
         lock (lines)
         {
