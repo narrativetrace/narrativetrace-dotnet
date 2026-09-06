@@ -1,0 +1,21 @@
+# gitleaks config — extends the default rule set; nothing is disabled globally.
+# https://github.com/gitleaks/gitleaks#configuration
+#
+# One targeted allowlist entry, mirroring the java repo's config shape. The
+# redaction test suite proves that JWT-shaped values are redacted, which is
+# only provable with a string that genuinely matches the JWT shape — a
+# synthetic, unsigned test vector, valuable to nobody. gitleaks' jwt rule
+# rightly flags it (the first real scan, the v0.1.0 publish run, did exactly
+# that); the allow is scoped to the jwt rule in the two redaction test files,
+# never a blanket exception.
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "synthetic JWT fixtures in the redaction tests exist to prove JWT redaction"
+targetRules = ["jwt"]
+paths = [
+  '''tests/NarrativeTrace\.Core\.Tests/RedactionPolicyTests\.cs''',
+  '''tests/NarrativeTrace\.Core\.Tests/RedactionValueShapeRenderingTests\.cs''',
+]
