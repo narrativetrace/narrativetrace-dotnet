@@ -11,7 +11,7 @@ namespace NarrativeTrace.AspNetCore;
 /// implement this to feed identity into traces.
 /// </summary>
 /// <remarks>
-/// A pure function by design, mirroring the Java edition's
+/// A pure function by design, mirroring the Java runtime's
 /// <c>RequestContextProvider.resolveUserContext</c>: the provider decides
 /// <em>who</em> the caller is and the middleware decides what to do with that
 /// — stamp it onto the span and correlate the request's logs with it. An

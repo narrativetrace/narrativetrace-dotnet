@@ -137,8 +137,8 @@ internal static class NarrationResolver
 
     // Templates interpolate a SCALAR plainly (JVM String.valueOf parity): no
     // quoting, invariant formatting. A non-scalar goes through ValueRenderer,
-    // unconditionally — a real defect, mirrored from the Java flagship and
-    // fixed there too. An earlier, narrower fix rendered the value
+    // unconditionally — a real defect, and the same one is pinned in every
+    // NarrativeTrace runtime. An earlier, narrower fix rendered the value
     // through ValueRenderer first and used that form ONLY when it carried the
     // redaction marker, on the theory that "no marker" means "nothing is
     // hidden". That theory is unsound: ValueRenderer's own bounds — the
@@ -187,7 +187,7 @@ internal static class NarrationResolver
     // fall into it (Enum implements IFormattable): a C#-compiled member name
     // is a language identifier and can't carry a control character, but the
     // CLR itself does not enforce that — an IL-authored assembly can define
-    // one that does, exactly the .NET shape of the Java flagship's "Number
+    // one that does, exactly the .NET shape of the Java runtime's "Number
     // subclass with a hostile toString()" finding. Sanitized, not truncated,
     // matching ValueRenderer's own no-length-cap treatment of the same case
     // (RenderStructuredValue). bool stays raw: JVM String.valueOf parity,

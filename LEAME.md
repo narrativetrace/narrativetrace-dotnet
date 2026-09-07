@@ -1,4 +1,4 @@
-<!-- source: README.md blob 037adea4f554 | translated: 2026-09-06 | reviewed: - -->
+<!-- source: README.md blob 70ce4bfcb35c | translated: 2026-09-07 | reviewed: - -->
 # NarrativeTrace .NET
 
 [English](README.md) | **Español** | [Português](LEIAME.md) | [简体中文](自述文件.md)
@@ -9,10 +9,8 @@ relato anidado y legible de las llamadas, los argumentos, los resultados y los
 tiempos detrás de una unidad de trabajo — y puntúa la *claridad* de tus nombres
 para que el código ilegible se detecte antes de llegar a producción.
 
-Es el port a .NET del [proyecto NarrativeTrace Java](https://github.com/narrativetrace/narrativetrace-java),
-al que sigue para mantener la paridad de funcionalidades, con una arquitectura
-pensada para la migración que funciona en .NET moderno, `netstandard2.0` y el
-legacy `net48`.
+Una arquitectura pensada para la migración: la misma biblioteca funciona en
+.NET moderno, `netstandard2.0` y el legacy `net48`.
 
 ## El problema
 
@@ -511,7 +509,7 @@ Para profundizar:
 
 - [Guía de funcionalidades](documentation/feature-guide.md) — tabla de estado canónica (Free/Pro/In development/Planned) para cada funcionalidad, con el código detrás de cada fila ya implementada
 - [Herramientas de seguridad](documentation/security-tooling.md) — el catálogo de escáneres y qué condiciona el build frente a lo que corre en un horario
-- [Pruebas de seguridad](documentation/security-testing.md) — la suite de fuzzing/propiedades reflejada en todos los ports
+- [Pruebas de seguridad](documentation/security-testing.md) — la suite de fuzzing/propiedades reflejada en todas las implementaciones de NarrativeTrace
 
 Para consumidores de IA (solo en inglés):
 [`llms.txt`](documentation/guides/llms.txt) y
@@ -634,21 +632,19 @@ elementos abiertos en la hoja de ruta.
 
 ## Estado
 
-En implementación activa y siguiendo la referencia Java para mantener la paridad
-de funcionalidades. El pipeline de captura, el esquema JSON canónico, el modelo
-de atributos de dos niveles, el ciclo de vida de ASP.NET Core, el cableado de
-DI, OpenTelemetry (por lotes + en vivo), las herramientas de claridad + CLI y
-las integraciones con frameworks de pruebas y los ejemplos ejecutables con su
-lanzador de demo ya están en su sitio. Trabajo pendiente: pulido del
-empaquetado y validación de `net48` en tiempo de ejecución.
+La versión 0.1.0 está publicada — los paquetes están en NuGet. El pipeline de
+captura, el esquema JSON canónico, el modelo de atributos de dos niveles, el
+ciclo de vida de ASP.NET Core, el cableado de DI, OpenTelemetry (por lotes + en
+vivo), las herramientas de claridad + CLI y las integraciones con frameworks de
+pruebas y los ejemplos ejecutables con su lanzador de demo ya están en su sitio.
+Trabajo pendiente: validación de `net48` en tiempo de ejecución.
 
 ## Licencia
 
 La API y el formato de salida de NarrativeTrace son estándares abiertos
 (Apache 2.0). Su runtime es gratuito y de código disponible (BSL 1.1, que se
-convierte en Apache 2.0 cuatro años después de cada versión publicada), porque
-el código que se ejecuta dentro de tu proceso debe poder auditarse. Su
-inteligencia es comercial.
+convierte en Apache 2.0 cuatro años después de cada versión publicada). Pro
+es comercial.
 
 Todo lo que hay en este repositorio es el runtime, bajo la
 [Business Source License 1.1](LICENSE). Puedes usarlo en producción para

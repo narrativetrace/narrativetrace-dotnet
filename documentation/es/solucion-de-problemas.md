@@ -1,10 +1,10 @@
-<!-- source: documentation/troubleshooting.md blob ba545b8d5198 | translated: 2026-09-03 | reviewed: 2026-09-03 -->
+<!-- source: documentation/troubleshooting.md blob e9ef976588dc | translated: 2026-09-07 | reviewed: - -->
 # Solución de problemas
 
 [English](../troubleshooting.md) | **Español** | [Português](../pt-BR/solucao-de-problemas.md) | [简体中文](../zh-CN/故障排查.md)
 
 Síntoma → causa → arreglo, recogidos del propio código y las propias
-pruebas de este port. Cuando algo es una aspereza conocida y sin cubrir en
+pruebas de esta implementación. Cuando algo es una aspereza conocida y sin cubrir en
 lugar de una garantía demostrada, se señala como tal — esta página dice lo
 que es realmente cierto hoy, no lo que sería bonito prometer.
 
@@ -25,8 +25,8 @@ ningún flag `-parameters` del compilador para código ordinario.
 
 ## `NarrativeTraceProxy.Create<T>` lanza una excepción al arrancar
 
-**Causa:** `T` no es una interfaz, o el destino no la implementa. Este
-port no añade ninguna cláusula de guarda propia aquí — la excepción que
+**Causa:** `T` no es una interfaz, o el destino no la implementa. Esta
+implementación no añade ninguna cláusula de guarda propia aquí — la excepción que
 ves es la excepción de reflexión subyacente de .NET (`DispatchProxy.Create`),
 no una específica de NarrativeTrace.
 

@@ -8,7 +8,7 @@ namespace NarrativeTrace.Glossary;
 /// <see cref="TermStatus"/> values.
 /// </summary>
 /// <remarks>
-/// The file format is shared across NarrativeTrace ports, so labels are fixed
+/// The file format is shared across NarrativeTrace runtimes, so labels are fixed
 /// strings (kebab-case kinds, lowercase statuses), never derived from .NET
 /// enum names.
 /// </remarks>

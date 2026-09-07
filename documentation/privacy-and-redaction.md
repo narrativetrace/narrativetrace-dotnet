@@ -5,13 +5,13 @@
 NarrativeTrace runs inside your process and writes files your team will
 share — CI artifacts, local trace output, whatever your logging pipeline
 forwards. This page states exactly what is and isn't redacted, verified
-against this port's code (not assumed, and not carried over from the Java
-reference), so you can decide whether it's safe for your data before you
+against this runtime's code (not assumed, and not inherited from another
+runtime), so you can decide whether it's safe for your data before you
 wire it in.
 
 ## Redaction, surface by surface
 
-Every shipped integration in this port renders parameter and return values
+Every shipped integration in this runtime renders parameter and return values
 through the same engine (`ValueRenderer`, `NarrativeInterceptor`), which
 always resolves to `RedactionPolicy.Default` — none of them expose a
 configuration knob to turn it off:
@@ -105,7 +105,7 @@ Every rendered value is capped and sanitized, regardless of redaction:
 
 - **Redaction is unconditional in every shipped integration.** `[NotTraced]`
   and the 26-pattern deny-list (plus the three value shapes) apply to every
-  output path this port ships — proxy capture, DI auto-wrap, ASP.NET Core
+  output path this runtime ships — proxy capture, DI auto-wrap, ASP.NET Core
   middleware, xUnit/NUnit test output, template placeholders, and every
   export format. No flag, environment variable, or MSBuild property turns
   them off.
@@ -148,7 +148,7 @@ Every rendered value is capped and sanitized, regardless of redaction:
   can't be trusted with a field.
 - **No production baseline-comparison loop reads the structural artifact
   back yet.** The `.nt` file is deterministic and value-free by
-  construction, but this port doesn't ship anything that diffs it against a
+  construction, but this runtime doesn't ship anything that diffs it against a
   previous run (see [What to Commit](what-to-commit.md)).
 
 ## What this page does not cover

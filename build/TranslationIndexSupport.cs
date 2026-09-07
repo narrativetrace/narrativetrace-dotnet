@@ -11,13 +11,13 @@ using System.Text.RegularExpressions;
 namespace NarrativeTrace.Build;
 
 /// <summary>
-/// Backs the index/menu-integrity half of <c>TranslationCheck</c>. This port
+/// Backs the index/menu-integrity half of <c>TranslationCheck</c>. This runtime
 /// has two sibling-index families, both hand-edited prose that drifts
 /// silently:
 /// <list type="bullet">
 /// <item>the <b>root README family</b> — <c>README.md</c>, and each
 /// language's root README (<c>LEAME.md</c>, <c>自述文件.md</c>, …), which
-/// double as the documentation-root index in this port (there is no separate
+/// double as the documentation-root index in this runtime (there is no separate
 /// <c>documentation/README.md</c>, unlike the Java golden source);</item>
 /// <item>the <b>guides index family</b> — <c>documentation/guides/README.md</c>
 /// and each language's sibling guide index (<c>documentation/guides/es/guias-de-usuario.md</c>,
@@ -27,7 +27,7 @@ namespace NarrativeTrace.Build;
 /// every index carries a language menu directly under its H1 — the current
 /// language bold and unlinked, every other language linked when its sibling
 /// file exists, plain text otherwise. Unlike Java's <c>documentation/README.md</c>
-/// asymmetry (English always a link, even on its own page), this port has no
+/// asymmetry (English always a link, even on its own page), this runtime has no
 /// such special case — English is bold on its own page like every other
 /// language, matching what every shipped README in this repository actually
 /// does.

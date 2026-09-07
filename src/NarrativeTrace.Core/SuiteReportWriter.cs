@@ -8,7 +8,7 @@ namespace NarrativeTrace.Core;
 /// <c>clarity-results.json</c> holding every accumulated scenario, the
 /// human-facing <c>clarity-report.md</c> beside it, and a printed footer
 /// summarizing the scenario count and clarity split. An empty suite writes
-/// nothing and prints nothing, mirroring the Java reference's short-circuit on
+/// nothing and prints nothing, mirroring the Java runtime's short-circuit on
 /// an empty trace set. The clarity scorer and both renderers are injected so
 /// Core needs no dependency on the clarity engine.
 /// </summary>

@@ -155,7 +155,7 @@ public static class HostileMembers
 
     /// <summary>
     /// A mutable entry-shaped class — the analogue of Java's <c>AbstractMap.SimpleEntry</c>, which
-    /// this port needs because <see cref="KeyValuePair{TKey,TValue}"/> is an immutable struct and
+    /// this runtime needs because <see cref="KeyValuePair{TKey,TValue}"/> is an immutable struct and
     /// cannot be made to hold itself.
     /// </summary>
     public sealed class MutableEntry

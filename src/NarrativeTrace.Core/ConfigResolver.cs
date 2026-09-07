@@ -69,7 +69,7 @@ public static class ConfigResolver
     /// <summary>
     /// Environment variable enabling the per-test canonical entry array
     /// (<c>&lt;test&gt;.canonical.json</c>). Parsed like
-    /// <see cref="OutputKey"/>. The Java edition spells the same switch
+    /// <see cref="OutputKey"/>. The Java runtime spells the same switch
     /// <c>narrativetrace.canonicalJson</c>.
     /// </summary>
     public const string CanonicalJsonKey = "NARRATIVETRACE_CANONICAL_JSON";
@@ -77,7 +77,7 @@ public static class ConfigResolver
     /// <summary>
     /// Environment variable enabling the per-test value-free entry array
     /// (<c>&lt;test&gt;.structural.json</c>). Parsed like
-    /// <see cref="OutputKey"/>. The Java edition spells the same switch
+    /// <see cref="OutputKey"/>. The Java runtime spells the same switch
     /// <c>narrativetrace.structuralJson</c>.
     /// </summary>
     public const string StructuralJsonKey = "NARRATIVETRACE_STRUCTURAL_JSON";

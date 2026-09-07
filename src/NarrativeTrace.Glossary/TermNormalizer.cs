@@ -22,13 +22,13 @@ namespace NarrativeTrace.Glossary;
 /// must not become <c>alia</c>) and must be idempotent — every emitted token
 /// is a fixpoint of singularization, so re-normalizing a phrase is the
 /// identity (property-tested). Changing these rules re-keys existing
-/// glossaries and must stay in lockstep across all ports.
+/// glossaries and must stay in lockstep across all runtimes.
 /// </para>
 /// <para>
 /// One rule is deliberately <em>not</em> in lockstep:
 /// <see cref="ClassCandidate"/> drops the C# interface-naming <c>I</c>, a
-/// convention no other port has. It exists so the phrase this port keys on is
-/// the one the other ports already key on — <c>IPaymentService</c> and Java's
+/// convention no other runtime has. It exists so the phrase this runtime keys on is
+/// the one the other runtimes already key on — <c>IPaymentService</c> and Java's
 /// <c>PaymentService</c> must both be <c>"payment"</c>.
 /// </para>
 /// </remarks>

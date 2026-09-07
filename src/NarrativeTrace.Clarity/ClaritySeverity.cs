@@ -25,7 +25,7 @@ public enum ClaritySeverity
 /// <summary>Weights and wire labels for <see cref="ClaritySeverity"/>.</summary>
 /// <remarks>
 /// Labels are fixed upper-case strings shared with the other NarrativeTrace
-/// ports' <c>clarity-results.json</c>, never derived from .NET enum names.
+/// runtimes' <c>clarity-results.json</c>, never derived from .NET enum names.
 /// </remarks>
 public static class ClaritySeverityExtensions
 {
@@ -58,7 +58,7 @@ public static class ClaritySeverityExtensions
     }
 
     /// <summary>Classifies a 0–1 identifier score into a severity.</summary>
-    /// <remarks>Thresholds match the Java edition: ≤0.20 High, ≤0.50 Medium.</remarks>
+    /// <remarks>Thresholds match the Java runtime: ≤0.20 High, ≤0.50 Medium.</remarks>
     public static ClaritySeverity FromScore(double score)
     {
         if (score <= 0.20)

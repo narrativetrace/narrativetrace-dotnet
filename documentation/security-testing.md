@@ -9,10 +9,10 @@ is then read by a language model as often as by a person.
 This document describes the suite that attacks all of that on purpose:
 `NarrativeTrace.SecurityTests`, a test-only project that depends on every
 project which renders or emits, so one assertion can reach the whole output
-surface. It mirrors the Java flagship's `narrativetrace-security-tests`
-module target for target and case for case, adapted where this port's own
+surface. It mirrors the Java runtime's `narrativetrace-security-tests`
+module target for target and case for case, adapted where this runtime's own
 seams differ from the JVM's — every adaptation is recorded with evidence
-rather than silently dropped; see "What this port does not have" below.
+rather than silently dropped; see "What this runtime does not have" below.
 
 Two tiers, one of them a real gate today:
 
@@ -21,7 +21,7 @@ Two tiers, one of them a real gate today:
 | **A — structured fuzz** | FsCheck properties fed by a shared hostile corpus | every `./build.sh Verify` | seconds |
 | **B — coverage-guided fuzz** | SharpFuzz-instrumented targets driven by AFL++ | manual/scheduled `./build.sh Fuzz`; instrumentation-only in a container without a native AFL driver | seconds / minutes, where a driver exists |
 
-**Every NarrativeTrace port mirrors these targets and this corpus.** The
+**Every NarrativeTrace runtime mirrors these targets and this corpus.** The
 corpus is data, copied between repositories verbatim the way the conformance
 schemas are, so the same hostile case hits every renderer; only the corpus
 reader and the object-graph builder are written per language.
@@ -37,8 +37,8 @@ reader and the object-graph builder are written per language.
 ## The oracles
 
 A crash is not the only defect, and "it did not throw" is not an oracle.
-Every target asserts from this list; this port implements the same seven
-Java's does, minus the one target (traceparent parsing) this port does not
+Every target asserts from this list; this runtime implements the same seven
+Java's does, minus the one target (traceparent parsing) this runtime does not
 have at all.
 
 1. **No uncaught exception.** A hostile input degrades — it never
@@ -64,7 +64,7 @@ have at all.
    so nothing has leaked in from time, an identity hash or an iteration
    order.
 6. **No thread or hook left behind.** Rendering starts no background
-   thread. N/A-by-construction in this port rather than actively checked:
+   thread. N/A-by-construction in this runtime rather than actively checked:
    .NET has no portable "enumerate all live threads" API the way
    `Thread.getAllStackTraces()` is on the JVM, and the render path starts no
    `Task.Run`/timer to begin with — recorded as evidence
@@ -88,12 +88,12 @@ makes "one value" mean something.
 
 ## The targets
 
-In priority order, matching the Java suite's numbering so the two ledgers
+In priority order, matching the Java runtime's suite numbering so the two ledgers
 read across repositories.
 
-| # | Target | The oracle that matters most | This port |
+| # | Target | The oracle that matters most | This runtime |
 |---|---|---|---|
-| 1 | `Traceparent` and any other wire reader | never throws; round-trips what it accepts | **N/A** — no header parser exists anywhere in this port; the parity plan lists W3C header parsing as an explicit non-goal (Java non-goal too). `TraceparentParsingPropertyTests` is a single evidence-bearing test that fails loudly if this ever changes without the target being ported for real. |
+| 1 | `Traceparent` and any other wire reader | never throws; round-trips what it accepts | **N/A** — no header parser exists anywhere in this runtime; W3C header parsing is an explicit non-goal here (and in the Java runtime). `TraceparentParsingPropertyTests` is a single evidence-bearing test that fails loudly if this ever changes without the target being ported for real. |
 | 2 | `ValueRenderer` over hostile object graphs | redaction, at any depth, through any container | `ValueRendererRedactionPropertyTests` |
 | 3 | Every output format | well-formedness, bounded size | `OutputFormatPropertyTests` |
 | 4 | Template parsing and rendering | a redacted path or object renders the marker | `TemplateRedactionPropertyTests` |
@@ -101,16 +101,16 @@ read across repositories.
 | 6 | Configuration loading | the declared result or the declared exception | `ConfigurationPropertyTests` |
 | 7 | Every output format, again | AI-consumer containment | `InjectionContainmentPropertyTests` |
 
-## What this port does not have
+## What this runtime does not have
 
 Recorded with evidence, not silently dropped:
 
 - **No W3C `traceparent`/`tracestate` header parser** (target 1). Confirmed
-  absent by repository-wide grep and by the parity plan.
+  absent by repository-wide grep.
   The corpus's `headers.json` (30 traceparent + 9 tracestate cases) is still
   copied verbatim, so a future parser lands with its fuzz cases already in
   place.
-- **Multi-level template paths** (`{a.b.c}`) do not resolve — this port's
+- **Multi-level template paths** (`{a.b.c}`) do not resolve — this runtime's
   placeholder grammar is one level only (`{root}` or `{root.prop}`), a
   pre-existing, already-documented gap (see the repository backlog). The
   corpus's `redacted-mid-path`/`redacted-deep-path` cases therefore cannot
@@ -119,32 +119,32 @@ Recorded with evidence, not silently dropped:
   which is why `TemplateRedactionPropertyTests` asserts the marker only via
   generated single-level paths, not the corpus replay.
 - **Case-sensitive property matching.** The corpus's template paths are
-  written in Java's javaBean casing (`card.cvv`); this port's properties are
+  written in Java's javaBean casing (`card.cvv`); this runtime's properties are
   ordinary C# PascalCase (`Card.Cvv`). None of the corpus's own redacted-path
-  cases resolve against this port's fixtures for that reason alone — see
+  cases resolve against this runtime's fixtures for that reason alone — see
   `Corpus/TemplateResolution.cs`'s remarks for the full explanation and why
   it is a legitimate convention difference, not a defect.
 - **No `ElementNoteComposer` wiring.** The type exists (with its own
-  tokenless-identifier guard, matching a Java flagship fix) but is not
+  tokenless-identifier guard, the same guard every runtime carries) but is not
   called from `ClarityAnalyzer`'s scoring path — dead code, not reachable,
-  so the crash that guard fixes in Java (scoring a name with no readable
-  word) does not reproduce here, by a different mechanism than Java's fix.
+  so the crash that guard fixes (scoring a name with no readable word) does
+  not reproduce here, by a different mechanism.
 
 ## The hostile corpus
 
 `tests/NarrativeTrace.SecurityTests/HostileCorpus/` holds six JSON fixtures
 with a `README.md` beside them describing every case shape — copied
-byte-for-byte from the Java flagship except where this port has added a
+byte-for-byte from the Java runtime except where this runtime has added a
 case (or a file) of its own (see "Findings" below), each marked in its own
 commit.
 
 | File | What it holds |
 |---|---|
 | `strings.json` | hostile scalar values: control characters, bidi and zero-width, combining sequences, unpaired surrogates, template lookalikes, JSON/Mermaid/Markdown/YAML metacharacters, values up to 1 MiB |
-| `headers.json` | `traceparent` and `tracestate` values (corpus only — no parser to drive them against in this port; see above) |
-| `templates.json` | `[Narrated]`/`[OnError]` templates: nesting, unterminated braces, paths into redacted members at every depth, unicode identifiers, a whole-object placeholder (added by this port), a whole-object placeholder whose redacted component sits past the renderer's field/depth cap |
+| `headers.json` | `traceparent` and `tracestate` values (corpus only — no parser to drive them against in this runtime; see above) |
+| `templates.json` | `[Narrated]`/`[OnError]` templates: nesting, unterminated braces, paths into redacted members at every depth, unicode identifiers, a whole-object placeholder (added by this runtime), a whole-object placeholder whose redacted component sits past the renderer's field/depth cap |
 | `graphs.json` | declarative object-graph *shapes*: depth, width, cycles, self-reference, wrapper chains, throwing/blocking/recursive `ToString`, huge collections |
-| `tree-shapes.json` | declarative `TraceNode` **call-tree** shapes (added by this port, 2026-09-04 tree-walk mirror): a legitimate deep chain and cyclic rings — the shape `TraceNode.Children` itself can carry, kept separate from `graphs.json` since that file is documented as feeding specifically the value renderer, not the tree walk |
+| `tree-shapes.json` | declarative `TraceNode` **call-tree** shapes (added by this runtime, 2026-09-04 tree-walk mirror): a legitimate deep chain and cyclic rings — the shape `TraceNode.Children` itself can carry, kept separate from `graphs.json` since that file is documented as feeding specifically the value renderer, not the tree walk |
 | `injection.json` | prompt-injection payloads arriving as captured values: override phrasings, role and turn markers, tool-call lookalikes, link exfiltration, fence and frontmatter terminators, homoglyph variants |
 
 ### Adding a case
@@ -193,20 +193,20 @@ them under `afl-fuzz` for a budgeted duration each
    replays it on every run, so it is a regression test from the moment it
    lands.
 2. **Understand it before fixing it.** The bytes are one instance; the
-   defect is a class. A corpus case describing the *shape* means every port
+   defect is a class. A corpus case describing the *shape* means every runtime
    inherits it and the generated half of Tier A explores around it.
 3. **Fix it in the project that owns it**, with a named unit test there.
    The security suite proves the property across projects; the owning
    project's test is what a future reader finds when they change that code.
 4. **Commit the corpus case and the fix together**, so the repository never
    contains a case that is known to fail — and note the addition for
-   back-porting to the Java master copy, since this repository cannot write
-   to it directly.
+   the shared corpus's master copy, which this repository cannot write to
+   directly.
 
-## Findings — this port's audit against the Java suite's landed fixes
+## Findings — this runtime's audit against the fixes the Java runtime landed
 
-The Java flagship's security fuzz suite found and fixed nine defects. Every
-one was checked against this port, not assumed safe by default. A
+The Java runtime's security fuzz suite found and fixed nine defects. Every
+one was checked against this runtime, not assumed safe by default. A
 degraded render falling back to a value's own `ToString()` landed here
 too: `NarrationResolver.PlainValue` had the exact "safe form carries no
 marker ⇒ nothing is hidden" shortcut Java's own fix disproved.

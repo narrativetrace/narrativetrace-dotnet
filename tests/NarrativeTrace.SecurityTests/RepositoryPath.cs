@@ -9,7 +9,7 @@ namespace NarrativeTrace.SecurityTests;
 /// <remarks>
 /// Mirrors <c>Build.Tests.RepositoryPath</c> (<c>tests/BuildScript.Tests/RepositoryPath.cs</c>) and
 /// Java's <c>Formats.readSchema()</c>, which reads the canonical schema from where it lives rather
-/// than keeping a copy that can drift — this port's "where it lives" is
+/// than keeping a copy that can drift — this runtime's "where it lives" is
 /// <c>tests/NarrativeTrace.Core.Tests/Schemas/</c>, since there is no <c>src/</c>-level copy.
 /// </remarks>
 internal static class RepositoryPath

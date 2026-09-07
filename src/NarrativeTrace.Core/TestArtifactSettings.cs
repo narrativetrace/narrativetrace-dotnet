@@ -14,7 +14,7 @@ namespace NarrativeTrace.Core;
 /// <param name="Format">The primary artifact format.</param>
 /// <param name="EntryArtifacts">
 /// Which machine-readable entry arrays to write beside the trace file. Both
-/// off by default, matching the Java edition's opt-in switches.
+/// off by default, matching the Java runtime's opt-in switches.
 /// </param>
 public sealed record TestArtifactSettings(
     bool Enabled,

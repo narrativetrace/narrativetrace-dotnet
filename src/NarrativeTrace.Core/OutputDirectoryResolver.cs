@@ -8,7 +8,7 @@ namespace NarrativeTrace.Core;
 /// <summary>
 /// Resolves the on-disk layout for per-test trace artifacts —
 /// <c>&lt;baseDir&gt;/traces/&lt;SimpleClassName&gt;/&lt;method-slug&gt;.md</c> — so every
-/// test integration writes into the same structure as the Java reference.
+/// test integration writes into the same structure as the Java runtime.
 /// </summary>
 public sealed class OutputDirectoryResolver
 {
@@ -83,7 +83,7 @@ public sealed class OutputDirectoryResolver
     /// A hostile <paramref name="simpleName"/> — a separator, a <c>..</c> traversal, or a value built
     /// from data the caller does not control — used to reach <see cref="Path.Combine(string, string, string)"/>
     /// unfiltered here, writing an artifact outside the directory it was given. This is that guard,
-    /// mirroring the Java edition's <c>toDirectorySlug</c>.
+    /// mirroring the Java runtime's <c>toDirectorySlug</c>.
     /// </remarks>
     public static string ToDirectorySlug(string simpleName)
     {

@@ -14,7 +14,7 @@ namespace NarrativeTrace.SecurityTests.Corpus;
 /// <remarks>
 /// <para>
 /// INTENT: One loader, so every property reads the same fixtures the same way. The corpus is the
-/// cross-port artifact — the ports copy the JSON verbatim and reimplement only this reader and
+/// cross-runtime artifact — every runtime copies the JSON verbatim and reimplements only this reader and
 /// <see cref="HostileGraphs"/> — so nothing platform-specific may leak into the files.
 /// </para>
 /// <para>
@@ -197,7 +197,7 @@ public static class HostileCorpus
     /// the corpus cases this reader exists to carry — a lone <c>\ud800</c>/<c>\udc00</c> escape is
     /// not control-escaped and not a control character, so it reaches the JSON reader unchanged, and
     /// <see cref="System.Text.Json"/> refuses to materialize it as a string at all. Jackson (the
-    /// Java port's reader) makes the opposite, corpus-intended choice: a <c>\uXXXX</c> escape becomes
+    /// the Java runtime's reader) makes the opposite, corpus-intended choice: a <c>\uXXXX</c> escape becomes
     /// exactly that UTF-16 code unit, paired or not — which is the whole point of the
     /// <c>unpaired-high-surrogate</c>/<c>unpaired-low-surrogate</c>/<c>reversed-surrogate-pair</c>
     /// cases. This decoder implements the JSON string grammar (RFC 8259 §7) by hand, the one piece

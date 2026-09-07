@@ -27,7 +27,7 @@ namespace NarrativeTrace.Core;
 /// still a valid 1.2 entry.
 /// </para>
 /// <para>
-/// This port populates the ones it can derive deterministically from
+/// This runtime populates the ones it can derive deterministically from
 /// reflection: the narration template, the namespace, the declared return and
 /// parameter types, and the exception's namespace. The rest are <b>reserved,
 /// not yet produced</b> — the environment-identity fields (instance id, thread,

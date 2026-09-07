@@ -16,7 +16,7 @@ namespace NarrativeTrace.Core;
 /// since the hex ID remains the real identifier.
 /// <para>
 /// This is a cross-language contract: the word lists and the
-/// first-7-hex-chars bit layout match the Java and TypeScript ports
+/// first-7-hex-chars bit layout match the Java and TypeScript runtimes
 /// exactly, so one trace ID yields the same name in every language.
 /// </para>
 /// <para>

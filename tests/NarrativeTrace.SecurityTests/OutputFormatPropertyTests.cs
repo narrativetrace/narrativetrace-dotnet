@@ -10,7 +10,7 @@ using Xunit;
 namespace NarrativeTrace.SecurityTests;
 
 /// <summary>
-/// Target 3 of the parity document's fuzzing list: every output format, whatever the value
+/// Target 3 of the shared fuzzing list: every output format, whatever the value
 /// contained.
 /// </summary>
 /// <remarks>
@@ -28,7 +28,7 @@ namespace NarrativeTrace.SecurityTests;
 /// Only checking the first route would leave the unsanitized half of the surface untested.
 /// </para>
 /// <para>
-/// @edgeCase This port has no standalone frontmatter renderer or Mermaid alias variant — see
+/// @edgeCase This runtime has no standalone frontmatter renderer or Mermaid alias variant — see
 /// <see cref="Emitters"/>'s remarks. Frontmatter is read from the embedded block inside
 /// <c>renderer:markdown-document</c> instead of a second key.
 /// </para>
@@ -36,8 +36,8 @@ namespace NarrativeTrace.SecurityTests;
 public class OutputFormatPropertyTests
 {
     /// <summary>
-    /// The frontmatter keys a clean capture produces. A hostile value must add none. This port
-    /// carries one field the Java suite's set does not (<c>result</c> — <see cref="MarkdownRenderer"/>'s
+    /// The frontmatter keys a clean capture produces. A hostile value must add none. This runtime
+    /// carries one field the Java runtime's set does not (<c>result</c> — <see cref="MarkdownRenderer"/>'s
     /// frontmatter always states success/error, where Java folds that into <c>error_count</c> alone);
     /// <c>trace_id</c>/<c>trace_name</c> are conditional on a span context and absent from the plain
     /// trees these tests build, so they are not listed here.

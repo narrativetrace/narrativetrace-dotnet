@@ -12,7 +12,7 @@ namespace NarrativeTrace.Runtime;
 /// </summary>
 /// <remarks>
 /// The one output format with a schema contract rather than a prose layout —
-/// the cross-port interchange format, so its shape is shared with the Java
+/// the cross-runtime interchange format, so its shape is shared with the Java
 /// edition and changing it is a breaking change. Stateless and thread-safe.
 /// </remarks>
 public static class JsonExporter
@@ -73,8 +73,8 @@ public static class JsonExporter
 
     /// <summary>
     /// Writes <c>scenario.durationMs</c> from the <b>first root only</b>,
-    /// matching the Java reference and the other whole-trace duration sites in
-    /// this port (the Markdown document header and <c>ChapterExporter</c>).
+    /// matching the Java runtime and the other whole-trace duration sites in
+    /// this runtime (the Markdown document header and <c>ChapterExporter</c>).
     /// </summary>
     /// <remarks>
     /// Deliberately not a sum over roots. Multiple roots come from grafted
@@ -83,8 +83,8 @@ public static class JsonExporter
     /// 200 ms for a scenario that took 100. First-root is not wall-clock either
     /// (it ignores later roots); the correct form is
     /// <c>max(start + duration) − min(start)</c>, but changing that is a
-    /// cross-port schema-behaviour change and must be raised in the Java repo
-    /// first.
+    /// cross-runtime schema-behaviour change and must be agreed across the
+    /// runtimes first.
     /// </remarks>
     private static void WriteTotalDuration(
         Utf8JsonWriter writer, TraceTree tree)

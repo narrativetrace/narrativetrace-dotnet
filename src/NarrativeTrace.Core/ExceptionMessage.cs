@@ -18,7 +18,7 @@ namespace NarrativeTrace.Core;
 /// exists because a bearer token arrives with no name, and an exception
 /// message is exactly such a place. This is now the one accessor every
 /// renderer and exporter reads a message through, so they cannot drift:
-/// before it, this port had the same message read open-coded at nine call
+/// before it, this runtime had the same message read open-coded at nine call
 /// sites, four of which did not even escape.
 /// <para>
 /// The axis applied is the value-shape one only, deliberately: the name

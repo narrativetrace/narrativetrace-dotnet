@@ -53,7 +53,7 @@ public class RedactedObjectPlaceholderTests
     }
 
     /// <summary>
-    /// An owner-approved trade-off (mirroring the Java flagship's own ruling): a non-scalar
+    /// An owner-approved trade-off, taken the same way in every runtime: a non-scalar
     /// placeholder now renders structurally through <c>ValueRenderer</c> even when nothing is
     /// hidden, rather than keeping its own hand-written <c>ToString()</c> byte for byte. Deciding
     /// "safe to skip the renderer" from the value's shape alone is exactly the reasoning this fix

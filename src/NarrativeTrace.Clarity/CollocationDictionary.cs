@@ -6,9 +6,9 @@ namespace NarrativeTrace.Clarity;
 /// <summary>
 /// Maps domain nouns to the verbs that idiomatically collocate with them, so
 /// method-name suggestions can prefer <c>placeOrder</c> over <c>doOrder</c>.
-/// The vocabulary is the union of 35 industry / technical domain groups ported
-/// from the Java reference; a noun appearing in several domains keeps the union
-/// of every domain's verbs rather than letting one domain win.
+/// The vocabulary is the union of 35 industry / technical domain groups shared
+/// across NarrativeTrace runtimes; a noun appearing in several domains keeps the
+/// union of every domain's verbs rather than letting one domain win.
 /// </summary>
 public static class CollocationDictionary
 {

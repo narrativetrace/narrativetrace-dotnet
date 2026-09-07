@@ -7,13 +7,13 @@ using Xunit;
 namespace NarrativeTrace.Core.Tests;
 
 /// <summary>
-/// No-poison contract (port-agnostic invariant): <see cref="ValueRenderer"/>
+/// No-poison contract (runtime-agnostic invariant): <see cref="ValueRenderer"/>
 /// is total — nothing a hostile value does (throwing enumerator, throwing
 /// <c>Count</c>, throwing <c>Exception.Message</c>, a throwing reflected
 /// <c>Task&lt;T&gt;.Result</c>) may escape <see cref="ValueRenderer.Render"/>
 /// or <see cref="ValueRenderer.RenderStructured"/>, and one bad element must
 /// degrade only that element's rendering, not the whole render. Mirrors
-/// Java's <c>NoPoisonContractTest</c> shape, adapted to this port's
+/// Java's <c>NoPoisonContractTest</c> shape, adapted to this runtime's
 /// enumerable/dictionary/reflection idioms.
 /// </summary>
 public class ValueRendererTotalityTests

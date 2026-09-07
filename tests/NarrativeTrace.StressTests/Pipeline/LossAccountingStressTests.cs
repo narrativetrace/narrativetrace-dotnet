@@ -33,7 +33,7 @@ namespace NarrativeTrace.StressTests.Pipeline;
 /// <see cref="BufferedEventConsumer"/>.
 /// </remarks>
 /// <remarks>
-/// <b>Accepted, cross-port residue.</b> Java's own suite accepts a small
+/// <b>Accepted, cross-runtime residue.</b> The Java runtime's own suite accepts a small
 /// <i>positive</i> residue (published − delivered − shed &gt; 0) as
 /// "acceptable, interesting" under extreme multi-producer oversubscription —
 /// a producer can be preempted between claiming a ring index and writing to
@@ -44,7 +44,7 @@ namespace NarrativeTrace.StressTests.Pipeline;
 /// <c>LossAccountingTest</c>, <c>DrainRacingPublishTest</c>) forbid only a
 /// <i>negative</i> residue (an event double-counted — both delivered and
 /// shed) and any torn/duplicate/out-of-range delivery — never a positive
-/// one. This suite holds the .NET port to the identical, not a stricter,
+/// one. This suite holds this runtime to the identical, not a stricter,
 /// bar.
 /// </remarks>
 [Trait("Category", "Stress")]

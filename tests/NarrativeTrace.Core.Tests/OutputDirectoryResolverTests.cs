@@ -45,9 +45,9 @@ public sealed class OutputDirectoryResolverTests
     /// <summary>
     /// Regression: the method name has always been slugged and the class name never was, so it
     /// reached <see cref="Path.Combine(string, string, string)"/> verbatim. A separator wrote
-    /// outside the directory the caller gave. Found by the security suite's hostile corpus, fixed
-    /// on the Java side, and fixed here too — a class name carrying a separator can no longer
-    /// escape the base directory.
+    /// outside the directory the caller gave. Found by the security suite's hostile corpus; the
+    /// same defect class is pinned in every NarrativeTrace runtime — a class name carrying a
+    /// separator can no longer escape the base directory.
     /// </summary>
     [Fact]
     public void A_class_name_carrying_a_separator_cannot_escape_the_base_directory()

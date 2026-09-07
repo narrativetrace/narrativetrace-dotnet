@@ -13,7 +13,7 @@ namespace NarrativeTrace.Clarity;
 /// <see cref="TraceTree"/> — which is why clarity is measured over names that
 /// actually executed, rather than over every name in the assembly. Pure and
 /// stateless; the same tree always scores the same. The weighting that combines
-/// the dimensions is a cross-language contract shared with the Java edition.
+/// the dimensions is a cross-language contract shared with the Java runtime.
 /// </remarks>
 public static class ClarityAnalyzer
 {

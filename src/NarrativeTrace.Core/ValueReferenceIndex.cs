@@ -444,7 +444,7 @@ internal sealed class ValueReferenceIndex
 
     /// <summary>
     /// The first identity-signaling field with a usable plain-string value,
-    /// as its canonical (lower-case, cross-port) name and its text.
+    /// as its canonical (lower-case, cross-runtime) name and its text.
     /// </summary>
     private static (string Name, string Value)? IdentityFieldOf(
         RenderedValue.ObjectVal obj)
@@ -485,7 +485,7 @@ internal sealed class ValueReferenceIndex
     /// <summary>
     /// Matches an identity field name case-insensitively: .NET field and
     /// property names are conventionally PascalCase, while the identity list
-    /// (shared with the other language ports) is lower-case.
+    /// (shared with the other language runtimes) is lower-case.
     /// </summary>
     private static RenderedValue? FindField(
         RenderedValue.ObjectVal obj, string name)

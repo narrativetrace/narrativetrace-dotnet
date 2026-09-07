@@ -4,9 +4,10 @@
 # Copyright (c) 2026 Empower Agile
 #
 # Verifies the legal:* marked regions in README.md and its root translations
-# are well-formed, and — when the sibling golden Java repo (legal.properties'
-# legal.goldenRepo) is checked out next to this one — that the regions meant
-# to be identical across ports, and LICENSE, still match the golden copies.
+# are well-formed, and — when the sibling repository holding the canonical
+# legal text (legal.properties' legal.goldenRepo) is checked out next to this
+# one — that the regions meant to be identical across runtimes, and LICENSE,
+# still match the canonical copies.
 #
 # Region set: {plain-words, trademark}. There is no legal:exclusion region —
 # an HTML comment terminates a GFM table, so marker-wrapping a licence-table
@@ -23,7 +24,7 @@
 #         repo's LICENSE exactly (placeholders included).
 #       - LICENSE-APACHE: must exist at the repo root and byte-match the
 #         golden repo's LICENSE-APACHE exactly — no placeholder swap, the
-#         Apache License 2.0 text carries none and is identical across ports.
+#         Apache License 2.0 text carries none and is identical across runtimes.
 #       - each legal:* region: extracted from the matching-name golden file
 #         (README.md <-> README.md, LEAME.md <-> LEAME.md, ...) and compared
 #         to the local region with whitespace collapsed. legal:plain-words is
@@ -69,7 +70,7 @@ warn_or_fail() {
 }
 
 MARKERS="plain-words trademark"
-# Family rule (2026-09-04, harmonized with the swift port): only plain-words
+# Family rule (2026-09-04, harmonized with the Swift runtime): only plain-words
 # is golden-diffed. legal:trademark is checked for marker shape only — the
 # core assertion is shared, but the surrounding licence-count phrasing is
 # legitimately repo-local, so byte-diffing it against java would fail on

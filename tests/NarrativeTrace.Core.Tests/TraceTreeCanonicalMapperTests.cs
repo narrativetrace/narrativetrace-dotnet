@@ -10,7 +10,7 @@ namespace NarrativeTrace.Core.Tests;
 
 /// <summary>
 /// Flattening a finished tree into canonical entries — the input of the
-/// per-test <c>.canonical.json</c> artifact and of the cross-port conformance
+/// per-test <c>.canonical.json</c> artifact and of the cross-runtime conformance
 /// fixtures, so determinism matters as much as shape.
 /// </summary>
 public class TraceTreeCanonicalMapperTests

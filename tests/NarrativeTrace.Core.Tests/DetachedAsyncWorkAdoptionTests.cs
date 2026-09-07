@@ -8,7 +8,7 @@ using Xunit;
 namespace NarrativeTrace.Core.Tests;
 
 /// <summary>
-/// The port-specific half of the async-adoption audit: work that is
+/// The runtime-specific half of the async-adoption audit: work that is
 /// <i>detached</i> from an <see cref="AsyncNarrativeContext"/> scope rather
 /// than propagated through a snapshot.
 /// </summary>
@@ -16,7 +16,7 @@ namespace NarrativeTrace.Core.Tests;
 /// <see cref="AsyncNarrativeContext"/> holds its inner capture in an
 /// <see cref="AsyncLocal{T}"/>, so a continuation, a <c>Task.Run</c> and a
 /// thread started inside the scope all inherit it through
-/// <c>ExecutionContext</c> — the cross-port contract's "published, therefore
+/// <c>ExecutionContext</c> — the cross-runtime contract's "published, therefore
 /// reportable" holds here by construction rather than by adoption. These cases
 /// pin that, and pin the two places where the flow's answer differs from the
 /// snapshot's: placement follows <i>execution</i> time for detached work, and a

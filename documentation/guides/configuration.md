@@ -91,7 +91,7 @@ the trace file, whatever the primary format is:
 
 - `<test>.canonical.json` — the trace flattened into canonical schema entries
   (one `method_enter` and one `method_exit` per call), for schema consumers and
-  cross-port conformance fixtures.
+  cross-runtime conformance fixtures.
 - `<test>.structural.json` — the same array with every runtime value elided
   (ADR-002 Level 1), for handing to an AI consumer: parameter names survive,
   parameter values, return values and exception messages do not.

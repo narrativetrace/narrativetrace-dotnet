@@ -8,7 +8,7 @@ namespace NarrativeTrace.SecurityTests.Corpus;
 /// </summary>
 /// <remarks>
 /// The .NET mirror of java's <c>RedactionCase</c>. The two redaction axes are one corpus, because a
-/// port that implements the name deny-list and forgets the value shapes has half a control and no
+/// runtime that implements the name deny-list and forgets the value shapes has half a control and no
 /// way to notice. A row names either a field (<see cref="Name"/> plus the <see cref="Canary"/>
 /// planted behind it) or a value (<see cref="Value"/>, which is its own canary because the shape
 /// <em>is</em> the secret), and <see cref="Expect"/> says which way the assertion runs.

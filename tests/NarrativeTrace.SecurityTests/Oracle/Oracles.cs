@@ -12,8 +12,8 @@ namespace NarrativeTrace.SecurityTests.Oracle;
 /// <remarks>
 /// <para>
 /// INTENT: The security-testing document lists six oracles plus the AI-consumer one, and every
-/// port implements the same list. Keeping them here — rather than inline in each property — is
-/// what makes "the ports mirror the targets and corpus" checkable: a reader can count them.
+/// runtime implements the same list. Keeping them here — rather than inline in each property — is
+/// what makes "the runtimes mirror the targets and corpus" checkable: a reader can count them.
 /// </para>
 /// <para>
 /// @llmNote The redaction oracle looks for a fresh random token per case, not a fixed string. A

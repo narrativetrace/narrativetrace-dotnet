@@ -17,7 +17,7 @@ namespace NarrativeTrace.Clarity;
 /// Not to be confused with <see cref="NarrativeTrace.Core.ScenarioResult"/>,
 /// which is the success/error <i>outcome</i> of a scenario. This type carries
 /// its naming scores. (It was itself called <c>ScenarioResult</c> until
-/// 2026-08-28, when Core adopted the cross-port outcome enum of that name.)
+/// 2026-08-28, when Core adopted the cross-runtime outcome enum of that name.)
 /// </para>
 /// </remarks>
 /// <param name="Scenario">The scenario name, as it appeared in the trace.</param>

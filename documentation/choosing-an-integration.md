@@ -22,7 +22,7 @@ decision aid, not a tutorial — for the code behind each path, see the
 
 ## The decision
 
-Every path in this port attaches at an **interface boundary** — there is no
+Every path in this runtime attaches at an **interface boundary** — there is no
 bytecode-weaving or zero-code option today (the row above). The real
 question is *how* you reach that interface call:
 

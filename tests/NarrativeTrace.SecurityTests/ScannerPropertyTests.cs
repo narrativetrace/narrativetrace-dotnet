@@ -13,7 +13,7 @@ using Xunit;
 namespace NarrativeTrace.SecurityTests;
 
 /// <summary>
-/// Target 5 of the parity document's fuzzing list: the clarity and glossary scanners over
+/// Target 5 of the shared fuzzing list: the clarity and glossary scanners over
 /// arbitrary identifier text.
 /// </summary>
 /// <remarks>
@@ -30,7 +30,7 @@ namespace NarrativeTrace.SecurityTests;
 /// "does not throw" assertion alone would miss.
 /// </para>
 /// <para>
-/// @edgeCase This port's guard contract is not uniform the way Java's is: <see cref="TermNormalizer.Phrase"/>
+/// @edgeCase This runtime's guard contract is not uniform the way Java's is: <see cref="TermNormalizer.Phrase"/>
 /// and <see cref="TermNormalizer.MethodCandidates"/> throw <see cref="ArgumentException"/> on a
 /// blank or tokenless identifier (the .NET analogue of Java's declared <c>IllegalArgumentException</c>),
 /// while <see cref="TermNormalizer.ParameterCandidate"/>, <see cref="TermNormalizer.ClassCandidate"/>
@@ -136,7 +136,7 @@ public class ScannerPropertyTests
     /// <see cref="TermNormalizer.ClassCandidate"/> and <see cref="TermNormalizer.ExceptionCandidate"/>
     /// model "nothing to harvest" with a null return for a tokenless (but non-blank) identifier
     /// instead of throwing, so they are exercised only in the never-throws branch, exactly as the
-    /// Java suite's own test does.
+    /// the Java runtime's own test does.
     /// </summary>
     private static void AssertNormalizesOrRejects(string identifier, string label)
     {

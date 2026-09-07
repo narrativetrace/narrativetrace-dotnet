@@ -6,7 +6,7 @@ namespace NarrativeTrace.Clarity;
 /// <summary>
 /// Classifies verbs as domain-specific, standard, generic, or boolean prefixes
 /// for method-name scoring. The domain vocabulary is a union of 34 industry /
-/// technical category sets ported from the Java reference (CLARITY-1). The four
+/// technical category sets shared across NarrativeTrace runtimes (CLARITY-1). The four
 /// category sets are mutually exclusive between generic/boolean and domain
 /// (enforced by drift-guard tests, mirroring Java's static overlap check).
 /// </summary>

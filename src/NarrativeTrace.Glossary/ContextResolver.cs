@@ -8,7 +8,7 @@ namespace NarrativeTrace.Glossary;
 /// </summary>
 /// <remarks>
 /// Contexts declare namespace prefixes in the glossary file (single source of
-/// truth; the file key is <c>packages</c>, shared with the Java edition).
+/// truth; the file key is <c>packages</c>, shared with the Java runtime).
 /// Matching is delimiter-aware — <c>Acme.Billing</c> owns
 /// <c>Acme.Billing.Overdraft</c> but not <c>Acme.Billingx</c>. The longest
 /// matching prefix wins, so nested contexts are possible. No match falls back

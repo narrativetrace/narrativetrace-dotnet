@@ -8,12 +8,12 @@ whatever reads the narrative afterwards, names a test class or method hands to
 the artifact writer, and the sensitive-field vocabulary and national-id value
 shapes the redaction policy must recognize.
 
-**This directory is the cross-port corpus.** Every NarrativeTrace port copies
-these files verbatim — the way the conformance schemas are copied — so the same
-case hits all five renderers. A newly-understood attack shape is added *here*,
-once, and every port gains it on the next sync. Nothing in these files is
-Java-specific: they are data, and the builder that turns a declarative graph
-shape into a live object graph is the only per-port code.
+**This directory is the cross-runtime corpus.** Every NarrativeTrace runtime
+copies these files verbatim — the way the conformance schemas are copied — so
+the same case hits all five renderers. A newly-understood attack shape is added
+*here*, once, and every runtime gains it on the next sync. Nothing in these
+files is Java-specific: they are data, and the builder that turns a declarative
+graph shape into a live object graph is the only per-runtime code.
 
 Adding a case: append an object to the relevant array, give it a stable
 kebab-case `id` and a `description` that says *what breaks* rather than what the
@@ -92,7 +92,7 @@ the false-positive half is the half that keeps the default switched on.
 
 ## The oracles these feed
 
-Named here so a port implements the same ones. They are documented for readers
+Named here so every runtime implements the same ones. They are documented for readers
 in `documentation/security-testing.md`.
 
 1. **No uncaught exception** — a hostile input degrades, it does not propagate.

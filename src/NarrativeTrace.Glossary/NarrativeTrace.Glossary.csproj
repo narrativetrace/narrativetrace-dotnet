@@ -13,7 +13,7 @@
     <ProjectReference Include="../NarrativeTrace.Clarity/NarrativeTrace.Clarity.csproj" />
     <!--
       Java's glossary module depends on narrativetrace-core, whose export
-      package holds CanonicalEntryMapper. This port splits that module into
+      package holds CanonicalEntryMapper. This runtime splits that module into
       Core (model, render, template) and Runtime (pipeline, export, context),
       so the same single dependency reaches across both. The live
       TranslationSubscriber is the only consumer.

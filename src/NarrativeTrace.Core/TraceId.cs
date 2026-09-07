@@ -38,7 +38,7 @@ public readonly record struct TraceId
     /// <param name="value">
     /// Exactly 32 lowercase hex characters. Uppercase hex is rejected rather
     /// than normalized, because the id is compared byte-for-byte against ids
-    /// emitted by the Java edition and by W3C <c>traceparent</c> headers.
+    /// emitted by the Java runtime and by W3C <c>traceparent</c> headers.
     /// </param>
     /// <exception cref="ArgumentException">
     /// <paramref name="value"/> is null, is not 32 characters, or contains a

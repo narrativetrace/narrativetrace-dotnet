@@ -141,7 +141,7 @@ public static class TraceTreeCanonicalMapper
     }
 
     /// <summary>
-    /// Node clocks are monotonic with an arbitrary origin, and this port carries
+    /// Node clocks are monotonic with an arbitrary origin, and this runtime carries
     /// no per-trace wall-clock anchor, so the reading is formatted as an offset
     /// from the epoch. That keeps the artifact byte-identical run to run, which
     /// is what the conformance fixtures compare.

@@ -13,8 +13,8 @@ namespace NarrativeTrace.Proxy.Tests;
 
 /// <summary>
 /// A hostile enum's own <c>ToString()</c> reaching a scalar template placeholder unsanitized —
-/// the .NET shape of the Java flagship's "<c>Number</c> subclass with a hostile
-/// <c>toString()</c>" finding. A C#-compiled enum member name is a language identifier and can
+/// the .NET shape of the "hostile <c>ToString()</c> on a type the renderer trusts" defect class
+/// every NarrativeTrace runtime pins. A C#-compiled enum member name is a language identifier and can
 /// never carry a control character, but nothing at the CLR level enforces that: an IL-authored
 /// assembly (a hostile plugin, a different CLR language, a hand-crafted payload) can define one
 /// that does, and <see cref="Enum"/> is not sealed against it the way a struct is.

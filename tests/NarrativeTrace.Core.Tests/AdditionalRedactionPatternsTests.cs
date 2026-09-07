@@ -9,7 +9,7 @@ namespace NarrativeTrace.Core.Tests;
 /// <summary>
 /// The .NET mirror of java's <c>AdditionalRedactionPatternsTest</c>: the
 /// operator-supplied deny-list widening, read from the environment (the only
-/// override channel this port has — there is no JVM-style system property).
+/// override channel this runtime has — there is no JVM-style system property).
 /// </summary>
 public class AdditionalRedactionPatternsTests
 {

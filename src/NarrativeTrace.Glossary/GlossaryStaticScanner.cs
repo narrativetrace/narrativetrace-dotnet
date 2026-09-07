@@ -32,7 +32,7 @@ namespace NarrativeTrace.Glossary;
 /// <para>
 /// Declared public properties contribute a node of their own (see
 /// <see cref="PropertyNodes"/>): in C# the property is the vocabulary carrier
-/// that a Java record's accessor <em>method</em> is, and Java's edition
+/// that a Java record's accessor <em>method</em> is, and the Java runtime
 /// harvests those.
 /// </para>
 /// </remarks>
@@ -88,7 +88,7 @@ public static class GlossaryStaticScanner
     /// <c>OrderResult.OrderId</c> is the same vocabulary Java harvests from
     /// <c>OrderResult.orderId()</c>, so it is normalized as a method name and
     /// reaches the glossary as the same phrase (<c>"order id"</c>,
-    /// <c>"total charged"</c>) — a C# port whose data-shape nouns were absent
+    /// <c>"total charged"</c>) — a C# scanner whose data-shape nouns were absent
     /// would score identifiers, and translate traces, against a smaller
     /// dictionary than its Java counterpart.
     /// </para>

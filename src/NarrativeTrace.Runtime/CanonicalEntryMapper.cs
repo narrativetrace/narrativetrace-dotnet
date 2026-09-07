@@ -17,7 +17,7 @@ namespace NarrativeTrace.Runtime;
 /// the three concurrency signals — <see cref="ForkCreatedEvent"/>,
 /// <see cref="MergeEvent"/> and <see cref="FireAndForgetEvent"/> — which map
 /// to the <c>fork</c>, <c>join</c> and <c>async_dispatch</c> entry types every
-/// NarrativeTrace port emits. Concurrency is <em>also</em> carried as node
+/// NarrativeTrace runtime emits. Concurrency is <em>also</em> carried as node
 /// metadata (<see cref="ConcurrencyInfo"/>) for tree rendering; the entries
 /// here are the flat event-stream view of the same thing. The wall-clock
 /// formatter is injectable for deterministic testing.
@@ -30,8 +30,8 @@ public sealed class CanonicalEntryMapper
     /// <remarks>
     /// <c>service</c> is required by <c>entry.schema.json</c>, so it must never be absent
     /// or blank. This is OpenTelemetry's convention for "nobody said": <c>unknown_service:</c>
-    /// plus the runtime name. Cross-port contract (owner decision, 2026-08-28): every
-    /// NarrativeTrace port emits <c>unknown_service:&lt;runtime&gt;</c> with its own fixed
+    /// plus the runtime name. Cross-runtime contract (owner decision, 2026-08-28): every
+    /// NarrativeTrace runtime emits <c>unknown_service:&lt;runtime&gt;</c> with its own fixed
     /// suffix — <c>:java</c>, <c>:node</c>, <c>:python</c>, <c>:dotnet</c>, <c>:swift</c>.
     /// The suffix is a literal, not a lookup of the running executable, so the value stays
     /// deterministic across restarts, replicas and deployments; conformance fixtures
@@ -93,7 +93,7 @@ public sealed class CanonicalEntryMapper
     /// <summary>Maps a <see cref="MergeEvent"/> to a <c>join</c> entry.</summary>
     /// <remarks>
     /// The event's member count and wall time stay off the entry: the canonical
-    /// schema has no field for them and every other port emits the group id
+    /// schema has no field for them and every other runtime emits the group id
     /// alone, so adding them here would fork the shared format. They remain
     /// available on the node metadata for renderers.
     /// </remarks>

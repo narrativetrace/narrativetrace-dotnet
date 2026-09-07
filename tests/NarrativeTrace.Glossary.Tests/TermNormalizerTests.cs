@@ -297,7 +297,7 @@ public class TermNormalizerTests
     /// violated its own "never blank" contract, and <see cref="TermNormalizer.MethodCandidates"/>
     /// indexed an empty token list (an unguarded <see cref="ArgumentOutOfRangeException"/>). Both
     /// now refuse a tokenless identifier the same declared way they already refuse a blank one.
-    /// <c>"__  "</c> is a second finding of the same class, from this port's own security property
+    /// <c>"__  "</c> is a second finding of the same class, from this runtime's own security property
     /// suite (<c>ScannerPropertyTests.Normalizing_only_ever_throws_its_declared_guard</c>): trailing
     /// whitespace surviving an underscore split is not blank and not empty either, so it slipped
     /// past both guards until <see cref="NarrativeTrace.Clarity.IdentifierTokenizer"/> itself learned

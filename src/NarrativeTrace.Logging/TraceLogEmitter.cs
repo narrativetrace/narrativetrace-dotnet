@@ -38,7 +38,7 @@ internal sealed class TraceLogEmitter
     private void BuildEventDelegates(TraceLoggingOptions options)
     {
         // Message text mirrors the Java slf4j bridge byte-for-byte, glyphs
-        // included, so a trace reads identically across ports. The placeholders
+        // included, so a trace reads identically across runtimes. The placeholders
         // double as structured fields here, which SLF4J's positional {} do not —
         // that is why Params also surfaces as a field with no Java counterpart.
         _logEnter = LoggerMessage.Define<string, string, string>(

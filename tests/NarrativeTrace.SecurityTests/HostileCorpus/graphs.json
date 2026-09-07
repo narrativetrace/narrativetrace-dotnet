@@ -1,5 +1,5 @@
 {
-  "$comment": "Object-graph shapes, declared rather than serialised: a builder in each port turns a case into a live object graph. `layers` stacks wrappers outward around `payload` (index 0 is innermost); `kind` names a shape that cannot be expressed as a stack. See README.md.",
+  "$comment": "Object-graph shapes, declared rather than serialised: a builder in each runtime turns a case into a live object graph. `layers` stacks wrappers outward around `payload` (index 0 is innermost); `kind` names a shape that cannot be expressed as a stack. See README.md.",
   "cases": [
     { "id": "scalar", "description": "the degenerate graph", "payload": "secret-record", "layers": [] },
     { "id": "optional", "description": "the container that leaked in TODO 46", "payload": "secret-record", "layers": ["optional"] },

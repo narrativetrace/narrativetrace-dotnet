@@ -29,7 +29,7 @@ public readonly record struct SpanId
     /// <summary>Wraps a W3C span id after validating its shape.</summary>
     /// <param name="value">
     /// Exactly 16 lowercase hex characters. Uppercase hex is rejected rather
-    /// than normalized, to keep ids byte-identical with the Java edition and
+    /// than normalized, to keep ids byte-identical with the Java runtime and
     /// with W3C <c>traceparent</c> headers.
     /// </param>
     /// <exception cref="ArgumentException">

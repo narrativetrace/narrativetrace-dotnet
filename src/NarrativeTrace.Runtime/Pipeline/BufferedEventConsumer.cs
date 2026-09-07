@@ -28,7 +28,7 @@ public sealed class BufferedEventConsumer
     : IEventPipeline, IEventSubscribable, IEventLossCounter
 {
     /// <summary>
-    /// Default buffer capacity: 64K slots (2^16) — the cross-port default.
+    /// Default buffer capacity: 64K slots (2^16) — the cross-runtime default.
     /// </summary>
     /// <remarks>
     /// Sizing rule for a non-default cap: <c>cap ≈ peak events/s × tolerable
@@ -87,7 +87,7 @@ public sealed class BufferedEventConsumer
     /// <param name="drainIntervalMillis">
     /// How long the drain thread sleeps after it finds the queue empty,
     /// before polling again. Lower values reduce store latency at the cost
-    /// of more wake-ups while idle; the default matches the cross-port
+    /// of more wake-ups while idle; the default matches the cross-runtime
     /// default of 1ms.
     /// </param>
     public BufferedEventConsumer(int bufferCapacity, int drainIntervalMillis)

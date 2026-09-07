@@ -14,9 +14,9 @@ namespace NarrativeTrace.StressTests;
 /// </summary>
 /// <remarks>
 /// Mirrors the split jcstress itself documents
-/// (<c>documentation/concurrency-testing.md</c> in the Java reference): a
+/// (<c>documentation/concurrency-testing.md</c> in the Java runtime): a
 /// short, bounded mode runs on every commit, a long unbounded sweep runs on
-/// the scheduled/manual job — the same shape this port already uses for
+/// the scheduled/manual job — the same shape this runtime already uses for
 /// mutation testing and fuzzing.
 /// </remarks>
 internal static class StressIterations

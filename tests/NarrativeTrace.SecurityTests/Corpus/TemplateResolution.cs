@@ -20,16 +20,16 @@ namespace NarrativeTrace.SecurityTests.Corpus;
 /// </para>
 /// <para>
 /// @edgeCase Every corpus template path is written in Java's javaBean casing (<c>card.cvv</c>,
-/// <c>user.password</c>) because the corpus is copied verbatim. This port's placeholder grammar
+/// <c>user.password</c>) because the corpus is copied verbatim. This runtime's placeholder grammar
 /// (<c>NarrationResolver</c>) matches a property name by exact case, and every fixture record here
 /// (<see cref="HostileGraphs.Card"/>, <see cref="HostileGraphs.Credentials"/>, …) uses ordinary C#
 /// PascalCase — <c>Cvv</c>, not <c>cvv</c>. So none of the corpus's lowercase paths resolve against
 /// these fixtures at all: the placeholder survives literally, which trivially satisfies "no leak"
-/// without exercising redaction. This is the same class of structural consequence as the port's
+/// without exercising redaction. This is the same class of structural consequence as this runtime's
 /// documented one-level-path restriction, not a defect — a .NET author naturally writes
 /// <c>{card.Cvv}</c>, matching their own property, not a JavaBean getter name. See
 /// <c>TemplateRedactionPropertyTests</c> for how the property tests separate "never leaks" (true of
-/// every corpus case, resolved or not) from "must show the marker" (asserted only where this port's
+/// every corpus case, resolved or not) from "must show the marker" (asserted only where this runtime's
 /// actual case-sensitive, one-level grammar resolves the path).
 /// </para>
 /// </remarks>

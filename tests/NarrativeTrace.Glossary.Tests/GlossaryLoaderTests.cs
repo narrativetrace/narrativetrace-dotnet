@@ -77,6 +77,34 @@ public sealed class GlossaryLoaderTests : IDisposable
     }
 
     /// <summary>
+    /// Pins the invariant the inline <c>nosemgrep</c> on the base-directory
+    /// probe rests on: the probed file name is a compile-time constant, so a
+    /// caller-supplied <c>baseDirectory</c> can only ever select
+    /// <c>&lt;baseDirectory&gt;/glossary.json</c> — never a neighbouring file
+    /// under a different name. Traversal syntax inside the directory resolves
+    /// to the directory it names; it cannot re-point the read at another file.
+    /// If the probed name ever becomes caller-derived, this is the test that
+    /// says sanitization is owed.
+    /// </summary>
+    [Fact]
+    public void Base_directory_selects_no_file_other_than_glossary_json()
+    {
+        var application = Directory.CreateDirectory(Path.Combine(root, "app")).FullName;
+        File.WriteAllText(
+            Path.Combine(root, "glossary.json"), Json(GlossaryWithTerm("outside")));
+        File.WriteAllText(
+            Path.Combine(application, "glossary.json"), Json(GlossaryWithTerm("inside")));
+        File.WriteAllText(
+            Path.Combine(application, "decoy.json"), Json(GlossaryWithTerm("decoy")));
+
+        AssertSameGlossary(
+            GlossaryWithTerm("inside"), GlossaryLoader.Load(_ => null, application));
+        AssertSameGlossary(
+            GlossaryWithTerm("inside"),
+            GlossaryLoader.Load(_ => null, Path.Combine(application, "..", "app")));
+    }
+
+    /// <summary>
     /// The zero-argument overload reads the process environment and the
     /// application's own base directory — the shape a deployed application
     /// uses, with no plumbing at the call site.
@@ -106,7 +134,7 @@ public sealed class GlossaryLoaderTests : IDisposable
 
     /// <summary>
     /// Compared through the canonical serializer rather than by value: this
-    /// port's <see cref="Glossary"/> is a record over dictionaries and arrays,
+    /// runtime's <see cref="Glossary"/> is a record over dictionaries and arrays,
     /// so record equality would compare collection references. The writer is
     /// deterministic, which makes its output the stronger identity anyway.
     /// </summary>

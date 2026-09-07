@@ -18,7 +18,7 @@ namespace NarrativeTrace.Core;
 /// byte-for-byte for identical behavior — the property that makes it the
 /// approval-testing baseline (<c>.approved.nt</c>) and the cross-platform
 /// conformance-fixture format. The format is normative and shared by every
-/// port: see <c>documentation/structural-trace-format.md</c>.
+/// NarrativeTrace runtime: see <c>documentation/structural-trace-format.md</c>.
 /// </remarks>
 public static class StructuralTraceRenderer
 {

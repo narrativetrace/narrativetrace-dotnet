@@ -388,7 +388,7 @@ public class MarkdownValueDeltaTests
     [Fact]
     public void An_identity_field_is_matched_whatever_its_casing()
     {
-        // .NET property names are PascalCase; the cross-port identity ladder is
+        // .NET property names are PascalCase; the cross-runtime identity ladder is
         // lower-case. The delta must group on the same ladder the label uses.
         var before = "Note(TITLE: \"Standup\", Body: \"the first standup note\")";
         var after = "Note(TITLE: \"Standup\", Body: \"the second standup note\")";

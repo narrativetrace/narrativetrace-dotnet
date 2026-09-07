@@ -1,8 +1,8 @@
-# NarrativeTrace Feature Guide (.NET port)
+# NarrativeTrace Feature Guide (.NET)
 
-What the .NET port ships, from a user's perspective. For the full
-cross-platform feature catalog (all tiers, all platforms), see the
-canonical feature guide in the narrative-trace-java repository:
+What NarrativeTrace for .NET ships, from a user's perspective. For the full
+cross-platform feature catalog (all tiers, all platforms), see the canonical
+feature guide:
 <https://github.com/narrativetrace/narrativetrace-java/blob/main/documentation/feature-guide.md>.
 
 **Status labels** (same vocabulary as the canonical guide):
@@ -27,7 +27,7 @@ Per-topic documentation lives under [guides/](guides/).
 | Enrichment attributes — `[Narrated("… {param} / {param.Property} …")]`, repeatable `[OnError]` (most-specific exception type wins), `[Traced]` positional name overrides, `[NarrativeSummary]` | Free | [guides/annotations.md](guides/annotations.md); unresolved placeholders stay literal so typos are visible |
 | Sensitive data redaction — `[NotTraced]` (value never read at all) + name-pattern `RedactionPolicy` (deny-by-default: `password`, `cvv`, `ssn`, `token`, `secret`, `authorization`) | Free | [guides/configuration.md](guides/configuration.md); dictionary keys render through the same guarded path (redaction + bounds + cycle detection), never a bare `ToString()` |
 | Void-completion contract — a `void` method carries no rendered value (`null`, never the string `"null"`) | Free | Markdown/text render nothing, JSON omits `returnValue`, diagrams render ✔, the `ILogger` bridge logs `Exit completed`; a rendered `null` always means a real null return |
-| Five capture levels (`Off` → `Errors` → `Summary` → `Narrative` → `Detail`), runtime-changeable, `NARRATIVETRACE_LEVEL` env channel | Free | Level names match the Python port (`Summary`), not the JVM's (`FLOW`); parameter values exist only at `Detail` — suppression happens at capture, not at render |
+| Five capture levels (`Off` → `Errors` → `Summary` → `Narrative` → `Detail`), runtime-changeable, `NARRATIVETRACE_LEVEL` env channel | Free | Level names match the Python runtime's (`Summary`) rather than the Java runtime's (`FLOW`); parameter values exist only at `Detail` — suppression happens at capture, not at render |
 | Two-gate levels — capture level and log level are independent | Free | [guides/configuration.md](guides/configuration.md) |
 | Concurrency capture — `ForkJoinGroup` / `FireAndForgetGroup` over `Task`s, isolated child contexts grafted back with a shared `groupId`, thread metadata, join wall-time; `AsyncNarrativeContext.RunAsync` for ambient flow across `await` | Free | Context flows via `AsyncLocal`, not `ThreadLocal` — `async`/`await` continuations resume on arbitrary thread-pool threads, so only `AsyncLocal` tracks logical rather than physical execution |
 | Trace identity — traceId, human-readable trace names, storyId/chapterId derivation | Free | Canonical-schema aligned |
@@ -70,14 +70,14 @@ Per-topic documentation lives under [guides/](guides/).
 | Feature | Status | Notes |
 |---|---|---|
 | `ILogger` bridge — `LoggingNarrativeContext` decorator (synchronous per-call emission) + `LoggingTraceEventListener` (event-stream adapter), cached `LoggerMessage` delegates, per-event-type levels, correlation ids + service identity via `BeginScope` | Free | The MEL twin of the Java SLF4J bridge — MEL is the one abstraction every .NET logging provider plugs into, so teams keep their own sinks |
-| DI composition for the bridge — `AddNarrativeLogging()` registers the event-stream listener from the host's `ILoggerFactory` and attaches it to a registered `IEventSubscribable` stream | Free | The .NET answer to Java's classpath-probing `PipelineBootstrap`, which cannot port: SLF4J's factory is a static global, an `ILogger` is not. Silent no-op when no `ILoggerFactory` is registered or `NARRATIVETRACE_NARRATION=off` |
+| DI composition for the bridge — `AddNarrativeLogging()` registers the event-stream listener from the host's `ILoggerFactory` and attaches it to a registered `IEventSubscribable` stream | Free | The .NET answer to the Java runtime's classpath-probing `PipelineBootstrap`, which has no .NET equivalent: SLF4J's factory is a static global, an `ILogger` is not. Silent no-op when no `ILoggerFactory` is registered or `NARRATIVETRACE_NARRATION=off` |
 | Three-tier attribute model — `AttributeTier` (resource / trace / span) decided at the export boundary; every span internally carries full context | Free | Implements product ADR-009 |
 | Coexistence with hand-written logs | Free | Remove them at your own pace |
 | OpenTelemetry span export — `TraceActivityExporter` (batch, completed tree → `Activity` spans) + `OtelTraceEventListener` (live, from the event stream) | Free | `NarrativeTrace.Observability` |
 | Event pipeline — `IEventPipeline` contract, `DualPathPipeline` fan-out, lock-free MPSC `BoundedEventBuffer`, `BufferedEventConsumer` drain thread with adaptive shedding + watchdog, `EventStore` retention | Free | Buffering/retention is free by design (product ADR-010); the pipeline contract lives in `NarrativeTrace.Core` (netstandard2.0-safe), the threading machinery in `NarrativeTrace.Runtime` |
 | Event-stream aggregation — aggregate tree, hotspots, error paths/rates, method/error frequencies (`EventAggregator`) | Pro | Relocated 2026-07-12 (Phase 31a) to `narrative-trace-dotnet-enterprise`; feed it `EventStore.Events()` |
 
-Note: this port is not a replacement for `Microsoft.Extensions.Logging` —
+Note: this runtime is not a replacement for `Microsoft.Extensions.Logging` —
 it ships no sink, no provider, and no shipping pipeline of its own. What
 it replaces is the hand-written narration statements a traced method
 would otherwise need; the `ILogger` bridge above emits that narrative
@@ -132,17 +132,17 @@ E3–E5). Audit & compliance is Java-first and **not planned** for .NET
 
 Adapted from the canonical guide's rules:
 
-1. Every user-visible feature of the .NET port appears here, exactly
-   once, with a status.
+1. Every user-visible feature of NarrativeTrace for .NET appears here,
+   exactly once, with a status.
 2. A feature moves to **Free**/**Pro** only when it is merged, tested,
    and documented. "In development" means the design is settled and work
    is scheduled; "Planned" means specified only.
 3. Changes that add or promote a feature must update this file in the
    same commit.
-4. This guide covers only what the .NET port ships. Product-wide
-   features and their cross-platform statuses live in the canonical
-   guide (linked at the top) — do not fork its rows here; record only
-   the .NET-side reality (including honest gaps like the pending net48
+4. This guide covers only what NarrativeTrace for .NET ships.
+   Product-wide features and their cross-platform statuses live in the
+   canonical guide (linked at the top) — do not fork its rows here;
+   record only the .NET-side reality (including honest gaps like the pending net48
    runtime validation, and the 1.2 schema fields that are declared but not
    yet produced — instance/thread/host/process identity and source location;
    see item 2 of the repository task list).

@@ -11,7 +11,7 @@ namespace NarrativeTrace.Clarity.Tests;
 public class CollocationDictionaryTests
 {
     // --- Drift guards (CLARITY): the merged lookup must keep every noun and every
-    // noun->verb link the Java reference declares. A dropped entry, or a noun in
+    // noun->verb link the Java runtime declares. A dropped entry, or a noun in
     // two domains silently overwriting one of them, moves these numbers. ---
 
     [Fact]

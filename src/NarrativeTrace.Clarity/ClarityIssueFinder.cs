@@ -10,7 +10,7 @@ namespace NarrativeTrace.Clarity;
 /// <see cref="ClarityIssue"/>s.
 /// </summary>
 /// <remarks>
-/// Four categories, mirroring the Java edition: <c>method-name</c>,
+/// Four categories, mirroring the Java runtime: <c>method-name</c>,
 /// <c>class-name</c> and <c>param-name</c> fire when the corresponding scorer
 /// puts an identifier below 0.50, with the severity derived from that score;
 /// <c>collocation</c> fires when a method's verb is not one the

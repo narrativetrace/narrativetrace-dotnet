@@ -8,7 +8,7 @@ namespace NarrativeTrace.Core;
 /// </summary>
 /// <remarks>
 /// Both are opt-in and independent: the canonical array is for schema
-/// consumers (ports, conformance fixtures), the structural one is the same
+/// consumers (other runtimes, conformance fixtures), the structural one is the same
 /// array with every runtime value elided (ADR-002 Level 1) for AI consumers.
 /// <see langword="default"/> writes neither, which is what a run that never
 /// asked for them gets.

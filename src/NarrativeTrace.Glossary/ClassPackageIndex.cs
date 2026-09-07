@@ -18,7 +18,7 @@ namespace NarrativeTrace.Glossary;
 /// type is constructed and no initializer runs.
 /// </para>
 /// <para>
-/// <b>Platform note.</b> Java's edition scans compiled-class directories and
+/// <b>Platform note.</b> The Java runtime scans compiled-class directories and
 /// skips JAR entries, because traced application code lives in class
 /// directories under a build tool while JARs hold third-party classes whose
 /// vocabulary is not the repository's to govern. .NET has no such split — an

@@ -13,7 +13,7 @@ namespace NarrativeTrace.Core;
 /// <para>
 /// Loss is normal in a best-effort tracer and silent loss is not: a trace that
 /// quietly omits a subtree reads exactly like a trace of code that never ran
-/// it. Every lossy path in the port reports through this one record, and
+/// it. Every lossy path in this runtime reports through this one record, and
 /// <see cref="Describe"/> renders the single suite-footer line that says so —
 /// omitted entirely when nothing was lost, so a clean run stays quiet.
 /// </para>

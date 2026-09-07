@@ -2,7 +2,7 @@
 
 The dual-path pipeline — the synchronous listener, the buffered
 best-effort path, the lock-free ring, the event store — is the core of
-this project: every trace this port emits passes through it. Its defects
+this project: every trace this runtime emits passes through it. Its defects
 are the quiet kind. A torn read, a stranded tail, a miscounted loss never
 throw; they just make the trace, or the number telling you how much of it
 you lost, wrong. A single-threaded unit test cannot see them by
@@ -10,11 +10,11 @@ construction.
 
 This document describes the suite that races that core on purpose:
 `NarrativeTrace.StressTests`, a hand-rolled interleaving harness mirroring
-the Java flagship's `narrativetrace-jcstress` module — invariant for
+the Java runtime's `narrativetrace-jcstress` module — invariant for
 invariant, not tool for tool. jcstress is a JVM harness (bytecode
 instrumentation, a forked-process scheduler); nothing like it exists for
-.NET. **What this port mirrors is the invariant table below, not the
-tool.** A port that cannot yet run a scenario still owes the invariant.
+.NET. **What this runtime mirrors is the invariant table below, not the
+tool.** A runtime that cannot yet run a scenario still owes the invariant.
 
 Two tiers, the same split this repository already uses for mutation
 testing and fuzzing:
@@ -24,9 +24,9 @@ testing and fuzzing:
 | **Short** | Every `[Fact]` loops a bounded, seeded repetition count (`StressIterations`, default 300) | every `./build.sh Verify` | seconds |
 | **Long** | The identical project, repetition count raised via `NARRATIVETRACE_STRESS_ITERATIONS` | manual/scheduled `./build.sh Stress` | minutes |
 
-**Every NarrativeTrace port mirrors these invariants.** The Java suite's
+**Every NarrativeTrace runtime mirrors these invariants.** The Java runtime's suite
 own outcome tables (`ACCEPTABLE` / `ACCEPTABLE_INTERESTING` / `FORBIDDEN`)
-are the cross-port contract for what "correct under a race" means for this
+are the cross-runtime contract for what "correct under a race" means for this
 core; only the harness is written per platform — jcstress's `@Actor`/
 `@Arbiter` annotations become `StressRace.RunOnce`'s co-started
 `Action` delegates plus a `Task.WaitAll` join, matching jcstress's own
@@ -42,12 +42,12 @@ guarantee that the arbiter step runs strictly after every actor finishes.
 
 ## The invariants
 
-In the order the cross-port stress-testing convention states them. This port's
+In the order the cross-runtime stress-testing convention states them. This runtime's
 concurrency model is real OS threads + the .NET thread pool (`Task.Run`) —
-the closest analogue to Java's real-thread jcstress model of the ports this
+the closest analogue to Java's real-thread jcstress model of the runtimes this
 product ships.
 
-| # | Invariant | This port |
+| # | Invariant | This runtime |
 |---|---|---|
 | 1 | Loss accounting is exact: delivered + shed == published, under any interleaving; no event both counted-as-shed and delivered | `LossAccountingStressTests` — **real defect found and fixed**, see "Findings" below |
 | 2 | No torn/partial reads: a drain or snapshot sees prefix-consistent state | `NoTornReadStressTests` — verified safe (one lock, copy-out reads) |
@@ -94,7 +94,7 @@ precedent already established in `NarrativeTrace.Core.Tests` — it races
 which needs `InternalsVisibleTo` (granted on
 `NarrativeTrace.Runtime.csproj`) since the ledger is `internal`.
 
-## What this port's concurrency model changes
+## What this runtime's concurrency model changes
 
 Recorded with evidence, not silently dropped:
 
@@ -102,7 +102,7 @@ Recorded with evidence, not silently dropped:
 - **`AdoptionLedger.Adopt` is one atomic call**, not two. Java's
   `TraceStack.adopt()` and `unregisterLiveChild()` are separate
   `synchronized` methods with a hand-over window between them that
-  `LiveChildHandOverTest` exists to police; this port's `Adopt` releases
+  `LiveChildHandOverTest` exists to police; this runtime's `Adopt` releases
   the live registration and adds to the adopted set under the same lock in
   one call, so there is no window to race into by construction. The
   mirrored test still holds that design claim to real contention rather
@@ -138,7 +138,7 @@ not seconds.
    they change that code deterministically, single-threaded.
 3. **One commit per finding**, full gate green after each. **Report
    findings via the repository's issue tracker or security policy** — a
-   concurrency defect found in one NarrativeTrace port is worth checking
+   concurrency defect found in one NarrativeTrace runtime is worth checking
    for in the others.
 
 ## Findings — this run's audit against the seven invariants
@@ -166,9 +166,10 @@ not seconds.
   between the check and the read could deliver a later generation's event
   under the wrong index — and deliver it again when the index caught up —
   while the event that belonged there vanished with the loss counter
-  reading zero. Exactly the shape java measured 1,732 forbidden samples
-  against on a four-slot ring before its fix; flagged as a live, unlogged
-  port of that defect. Fixed the same way java did: `Put` marks the slot
+  reading zero. Exactly the shape the Java runtime measured 1,732 forbidden
+  samples against on a four-slot ring before its own fix; flagged here as a
+  live, unlogged instance of the same defect. Fixed the same way: `Put` marks
+  the slot
   with the claim sequence before writing the event, separated from the
   event write by a full fence (`Thread.MemoryBarrier` — .NET has no
   store-store-only primitive);

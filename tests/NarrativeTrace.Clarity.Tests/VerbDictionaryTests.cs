@@ -70,7 +70,7 @@ public class VerbDictionaryTests
     }
 
     // --- Size-floor drift guards (CLARITY-1/-14): the ported dictionary must not
-    // silently shrink below the Java reference volume. ---
+    // silently shrink below the Java runtime's volume. ---
 
     [Fact]
     public void Domain_vocabulary_meets_the_volume_floor()

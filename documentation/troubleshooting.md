@@ -2,7 +2,7 @@
 
 **English** | [Español](es/solucion-de-problemas.md) | [Português](pt-BR/solucao-de-problemas.md) | [简体中文](zh-CN/故障排查.md)
 
-Symptom → cause → fix, harvested from this port's own code and tests. Where
+Symptom → cause → fix, harvested from this runtime's own code and tests. Where
 something is a known, uncovered rough edge rather than a demonstrated
 guarantee, it's called out as one — this page states what's actually true
 today, not what would be nice to promise.
@@ -24,7 +24,7 @@ at all for ordinary code.
 ## `NarrativeTraceProxy.Create<T>` throws at startup
 
 **Cause:** `T` isn't an interface, or the target doesn't implement it. This
-port adds no guard clause of its own here — the exception you see is the
+runtime adds no guard clause of its own here — the exception you see is the
 underlying .NET reflection exception (`DispatchProxy.Create`), not a
 NarrativeTrace-specific one.
 

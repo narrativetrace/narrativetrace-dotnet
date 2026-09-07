@@ -10,7 +10,7 @@ namespace NarrativeTrace.SecurityTests.Corpus;
 /// </summary>
 /// <remarks>
 /// <para>
-/// INTENT: The corpus stays data — this port copies <c>graphs.json</c> verbatim and writes its own
+/// INTENT: The corpus stays data — this runtime copies <c>graphs.json</c> verbatim and writes its own
 /// builder. Only this class knows what a boxed <see cref="Nullable{T}"/>, a
 /// <see cref="System.Runtime.CompilerServices.StrongBox{T}"/> or a <see cref="Task{TResult}"/> is.
 /// </para>
@@ -32,7 +32,7 @@ namespace NarrativeTrace.SecurityTests.Corpus;
 public static class HostileGraphs
 {
     /// <summary>
-    /// Graph-case ids this port never renders in-process: rendering them recurses through
+    /// Graph-case ids this runtime never renders in-process: rendering them recurses through
     /// <see cref="object.ToString"/> until the CLR raises an unmanaged, uncatchable
     /// <see cref="StackOverflowException"/> that tears down the whole test process rather than
     /// failing one test. See <see cref="HostileMembers.Recursing"/>.

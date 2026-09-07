@@ -6,14 +6,14 @@ using FsCheck.Fluent;
 
 namespace NarrativeTrace.SecurityTests;
 
-/// <summary>A single-level template path this port's resolver can actually reach, and the fixture it names.</summary>
-/// <param name="Path">The placeholder path, e.g. <c>card.Cvv</c> — this port's PascalCase, not the corpus's javaBean casing.</param>
+/// <summary>A single-level template path this runtime's resolver can actually reach, and the fixture it names.</summary>
+/// <param name="Path">The placeholder path, e.g. <c>card.Cvv</c> — this runtime's PascalCase, not the corpus's javaBean casing.</param>
 /// <param name="Fixture">The <see cref="Corpus.HostileGraphs.TemplateValues"/> key the path resolves against.</param>
 public readonly record struct RedactedPathCase(string Path, string Fixture);
 
 /// <summary>
-/// Shared FsCheck generators for the Tier A property tests, mirroring the Java suite's
-/// <c>@Provide</c> methods so the two ports fuzz the same alphabets.
+/// Shared FsCheck generators for the Tier A property tests, mirroring the Java runtime's
+/// <c>@Provide</c> methods so the two runtimes fuzz the same alphabets.
 /// </summary>
 /// <remarks>
 /// One class per concern, matching this repo's convention (see
@@ -103,7 +103,7 @@ internal static class SecurityArbitraries
     }
 
     /// <summary>
-    /// Single-level paths this port's case-sensitive resolver actually resolves — see
+    /// Single-level paths this runtime's case-sensitive resolver actually resolves — see
     /// <see cref="Corpus.TemplateResolution"/>'s remarks for why the corpus's own lowercase paths
     /// (<c>card.cvv</c>) do not, and why these use PascalCase instead.
     /// </summary>

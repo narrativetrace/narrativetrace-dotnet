@@ -191,7 +191,7 @@ public class CanonicalEntryMapperTests
     {
         // Was TESTFX-9, which pinned the gap: these events used to throw, so
         // the canonical stream silently omitted fork/join/async_dispatch that
-        // every other port emits. They now map.
+        // every other runtime emits. They now map.
         var entry = Mapper.FromEvent(concurrencyEvent);
 
         Assert.Equal(expectedEventType, entry.NtEventType);
@@ -370,7 +370,7 @@ public class CanonicalEntryMapperTests
         // Fork/join/async_dispatch are lifecycle markers that belong to a group
         // rather than a span, so they carry no trace_id/span_id/code.* — the
         // entry schema requires all four. This documents the divergence rather
-        // than asserting conformance, matching the Java edition's
+        // than asserting conformance, matching the Java runtime's
         // forkEventDoesNotConformToEntrySchema. Emitting them into a stream
         // validated against entry.schema.json is therefore not supported.
         var json = CanonicalEntrySerializer.ToJson(

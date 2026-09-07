@@ -1,10 +1,10 @@
-<!-- source: documentation/troubleshooting.md blob ba545b8d5198 | translated: 2026-09-03 | reviewed: 2026-09-03 -->
+<!-- source: documentation/troubleshooting.md blob e9ef976588dc | translated: 2026-09-07 | reviewed: - -->
 # Solução de problemas
 
 [English](../troubleshooting.md) | [Español](../es/solucion-de-problemas.md) | **Português** | [简体中文](../zh-CN/故障排查.md)
 
 Sintoma → causa → correção, colhidos do próprio código e dos próprios
-testes deste port. Onde algo é uma aspereza conhecida e não coberta em
+testes desta implementação. Onde algo é uma aspereza conhecida e não coberta em
 vez de uma garantia demonstrada, isso é indicado como tal — esta página
 diz o que é realmente verdade hoje, não o que seria bom prometer.
 
@@ -26,8 +26,8 @@ comum.
 
 ## `NarrativeTraceProxy.Create<T>` lança uma exceção ao iniciar
 
-**Causa:** `T` não é uma interface, ou o destino não a implementa. Este
-port não adiciona nenhuma cláusula de guarda própria aqui — a exceção que
+**Causa:** `T` não é uma interface, ou o destino não a implementa. Esta
+implementação não adiciona nenhuma cláusula de guarda própria aqui — a exceção que
 você vê é a exceção de reflexão subjacente do .NET
 (`DispatchProxy.Create`), não uma específica do NarrativeTrace.
 

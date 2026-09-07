@@ -89,7 +89,7 @@ public static class GenericTokenDetector
     /// <c>0.0</c> for <see cref="TokenTier.Meaningless"/>, <c>0.2</c> for
     /// <see cref="TokenTier.Vague"/>, <c>0.5</c> for
     /// <see cref="TokenTier.TypedGeneric"/>, and <c>1.0</c> otherwise. These
-    /// weights are a cross-language contract shared with the Java edition —
+    /// weights are a cross-language contract shared with the Java runtime —
     /// changing one changes every published score.
     /// </returns>
     public static double Score(TokenTier tier)

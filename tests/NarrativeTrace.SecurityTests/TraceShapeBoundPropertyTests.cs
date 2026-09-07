@@ -15,9 +15,9 @@ namespace NarrativeTrace.SecurityTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// INTENT: mirrors the Java flagship's 2026-09-03 free-renderer depth-bound run
-/// (<c>ai.narrativetrace.core.tree.TreeWalk</c>): a hand-built, replayed or deserialized
-/// <see cref="TraceTree"/> can be cyclic or absurdly deep, and every renderer/exporter this port
+/// INTENT: the free-renderer depth bound every NarrativeTrace runtime holds
+/// (<c>ai.narrativetrace.core.tree.TreeWalk</c> is the Java runtime's): a hand-built, replayed or deserialized
+/// <see cref="TraceTree"/> can be cyclic or absurdly deep, and every renderer/exporter this runtime
 /// ships must degrade with <see cref="TreeWalk.CycleMarker"/>/<see cref="TreeWalk.DepthLimitMarker"/>
 /// rather than crash the process with an uncatchable <see cref="StackOverflowException"/> or hang.
 /// </para>

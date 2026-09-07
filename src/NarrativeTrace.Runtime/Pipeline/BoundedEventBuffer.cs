@@ -26,7 +26,7 @@ namespace NarrativeTrace.Runtime;
 /// accounting stays exact even when the ring, not the consumer's drain
 /// modes, is what discarded it.</para>
 /// <para>
-/// The slot protocol is a seqlock (mirrors java's fix —
+/// The slot protocol is a seqlock (the same fix every runtime carries —
 /// see <see cref="Put"/> and <see cref="SteppedOverLappedSlot"/> for the
 /// two halves). A one-sequence-store-guards-one-data-field design — check
 /// the sequence, then read the event — proves only that the producer HAD

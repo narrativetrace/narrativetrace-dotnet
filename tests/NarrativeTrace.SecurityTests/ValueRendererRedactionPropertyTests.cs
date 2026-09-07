@@ -11,7 +11,7 @@ using Xunit;
 namespace NarrativeTrace.SecurityTests;
 
 /// <summary>
-/// Target 2 of the parity document's fuzzing list, and the reason the suite exists: the value
+/// Target 2 of the shared fuzzing list, and the reason the suite exists: the value
 /// renderer over hostile object graphs, with the <b>redaction oracle</b>.
 /// </summary>
 /// <remarks>

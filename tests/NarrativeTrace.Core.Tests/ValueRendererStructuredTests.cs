@@ -16,8 +16,9 @@ public class ValueRendererStructuredTests
     // metadata level, though: an IL-authored assembly (a hostile plugin, a
     // different CLR language, a hand-crafted payload) can define a member
     // whose literal name is anything at all. This is the .NET shape of the
-    // Java flagship's "Number subclass with a hostile toString()" finding —
-    // Enum.ToString() is not sealed against it the way a struct's is.
+    // "hostile ToString() on a type the renderer trusts" defect class every
+    // NarrativeTrace runtime pins — Enum.ToString() is not sealed against it
+    // the way a struct's is.
     private static object HostileEnumValue(string memberName)
     {
         var assemblyName = new AssemblyName($"HostileEnum_{Guid.NewGuid():N}");

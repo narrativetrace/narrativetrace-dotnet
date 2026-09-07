@@ -10,7 +10,7 @@ using Xunit;
 namespace NarrativeTrace.SecurityTests;
 
 /// <summary>
-/// Target 6 of the parity document's fuzzing list: configuration loading from hostile values.
+/// Target 6 of the shared fuzzing list: configuration loading from hostile values.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -19,17 +19,17 @@ namespace NarrativeTrace.SecurityTests;
 /// typo without failing the process it is meant to observe.
 /// </para>
 /// <para>
-/// @edgeCase This port's <see cref="ConfigResolver"/> is not the same shape as Java's: it reads
+/// @edgeCase This runtime's <see cref="ConfigResolver"/> is not the same shape as Java's: it reads
 /// <c>NARRATIVETRACE_*</c> environment variables through an injectable <c>Func&lt;string, string?&gt;</c>
 /// seam rather than JVM system properties, every value degrades to a default rather than throwing
 /// (documented on the class itself), and there is no buffer-capacity or pipeline-strategy key at
 /// all — pipelines are constructed by type, not selected by a config-driven strategy name, so
 /// Java's "known strategy or refused by name" target has no .NET counterpart to fuzz. Confirmed
 /// absent by reading <c>ConfigResolver.cs</c>/<c>ResolvedConfig</c> in full; ported instead as one
-/// property covering every key this port actually has.
+/// property covering every key this runtime actually has.
 /// </para>
 /// <para>
-/// @edgeCase <c>resolveCaptureFlags</c> does not exist in this port either — the environment-identity
+/// @edgeCase <c>resolveCaptureFlags</c> does not exist in this runtime either — the environment-identity
 /// capture switches are a documented, not-yet-ported gap (see the repository backlog's item 2 /
 /// the progress ledger's canonical-schema-1.2 section), so that Java target is also N/A here.
 /// </para>
@@ -40,7 +40,7 @@ public class ConfigurationPropertyTests
         HostileCorpus.Strings().Select(c => new object[] { c });
 
     /// <summary>
-    /// Every config key this port has, set to the same hostile value at once: the resolver must
+    /// Every config key this runtime has, set to the same hostile value at once: the resolver must
     /// degrade every field to a default rather than throwing, whatever the string.
     /// </summary>
     [Theory]
@@ -116,7 +116,7 @@ public class ConfigurationPropertyTests
             Path.GetFullPath(file), StringComparison.Ordinal);
     }
 
-    /// <summary>Sets every known config key to the same value — the seam this port's tests already use.</summary>
+    /// <summary>Sets every known config key to the same value — the seam this runtime's tests already use.</summary>
     private static Func<string, string?> Env(string value)
     {
         var keys = new[]

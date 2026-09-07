@@ -16,9 +16,9 @@ namespace NarrativeTrace.Core;
 /// valid while disagreeing about which contract it satisfies.
 /// </para>
 /// <para>
-/// This is the <b>cross-port</b> contract: the Java edition stamps the same
+/// This is the <b>cross-runtime</b> contract: the Java runtime stamps the same
 /// value, and consumers key their parsing off it. Bumping it is a coordinated
-/// change across ports, not a local edit — see item 2 in the repository task
+/// change across runtimes, not a local edit — see item 2 in the repository task
 /// list at the root.
 /// </para>
 /// </remarks>

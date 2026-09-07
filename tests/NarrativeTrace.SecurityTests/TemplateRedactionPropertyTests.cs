@@ -11,7 +11,7 @@ using Xunit;
 namespace NarrativeTrace.SecurityTests;
 
 /// <summary>
-/// Target 4 of the parity document's fuzzing list: template parsing and rendering.
+/// Target 4 of the shared fuzzing list: template parsing and rendering.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -21,14 +21,14 @@ namespace NarrativeTrace.SecurityTests;
 /// holds that ruling against generated paths.
 /// </para>
 /// <para>
-/// @edgeCase Two structural facts about this port's <c>NarrationResolver</c> (see
+/// @edgeCase Two structural facts about this runtime's <c>NarrationResolver</c> (see
 /// <see cref="TemplateResolution"/>'s remarks) mean the corpus's own <c>expect: "redacted"</c> cases
 /// do not exercise real resolution here: the placeholder grammar is <b>one level only</b>
 /// (<c>{root.prop}</c>, never <c>{root.a.b}</c>) and property lookup is <b>case-sensitive</b>, while
-/// every corpus path is written in Java's javaBean casing (<c>card.cvv</c>) against this port's
+/// every corpus path is written in Java's javaBean casing (<c>card.cvv</c>) against this runtime's
 /// PascalCase fixtures (<c>Card.Cvv</c>). Every corpus template case is still replayed for the
 /// invariants that hold regardless of resolution — never throws, bounded time, idempotent, never
-/// leaks — but "must show the marker" is asserted only where this port's actual grammar resolves
+/// leaks — but "must show the marker" is asserted only where this runtime's actual grammar resolves
 /// the path: the FsCheck-generated properties below, built from
 /// <see cref="SecurityArbitraries.RedactedPathArbitraries"/>.
 /// </para>
@@ -62,7 +62,7 @@ public class TemplateRedactionPropertyTests
     }
 
     /// <summary>
-    /// The bug class: a redacted leaf stays redacted, wherever a path this port can actually resolve
+    /// The bug class: a redacted leaf stays redacted, wherever a path this runtime can actually resolve
     /// names it — regardless of what surrounds the placeholder.
     /// </summary>
     [Property(MaxTest = 100, Arbitrary = [typeof(SecurityArbitraries.RedactedPathArbitraries), typeof(SecurityArbitraries.ProseArbitraries)])]

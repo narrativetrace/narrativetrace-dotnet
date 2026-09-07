@@ -471,7 +471,7 @@ public class SyncNarrativeContextTests
 
     // A snapshot propagates lineage into a worker; it is not a time machine
     // back to the capture as it stood. Activation therefore opens a *fresh*
-    // capture — inverted from the save/restore behaviour this port shipped
+    // capture — inverted from the save/restore behaviour this runtime shipped
     // before the 2026-08-31 propagation audit, exactly as Java inverted its
     // equivalents when ADR-013 landed.
     [Fact]

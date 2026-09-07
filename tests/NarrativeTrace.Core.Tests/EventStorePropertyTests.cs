@@ -10,8 +10,8 @@ using Xunit;
 
 namespace NarrativeTrace.Core.Tests;
 
-// FsCheck ports of Java's EventStorePropertyTest (PIPE-9): count, insertion
-// order, completed-pair aggregation, and error tally invariants.
+// FsCheck properties over the shared EventStore invariants (PIPE-9): count,
+// insertion order, completed-pair aggregation, and error tally.
 public class EventStorePropertyTests
 {
     private static readonly TraceId Tid =

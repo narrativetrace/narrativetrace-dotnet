@@ -1,4 +1,4 @@
-<!-- source: documentation/privacy-and-redaction.md blob a6f4d3a637f9 | translated: 2026-09-03 | reviewed: 2026-09-03 -->
+<!-- source: documentation/privacy-and-redaction.md blob e30ee83747b0 | translated: 2026-09-07 | reviewed: - -->
 # Privacidade e ocultação
 
 [English](../privacy-and-redaction.md) | [Español](../es/privacidad-y-ocultacion.md) | **Português** | [简体中文](../zh-CN/隐私与脱敏.md)
@@ -6,13 +6,13 @@
 O NarrativeTrace roda dentro do seu processo e escreve arquivos que sua
 equipe vai compartilhar — artefatos de CI, saída de trace local, o que
 quer que seu pipeline de logging encaminhe. Esta página diz exatamente o
-que é e o que não é ocultado, verificado contra o código deste port (não
-presumido, nem herdado da referência em Java), para que você possa
+que é e o que não é ocultado, verificado contra o código desta implementação
+(não presumido, nem herdado de outra), para que você possa
 decidir se é seguro para seus dados antes de conectá-lo.
 
 ## Ocultação, superfície por superfície
 
-Toda integração distribuída neste port renderiza valores de parâmetros e
+Toda integração distribuída nesta implementação renderiza valores de parâmetros e
 de retorno através do mesmo motor (`ValueRenderer`,
 `NarrativeInterceptor`), que sempre resolve para
 `RedactionPolicy.Default` — nenhuma delas expõe um botão de configuração
@@ -117,7 +117,7 @@ ocultação:
 
 - **A ocultação é incondicional em toda integração distribuída.**
   `[NotTraced]` e a lista de negação de 26 padrões (mais os três formatos
-  de valor) se aplicam a todo caminho de saída que este port distribui —
+  de valor) se aplicam a todo caminho de saída que esta implementação distribui —
   captura por proxy, encapsulamento automático de DI, middleware do
   ASP.NET Core, saída de testes xUnit/NUnit, marcadores de template e
   todo formato de exportação. Nenhuma flag, variável de ambiente ou
@@ -169,7 +169,7 @@ ocultação:
   tipo não puder ser confiado com um campo.
 - **Nenhum loop de comparação com linha de base em produção lê o
   artefato estrutural de volta ainda.** O arquivo `.nt` é determinístico
-  e sem valores por construção, mas este port não distribui nada que o
+  e sem valores por construção, mas esta implementação não distribui nada que o
   compare com uma execução anterior (veja
   [O que incluir no commit](o-que-incluir-no-commit.md)).
 

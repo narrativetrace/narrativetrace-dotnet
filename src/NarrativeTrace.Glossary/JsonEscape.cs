@@ -13,7 +13,7 @@ namespace NarrativeTrace.Glossary;
 /// <remarks>
 /// Glossary text is human-curated input — quotes must not forge fields and
 /// control characters (U+0000–U+001F) must never reach the output raw, or
-/// the document becomes invalid. Mirrors the Java edition's shared
+/// the document becomes invalid. Mirrors the Java runtime's shared
 /// <c>JsonEscape</c>.
 /// </remarks>
 internal static class JsonEscape

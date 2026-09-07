@@ -1,4 +1,4 @@
-<!-- source: documentation/choosing-an-integration.md blob 8db3d09fc347 | translated: 2026-09-03 | reviewed: 2026-09-03 -->
+<!-- source: documentation/choosing-an-integration.md blob 66bb4be4f7cf | translated: 2026-09-07 | reviewed: - -->
 # Escolhendo uma integração
 
 [English](../choosing-an-integration.md) | [Español](../es/elegir-una-integracion.md) | **Português** | [简体中文](../zh-CN/选择集成方式.md)
@@ -24,7 +24,7 @@ de cada caminho, veja o
 
 ## A decisão
 
-Todo caminho neste port se conecta em um **limite de interface** — hoje
+Todo caminho nesta implementação se conecta em um **limite de interface** — hoje
 não há tecelagem de bytecode nem instrumentação sem código (a linha
 acima). A pergunta real é *como* você alcança essa chamada de interface:
 

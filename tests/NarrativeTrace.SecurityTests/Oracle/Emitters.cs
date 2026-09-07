@@ -23,7 +23,7 @@ namespace NarrativeTrace.SecurityTests.Oracle;
 /// <c>NarrativeTestBase</c> use.
 /// </para>
 /// <para>
-/// @edgeCase This port has no standalone <c>FrontmatterBuilder</c> or Mermaid
+/// @edgeCase This runtime has no standalone <c>FrontmatterBuilder</c> or Mermaid
 /// <c>renderWithAliases</c> — confirmed absent by direct audit of
 /// <c>NarrativeTrace.Core</c>/<c>NarrativeTrace.Diagrams</c>. Frontmatter is checked from the
 /// embedded block inside <c>renderer:markdown-document</c> instead of a second standalone emitter.

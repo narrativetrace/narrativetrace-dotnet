@@ -406,8 +406,8 @@ public sealed class StructuralTraceRendererTests
     /// <summary>
     /// A <see cref="Threw"/> carrying no exception instance has no type name to
     /// emit, and the format defines no token for "threw something unknown". The
-    /// renderer degrades to silence exactly like every other renderer in the
-    /// port rather than inventing a token for a state the runtime never builds.
+    /// renderer degrades to silence exactly like every other renderer here,
+    /// rather than inventing a token for a state the runtime never builds.
     /// </summary>
     [Fact]
     public void Thrown_outcome_without_an_exception_emits_no_outcome_kind()

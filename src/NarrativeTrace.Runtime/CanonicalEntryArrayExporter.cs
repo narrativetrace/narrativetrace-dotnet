@@ -11,7 +11,7 @@ namespace NarrativeTrace.Runtime;
 /// </summary>
 /// <remarks>
 /// Two artifacts, one shape. <see cref="Canonical"/> is the input of canonical-
-/// schema consumers (ports, conformance fixtures); <see cref="Structural"/> is
+/// schema consumers (other runtimes, conformance fixtures); <see cref="Structural"/> is
 /// the same array with every runtime value elided (ADR-002 Level 1), for
 /// handing to an AI consumer. They share this renderer deliberately: a
 /// structural artifact that drifted from the canonical shape would stop being

@@ -16,7 +16,7 @@ namespace NarrativeTrace.Logging;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The .NET answer to Java's <c>PipelineBootstrap</c>, which does not port.
+/// The .NET answer to Java's <c>PipelineBootstrap</c>, which has no .NET equivalent.
 /// SLF4J's <c>LoggerFactory</c> is a static global, so the JVM edition can take
 /// the module's presence on the classpath as the activation signal and
 /// manufacture a logger reflectively. .NET's <see cref="ILogger"/> comes from

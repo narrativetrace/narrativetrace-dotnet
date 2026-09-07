@@ -7,8 +7,6 @@ NarrativeTrace is a .NET library that wraps interface-based services with
 call and render the result as indented text, Markdown, prose, sequence
 diagrams, JSON, OpenTelemetry spans, or `Microsoft.Extensions.Logging`
 output. It also scores naming clarity so readability can be enforced in CI.
-It is a .NET port of the JVM NarrativeTrace project; APIs are idiomatic
-.NET, not literal translations.
 
 ## Docs
 

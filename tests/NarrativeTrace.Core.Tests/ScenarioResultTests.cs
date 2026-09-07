@@ -100,7 +100,7 @@ public class ScenarioResultTests
     [InlineData(ScenarioResult.Error)]
     public void Member_name_is_never_a_legal_wire_spelling(ScenarioResult result)
     {
-        // The @llmNote on the Java original: ToString() must never reach an
+        // The rule the whole enum exists for: ToString() must never reach an
         // artifact. Pin that it is in fact different from the wire spelling,
         // so a careless ToString() cannot silently pass schema validation.
         Assert.NotEqual(result.WireName(), result.ToString());

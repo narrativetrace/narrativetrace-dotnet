@@ -70,7 +70,7 @@ public sealed class ClarityScannerTests
         // record was skipped entirely: correct while properties were not
         // narrative surface, since every remaining member was synthesized.
         // Components now resurface as noun-scored properties, which is also
-        // what Java does — closing a divergence between the two ports.
+        // what Java does — closing a divergence between the two runtimes.
         var results = ClarityScanner.Scan([typeof(TravelExpense)]);
 
         Assert.True(results.ContainsKey(nameof(TravelExpense)));

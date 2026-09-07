@@ -17,14 +17,14 @@ namespace NarrativeTrace.Core;
 /// <para>
 /// <b>Never write the member name into an artifact.</b>
 /// <see cref="ScenarioResultExtensions.WireName"/> is the only spelling the
-/// cross-port schema accepts;
+/// cross-runtime schema accepts;
 /// <see cref="ScenarioResultExtensions.DisplayName"/> is for human-facing prose.
 /// <c>ToString()</c> yields neither — it yields <c>"Success"</c>/<c>"Error"</c>,
 /// which the schema rejects.
 /// </para>
 /// <para>
-/// Ported from the Java reference's <c>ScenarioResult</c>, which is the
-/// cross-port contract this derives from.
+/// The spellings are the cross-runtime contract; every NarrativeTrace
+/// runtime carries the same three.
 /// </para>
 /// </remarks>
 public enum ScenarioResult

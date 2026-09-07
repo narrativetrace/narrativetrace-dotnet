@@ -28,7 +28,7 @@ namespace NarrativeTrace.SecurityTests;
 /// it while the filesystem refuses the write.
 /// </para>
 /// <para>
-/// @edgeCase This port has no name-length cap or noncharacter guard at all yet: it lacks java's
+/// @edgeCase This runtime has no name-length cap or noncharacter guard at all yet: it lacks the
 /// byte-cap-plus-hash disambiguator on the artifact-name path, which is unmirrored and out of this
 /// wave's scope. The corpus is carried whole (<see cref="HostileCorpus.Names"/> is not filtered),
 /// but the two throw/containment properties below exclude <see cref="UnguardedByNameCap"/> — the
@@ -45,7 +45,7 @@ public class ArtifactNamingPropertyTests
 
     /// <summary>
     /// Corpus case ids the missing name-length cap and noncharacter guard leave unguarded on
-    /// this port today — see the class remarks.
+    /// this runtime today — see the class remarks.
     /// </summary>
     private static readonly HashSet<string> UnguardedByNameCap =
     [
@@ -108,8 +108,8 @@ public class ArtifactNamingPropertyTests
         Directory.Delete(enclosure, recursive: true);
     }
 
-    [Fact(Skip = "no artifact-name length cap in this port yet -- excluded until java's "
-        + "byte-cap-plus-hash scheme is mirrored; every long-* corpus case fails this by "
+    [Fact(Skip = "no artifact-name length cap in this runtime yet -- excluded until the "
+        + "byte-cap-plus-hash scheme is adopted here; every long-* corpus case fails this by "
         + "construction until that gap is closed. Kept authored, not deleted, so unskipping "
         + "it is the regression test for the fix.")]
     public void No_path_component_a_hostile_name_produces_exceeds_the_filesystem_limit()

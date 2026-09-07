@@ -372,7 +372,7 @@ public class BufferedEventConsumerTests
         Assert.True(consumer.Events().Count >= 1);
     }
 
-    // Cross-port defaults contract (owner, 2026-08-31): default cap is
+    // Cross-runtime defaults contract (owner, 2026-08-31): default cap is
     // 65,536 (2^16), not an arbitrarily larger power of two.
     [Fact]
     public void Default_capacity_matches_the_cross_port_contract()

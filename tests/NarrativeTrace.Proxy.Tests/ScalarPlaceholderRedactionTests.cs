@@ -13,7 +13,7 @@ namespace NarrativeTrace.Proxy.Tests;
 /// placeholder and a whole-object placeholder already do.
 /// </summary>
 /// <remarks>
-/// Mirrors java's fix ("a scalar placeholder obeys both redaction axes").
+/// The same fix every runtime carries ("a scalar placeholder obeys both redaction axes").
 /// The third production of the placeholder grammar
 /// asked nothing at all: <c>{card.cvv}</c> routed through
 /// <see cref="NarrationResolver"/>'s path-redaction check, <c>{card}</c>

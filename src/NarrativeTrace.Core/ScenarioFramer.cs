@@ -11,9 +11,9 @@ namespace NarrativeTrace.Core;
 /// </summary>
 /// <remarks>
 /// Pure string formatting with no knowledge of any test framework — hand it
-/// whatever display name the framework reports. Deliberately mirrors the Java
-/// edition's <c>humanize</c> so the same test produces the same heading in both
-/// ports; changing the wording rules here breaks that parity.
+/// whatever display name the framework reports. Deliberately matches the Java
+/// runtime's <c>humanize</c> so the same test produces the same heading in both;
+/// changing the wording rules here breaks that agreement.
 /// </remarks>
 public static class ScenarioFramer
 {

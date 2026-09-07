@@ -15,6 +15,7 @@ using Nuke.Common.ProjectModel;
 using Nuke.Common.Tooling;
 using Nuke.Common.Tools.DotNet;
 using Nuke.Common.Tools.Git;
+using Serilog;
 using static Nuke.Common.Tools.DotNet.DotNetTasks;
 using static Nuke.Common.Tools.Git.GitTasks;
 
@@ -97,6 +98,20 @@ class Build : NukeBuild
     /// </summary>
     const string SpawnsBuildFilter = "Category!=SpawnsBuild";
 
+    /// <summary>
+    /// Process logger for the handful of invocations below whose healthy,
+    /// informational chatter lands on stderr instead of stdout — gitleaks'
+    /// own "no leaks found" progress line, <c>dotnet format</c>'s
+    /// workspace-loading grumble, semgrep's scan-status banner. Nuke's
+    /// default logger (used whenever a <c>logger</c> argument is omitted)
+    /// treats every stderr line as a Serilog error, so a fully green run
+    /// reads back as a wall of [ERR]. This routes both streams to
+    /// Information instead; it changes nothing about failure detection —
+    /// <c>AssertZeroExitCode</c> (or the task's own exit-code check) remains
+    /// the only signal a run failed.
+    /// </summary>
+    static readonly Action<OutputType, string> QuietProcessLogger = (_, text) => Log.Information(text);
+
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     Target Clean => _ => _
@@ -145,8 +160,8 @@ class Build : NukeBuild
         .Executes(() =>
         {
             var solution = WriteFormatSolution();
-            DotNet($"format whitespace \"{solution}\" --no-restore");
-            DotNet($"format style \"{solution}\" --no-restore");
+            DotNet($"format whitespace \"{solution}\" --no-restore", logger: QuietProcessLogger);
+            DotNet($"format style \"{solution}\" --no-restore", logger: QuietProcessLogger);
         });
 
     Target FormatCheck => _ => _
@@ -154,8 +169,8 @@ class Build : NukeBuild
         .Executes(() =>
         {
             var solution = WriteFormatSolution();
-            DotNet($"format whitespace \"{solution}\" --no-restore --verify-no-changes");
-            DotNet($"format style \"{solution}\" --no-restore --verify-no-changes");
+            DotNet($"format whitespace \"{solution}\" --no-restore --verify-no-changes", logger: QuietProcessLogger);
+            DotNet($"format style \"{solution}\" --no-restore --verify-no-changes", logger: QuietProcessLogger);
         });
 
     /// <summary>
@@ -430,7 +445,7 @@ class Build : NukeBuild
             }
         });
 
-    // ── Security tooling (shared cross-port convention) ─────────────────────────
+    // ── Security tooling (shared cross-runtime convention) ─────────────────────────
 
     /// <summary>
     /// Full-history secrets sweep (gitleaks). Git-log mode reads only
@@ -465,7 +480,8 @@ class Build : NukeBuild
             ProcessTasks.StartProcess(
                     tool,
                     $"detect --source \"{RootDirectory}\" --redact --no-banner --report-format json "
-                        + $"--report-path \"{reportPath}\"")
+                        + $"--report-path \"{reportPath}\"",
+                    logger: QuietProcessLogger)
                 .AssertZeroExitCode();
         });
 
@@ -496,9 +512,14 @@ class Build : NukeBuild
 
             Directory.CreateDirectory(SecurityDirectory);
             var reportPath = SecurityDirectory / "semgrep-csharp.json";
+            // semgrep writes its scan-status banner ("Scanning N files...",
+            // "Scan Summary") to stderr even with --json --output routing the
+            // findings to a file — same chatty-stderr habit as gitleaks and
+            // dotnet format above.
             ProcessTasks.StartProcess(
                     tool,
-                    $"--config=p/csharp --metrics=off --error --json --output \"{reportPath}\" \"{RootDirectory}\"")
+                    $"--config=p/csharp --metrics=off --error --json --output \"{reportPath}\" \"{RootDirectory}\"",
+                    logger: QuietProcessLogger)
                 .AssertZeroExitCode();
         });
 
@@ -782,7 +803,7 @@ class Build : NukeBuild
     /// restored via <c>dotnet tool restore</c>, works in any container with NuGet access) and
     /// <c>afl-fuzz</c> (a native binary this repository does not ship, is not on <c>PATH</c> in a
     /// bare container, and cannot be installed here without root/apt). Confirmed on the container
-    /// this port was built in: <c>sharpfuzz</c> instrumentation succeeds (the published DLL grows
+    /// this runtime was built in: <c>sharpfuzz</c> instrumentation succeeds (the published DLL grows
     /// from ~186 KB to ~312 KB — real IL added, verified by byte comparison); <c>afl-fuzz</c> is
     /// absent and `apt-cache search afl` returns nothing (no cached package to install even with
     /// root). So this target always performs the instrumentation half, proving the harness and
@@ -861,7 +882,7 @@ class Build : NukeBuild
             .AssertZeroExitCode();
     }
 
-    // ── Stress (concurrency invariants shared across ports) ─────────────────────
+    // ── Stress (concurrency invariants shared across runtimes) ──────────────────
 
     /// <summary>
     /// Long randomized sweep of <c>NarrativeTrace.StressTests</c> — the same

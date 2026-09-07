@@ -31,7 +31,7 @@ namespace NarrativeTrace.Glossary;
 /// degraded, never wrong.
 /// </para>
 /// <para>
-/// <b>Platform note.</b> Java's edition offers a default sink writing to the
+/// <b>Platform note.</b> The Java runtime offers a default sink writing to the
 /// <c>narrativetrace.i18n.&lt;locale&gt;</c> SLF4J logger, because every JVM
 /// application already carries that façade. .NET has no equivalent a leaf
 /// module may assume — this module deliberately takes no logging package — so

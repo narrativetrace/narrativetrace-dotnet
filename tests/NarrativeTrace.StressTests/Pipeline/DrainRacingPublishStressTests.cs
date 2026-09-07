@@ -8,7 +8,7 @@ namespace NarrativeTrace.StressTests.Pipeline;
 
 /// <summary>
 /// A drain racing a live producer sees a prefix, never a tear. The .NET mirror of java's jcstress
-/// scenario <c>DrainRacingPublishTest</c> — the race that found the seqlock defect (this port's
+/// scenario <c>DrainRacingPublishTest</c> — the race that found the seqlock defect (this runtime's
 /// mirror of the fix lives in <see cref="BoundedEventBuffer"/>).
 /// </summary>
 /// <remarks>

@@ -241,7 +241,7 @@ public sealed class TraceArtifactWriterTests : IDisposable
         bool failed, string expectedResult)
     {
         // Java's TraceTestSupport renders via renderDocument, so the per-test
-        // .md carries a document header. This port emitted frontmatter without
+        // .md carries a document header. This runtime emitted frontmatter without
         // one until 2026-08-28.
         TraceArtifactWriter.Write(
             TreeWithNode(), "Foo.OrderTests", "PlacesOrder", "PlacesOrder",
@@ -354,7 +354,7 @@ public sealed class TraceArtifactWriterTests : IDisposable
 
     /// <summary>
     /// A java security fuzz suite finding, mirrored here as the writer's own guarantee:
-    /// whatever a renderer hands it — this port's shipped renderers already sanitize narration and
+    /// whatever a renderer hands it — this runtime's shipped renderers already sanitize narration and
     /// captured values before <see cref="TraceArtifactWriter.Write"/> ever sees them, but the
     /// injected <see cref="TraceArtifactRenderers"/> delegate bundle is public API a caller can
     /// supply their own renderer through — the write itself must substitute an unencodable

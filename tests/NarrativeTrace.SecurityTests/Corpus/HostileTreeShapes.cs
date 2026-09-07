@@ -7,7 +7,7 @@ namespace NarrativeTrace.SecurityTests.Corpus;
 
 /// <summary>Turns a declarative <c>tree-shapes.json</c> case into a live <see cref="TraceTree"/>.</summary>
 /// <remarks>
-/// The per-port half of the shared corpus (see the class remarks on <see cref="HostileGraphs"/>
+/// The per-runtime half of the shared corpus (see the class remarks on <see cref="HostileGraphs"/>
 /// for the same split): the JSON says <c>chain</c> or <c>cycle</c> and a size, this says what a
 /// .NET <see cref="TraceNode"/> shaped that way actually looks like.
 /// </remarks>

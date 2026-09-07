@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/configuration.md blob c160de037829 | translated: 2026-09-03 | reviewed: 2026-09-03 -->
+<!-- source: documentation/guides/configuration.md blob 39d1b98903b3 | translated: 2026-09-07 | reviewed: - -->
 # NarrativeTrace .NET — Guia de configuração
 
 [English](../configuration.md) | [Español](../es/guia-de-configuracion.md) | **Português** | [简体中文](../zh-CN/配置指南.md)
@@ -93,7 +93,7 @@ principal:
 
 - `<test>.canonical.json` — o trace achatado em entradas do esquema
   canônico (um `method_enter` e um `method_exit` por chamada), para
-  consumidores do esquema e para as fixtures de conformidade entre ports.
+  consumidores do esquema e para as fixtures de conformidade entre implementações.
 - `<test>.structural.json` — o mesmo array com todos os valores de runtime
   elididos (ADR-002 nível 1), pensado para ser entregue a um consumidor de
   IA: os nomes de parâmetros sobrevivem; os valores de parâmetros, os

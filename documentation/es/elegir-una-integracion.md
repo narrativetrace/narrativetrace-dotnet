@@ -1,4 +1,4 @@
-<!-- source: documentation/choosing-an-integration.md blob 8db3d09fc347 | translated: 2026-09-03 | reviewed: 2026-09-03 -->
+<!-- source: documentation/choosing-an-integration.md blob 66bb4be4f7cf | translated: 2026-09-07 | reviewed: - -->
 # Elegir una integración
 
 [English](../choosing-an-integration.md) | **Español** | [Português](../pt-BR/escolhendo-uma-integracao.md) | [简体中文](../zh-CN/选择集成方式.md)
@@ -24,7 +24,7 @@ código detrás de cada vía, consulta la
 
 ## La decisión
 
-Toda vía de este port se conecta en un **límite de interfaz** — hoy no hay
+Toda vía de esta implementación se conecta en un **límite de interfaz** — hoy no hay
 opción de tejido de bytecode ni de instrumentación sin código (la fila de
 arriba). La pregunta real es *cómo* llegas a esa llamada de interfaz:
 

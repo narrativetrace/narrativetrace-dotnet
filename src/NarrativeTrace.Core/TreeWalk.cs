@@ -44,7 +44,7 @@ public static class TreeWalk
     /// </para>
     /// <para>
     /// This is <see cref="Visit"/>'s own bound, which is genuinely safe at any value — it never
-    /// recurses the CLR call stack. The number sits lower than the Java flagship's matching
+    /// recurses the CLR call stack. The number sits lower than the Java runtime's matching
     /// <c>TreeWalk.MAX_DEPTH</c> (10,000) because downstream consumers of a bounded tree impose
     /// their own real stack costs, which vary with host stack headroom and instrumentation;
     /// 2,000 held clean across repeated instrumented runs and is still an order of magnitude

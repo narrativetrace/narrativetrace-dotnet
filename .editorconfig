@@ -13,7 +13,7 @@ dotnet_diagnostic.CS1591.severity = none
 # Allow empty types (abstract record bases, scaffold placeholders)
 dotnet_diagnostic.S2094.severity = none
 
-# Culture-invariant output is a parity contract with the Java edition:
+# Culture-invariant output is a cross-runtime contract:
 # trace files must be byte-identical across machine locales (RENDER-17)
 dotnet_diagnostic.CA1305.severity = error
 
@@ -28,7 +28,7 @@ dotnet_diagnostic.CS1591.severity = warning
 
 # ── Test naming ───────────────────────────────────────────────────────────────
 # Underscore method names (Given_state_then_outcome) are this repository's
-# deliberate test style, shared with every port. CA1707 firing on each of
+# deliberate test style, shared with every runtime. CA1707 firing on each of
 # them buried a release-run failure under thousands of warnings
 # (2026-09-06 publish run) — the rule simply does not apply to tests.
 [tests/**/*.cs]

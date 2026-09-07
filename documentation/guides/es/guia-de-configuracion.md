@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/configuration.md blob c160de037829 | translated: 2026-09-02 | reviewed: 2026-09-03 -->
+<!-- source: documentation/guides/configuration.md blob 39d1b98903b3 | translated: 2026-09-07 | reviewed: - -->
 # NarrativeTrace .NET — Guía de configuración
 
 [English](../configuration.md) | **Español** | [Português](../pt-BR/guia-de-configuracao.md) | [简体中文](../zh-CN/配置指南.md)

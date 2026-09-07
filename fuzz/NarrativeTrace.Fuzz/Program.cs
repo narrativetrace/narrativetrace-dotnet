@@ -7,7 +7,7 @@ using NarrativeTrace.Runtime;
 namespace NarrativeTrace.Fuzz;
 
 /// <summary>
-/// Tier B coverage-guided fuzz harness — the top two targets from the parity document's fuzzing
+/// Tier B coverage-guided fuzz harness — the top two targets from the shared fuzzing
 /// list, driven by <c>SharpFuzz</c>. See <c>documentation/security-testing.md</c> and the
 /// <c>Fuzz</c> NUKE target for how (and whether) this actually runs in a given environment.
 /// </summary>

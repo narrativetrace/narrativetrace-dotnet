@@ -20,7 +20,7 @@ namespace NarrativeTrace.StressTests.Pipeline;
 /// first not-yet-published slot rather than skipping ahead, so a later,
 /// already-written slot stays undrained until the next flush. Java accepts
 /// this as <c>ACCEPTABLE_INTERESTING</c>, not forbidden. The <b>strong</b>
-/// postcondition this test actually holds the port to is the one flush
+/// postcondition this test actually holds this runtime to is the one flush
 /// that runs strictly after every publish has already returned (this
 /// suite's own <see cref="StressRace.RunOnce"/> joins every actor first):
 /// that flush must always account for everything, exactly once.

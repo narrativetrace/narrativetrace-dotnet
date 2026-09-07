@@ -30,9 +30,9 @@ public sealed class InvalidExpenseException : Exception
 
 /// <summary>
 /// Cross-platform conformance: the <c>.nt</c> format is normative and shared by
-/// every NarrativeTrace port, because these files are the approval baselines and
-/// conformance fixtures that travel between platforms. This pins the .NET
-/// renderer against a golden file produced by the Java reference implementation
+/// every NarrativeTrace runtime, because these files are the approval baselines
+/// and conformance fixtures that travel between platforms. This pins the .NET
+/// renderer against a golden file emitted by the Java runtime
 /// (<c>fairsplit</c> dogfood, <c>TripSettlementServiceTest</c>) — byte for byte.
 /// </summary>
 public sealed class StructuralTraceConformanceTests

@@ -2,10 +2,10 @@
 
 [`security-testing.md`](security-testing.md) covers the fuzz/property suite
 that attacks this library's own rendering and parsing logic
-(`NarrativeTrace.SecurityTests`, mirrored across every port). This document
+(`NarrativeTrace.SecurityTests`, mirrored across every runtime). This document
 covers the other half: static and dependency scanning over the repository
 itself — secrets, dangerous code patterns, and known-vulnerable packages.
-None of it is mirrored across ports; it is this repository's own supply-chain
+None of it is mirrored across runtimes; it is this repository's own supply-chain
 and secrets hygiene.
 
 Every scanner below is a named `./build.sh` target (see `build/Build.cs`).
@@ -102,6 +102,31 @@ rule cannot see that trust boundary. Suppressed inline with
 `// nosemgrep: csharp.lang.security.filesystem.unsafe-path-combine.unsafe-path-combine`
 on each flagged line, with the one-line reason in a comment above both
 calls. Re-run after the suppression: **0 findings.**
+
+**Evidence (2026-09-07):** the glossary translation stack earned the same rule
+once more, at `src/NarrativeTrace.Glossary/GlossaryLoader.cs:96` —
+`Path.Combine(baseDirectory, BaseDirectoryFileName)` feeding
+`File.ReadAllText`. Same triage, and the rule's own mechanism rules it out:
+`Path.Combine`'s traversal hazard is a *trailing* segment that reroots the
+path (`Path.Combine("/safe", "/etc/passwd")` is `/etc/passwd`), whereas the
+tainted metavariable here is the **leading** directory and the trailing
+segment is the compile-time constant `glossary.json`. The read is therefore
+always `<baseDirectory>/glossary.json`; no caller-supplied value can name a
+different file, and `Path.GetFileName` — the only sanitizer the rule accepts —
+would discard the directory and break discovery outright. Every in-tree caller
+passes `AppContext.BaseDirectory` (`GlossaryLoader.Load()`,
+`DemoTraces.WriteTranslated`) or a test temp directory. Suppressed inline on
+the flagged line with the reason above it; the invariant is pinned by
+`GlossaryLoaderTests.Base_directory_selects_no_file_other_than_glossary_json`,
+so a change that makes the probed name caller-derived fails a test rather than
+silently re-earning the finding. Re-run after the suppression: **0 findings**
+across 248 files.
+
+The `NARRATIVETRACE_GLOSSARY_PATH` override beside it reads an arbitrary
+absolute path and is *not* flagged (no `Path.Combine`), correctly: it is
+process configuration, the same trust tier as Java's
+`narrativetrace.glossary.path` system property, and pointing it at a file is
+the whole point of the key.
 
 ## OSV-Scanner + `dotnet list package --vulnerable`
 

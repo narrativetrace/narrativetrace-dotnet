@@ -4,7 +4,7 @@
 
 Once tracing is running, you'll have generated files on disk. This page
 says which ones are throwaway output and which ones are meant to be
-reviewed and committed — verified against what this port's writers actually
+reviewed and committed — verified against what this runtime's writers actually
 produce, not assumed.
 
 ## The artifacts, one by one
@@ -14,13 +14,13 @@ produce, not assumed.
 | `<output-dir>/traces/<Class>/<slug>.md` | No | Regenerated every run; the human-readable trace for one test. |
 | `<output-dir>/traces/<Class>/<slug>.json` | No | The same trace as a JSON chapter document — regenerated every run. |
 | `<output-dir>/diagrams/<Class>/<slug>.mmd` | No | Mermaid sequence diagram companion — regenerated every run. |
-| `<output-dir>/structural/<Class>/<slug>.nt` | No, today | Value-free structural trace (names, hierarchy, outcome kind only). Deterministic and diffable by construction, but **nothing in this port reads it back yet** — there is no approval-mode or delta-comparison loop against a previous run, so there's no committed baseline for it to compare against. Regenerated every run like the rest. |
+| `<output-dir>/structural/<Class>/<slug>.nt` | No, today | Value-free structural trace (names, hierarchy, outcome kind only). Deterministic and diffable by construction, but **nothing in this runtime reads it back yet** — there is no approval-mode or delta-comparison loop against a previous run, so there's no committed baseline for it to compare against. Regenerated every run like the rest. |
 | `<output-dir>/traces/<Class>/<slug>.canonical.json` | No | Opt-in (`NARRATIVETRACE_CANONICAL_JSON=true`) conformance fixture, intended for testing NarrativeTrace itself against the canonical schema — not something an application project needs to keep. |
 | `<output-dir>/traces/<Class>/<slug>.structural.json` | No | Opt-in (`NARRATIVETRACE_STRUCTURAL_JSON=true`) value-free entry array — same reasoning as `.canonical.json`. |
 | `<output-dir>/clarity-results.json` | No | Generated suite-level clarity report (machine-readable). Appears whenever the suite fixture ran and accumulated at least one entry, independent of `NARRATIVETRACE_OUTPUT` — regenerate, don't commit. |
 | `<output-dir>/clarity-report.md` | No | Same report, human-readable. |
 | `clarity/clarity-scan-results.json` / `clarity-scan-report.md` (from `dotnet-narrativetrace clarity-scan`) | No | A static, reflection-only scan of a compiled assembly — regenerate in CI, don't commit. |
-| `glossary.json` | **Yes**, if you use glossary harvesting | See below — this is the one artifact this port treats as a reviewed, hand-curated file. |
+| `glossary.json` | **Yes**, if you use glossary harvesting | See below — this is the one artifact this runtime treats as a reviewed, hand-curated file. |
 | `glossary.md` | **Yes**, alongside `glossary.json` | Human-readable rendering of the same file, rewritten only when the JSON's bytes change (anti-churn). |
 | `<output-dir>/glossary-usage.json` | No | Volatile per-run usage statistics — regenerated, not curated. |
 
@@ -52,10 +52,9 @@ review the diff like any other hand-curated file. A malformed
 `glossary.json` throws rather than being silently skipped, which is
 deliberate: a typo in a committed, reviewed file should fail loudly.
 
-## What this port does not have yet
+## What this runtime does not have yet
 
-If you know the Java reference implementation, don't carry its approval-mode
-workflow over by assumption: this port has no `.approved.nt` / `.received.nt`
+Approval mode is not here yet: there are no `.approved.nt` / `.received.nt`
 files, no `approve` verb, and nothing that compares one run's structural
 trace against a previous one. The `.nt` structural artifact exists and is
 deterministic, but every artifact on this page is regenerate-only output

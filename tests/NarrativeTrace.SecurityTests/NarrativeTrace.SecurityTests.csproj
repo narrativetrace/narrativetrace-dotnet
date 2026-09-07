@@ -30,7 +30,7 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <!-- Copied verbatim from ../../../narrative-trace-java (the golden source); see HostileCorpus/README.md. -->
+    <!-- The shared cross-runtime corpus, copied verbatim; see HostileCorpus/README.md. -->
     <None Include="HostileCorpus/*.json;HostileCorpus/README.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>

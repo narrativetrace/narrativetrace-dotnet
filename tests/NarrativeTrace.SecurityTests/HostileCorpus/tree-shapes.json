@@ -1,5 +1,5 @@
 {
-  "$comment": "TraceNode call-tree shapes: depth and cycles in the tree structure itself (TraceNode.Children), as opposed to graphs.json's object-graph shapes fed to the value renderer. A builder in each port turns a case into a live TraceTree. See README.md.",
+  "$comment": "TraceNode call-tree shapes: depth and cycles in the tree structure itself (TraceNode.Children), as opposed to graphs.json's object-graph shapes fed to the value renderer. A builder in each runtime turns a case into a live TraceTree. See README.md.",
   "cases": [
     { "id": "chain-200", "description": "a two-hundred-node call chain - ordinary, well within TreeWalk.MaxDepth", "kind": "chain", "n": 200 },
     { "id": "self-cycle", "description": "a node whose own children list holds itself", "kind": "cycle", "n": 1 },

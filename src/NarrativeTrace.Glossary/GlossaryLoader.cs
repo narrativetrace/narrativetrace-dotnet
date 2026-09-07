@@ -94,9 +94,14 @@ public static class GlossaryLoader
             return ReadOverride(overridePath!);
         }
 
+        // Path.Combine's traversal hazard is a *trailing* segment that reroots the path;
+        // the tainted value here is the leading directory and the trailing segment is a
+        // compile-time constant, so the read is always <baseDirectory>/glossary.json and
+        // no caller-supplied value can name a different file. Path.GetFileName — the only
+        // sanitizer the rule accepts — would discard the directory and break discovery.
         var beside = Path.Combine(baseDirectory, BaseDirectoryFileName);
         return File.Exists(beside)
-            ? GlossaryJsonReader.Read(File.ReadAllText(beside))
+            ? GlossaryJsonReader.Read(File.ReadAllText(beside)) // nosemgrep: csharp.lang.security.filesystem.unsafe-path-combine.unsafe-path-combine
             : null;
     }
 

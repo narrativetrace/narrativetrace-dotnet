@@ -7,9 +7,8 @@ method execution as a narrative trace — a nested, human-readable account of th
 calls, arguments, outcomes, and timing behind a unit of work — and scores the
 *clarity* of your naming so unreadable code gets flagged before it ships.
 
-It is the .NET port of the [NarrativeTrace Java project](https://github.com/narrativetrace/narrativetrace-java),
-tracking it for feature parity, with a migration-first architecture that runs on
-modern .NET, `netstandard2.0`, and legacy `net48`.
+A migration-first architecture: the same library runs on modern .NET,
+`netstandard2.0`, and legacy `net48`.
 
 ## The problem
 
@@ -488,7 +487,7 @@ Going deeper:
 
 - [Feature Guide](documentation/feature-guide.md) — canonical status table (Free/Pro/In development/Planned) for every feature, with the code behind each shipped row
 - [Security Tooling](documentation/security-tooling.md) — the scanner lineup and what gates the build vs. runs on a schedule
-- [Security Testing](documentation/security-testing.md) — the fuzz/property suite mirrored across every port
+- [Security Testing](documentation/security-testing.md) — the fuzz/property suite mirrored across every NarrativeTrace runtime
 
 For AI consumers: [`llms.txt`](documentation/guides/llms.txt) and
 [`llms-full.md`](documentation/guides/llms-full.md).
@@ -599,18 +598,17 @@ both remain open items on the roadmap.
 
 ## Status
 
-Actively implemented and tracking the Java reference for feature parity. The
-capture pipeline, canonical JSON schema, two-tier attribute model, ASP.NET Core
-lifecycle, DI wiring, OpenTelemetry (batch + live), clarity tooling + CLI, and
-test-framework integrations and the runnable examples with their demo launcher
-are in place. Remaining work: packaging polish and `net48` runtime validation.
+0.1.0 is released — the packages are on NuGet. The capture pipeline, canonical
+JSON schema, two-tier attribute model, ASP.NET Core lifecycle, DI wiring,
+OpenTelemetry (batch + live), clarity tooling + CLI, and test-framework
+integrations and the runnable examples with their demo launcher are in place.
+Remaining work: `net48` runtime validation.
 
 ## License
 
 NarrativeTrace's API and output format are open standards (Apache 2.0). Its
 runtime is free and source-available (BSL 1.1, converting to Apache 2.0 four
-years after each release), because code that runs in your process should be
-auditable. Its intelligence is commercial.
+years after each release). Pro is commercial.
 
 Everything in this repository is the runtime, licensed under the
 [Business Source License 1.1](LICENSE). You may use it in production for any
