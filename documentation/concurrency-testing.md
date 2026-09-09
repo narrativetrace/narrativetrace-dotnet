@@ -54,7 +54,7 @@ product ships.
 | 3 | Lazy ring allocation races allocate exactly once | **N/A** — `BoundedEventBuffer`'s whole ring is allocated eagerly in the constructor (`_slots = new Slot[rounded]`), matching Java's own eager allocation; there is no lazy path for a race to hit. No test needed to prove the absence of a mechanism; the constructor is the evidence. |
 | 4 | The tail is never stranded: a publish around the drain mechanism's stop/park moment is always eventually drained | `TailNeverStrandedStressTests` — verified safe (the drain loop never parks indefinitely; a missed wake-up costs one bounded sleep interval, never forever) |
 | 5 | close()/dispose() racing publish and flush: idempotent, nothing silently lost uncounted, the drain mechanism terminates | `CloseDisposeStressTests` — verified safe (CAS-guarded `Dispose`; `Flush` never checks disposal state) |
-| 6 | flush()'s post-condition holds under concurrent publish: everything published-before is in the store after | `FlushPostconditionStressTests` — verified safe for the strong form (a flush strictly after every publish returned); the weak form (a flush racing a publish) matches Java's own `ACCEPTABLE_INTERESTING`, not asserted on |
+| 6 | flush()'s post-condition holds under concurrent publish: everything published-before is in the store after | `FlushPostconditionStressTests` — store side verified safe for the strong form (a flush strictly after every publish returned); the weak form (a flush racing a publish) matches Java's own `ACCEPTABLE_INTERESTING`, not asserted on. **Delivery side — real defect, fixed**: see "Findings" below and `FlushBarrierLiveDrainStressTests` |
 | 7 | The adoption/item-44 seams under concurrency: capture racing scope-close sees spans through exactly one side; no partial batch adoption at the ceiling; reset racing publish is safe | `AdoptionSeamStressTests` — verified safe (`AdoptionLedger.Adopt` performs the release-and-adopt step atomically under one lock, unlike Java's two separate synchronized calls — no hand-over window exists to race into) |
 
 ## The targets
@@ -67,6 +67,7 @@ product ships.
 | `Pipeline.TailNeverStrandedStressTests` | `ConsumerParkWakeupTest` | a publish racing the real background drain thread |
 | `Pipeline.CloseDisposeStressTests` | `CloseIdempotenceTest`, `CloseRacingPublishTest` | concurrent `Dispose()` calls; a publish racing a `Dispose()` |
 | `Pipeline.FlushPostconditionStressTests` | `FlushRacingPublishTest` | two producers, one flushing mid-race, one more flush after both join |
+| `Pipeline.FlushBarrierLiveDrainStressTests` | no jcstress mirror — the .NET shape of the cross-runtime parity fix Python landed at commit `24aa8e3` (`TestFlushPostConditionUnderConcurrentPublish`) | 8 producers joined via barrier, then one `Flush()` against a *live* background drain thread, in a roomy ring and in a ring forced into shedding; store, shed count and subscriber delivery all checked in one pass |
 | `Context.AdoptionSeamStressTests` | `LiveChildHandOverTest`, `AdoptionCeilingTest` | a live child's hand-over racing a reader; two ceiling-crossing batches adopting concurrently |
 | `Pipeline.DrainRacingPublishStressTests` | `DrainRacingPublishTest` | one producer publishing eight events into a four-slot ring while a drain races both publication and overwrite — the seqlock scenario; see "Findings" below |
 
@@ -124,7 +125,11 @@ Recorded with evidence, not silently dropped:
 change the count; default 200,000). Deliberately **not** a dependency of
 `Verify` — the same relationship `Benchmark` and `Fuzz` have to the gate:
 racing the same interleaving hundreds of thousands of times is minutes,
-not seconds.
+not seconds. Wired into the private CI's own `stress` job on the same
+schedule/web tier as `mutation` and `fuzz` — this sweep genuinely fires
+unattended, not merely a documented aspiration. It has no GitHub Actions job
+today, unlike `Mutation`'s public-mirror workflow; adding one is a smaller,
+separate piece of work, not claimed here.
 
 ## From a race to a regression test
 
@@ -153,10 +158,32 @@ not seconds.
   this repository's parallel no-poison audit, reached here independently
   via concurrent stress races. Fixed: `BoundedEventBuffer.OverwrittenCount`,
   wired into `BufferedEventConsumer.DroppedCount`.
-- **Invariants 2, 4, 5, 6, 7 — verified safe, no defect.** Each holds by a
+- **Invariants 2, 4, 5, 7 — verified safe, no defect.** Each holds by a
   specific, named construction detail (a shared lock, a bounded-sleep
   poll, a CAS guard, an atomic adopt-and-release) rather than by luck; see
   the invariant table above for which.
+- **Invariant 6 (flush post-condition), delivery side — real defect,
+  fixed.** The store side already held: the background drain cycle and
+  `Flush()` shared one lock around the whole claim-then-store step. But
+  subscriber notification ran *outside* that lock, so a `Flush()` landing
+  right after the background cycle released it — event already stored,
+  its subscriber callback not yet run — returned while the notification
+  was still in flight; nothing was lost or miscounted, but a caller that
+  trusted "flushed, therefore delivered" could observe the sink before
+  the subscriber saw the event (`TranslationSubscriberTests.Receives_events_live_from_a_buffered_event_consumer`
+  worked around it by asserting after `Dispose()` instead). Same family-wide
+  shape as Python's own fix for the identical race
+  ("flush is a true barrier against the in-flight drain step"). Fixed by
+  widening the lock to the whole step: an outermost `_drainLock` now
+  covers store, shed accounting *and* notification together, shared by
+  `RunDrainCycle` and `Flush`; the finer `_lock` nests inside it for
+  store/subscriber-list access alone. Pinned deterministically via a test seam
+  (`BufferedEventConsumerTests.Flush_waits_out_an_in_flight_background_notify_before_returning`
+  — 20/20 reproductions against the pre-fix structure, 0/20 after) and
+  under real races (`Pipeline.FlushBarrierLiveDrainStressTests`); the
+  `TranslationSubscriberTests` workaround was restored to assert on
+  `Flush()` alone (`..._via_flush_alone`), with the `Dispose()`-barrier
+  test kept alongside it.
 - **Invariant 3 — N/A**, eager allocation; see the invariant table.
 - **The seqlock defect (outside the seven-invariant table) — a known java
   defect, ported unfixed, now fixed and pinned.** `BoundedEventBuffer`'s

@@ -28,11 +28,11 @@ namespace NarrativeTrace.SecurityTests;
 /// while leaving the document well formed. A well-formedness check alone would pass a forged field.
 /// </para>
 /// <para>
-/// @edgeCase Values enter by the two routes production has, and the contract differs. A
+/// @edgeCase Values enter by the three routes production has, and the contract differs. A
 /// <em>captured value</em> passes through <see cref="ValueRenderer"/>, so its shape must match the
-/// baseline exactly. An <em>exception message</em> is text the application wrote and renderers show
-/// it as prose, so the oracle there is the structural one only — the message may add lines, but it
-/// may never add a field or a fence.
+/// baseline exactly. An <em>exception message</em> and a <em>scenario</em> are text the application
+/// wrote and renderers show them as prose, so the oracle there is the structural one only — the text
+/// may add lines, but it may never add a field, a statement, a heading or a fence.
 /// </para>
 /// </remarks>
 public class InjectionContainmentPropertyTests
@@ -95,6 +95,19 @@ public class InjectionContainmentPropertyTests
             Emitters.Renderers(Emitters.TreeThrowing(new InvalidOperationException(Benign))),
             Emitters.Renderers(Emitters.TreeThrowing(new InvalidOperationException(payload.Value))));
 
+    /// <summary>
+    /// The scenario is the third route production has: caller-supplied text that reaches the YAML
+    /// frontmatter, the Markdown body header, the structural header and the JSON scenario name. Like
+    /// an exception message it is prose, so the oracle is the structural one — it may say anything
+    /// and still add no field, statement, fence, heading or frontmatter key. This route once let the
+    /// body header append the scenario raw while the frontmatter escaped it — the same defect class
+    /// the java runtime's own fix here closed.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Injections))]
+    public void No_injection_payload_in_a_scenario_adds_structure(CorpusCase payload) =>
+        AssertSameStructure(BenignBaseline.Value, Emitters.Renderers(TreeOf(Benign), payload.Value));
+
     [Property(MaxTest = 80, Arbitrary = [typeof(SecurityArbitraries.InjectionShapedArbitraries)])]
     public void Any_generated_injection_comes_back_as_exactly_one_value(string value) =>
         AssertSameShape(value);
@@ -127,14 +140,17 @@ public class InjectionContainmentPropertyTests
         var benignKeys = Formats.FrontmatterKeysOf("benign", benign["renderer:markdown-document"]);
         var hostileKeys = Formats.FrontmatterKeysOf("hostile", hostile["renderer:markdown-document"]);
         Assert.True(benignKeys.SetEquals(hostileKeys), "a value must not forge a frontmatter key");
-        AssertMarkdownFencesMatch(benign, hostile);
+        AssertMarkdownStructureMatches(benign, hostile);
     }
 
-    private static void AssertMarkdownFencesMatch(IReadOnlyDictionary<string, string> benign, IReadOnlyDictionary<string, string> hostile)
+    private static void AssertMarkdownStructureMatches(IReadOnlyDictionary<string, string> benign, IReadOnlyDictionary<string, string> hostile)
     {
         const string document = "renderer:markdown-document";
         Assert.Equal(Formats.FenceCount(benign[document]), Formats.FenceCount(hostile[document]));
         Assert.Equal(Formats.FrontmatterFenceCount(benign[document]), Formats.FrontmatterFenceCount(hostile[document]));
+        Assert.True(
+            Formats.HeadingCount(benign[document]) == Formats.HeadingCount(hostile[document]),
+            "a value must not forge a Markdown heading");
     }
 
     private static string ShapeOfJson(IReadOnlyDictionary<string, string> outputs) =>

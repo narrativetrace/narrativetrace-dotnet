@@ -272,4 +272,18 @@ public static partial class Formats
     /// <summary>How many frontmatter fences a Markdown document carries: exactly two, or it is broken.</summary>
     public static long FrontmatterFenceCount(string markdown) =>
         markdown.Split('\n').Count(l => l.Trim() == "---");
+
+    /// <summary>
+    /// How many ATX heading lines a Markdown document carries.
+    /// </summary>
+    /// <remarks>
+    /// A heading is document structure the renderer alone may write; a value or a scenario that
+    /// adds one has forged the document's outline — exactly what a raw scenario in the body header
+    /// once did here.
+    /// </remarks>
+    public static long HeadingCount(string markdown) =>
+        markdown.Split('\n').Count(l => HeadingPattern().IsMatch(l));
+
+    [GeneratedRegex(@"^#{1,6} .*$")]
+    private static partial Regex HeadingPattern();
 }

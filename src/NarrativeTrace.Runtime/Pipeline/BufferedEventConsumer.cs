@@ -20,9 +20,27 @@ namespace NarrativeTrace.Runtime;
 ///   <item><b>Overloaded (&gt; 70%)</b> — batch drain and discard to relieve
 ///   pressure, counting every discard so loss accounting stays exact.</item>
 /// </list>
-/// <para>The ring is single-consumer, so every drain (the background cycle and
-/// <see cref="Flush"/>) runs under one lock; the publish path stays lock-free.
-/// Subscribers are notified outside the lock and isolated from each other.</para>
+/// <para>The ring is single-consumer, and this class is what enforces the
+/// single half: every whole drain step — claiming events from the ring,
+/// storing or shed-counting them, and notifying subscribers — runs under one
+/// outermost lock (<c>_drainLock</c>) shared by the background cycle
+/// (<see cref="RunDrainCycle"/>) and <see cref="Flush"/>, so the two take
+/// turns instead of ever running a step concurrently. <see cref="Flush"/> is
+/// therefore a true barrier: it cannot return while a concurrent background
+/// drain step is still in flight, so nothing published before the call is
+/// ever left unstored, uncounted, or undelivered. The publish path stays
+/// lock-free. A finer-grained lock (<c>_lock</c>) nests inside for
+/// store/subscriber-list access alone (<see cref="Events"/>,
+/// <see cref="Subscribe"/>, <see cref="Clear"/>, ...); lock ordering is
+/// always outer (<c>_drainLock</c>) then inner (<c>_lock</c>), never the
+/// reverse, so the two can never deadlock against each other.</para>
+/// <para><b>@edgeCase</b> The drain lock is held across subscriber
+/// notification, whose callback can run for as long as the subscriber takes
+/// (best-effort delivery catches exceptions but does not bound time — see
+/// <see cref="Notify"/>). A flusher, and the next background cycle, can
+/// therefore wait that long. That is the price of the barrier guarantee; an
+/// event flush reports as accounted-for but a subscriber never actually saw
+/// is not.</para>
 /// </remarks>
 public sealed class BufferedEventConsumer
     : IEventPipeline, IEventSubscribable, IEventLossCounter
@@ -51,7 +69,14 @@ public sealed class BufferedEventConsumer
     private readonly EventStore _store = new();
     private readonly List<Action<TraceEvent>> _subscribers = [];
     private readonly List<CountWaiter> _countWaiters = [];
+
+    // Outermost: serializes whole drain steps (claim from the ring THROUGH
+    // store/shed accounting AND subscriber notification) against Flush. See
+    // the class remarks for the barrier guarantee this gives and the lock
+    // ordering (_drainLock always outer, _lock always inner).
+    private readonly object _drainLock = new();
     private readonly object _lock = new();
+    private readonly Action _beforeNotify;
     private Thread? _consumer;
     private readonly ConsumerWatchdog? _watchdog;
     private readonly EventHandler _processExitHandler;
@@ -99,11 +124,12 @@ public sealed class BufferedEventConsumer
 
     internal BufferedEventConsumer(
         int bufferCapacity, bool startConsumer, Func<long>? clock = null,
-        int drainIntervalMillis = DefaultDrainIntervalMillis)
+        int drainIntervalMillis = DefaultDrainIntervalMillis, Action? beforeNotify = null)
     {
         _queue = new BoundedEventBuffer(bufferCapacity);
         _clock = clock ?? Stopwatch.GetTimestamp;
         _drainIntervalMillis = drainIntervalMillis;
+        _beforeNotify = beforeNotify ?? (static () => { });
         _processExitHandler = (_, _) => Dispose();
         AppDomain.CurrentDomain.ProcessExit += _processExitHandler;
         _watchdog = startConsumer
@@ -158,22 +184,41 @@ public sealed class BufferedEventConsumer
         }
     }
 
-    /// <summary>Drains all buffered events into the store so queries observe them.</summary>
+    /// <summary>
+    /// Drains all buffered events into the store so queries observe them.
+    /// </summary>
+    /// <remarks>
+    /// A true barrier against the background drain cycle: acquiring the
+    /// outermost drain lock first means this call cannot proceed while a
+    /// background step is mid-flight, and cannot return until any step it
+    /// waited out — store, shed count, and subscriber notification alike —
+    /// has fully completed. Everything published before this call returns is
+    /// therefore stored or loss-counted, and every subscriber has already
+    /// been notified of it; nothing is left in limbo.
+    /// </remarks>
     public void Flush()
     {
-        var processed = new List<TraceEvent>();
-        lock (_lock)
+        lock (_drainLock)
         {
-            _queue.Drain(e =>
+            var processed = new List<TraceEvent>();
+            lock (_lock)
             {
-                _store.Add(e);
-                _storedEventCount++;
-                processed.Add(e);
-            });
-            SignalCountWaiters();
-        }
+                _queue.Drain(e =>
+                {
+                    _store.Add(e);
+                    _storedEventCount++;
+                    processed.Add(e);
+                });
+                SignalCountWaiters();
+            }
 
-        NotifySubscribers(processed);
+            if (processed.Count > 0)
+            {
+                _beforeNotify();
+            }
+
+            NotifySubscribers(processed);
+        }
     }
 
     /// <summary>
@@ -323,19 +368,28 @@ public sealed class BufferedEventConsumer
         }
     }
 
+    // Outermost drain-lock step: see the class remarks for why Flush must
+    // never be able to interleave with any part of this, store, shed count,
+    // and notification alike. _beforeNotify is the test seam for that
+    // window: it fires only on a cycle that actually stored something, so an
+    // idle cycle never gives a test a false rendezvous.
     private void RunDrainCycle()
     {
-        List<TraceEvent>? processed;
-        lock (_lock)
+        lock (_drainLock)
         {
-            Volatile.Write(ref _lastActivityTimestamp, _clock());
-            processed = DrainByFillLevel();
-            SignalCountWaiters();
-        }
+            List<TraceEvent>? processed;
+            lock (_lock)
+            {
+                Volatile.Write(ref _lastActivityTimestamp, _clock());
+                processed = DrainByFillLevel();
+                SignalCountWaiters();
+            }
 
-        if (processed is not null)
-        {
-            NotifySubscribers(processed);
+            if (processed is not null)
+            {
+                _beforeNotify();
+                NotifySubscribers(processed);
+            }
         }
     }
 

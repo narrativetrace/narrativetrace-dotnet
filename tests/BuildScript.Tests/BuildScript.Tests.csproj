@@ -30,6 +30,10 @@
              Link="TranslationReviewSupport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/TranslationPlatformSupport.cs"
              Link="TranslationPlatformSupport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/ScannerGateSupport.cs"
+             Link="ScannerGateSupport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/PublicationVerificationSupport.cs"
+             Link="PublicationVerificationSupport.cs" />
   </ItemGroup>
 
   <ItemGroup>

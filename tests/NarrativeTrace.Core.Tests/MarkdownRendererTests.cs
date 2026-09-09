@@ -708,6 +708,33 @@ public class MarkdownRendererTests
     }
 
     [Fact]
+    public void Document_body_header_escapes_the_scenario_exactly_as_the_frontmatter_does()
+    {
+        // The frontmatter routes the scenario through YAML escaping (YamlEscape.Scalar); the body
+        // header used to append it raw, so a hostile scenario forged document structure (a heading)
+        // and injected raw HTML into the rendered Markdown — mirrors the same fix in the java runtime.
+        var tree = new TraceTree([
+            new TraceNode(
+                new MethodSignature("OrderService", "PlaceOrder", []),
+                new Returned("\"order-42\""), [], TimeSpan.FromMilliseconds(412).Ticks),
+        ]);
+
+        var result = MarkdownRenderer.RenderDocument(
+            tree,
+            new TraceMetadata(
+                "ok\n# forged heading\n<img src=x onerror=alert(1)>", ScenarioResult.Success));
+
+        Assert.Contains(
+            "**Scenario:** ok\\n# forged heading\\n&lt;img src=x onerror=alert(1)&gt;\n", result);
+        Assert.DoesNotContain(
+            result.Split('\n'), line => line == "# forged heading");
+        // The body (everything after the frontmatter block) carries no active HTML. The frontmatter
+        // itself is YAML, where < and > are ordinary printable characters inside a quoted scalar.
+        var body = result[result.IndexOf("## Trace:", StringComparison.Ordinal)..];
+        Assert.DoesNotContain("<img", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Document_header_reports_the_supplied_result_not_the_tree()
     {
         // Java renders metadata.result().displayName(). The wire spelling

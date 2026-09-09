@@ -3,6 +3,7 @@
 // Copyright (c) 2026 Empower Agile
 using System.Diagnostics;
 using System.Globalization;
+using System.Threading;
 using NarrativeTrace.Core;
 using NarrativeTrace.Runtime;
 using Xunit;
@@ -320,6 +321,57 @@ public class BufferedEventConsumerTests
         consumer.Flush();
 
         Assert.Equal(50, consumer.Events().Count);
+    }
+
+    /// <summary>
+    /// Deterministic regression for the gap the family parity rule names:
+    /// "flush() is a barrier" also has to cover subscriber delivery, not just
+    /// the store. Before the drain-lock fix, the background cycle stored the
+    /// event and released its lock <em>before</em> notifying subscribers, so
+    /// a <see cref="BufferedEventConsumer.Flush"/> landing in that gap
+    /// returned while a subscriber had not yet seen the event it just
+    /// accounted for (this is what forced
+    /// <c>TranslationSubscriberTests.Receives_events_live_from_a_buffered_event_consumer</c>
+    /// onto <c>Dispose()</c> as its barrier instead). The <c>beforeNotify</c>
+    /// seam pins the background thread exactly in that gap so the race is
+    /// reproduced every run, not just under contention.
+    /// </summary>
+    [Fact]
+    public void Flush_waits_out_an_in_flight_background_notify_before_returning()
+    {
+        using var reachedHook = new ManualResetEventSlim(false);
+        using var releaseHook = new ManualResetEventSlim(false);
+        using var consumer = new BufferedEventConsumer(
+            16, startConsumer: true, beforeNotify: () =>
+            {
+                reachedHook.Set();
+                releaseHook.Wait(TimeSpan.FromSeconds(5));
+            });
+
+        var delivered = new List<TraceEvent>();
+        consumer.Subscribe(e => { lock (delivered) { delivered.Add(e); } });
+        consumer.Publish(Enter(1, "Svc", "Run"));
+
+        Assert.True(
+            reachedHook.Wait(TimeSpan.FromSeconds(5)),
+            "background drain cycle never reached the pre-notify hook");
+
+        var flush = Task.Run(consumer.Flush);
+        Assert.False(
+            flush.Wait(TimeSpan.FromMilliseconds(200)),
+            "Flush() returned while the background drain step was still storing/notifying -- not a barrier");
+
+        releaseHook.Set();
+        Assert.True(
+            flush.Wait(TimeSpan.FromSeconds(5)),
+            "Flush() never returned after the in-flight drain step completed");
+
+        lock (delivered)
+        {
+            Assert.Single(delivered);
+        }
+
+        Assert.Single(consumer.Events());
     }
 
     [Fact]

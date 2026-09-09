@@ -19,7 +19,7 @@ Two tiers, one of them a real gate today:
 | Tier | What it is | When it runs | Cost |
 |---|---|---|---|
 | **A — structured fuzz** | FsCheck properties fed by a shared hostile corpus | every `./build.sh Verify` | seconds |
-| **B — coverage-guided fuzz** | SharpFuzz-instrumented targets driven by AFL++ | manual/scheduled `./build.sh Fuzz`; instrumentation-only in a container without a native AFL driver | seconds / minutes, where a driver exists |
+| **B — coverage-guided fuzz** | SharpFuzz-instrumented targets driven by AFL++ | manual/scheduled `./build.sh Fuzz` | seconds / minutes; instrumentation-only where the `afl++` package is not provisioned (see below) |
 
 **Every NarrativeTrace runtime mirrors these targets and this corpus.** The
 corpus is data, copied between repositories verbatim the way the conformance
@@ -176,11 +176,35 @@ them under `afl-fuzz` for a budgeted duration each
   `dotnet tool restore`) and works in any container with NuGet access —
   confirmed by byte comparison of the instrumented assembly (grows by
   roughly 60%; real coverage-tracking IL, not a no-op).
-- `afl-fuzz` is a native binary this repository does not ship. A CI job that
-  wants the real coverage-guided loop provisions AFL++ (or points
-  `AFL_FUZZ` at another driver) before calling this target; `./build.sh
-  Fuzz` detects its absence, logs a clear message, and returns without
-  failing rather than pretending to fuzz.
+- `afl-fuzz` is a native binary this repository does not ship in its own
+  image; it is provisioned by `.devcontainer/Dockerfile` (Ubuntu's `afl++`
+  package — genuinely packaged for this container's arm64 host, confirmed
+  by installing and running it; an earlier read of this gap traced to a
+  stale/never-refreshed apt cache, not an unpackaged platform). A CI job
+  that wants the real coverage-guided loop builds from that image (or
+  points `AFL_FUZZ` at another driver); `./build.sh Fuzz` detects the
+  driver's absence, logs a clear message, and returns without failing
+  rather than pretending to fuzz.
+- Once `afl-fuzz` is on `PATH`, a second gap applies: AFL's own
+  `check_binary()` inspects the invoked binary — here, the generic `dotnet`
+  host, not the IL-instrumented DLL it loads — for compile-time AFL
+  instrumentation markers, and aborts every run with "No instrumentation
+  detected" because SharpFuzz's coverage signal lives in the managed IL,
+  carried to afl-fuzz over the shared-memory forkserver protocol
+  `SharpFuzz.Fuzzer.OutOfProcess.Run` implements
+  (`fuzz/NarrativeTrace.Fuzz/Program.cs`), never in the native host binary.
+  This is SharpFuzz's own documented shape — its README's own `afl-fuzz`
+  invocation sets `AFL_SKIP_BIN_CHECK=1` for the identical reason, so the
+  `Fuzz` target sets it too.
+- **Proven fuzzing, not just instrumentation.** A real 20-second run against
+  the renderer target in this container (default corpus) produced AFL's own
+  `fuzzer_stats`: `execs_done: 187372`, `execs_per_sec: 9363.92`,
+  `edges_found: 76`, `total_edges: 65536`, `bitmap_cvg: 0.12%`,
+  `saved_crashes: 0` — a real coverage-guided loop executing the
+  instrumented target at thousands of runs per second. The `Fuzz` target now
+  reads and prints these same fields after every run and fails the build if
+  `execs_done` is zero, so a fuzz job that returns instantly without doing
+  any real work cannot report success silently.
 
 `Fuzz` is deliberately not a dependency of `Verify` — the same relationship
 `Benchmark` has to the gate. Tier A is what runs on every commit.

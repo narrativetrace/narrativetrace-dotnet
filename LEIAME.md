@@ -1,4 +1,4 @@
-<!-- source: README.md blob 70ce4bfcb35c | translated: 2026-09-07 | reviewed: - -->
+<!-- source: README.md blob 83af386efd06 | translated: 2026-09-09 | reviewed: - -->
 # NarrativeTrace .NET
 
 [English](README.md) | [Español](LEAME.md) | **Português** | [简体中文](自述文件.md)
@@ -356,6 +356,20 @@ registrada. Números de baseline registrados, nível `Detail` (o padrão), de
 | `RendererBenchmarks.MarkdownSmall` | ~595 ns | 2704 B |
 | `ConcurrencyBenchmarks.ForkJoin_TwoTasks` | ~3.9 µs | 5602 B |
 
+Só nativo do host: um runner de CI compartilhado não consegue sustentar
+esses limiares (provado na primeira execução pública — todos os outros
+gates verdes, e depois dezenas de "regressões" espúrias por vizinhos
+ruidosos), então tanto o GitHub Actions (`./build.sh Verify --skip
+Benchmark`) quanto o push na branch padrão do GitLab pulam esse passo. Ele
+ainda roda de verdade, sem supervisão, como um target NUKE comum em
+hardware equivalente: `./build.sh Benchmark` restaura, compila, executa os
+16 benchmarks (o job `medium` do BenchmarkDotNet) e faz gate deles contra
+[`benchmarks/benchmark-baseline.json`](benchmarks/benchmark-baseline.json),
+escrevendo resultados em JSON legíveis por máquina em
+`artifacts/benchmarks/`. Esse único comando é o ponto de entrada que um job
+noturno/de host invoca; regenere a baseline depois de uma mudança de
+performance intencional com `./build.sh BenchmarkBaseline`.
+
 Em `TracingLevel.Off` o contexto interrompe o fluxo antecipadamente e não
 captura nada — um teste de caracterização fixa que um contexto em nível Off
 produz um trace vazio — mas esse caminho ainda não é medido separadamente
@@ -563,11 +577,15 @@ Formatação (`dotnet format`), análise estática (Roslyn + SonarAnalyzer,
 incl. um teto de 20 linhas por método via S138, e toda a categoria de regras
 de segurança CA5xxx), varredura de segredos (gitleaks, hook pre-commit no
 diff staged mais uma varredura completa do histórico), testes (xUnit /
-NUnit), cobertura (Coverlet), teste de mutação (Stryker.NET) e regressão de
-benchmark (BenchmarkDotNet) fazem gate do build. O ruleset OSS em C# do
+NUnit), cobertura (Coverlet) e regressão de benchmark (BenchmarkDotNet)
+fazem gate do build. O teste de mutação (Stryker.NET, `./build.sh
+Mutation`) está definido e é executável — inclusive no espelho público via
+[`.github/workflows/mutation.yml`](.github/workflows/mutation.yml) — mas
+**não** é uma dependência do `Verify`: assim como o ruleset OSS em C# do
 Semgrep e a varredura de vulnerabilidades de dependências (OSV-Scanner,
-`dotnet list package --vulnerable`) rodam em uma camada de CI agendada/MR —
-veja [`documentation/security-tooling.md`](documentation/security-tooling.md)
+`dotnet list package --vulnerable`), ele roda numa camada agendada/manual,
+nunca por commit — veja
+[`documentation/security-tooling.md`](documentation/security-tooling.md)
 (em inglês). `tests/BuildScript.Tests` valida o próprio comportamento do
 build. O CI roda `./build.sh Verify` no GitHub Actions
 (`.github/workflows/ci.yml`).

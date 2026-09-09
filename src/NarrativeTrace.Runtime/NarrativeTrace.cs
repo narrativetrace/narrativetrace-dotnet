@@ -24,5 +24,5 @@ public static class NarrativeTrace
     /// compiled at. Stamped into exported artifacts for provenance; it is not a
     /// feature-detection mechanism.
     /// </remarks>
-    public static string Version => "0.1.0";
+    public static string Version => "0.1.1";
 }

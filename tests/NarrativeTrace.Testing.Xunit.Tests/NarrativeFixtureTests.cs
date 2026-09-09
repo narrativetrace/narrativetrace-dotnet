@@ -18,6 +18,25 @@ public class NarrativeFixtureTests
     }
 
     [Fact]
+    public void Create_builds_a_fixture_pinned_to_an_explicit_config()
+    {
+        using var fixture = NarrativeFixture.Create(
+            new NarrativeTraceConfig(TracingLevel.Off));
+
+        Assert.False(fixture.Context.IsActive);
+    }
+
+    [Fact]
+    public void Create_captures_a_trace_like_any_other_fixture()
+    {
+        using var fixture = NarrativeFixture.Create(new NarrativeTraceConfig());
+        fixture.Context.EnterMethod("Svc", "run", []);
+        fixture.Context.ExitMethodWithReturn(null);
+
+        Assert.Single(fixture.CaptureTrace().Roots);
+    }
+
+    [Fact]
     public void Default_context_honors_off_level_from_environment()
     {
         using var fixture = new NarrativeFixture(

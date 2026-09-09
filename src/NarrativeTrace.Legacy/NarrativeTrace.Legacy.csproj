@@ -1,6 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>net48;net10.0</TargetFrameworks>
+    <!-- Deliberately published as a reservation (owner ruling 2026-09-07):
+         claims the package id and the net48 slot while the legacy surface is
+         built out. Keep it in the asserted publish set on purpose. -->
+    <Description>Name and net48-target reservation for NarrativeTrace's forthcoming .NET Framework support. Deliberately empty — reference the NarrativeTrace packages for the shipping library; this package gains its real surface when legacy support lands.</Description>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>

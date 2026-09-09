@@ -28,14 +28,9 @@ namespace NarrativeTrace.SecurityTests;
 /// it while the filesystem refuses the write.
 /// </para>
 /// <para>
-/// @edgeCase This runtime has no name-length cap or noncharacter guard at all yet: it lacks the
-/// byte-cap-plus-hash disambiguator on the artifact-name path, which is unmirrored and out of this
-/// wave's scope. The corpus is carried whole (<see cref="HostileCorpus.Names"/> is not filtered),
-/// but the two throw/containment properties below exclude <see cref="UnguardedByNameCap"/> — the
-/// over-length and noncharacter cases — rather than assert a currently-false claim;
-/// <see cref="No_path_component_a_hostile_name_produces_exceeds_the_filesystem_limit"/> is skipped
-/// outright, since it exists to hold the cap itself to real input and there is no cap to hold. All
-/// three flip to unconditional once the cap lands.
+/// @edgeCase This runtime now mirrors the java runtime's byte-cap-plus-hash disambiguator
+/// (<see cref="OutputDirectoryResolver"/>), so the full corpus — over-length and noncharacter cases
+/// included — runs unconditionally through every property below; nothing is excluded any more.
 /// </para>
 /// </remarks>
 public class ArtifactNamingPropertyTests
@@ -43,28 +38,11 @@ public class ArtifactNamingPropertyTests
     /// <summary>The per-component limit ext4, APFS and NTFS share.</summary>
     private const int MaxComponentBytes = 255;
 
-    /// <summary>
-    /// Corpus case ids the missing name-length cap and noncharacter guard leave unguarded on
-    /// this runtime today — see the class remarks.
-    /// </summary>
-    private static readonly HashSet<string> UnguardedByNameCap =
-    [
-        "noncharacter", "long-241", "long-255", "long-256",
-        "long-1024", "long-4096", "long-astral", "long-with-separator",
-        // long-multibyte survives on APFS (utf8 char count under the limit)
-        // but blows ext4/overlayfs's 255-BYTE component limit in the
-        // containerized verify — the same missing-cap hole, filesystem-dependent.
-        "long-multibyte",
-    ];
-
     public static IEnumerable<object[]> Names() =>
         HostileCorpus.Names().Select(c => new object[] { c });
 
-    public static IEnumerable<object[]> NamesGuardedToday() =>
-        HostileCorpus.Names().Where(c => !UnguardedByNameCap.Contains(c.Id)).Select(c => new object[] { c });
-
     [Theory]
-    [MemberData(nameof(NamesGuardedToday))]
+    [MemberData(nameof(Names))]
     public void Every_corpus_name_writes_every_artifact_without_throwing(CorpusCase name)
     {
         var tree = Emitters.TreeOf("\"probe\"", "\"result\"");
@@ -89,7 +67,7 @@ public class ArtifactNamingPropertyTests
     /// anything that walked out of it lands somewhere this assertion can see.
     /// </summary>
     [Theory]
-    [MemberData(nameof(NamesGuardedToday))]
+    [MemberData(nameof(Names))]
     public void Every_artifact_a_hostile_name_produces_stays_inside_the_output_directory(CorpusCase name)
     {
         var tree = Emitters.TreeOf("\"probe\"", "\"result\"");
@@ -108,10 +86,7 @@ public class ArtifactNamingPropertyTests
         Directory.Delete(enclosure, recursive: true);
     }
 
-    [Fact(Skip = "no artifact-name length cap in this runtime yet -- excluded until the "
-        + "byte-cap-plus-hash scheme is adopted here; every long-* corpus case fails this by "
-        + "construction until that gap is closed. Kept authored, not deleted, so unskipping "
-        + "it is the regression test for the fix.")]
+    [Fact]
     public void No_path_component_a_hostile_name_produces_exceeds_the_filesystem_limit()
     {
         var dir = TempDirectory();

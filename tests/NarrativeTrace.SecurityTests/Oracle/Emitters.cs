@@ -116,16 +116,28 @@ public static class Emitters
     }
 
     /// <summary>The in-memory renderers, which a library consumer calls directly.</summary>
-    public static Dictionary<string, string> Renderers(TraceTree tree)
+    public static Dictionary<string, string> Renderers(TraceTree tree) => Renderers(tree, Scenario);
+
+    /// <summary>
+    /// The same, under a caller-supplied scenario.
+    /// </summary>
+    /// <remarks>
+    /// INTENT: The scenario is a route of its own — caller-supplied text that reaches the YAML
+    /// frontmatter, the Markdown body header, the structural header and the JSON scenario name,
+    /// each with its own escaping. The body-header defect this fixed (a raw, unescaped append) was
+    /// only reachable through this parameter, which every caller here used to pin to
+    /// <see cref="Scenario"/>.
+    /// </remarks>
+    public static Dictionary<string, string> Renderers(TraceTree tree, string scenario)
     {
-        var metadata = new TraceMetadata(Scenario, ScenarioResult.Success);
+        var metadata = new TraceMetadata(scenario, ScenarioResult.Success);
         return new Dictionary<string, string>
         {
             ["renderer:prose"] = ProseRenderer.Render(tree),
             ["renderer:indented"] = IndentedTextRenderer.Render(tree),
             ["renderer:markdown"] = MarkdownRenderer.Render(tree),
             ["renderer:markdown-document"] = MarkdownRenderer.RenderDocument(tree, metadata),
-            ["renderer:structural"] = StructuralTraceRenderer.RenderDocument(tree, Scenario),
+            ["renderer:structural"] = StructuralTraceRenderer.RenderDocument(tree, scenario),
             ["renderer:json"] = JsonExporter.Export(tree, metadata),
             ["renderer:mermaid"] = MermaidSequenceRenderer.Render(tree),
             ["renderer:plantuml"] = PlantUmlSequenceRenderer.Render(tree),

@@ -256,16 +256,49 @@ public sealed class TranslationSubscriberTests : IDisposable
         consumer.Publish(EnterEvent(RootSpanContext(), "PaymentService", "charge"));
         await consumer.WhenCountReached(1).WaitAsync(TimeSpan.FromSeconds(2));
 
-        // Flush() only drains what is still queued. WhenCountReached signals
-        // once the event is stored — inside the drain lock, before
-        // NotifySubscribers runs outside it — so a Flush() right after can
-        // race an already-in-flight background-thread notification and
-        // observe the sink before the subscriber callback lands (the failure
-        // seen on slow/low-parallelism runners). Dispose() closes that race:
-        // it joins the drain thread, waiting out any in-flight notify, then
-        // runs its own final Flush(); every event published beforehand is
-        // guaranteed delivered by the time it returns.
+        // Dispose() is a barrier in its own right, independent of Flush(): it
+        // joins the drain thread outright (so no cycle can still be mid-step)
+        // before running its own final Flush(). Kept alongside the
+        // Flush()-only variant below so both of the consumer's barrier
+        // guarantees stay covered by a live test.
         consumer.Dispose();
+
+        lock (lines)
+        {
+            Assert.Equal(["PaymentService.cobrar (charge) ()"], lines);
+        }
+    }
+
+    /// <summary>
+    /// The assertion the original drain-race investigation wanted directly:
+    /// <c>Flush()</c> alone, with no <c>Dispose()</c>, is sufficient.
+    /// </summary>
+    /// <remarks>
+    /// Before the drain-lock fix, the background cycle stored an event and
+    /// released its lock <em>before</em> notifying subscribers, so a
+    /// <c>Flush()</c> landing in that gap could return while the subscriber
+    /// had not yet seen an event <c>Flush()</c> had just accounted for.
+    /// <c>Flush()</c> not being a barrier for delivery is exactly what forced
+    /// this test onto <c>Dispose()</c> as a workaround ("dispose the buffered
+    /// consumer before asserting live delivery").
+    /// <c>Flush()</c> is now a true barrier for delivery as well as storage
+    /// (see
+    /// <c>BufferedEventConsumerTests.Flush_waits_out_an_in_flight_background_notify_before_returning</c>
+    /// for the deterministic proof), so it alone is enough here.
+    /// </remarks>
+    [Fact]
+    public async Task Receives_events_live_from_a_buffered_event_consumer_via_flush_alone()
+    {
+        var lines = new List<string>();
+        using var consumer = new BufferedEventConsumer(16);
+        var subscriber = new TranslationSubscriber(
+            ChargeGlossary(), "es", line => { lock (lines) { lines.Add(line); } });
+        consumer.Subscribe(subscriber.OnEvent);
+
+        consumer.Publish(EnterEvent(RootSpanContext(), "PaymentService", "charge"));
+        await consumer.WhenCountReached(1).WaitAsync(TimeSpan.FromSeconds(2));
+
+        consumer.Flush();
 
         lock (lines)
         {

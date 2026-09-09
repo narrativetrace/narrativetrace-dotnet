@@ -57,6 +57,12 @@ public class OutputFormatPropertyTests
     {
         AssertWellFormedIncludingArtifacts(AsCapturedValue(hostile));
         AssertWellFormed(Emitters.Renderers(AsNarration(hostile)));
+        // The third route: the same hostile string as the scenario, which reaches the YAML
+        // frontmatter, the Markdown body header, the structural header and the JSON scenario name.
+        // Closes strings.json's long-astral-run-1024 case against its actual route: frontmatter's
+        // read-back-with-a-real-parser oracle (FrontmatterKeysOf, via AssertWellFormed), which no
+        // other route here reaches.
+        AssertWellFormed(Emitters.Renderers(AsCapturedValue(hostile), hostile.Value));
     }
 
     [Theory]

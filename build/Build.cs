@@ -5,7 +5,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Xml.Linq;
 using NarrativeTrace.Build;
 using Nuke.Common;
@@ -34,6 +37,9 @@ class Build : NukeBuild
     [Parameter("Demo: play straight through, no stop points")]
     readonly bool NoPause;
 
+    [Parameter("Security scanners: fail (not just warn) when a scanner binary is absent — always true under CI")]
+    readonly bool SecurityRequired;
+
     AbsolutePath ArtifactsDirectory => RootDirectory / "artifacts";
     AbsolutePath TestResultsDirectory => ArtifactsDirectory / "test-results";
     AbsolutePath CoverageDirectory => ArtifactsDirectory / "coverage";
@@ -42,6 +48,20 @@ class Build : NukeBuild
     AbsolutePath BenchmarkArtifactsDir => ArtifactsDirectory / "benchmarks";
     AbsolutePath BenchmarkBaselineFile => RootDirectory / "benchmarks" / "benchmark-baseline.json";
     AbsolutePath SecurityDirectory => ArtifactsDirectory / "security";
+    AbsolutePath SecurityScanStatusDirectory => SecurityDirectory / "scan-status";
+
+    /// <summary>
+    /// Whether a missing scanner binary must fail its target rather than warn-and-pass — always
+    /// true under CI (the bare <c>CI</c> environment variable, which GitLab CI and GitHub Actions
+    /// both set automatically — matching the java runtime's own check), or when
+    /// <see cref="SecurityRequired"/> is passed explicitly. Checked directly rather than via
+    /// <see cref="NukeBuild.IsLocalBuild"/>: that
+    /// property recognizes specific CI hosts by their own provider variables, which is narrower
+    /// than the bare <c>CI</c> convention this gate is meant to catch. See
+    /// <see cref="ScannerGateSupport"/>.
+    /// </summary>
+    bool SecurityScannersRequired =>
+        SecurityRequired || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CI"));
     AbsolutePath FuzzDirectory => ArtifactsDirectory / "fuzz";
     AbsolutePath FuzzProject => RootDirectory / "fuzz" / "NarrativeTrace.Fuzz" / "NarrativeTrace.Fuzz.csproj";
     AbsolutePath FuzzSeeds => RootDirectory / "fuzz" / "NarrativeTrace.Fuzz" / "seeds";
@@ -51,6 +71,21 @@ class Build : NukeBuild
 
     [Parameter("Stress: repetitions per race in the long sweep — default 200000")]
     readonly int StressSweepIterations = 200_000;
+
+    [Parameter("VerifyPublication: package version to verify (default: this build's own VersionPrefix)")]
+    readonly string? VerifyVersion;
+
+    [Parameter("VerifyPublication: check the local feed under artifacts/ instead of the real nuget.org — rehearsal only, never the default")]
+    readonly bool LocalRehearsal;
+
+    [Parameter("VerifyPublication: print the coordinates/URLs that would be checked; no network calls, no smoke test")]
+    readonly bool VerifyDryRun;
+
+    [Parameter("VerifyPublication: overall polling deadline in seconds — nuget.org sync is minutes to hours (default: 7200)")]
+    readonly int VerifyTimeoutSeconds = 7200;
+
+    [Parameter("VerifyPublication: steady-state wait between polling rounds once backoff has ramped up (default: 60)")]
+    readonly int VerifyIntervalSeconds = 60;
 
     /// <summary>
     /// The projects the <c>Test</c> and <c>Coverage</c> sweeps run. Selection
@@ -458,10 +493,11 @@ class Build : NukeBuild
     /// leaves (uncommitted/staged content it cannot see).
     /// </summary>
     /// <remarks>
-    /// Degrades gracefully when the binary is absent — the same warn-and-pass
-    /// shape <see cref="Fuzz"/> uses for afl-fuzz — because THIN-CI keeps
-    /// tool installation out of the gate itself; CI provisions the binary
-    /// before calling this target.
+    /// A missing binary follows <see cref="ScannerGateSupport"/>: WARN and a recorded
+    /// <c>skipped</c> status locally (THIN-CI keeps tool installation out of the gate itself; CI
+    /// provisions the binary before calling this target), a hard failure under CI or
+    /// <see cref="SecurityRequired"/> — the exact class that bit this repository's own first
+    /// release, where this same graceful skip went unnoticed.
     /// </remarks>
     Target SecretsScan => _ => _
         .After(Clean)
@@ -470,8 +506,13 @@ class Build : NukeBuild
             const string tool = "gitleaks";
             if (!IsOnPath(tool))
             {
-                Console.WriteLine($"{tool} not found on PATH: secrets scan skipped. Install gitleaks " +
-                    "(https://github.com/gitleaks/gitleaks/releases) to run it locally; CI provisions it.");
+                var decision = ScannerGateSupport.OnMissingBinary(
+                    tool, SecurityScannersRequired,
+                    "https://github.com/gitleaks/gitleaks/releases");
+                ScannerGateSupport.RecordSkipped(SecurityScanStatusDirectory, tool, "binary not on PATH");
+                if (decision.Fail)
+                    throw new InvalidOperationException($"SecretsScan: {decision.Message}");
+                Console.WriteLine($"SecretsScan: {decision.Message}");
                 return;
             }
 
@@ -483,6 +524,7 @@ class Build : NukeBuild
                         + $"--report-path \"{reportPath}\"",
                     logger: QuietProcessLogger)
                 .AssertZeroExitCode();
+            ScannerGateSupport.RecordRanClean(SecurityScanStatusDirectory, tool);
         });
 
     /// <summary>
@@ -496,8 +538,8 @@ class Build : NukeBuild
     /// every run, so — like <see cref="DependencyAudit"/> — it cannot sit in
     /// an offline per-commit gate. CI runs it on merge-request and scheduled
     /// pipelines only (the private CI configuration), never on an ordinary push.
-    /// Degrades gracefully when the binary is absent, the same shape as
-    /// <see cref="SecretsScan"/>.
+    /// A missing binary follows <see cref="ScannerGateSupport"/>, the same
+    /// shape as <see cref="SecretsScan"/>.
     /// </remarks>
     Target Semgrep => _ => _
         .Executes(() =>
@@ -505,8 +547,12 @@ class Build : NukeBuild
             const string tool = "semgrep";
             if (!IsOnPath(tool))
             {
-                Console.WriteLine($"{tool} not found on PATH: security ruleset scan skipped. Install " +
-                    "semgrep (pip install semgrep) to run it locally; CI provisions it.");
+                var decision = ScannerGateSupport.OnMissingBinary(
+                    tool, SecurityScannersRequired, "pip install semgrep");
+                ScannerGateSupport.RecordSkipped(SecurityScanStatusDirectory, tool, "binary not on PATH");
+                if (decision.Fail)
+                    throw new InvalidOperationException($"Semgrep: {decision.Message}");
+                Console.WriteLine($"Semgrep: {decision.Message}");
                 return;
             }
 
@@ -521,6 +567,7 @@ class Build : NukeBuild
                     $"--config=p/csharp --metrics=off --error --json --output \"{reportPath}\" \"{RootDirectory}\"",
                     logger: QuietProcessLogger)
                 .AssertZeroExitCode();
+            ScannerGateSupport.RecordRanClean(SecurityScanStatusDirectory, tool);
         });
 
     /// <summary>
@@ -531,7 +578,9 @@ class Build : NukeBuild
     /// Needs network (the osv.dev API), so — like <see cref="DependencyAudit"/>
     /// — it runs on schedule/web pipelines only, never per commit.
     /// <see cref="VulnerablePackages"/> runs beside it in the same tier as a
-    /// second, NuGet-native source for the same question.
+    /// second, NuGet-native source for the same question. A missing binary
+    /// follows <see cref="ScannerGateSupport"/>, the same shape as
+    /// <see cref="SecretsScan"/>.
     /// </remarks>
     Target OsvScan => _ => _
         .Executes(() =>
@@ -539,8 +588,13 @@ class Build : NukeBuild
             const string tool = "osv-scanner";
             if (!IsOnPath(tool))
             {
-                Console.WriteLine($"{tool} not found on PATH: OSV scan skipped. Install osv-scanner " +
-                    "(https://github.com/google/osv-scanner/releases) to run it locally; CI provisions it.");
+                var decision = ScannerGateSupport.OnMissingBinary(
+                    tool, SecurityScannersRequired,
+                    "https://github.com/google/osv-scanner/releases");
+                ScannerGateSupport.RecordSkipped(SecurityScanStatusDirectory, tool, "binary not on PATH");
+                if (decision.Fail)
+                    throw new InvalidOperationException($"OsvScan: {decision.Message}");
+                Console.WriteLine($"OsvScan: {decision.Message}");
                 return;
             }
 
@@ -550,6 +604,7 @@ class Build : NukeBuild
                     tool,
                     $"scan source --recursive --format json --output-file \"{reportPath}\" \"{RootDirectory}\"")
                 .AssertZeroExitCode();
+            ScannerGateSupport.RecordRanClean(SecurityScanStatusDirectory, tool);
         });
 
     /// <summary>
@@ -801,16 +856,32 @@ class Build : NukeBuild
     /// rather than assuming both: <c>sharpfuzz</c> (a .NET global/local tool, IL-rewrites the
     /// published <c>NarrativeTrace.Core.dll</c> to report coverage the way AFL expects — pure .NET,
     /// restored via <c>dotnet tool restore</c>, works in any container with NuGet access) and
-    /// <c>afl-fuzz</c> (a native binary this repository does not ship, is not on <c>PATH</c> in a
-    /// bare container, and cannot be installed here without root/apt). Confirmed on the container
-    /// this runtime was built in: <c>sharpfuzz</c> instrumentation succeeds (the published DLL grows
-    /// from ~186 KB to ~312 KB — real IL added, verified by byte comparison); <c>afl-fuzz</c> is
-    /// absent and `apt-cache search afl` returns nothing (no cached package to install even with
-    /// root). So this target always performs the instrumentation half, proving the harness and
-    /// tooling are wired correctly, and only attempts the actual fuzzing loop when it finds a driver
-    /// on <c>PATH</c> — logging a clear, actionable message and returning (not failing) otherwise.
-    /// A CI job that wants the real loop provisions AFL++ (or builds <c>libfuzzer-dotnet</c> against
-    /// a clang/LLVM toolchain) before calling this target.
+    /// <c>afl-fuzz</c>, provisioned in <c>.devcontainer/Dockerfile</c> (Ubuntu's <c>afl++</c>
+    /// package — earlier absence was a stale/never-updated apt cache, not an unpackaged platform;
+    /// <c>apt-get update</c> as root surfaces it fine on this container's arm64 host). Confirmed on
+    /// the container this runtime was built in: <c>sharpfuzz</c> instrumentation succeeds (the
+    /// published DLL grows from ~186 KB to ~312 KB — real IL added, verified by byte comparison).
+    /// </para>
+    /// <para>
+    /// <b>@edgeCase</b> Once <c>afl-fuzz</c> is on <c>PATH</c>, a second gap surfaces: AFL's own
+    /// <c>check_binary()</c> inspects the invoked binary — here, the generic <c>dotnet</c> host, not
+    /// the IL-instrumented DLL it loads — for compile-time AFL instrumentation markers, and always
+    /// aborts with "No instrumentation detected" because SharpFuzz's coverage signal lives in the
+    /// managed IL, communicated to afl-fuzz over the shared-memory forkserver protocol
+    /// <c>SharpFuzz.Fuzzer.OutOfProcess.Run</c> implements (see <c>fuzz/NarrativeTrace.Fuzz/Program.cs</c>),
+    /// never in the native host binary. This is SharpFuzz's own documented shape, not a defect in this
+    /// harness: its README's own afl-fuzz invocation sets <c>AFL_SKIP_BIN_CHECK=1</c> for exactly this
+    /// reason, so this target sets it too. Proven for real against the renderer target in this
+    /// container (20-second run, default corpus): AFL's own <c>fuzzer_stats</c> reported
+    /// <c>execs_done: 187372</c>, <c>execs_per_sec: 9363.92</c>, <c>edges_found: 76</c>,
+    /// <c>bitmap_cvg: 0.12%</c> — a real coverage-guided loop actually executing the instrumented
+    /// target at thousands of runs per second, not a binary-check no-op.
+    /// </para>
+    /// <para>
+    /// This target still performs the instrumentation half unconditionally, and only attempts the
+    /// actual fuzzing loop when it finds a driver on <c>PATH</c> — logging a clear, actionable
+    /// message and returning (not failing) otherwise, for any environment that provisions this image
+    /// without its <c>afl++</c> layer.
     /// </para>
     /// <para>
     /// Each target gets its own instrumented copy in <c>artifacts/fuzz/&lt;target&gt;/publish/</c> —
@@ -876,10 +947,49 @@ class Build : NukeBuild
 
         var harness = publishDir / "NarrativeTrace.Fuzz.dll";
         Environment.SetEnvironmentVariable("AFL_SKIP_CPUFREQ", "1");
+        // SharpFuzz's coverage signal is IL rewritten into the target DLL, carried to afl-fuzz over
+        // its shared-memory forkserver protocol (SharpFuzz.Fuzzer.OutOfProcess) — never compiled
+        // into the `dotnet` host binary afl-fuzz actually invokes. Without this, AFL's own
+        // check_binary() aborts every run with "No instrumentation detected" before a single
+        // execution happens; SharpFuzz's own README sets this for the identical reason.
+        Environment.SetEnvironmentVariable("AFL_SKIP_BIN_CHECK", "1");
         ProcessTasks.StartProcess(
                 driver,
                 $"-V {FuzzSeconds} -i \"{inDir}\" -o \"{outDir}\" -- dotnet \"{harness}\" {target} @@")
             .AssertZeroExitCode();
+
+        ReportAndVerifyAflRun(target, outDir);
+    }
+
+    /// <summary>
+    /// Reads afl-fuzz's own <c>fuzzer_stats</c> after a run and prints the metrics that prove (or
+    /// disprove) it actually fuzzed — <c>execs_done</c>/<c>execs_per_sec</c>/<c>edges_found</c>/
+    /// <c>bitmap_cvg</c> — instead of trusting a zero exit code alone. A fuzz job that returns
+    /// almost instantly against a multi-minute budget is not proof it fuzzed, just proof it exited
+    /// zero; this fails the build loudly on zero executions instead of reporting success, per the
+    /// governing rule that a job which did not really run must say so.
+    /// </summary>
+    static void ReportAndVerifyAflRun(string target, AbsolutePath outDir)
+    {
+        var statsFile = outDir / "default" / "fuzzer_stats";
+        if (!File.Exists(statsFile))
+            throw new Exception($"[fuzz:{target}] afl-fuzz exited cleanly but wrote no fuzzer_stats — treat as not having fuzzed.");
+
+        var stats = File.ReadAllLines(statsFile)
+            .Select(line => line.Split(':', 2))
+            .Where(parts => parts.Length == 2)
+            .ToDictionary(parts => parts[0].Trim(), parts => parts[1].Trim());
+
+        var execs = long.Parse(
+            stats.GetValueOrDefault("execs_done", "0"), System.Globalization.CultureInfo.InvariantCulture);
+        Console.WriteLine(
+            $"[fuzz:{target}] afl-fuzz ran {execs} executions ({stats.GetValueOrDefault("execs_per_sec", "?")}/s), "
+            + $"edges {stats.GetValueOrDefault("edges_found", "?")}/{stats.GetValueOrDefault("total_edges", "?")} "
+            + $"({stats.GetValueOrDefault("bitmap_cvg", "?")} coverage), "
+            + $"{stats.GetValueOrDefault("saved_crashes", "0")} crashes, {stats.GetValueOrDefault("saved_hangs", "0")} hangs.");
+
+        if (execs == 0)
+            throw new Exception($"[fuzz:{target}] afl-fuzz reported 0 executions — instrumentation ran but the fuzzing loop never did.");
     }
 
     // ── Stress (concurrency invariants shared across runtimes) ──────────────────
@@ -930,6 +1040,462 @@ class Build : NukeBuild
                 .SetOutputDirectory(ArtifactsDirectory)
                 .EnableNoBuild());
         });
+
+    // ── Post-publish verification ────────────────────────────────────────────
+
+    /// <summary>
+    /// Proves a nuget.org release actually landed, from OUTSIDE the pipeline that built it — the
+    /// same two checks java's <c>scripts/verify-publication.sh</c> makes, native to this build
+    /// rather than shelled out: (1) every package the solution's own projects say they publish is
+    /// present at the given version, and no package a project explicitly does NOT publish is
+    /// present anyway; (2) a consumer smoke test that scaffolds this repository's own documented
+    /// first-10-minutes recipe into a temp directory, with a cold isolated NuGet package cache and
+    /// a <c>NuGet.config</c> pinning nuget.org as the only source, and asserts the traced test
+    /// actually wrote its trace file with the expected content. "It resolves and compiles" is
+    /// explicitly not the bar.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Never a per-commit or nightly-gating target — it makes real network calls against a
+    /// registry whose own sync is documented as minutes to hours, so a run that fails this minute
+    /// can legitimately pass the next. <c>.github/workflows/verify-publication.yml</c> runs it as
+    /// a non-gating scheduled canary, the same shape as java's workflow of the same name.
+    /// </para>
+    /// <para>
+    /// <see cref="LocalRehearsal"/> checks the local feed under <see cref="ArtifactsDirectory"/>
+    /// (populated by <see cref="Pack"/>) and resolves the smoke test from it instead of the real
+    /// nuget.org — rehearse the recipe before a release exists anywhere public. Never the
+    /// default: a rehearsal that silently became the real check would prove nothing.
+    /// </para>
+    /// </remarks>
+    Target VerifyPublication => _ => _
+        .Executes(() =>
+        {
+            var version = string.IsNullOrWhiteSpace(VerifyVersion) ? ReadVersionPrefix() : VerifyVersion!;
+            var manifest = PublicationVerificationSupport.BuildManifest(DerivePackageProjects());
+            PrintPublicationManifest(manifest, version);
+
+            if (VerifyDryRun)
+            {
+                PrintPublicationDryRun(manifest, version);
+                return;
+            }
+
+            var presentResults = PollExpectedPresent(manifest.ExpectedOnRegistry, version);
+            var absentResults = CheckExpectedAbsent(manifest.ExpectedOffRegistry, version);
+            var smoke = RunConsumerSmokeTest(version);
+
+            var problems = new List<string>();
+            problems.AddRange(manifest.Warnings.Select(w => $"WARNING (structural): {w}"));
+            problems.AddRange(presentResults
+                .Where(r => r.Verdict != PublicationVerificationSupport.Presence.Present)
+                .Select(r => $"MISSING expected package: {r.PackageId} {version} — {r.Verdict}"));
+            problems.AddRange(absentResults
+                .Where(r => r.Verdict == PublicationVerificationSupport.Presence.Present)
+                .Select(r => $"UNEXPECTED package present: {r.PackageId} {version} is live on the registry, "
+                    + "but its project is not packable in this build. Either it should never have been "
+                    + "published, or this build's packability no longer matches what already shipped."));
+
+            Console.WriteLine();
+            Console.WriteLine("=== VerifyPublication report ===");
+            if (problems.Count == 0)
+                Console.WriteLine("  (no problems)");
+            foreach (var problem in problems)
+                Console.WriteLine($"  {problem}");
+            Console.WriteLine($"Consumer smoke test: {smoke.Verdict}{(smoke.Detail is null ? "" : $" ({smoke.Detail})")}");
+
+            var hardFailures = problems.Count(p => !p.StartsWith("WARNING", StringComparison.Ordinal));
+            if (hardFailures > 0 || smoke.Verdict != SmokeVerdict.Passed)
+            {
+                throw new Exception(
+                    $"VerifyPublication failed: {hardFailures} registry problem(s), "
+                    + $"smoke test {smoke.Verdict}. See the report above.");
+            }
+        });
+
+    const int VerifyPublicationInitialBackoffSeconds = 15;
+    static readonly HttpClient VerifyPublicationHttp = new() { Timeout = TimeSpan.FromSeconds(30) };
+
+    enum SmokeVerdict { Passed, Failed }
+
+    sealed record PackageCheckResult(string PackageId, PublicationVerificationSupport.Presence Verdict);
+
+    sealed record SmokeResult(SmokeVerdict Verdict, string? Detail);
+
+    string ReadVersionPrefix()
+    {
+        var text = File.ReadAllText(RootDirectory / "Directory.Build.props");
+        var match = Regex.Match(text, "<VersionPrefix>([^<]+)</VersionPrefix>");
+        if (!match.Success)
+        {
+            throw new InvalidOperationException(
+                "Directory.Build.props has no <VersionPrefix> — pass --verify-version explicitly.");
+        }
+        return match.Groups[1].Value;
+    }
+
+    /// <summary>
+    /// Asks the build, never a hand-kept list: evaluates every solution project's real
+    /// <c>IsPackable</c>/<c>PackageId</c> via <c>dotnet msbuild -getProperty</c> — the same
+    /// evaluation <see cref="Pack"/>'s <c>dotnet pack</c> itself performs — so a newly added
+    /// project can never be silently missed either way.
+    /// </summary>
+    List<PublicationVerificationSupport.ProjectPackability> DerivePackageProjects()
+    {
+        var results = new List<PublicationVerificationSupport.ProjectPackability>();
+        foreach (var project in Solution.AllProjects.OrderBy(p => p.Name, StringComparer.Ordinal))
+        {
+            var (isPackable, packageId) = EvaluatePackability(project.Path);
+            var relative = Path.GetRelativePath(RootDirectory, project.Path).Replace('\\', '/');
+            results.Add(new(relative, packageId, isPackable));
+        }
+        return results;
+    }
+
+    static (bool IsPackable, string PackageId) EvaluatePackability(string projectPath)
+    {
+        var joined = string.Join(
+            '\n',
+            DotNet($"msbuild \"{projectPath}\" -nologo -getProperty:IsPackable -getProperty:PackageId")
+                .Select(o => o.Text));
+        var braceIndex = joined.IndexOf('{');
+        if (braceIndex < 0)
+        {
+            throw new InvalidOperationException(
+                $"dotnet msbuild -getProperty produced no JSON for {projectPath}: {joined}");
+        }
+        using var document = JsonDocument.Parse(joined[braceIndex..]);
+        var properties = document.RootElement.GetProperty("Properties");
+        var isPackable = !string.Equals(
+            properties.TryGetProperty("IsPackable", out var packableValue) ? packableValue.GetString() : "true",
+            "false", StringComparison.OrdinalIgnoreCase);
+        var packageId = properties.TryGetProperty("PackageId", out var idValue) ? idValue.GetString() : null;
+        return (isPackable, packageId ?? Path.GetFileNameWithoutExtension(projectPath));
+    }
+
+    void PrintPublicationManifest(PublicationVerificationSupport.PublicationManifest manifest, string version)
+    {
+        Console.WriteLine(
+            $"VerifyPublication: derived {manifest.ExpectedOnRegistry.Count} packable project(s) for version "
+            + $"{version} ({manifest.ExpectedOffRegistry.Count} non-packable project(s) in the solution).");
+        foreach (var project in manifest.ExpectedOnRegistry)
+            Console.WriteLine($"  PACKABLE  {project.PackageId,-40} {project.RelativeProjectPath}");
+        foreach (var warning in manifest.Warnings)
+            Console.WriteLine($"  WARNING   {warning}");
+    }
+
+    void PrintPublicationDryRun(PublicationVerificationSupport.PublicationManifest manifest, string version)
+    {
+        Console.WriteLine();
+        Console.WriteLine("Dry run — no network calls, no smoke test. Would check for PRESENCE:");
+        foreach (var project in manifest.ExpectedOnRegistry)
+        {
+            Console.WriteLine($"  {PublicationVerificationSupport.NupkgUrl(PublicationVerificationSupport.NuGetOrgFlatContainerBase, project.PackageId, version)}");
+            Console.WriteLine($"  {PublicationVerificationSupport.NuspecUrl(PublicationVerificationSupport.NuGetOrgFlatContainerBase, project.PackageId, version)}");
+        }
+        Console.WriteLine("Would check for ABSENCE (a non-packable project's package must not exist):");
+        foreach (var project in manifest.ExpectedOffRegistry)
+            Console.WriteLine($"  {project.PackageId}");
+        Console.WriteLine();
+        Console.WriteLine(
+            $"Smoke test would restore NarrativeTrace.Core/Runtime/Proxy/Testing.Xunit {version} from "
+            + (LocalRehearsal ? $"the local feed at {ArtifactsDirectory}." : "nuget.org (the only configured source)."));
+    }
+
+    static int HeadStatus(string url)
+    {
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Head, url);
+            using var response = VerifyPublicationHttp.Send(request, HttpCompletionOption.ResponseHeadersRead);
+            return (int)response.StatusCode;
+        }
+        catch
+        {
+            // No response at all (DNS/connect/timeout failure) reads the same as curl's own "000"
+            // fallback in the java script: not explained by ordinary sync lag, so MISSING.
+            return 0;
+        }
+    }
+
+    PublicationVerificationSupport.Presence RemoteCheckOne(string packageId, string version) =>
+        PublicationVerificationSupport.Worst(new[]
+        {
+            PublicationVerificationSupport.ClassifyHttpStatus(HeadStatus(
+                PublicationVerificationSupport.NupkgUrl(PublicationVerificationSupport.NuGetOrgFlatContainerBase, packageId, version))),
+            PublicationVerificationSupport.ClassifyHttpStatus(HeadStatus(
+                PublicationVerificationSupport.NuspecUrl(PublicationVerificationSupport.NuGetOrgFlatContainerBase, packageId, version))),
+        });
+
+    PublicationVerificationSupport.Presence LocalCheckOne(string packageId, string version)
+    {
+        var found = Directory.Exists(ArtifactsDirectory)
+            && Directory.EnumerateFiles(ArtifactsDirectory, "*.nupkg")
+                .Any(file => string.Equals(
+                    Path.GetFileNameWithoutExtension(file), $"{packageId}.{version}",
+                    StringComparison.OrdinalIgnoreCase));
+        return found ? PublicationVerificationSupport.Presence.Present : PublicationVerificationSupport.Presence.Missing;
+    }
+
+    PublicationVerificationSupport.Presence CheckOne(string packageId, string version) =>
+        LocalRehearsal ? LocalCheckOne(packageId, version) : RemoteCheckOne(packageId, version);
+
+    /// <summary>
+    /// Polls every expected package until each reads PRESENT, backing off between rounds up to
+    /// one overall <see cref="VerifyTimeoutSeconds"/> deadline — not a separate timeout per
+    /// package, the same reasoning java's script documents for Central.
+    /// </summary>
+    List<PackageCheckResult> PollExpectedPresent(
+        IReadOnlyList<PublicationVerificationSupport.ProjectPackability> expected, string version)
+    {
+        var status = expected.ToDictionary(
+            p => p.PackageId, _ => PublicationVerificationSupport.Presence.Missing);
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(VerifyTimeoutSeconds);
+        var backoff = VerifyPublicationInitialBackoffSeconds;
+        while (true)
+        {
+            var pending = new List<string>();
+            foreach (var project in expected)
+            {
+                if (status[project.PackageId] == PublicationVerificationSupport.Presence.Present)
+                    continue;
+                var verdict = CheckOne(project.PackageId, version);
+                status[project.PackageId] = verdict;
+                if (verdict != PublicationVerificationSupport.Presence.Present)
+                    pending.Add($"{project.PackageId}({verdict})");
+            }
+            if (pending.Count == 0 || LocalRehearsal || DateTimeOffset.UtcNow >= deadline)
+            {
+                return status.Select(kv => new PackageCheckResult(kv.Key, kv.Value)).ToList();
+            }
+            Console.WriteLine($">> not yet propagated, {pending.Count} pending, retrying in {backoff}s: {string.Join(' ', pending)}");
+            Thread.Sleep(TimeSpan.FromSeconds(backoff));
+            backoff = PublicationVerificationSupport.NextBackoffSeconds(backoff, VerifyIntervalSeconds);
+        }
+    }
+
+    /// <summary>
+    /// Checks once, no polling, that every non-packable project's package is NOT live — the
+    /// negative half of the same derivation, and the exact check that would have caught
+    /// <c>NarrativeTrace.Benchmarks</c> shipping in 0.1.0.
+    /// </summary>
+    List<PackageCheckResult> CheckExpectedAbsent(
+        IReadOnlyList<PublicationVerificationSupport.ProjectPackability> notExpected, string version) =>
+        notExpected
+            .Select(project => new PackageCheckResult(project.PackageId, CheckOne(project.PackageId, version)))
+            .ToList();
+
+    /// <summary>
+    /// Scaffolds <c>documentation/first-10-minutes.md</c>'s exact recipe into a fresh temp
+    /// directory — a cold isolated <c>NUGET_PACKAGES</c>, a <c>NuGet.config</c> pinning nuget.org
+    /// (or, under <see cref="LocalRehearsal"/>, the local feed) as the only source — and asserts
+    /// the traced test wrote its trace artifact with the expected content. Resolving and
+    /// compiling is not the bar tested here.
+    /// </summary>
+    SmokeResult RunConsumerSmokeTest(string version)
+    {
+        var workDir = Directory.CreateTempSubdirectory("nt-verify-publication-").FullName;
+        var packagesDir = Directory.CreateTempSubdirectory("nt-verify-publication-packages-").FullName;
+        var httpCacheDir = Directory.CreateTempSubdirectory("nt-verify-publication-httpcache-").FullName;
+        try
+        {
+            WriteSmokeProject(workDir, version);
+            var outputDir = Path.Combine(workDir, "narrativetrace-output");
+            var env = OverrideEnvironment(
+                ("NUGET_PACKAGES", packagesDir),
+                ("NUGET_HTTP_CACHE_PATH", httpCacheDir),
+                ("NARRATIVETRACE_OUTPUT", "true"),
+                ("NARRATIVETRACE_OUTPUT_DIR", outputDir),
+                ("DOTNET_NOLOGO", "1"),
+                ("DOTNET_CLI_TELEMETRY_OPTOUT", "1"));
+
+            var process = ProcessTasks.StartProcess(
+                "dotnet", "test --nologo",
+                workingDirectory: workDir,
+                environmentVariables: env,
+                logOutput: false);
+            process.AssertWaitForExit();
+
+            if (process.ExitCode != 0)
+            {
+                var logPath = Path.Combine(workDir, "dotnet-test-output.log");
+                File.WriteAllLines(logPath, process.Output.Select(o => o.Text));
+                return new SmokeResult(SmokeVerdict.Failed, $"dotnet test exited {process.ExitCode} — see {logPath} (work dir kept)");
+            }
+
+            var traceFile = Path.Combine(outputDir, "traces", "OrderServiceTests", "places_an_order.md");
+            if (!File.Exists(traceFile))
+                return new SmokeResult(SmokeVerdict.Failed, $"dotnet test passed but no trace file at {traceFile} (work dir kept: {workDir})");
+
+            var content = File.ReadAllText(traceFile);
+            var missingFragments = new[] { "PlaceOrder", "cust-1", "book-123" }
+                .Where(fragment => !content.Contains(fragment, StringComparison.Ordinal))
+                .ToList();
+            if (missingFragments.Count > 0)
+            {
+                return new SmokeResult(
+                    SmokeVerdict.Failed,
+                    $"trace file at {traceFile} is missing expected content: {string.Join(", ", missingFragments)} (work dir kept)");
+            }
+            if (content.Contains("gift wrap", StringComparison.Ordinal))
+            {
+                return new SmokeResult(
+                    SmokeVerdict.Failed,
+                    $"trace file at {traceFile} leaked the [NotTraced] argument instead of redacting it (work dir kept: {workDir})");
+            }
+
+            var detail = $"trace file present with expected content: {traceFile}";
+            Directory.Delete(workDir, recursive: true);
+            Directory.Delete(packagesDir, recursive: true);
+            Directory.Delete(httpCacheDir, recursive: true);
+            return new SmokeResult(SmokeVerdict.Passed, detail);
+        }
+        catch (Exception ex)
+        {
+            return new SmokeResult(SmokeVerdict.Failed, $"{ex.GetType().Name}: {ex.Message} (work dir: {workDir})");
+        }
+    }
+
+    void WriteSmokeProject(string workDir, string version)
+    {
+        File.WriteAllText(
+            Path.Combine(workDir, "NuGet.config"),
+            LocalRehearsal ? LocalRehearsalNuGetConfig() : RealRegistryNuGetConfig());
+
+        File.WriteAllText(Path.Combine(workDir, "nt-verify-publication-smoke.csproj"), $"""
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFramework>net10.0</TargetFramework>
+                <ImplicitUsings>enable</ImplicitUsings>
+                <Nullable>enable</Nullable>
+                <IsPackable>false</IsPackable>
+              </PropertyGroup>
+              <ItemGroup>
+                <PackageReference Include="NarrativeTrace.Core" Version="{version}" />
+                <PackageReference Include="NarrativeTrace.Runtime" Version="{version}" />
+                <PackageReference Include="NarrativeTrace.Proxy" Version="{version}" />
+                <PackageReference Include="NarrativeTrace.Testing.Xunit" Version="{version}" />
+                <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+                <PackageReference Include="xunit" Version="2.9.2" />
+                <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+                  <PrivateAssets>all</PrivateAssets>
+                  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+                </PackageReference>
+              </ItemGroup>
+            </Project>
+            """);
+
+        // Verbatim from documentation/first-10-minutes.md steps 2 and 3 — this smoke test IS that
+        // documented recipe, run for real against whatever the target version actually published.
+        File.WriteAllText(Path.Combine(workDir, "OrderService.cs"), SmokeOrderServiceSource);
+        File.WriteAllText(Path.Combine(workDir, "OrderServiceTests.cs"), SmokeOrderServiceTestsSource);
+    }
+
+    /// <summary>
+    /// Real verification: nuget.org is the only source, exactly like a consumer's own
+    /// restore — every dependency of the smoke project, NarrativeTrace's own packages
+    /// included, comes from there.
+    /// </summary>
+    static string RealRegistryNuGetConfig() => """
+        <?xml version="1.0" encoding="utf-8"?>
+        <configuration>
+          <packageSources>
+            <clear />
+            <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+          </packageSources>
+        </configuration>
+        """;
+
+    /// <summary>
+    /// Rehearsal: the smoke project also restores ordinary third-party test-host
+    /// packages (<c>Microsoft.NET.Test.Sdk</c>, <c>xunit</c>, its VS runner) that the
+    /// local <see cref="ArtifactsDirectory"/> feed never carries — a bare local-only
+    /// source left those NU1101-ing with no source for them (found running this exact
+    /// target: the cold, isolated <c>NUGET_PACKAGES</c> this smoke test always uses had
+    /// nothing to fall back to). Keeping nuget.org as a second source without package
+    /// source mapping would let a same-numbered <c>NarrativeTrace.*</c> package already
+    /// on nuget.org quietly satisfy the restore instead of the local build under test —
+    /// exactly the failure mode a rehearsal exists to rule out. Mapping pins
+    /// <c>NarrativeTrace.*</c> to <c>local</c> only and leaves every other id free to
+    /// resolve from nuget.org as usual.
+    /// </summary>
+    string LocalRehearsalNuGetConfig() => $"""
+        <?xml version="1.0" encoding="utf-8"?>
+        <configuration>
+          <packageSources>
+            <clear />
+            <add key="local" value="{ArtifactsDirectory}" />
+            <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+          </packageSources>
+          <packageSourceMapping>
+            <packageSource key="local">
+              <package pattern="NarrativeTrace.*" />
+            </packageSource>
+            <packageSource key="nuget.org">
+              <package pattern="*" />
+            </packageSource>
+          </packageSourceMapping>
+        </configuration>
+        """;
+
+    const string SmokeOrderServiceSource = """
+        using NarrativeTrace.Core.Annotation;
+
+        public interface IOrderService
+        {
+            string PlaceOrder(
+                string customerId, string productId, int quantity,
+                [NotTraced] string internalNote);
+        }
+
+        public sealed class OrderService : IOrderService
+        {
+            public string PlaceOrder(
+                string customerId, string productId, int quantity, string internalNote)
+                => $"confirmed:{customerId}:{productId}:{quantity}";
+        }
+        """;
+
+    const string SmokeOrderServiceTestsSource = """
+        using NarrativeTrace.Proxy;
+        using NarrativeTrace.TestingXunit;
+        using Xunit;
+
+        public sealed class OrderServiceTests : IClassFixture<NarrativeFixture>
+        {
+            private readonly NarrativeFixture _fixture;
+            public OrderServiceTests(NarrativeFixture fixture) => _fixture = fixture;
+
+            [Fact]
+            public void Places_an_order()
+            {
+                _fixture.Run(nameof(Places_an_order), ctx =>
+                {
+                    var orders = NarrativeTraceProxy.Create<IOrderService>(new OrderService(), ctx);
+                    orders.PlaceOrder("cust-1", "book-123", 2, "gift wrap");
+                });
+
+                _fixture.WriteArtifacts(nameof(OrderServiceTests), nameof(Places_an_order), failed: false);
+            }
+        }
+        """;
+
+    /// <summary>
+    /// The current process environment plus <paramref name="overrides"/>. NUKE's
+    /// <c>ProcessTasks.StartProcess</c> <b>clears</b> the child's environment entirely whenever
+    /// <c>environmentVariables</c> is non-null, rather than merging — so every call site that
+    /// needs to override one or two variables must start from a full copy of this process's own
+    /// environment (PATH, HOME, etc.) or the child process cannot even find <c>dotnet</c>.
+    /// </summary>
+    static IReadOnlyDictionary<string, string> OverrideEnvironment(params (string Key, string Value)[] overrides)
+    {
+        var env = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (System.Collections.DictionaryEntry entry in Environment.GetEnvironmentVariables())
+            env[(string)entry.Key] = (string)entry.Value!;
+        foreach (var (key, value) in overrides)
+            env[key] = value;
+        return env;
+    }
 
     /// <remarks>
     /// <see cref="RunExamples"/> and <see cref="DemoWiringCheck"/> are gate

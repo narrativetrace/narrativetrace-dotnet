@@ -340,6 +340,19 @@ baseline numbers, `Detail` level (the default), from
 | `RendererBenchmarks.MarkdownSmall` | ~595 ns | 2704 B |
 | `ConcurrencyBenchmarks.ForkJoin_TwoTasks` | ~3.9 µs | 5602 B |
 
+Host-native only: a shared CI runner cannot hold these thresholds (proven on
+the first public run — every other gate green, then dozens of spurious
+"regressions" from noisy neighbors), so both GitHub Actions
+(`./build.sh Verify --skip Benchmark`) and GitLab's default-branch push skip
+it. It still runs for real, unattended, as a plain NUKE target on matched
+hardware: `./build.sh Benchmark` restores, builds, runs all 16 benchmarks
+(BenchmarkDotNet's `medium` job) and gates them against
+[`benchmarks/benchmark-baseline.json`](benchmarks/benchmark-baseline.json),
+writing machine-readable JSON results under `artifacts/benchmarks/`. That
+one command is the entry point a nightly/host job invokes; regenerate the
+baseline after an intentional performance change with
+`./build.sh BenchmarkBaseline`.
+
 At `TracingLevel.Off` the context short-circuits and captures nothing — a
 characterization test pins that an off-level context produces an empty
 trace — but that path isn't separately benchmarked yet, so treat "Off is
@@ -540,11 +553,14 @@ Or via [NUKE](https://nuke.build) (`./build.sh`, `build.ps1`, `build.cmd`):
 Formatting (`dotnet format`), static analysis (Roslyn + SonarAnalyzer, incl. a
 20-line method cap via S138, and the full CA5xxx security rule category),
 secrets scanning (gitleaks, staged-diff pre-commit hook plus a full-history
-sweep), tests (xUnit / NUnit), coverage (Coverlet), mutation testing
-(Stryker.NET), and benchmark regression (BenchmarkDotNet) all gate the build.
-Semgrep's OSS C# ruleset and dependency-advisory scanning (OSV-Scanner,
-`dotnet list package --vulnerable`) run on a scheduled/MR CI tier — see
-[`documentation/security-tooling.md`](documentation/security-tooling.md).
+sweep), tests (xUnit / NUnit), coverage (Coverlet), and benchmark regression
+(BenchmarkDotNet) all gate the build. Mutation testing (Stryker.NET,
+`./build.sh Mutation`) is defined and runnable — including on the public
+mirror via [`.github/workflows/mutation.yml`](.github/workflows/mutation.yml)
+— but is **not** a `Verify` dependency: like Semgrep's OSS C# ruleset and
+dependency-advisory scanning (OSV-Scanner, `dotnet list package
+--vulnerable`), it runs on a scheduled/manual-dispatch tier, never per commit
+— see [`documentation/security-tooling.md`](documentation/security-tooling.md).
 `tests/BuildScript.Tests` validates build behavior itself. CI runs
 `./build.sh Verify` on GitHub Actions (`.github/workflows/ci.yml`).
 

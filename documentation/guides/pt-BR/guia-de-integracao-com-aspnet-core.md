@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/aspnetcore.md blob 9555450774d3 | translated: 2026-09-03 | reviewed: 2026-09-03 -->
+<!-- source: documentation/guides/aspnetcore.md blob d93be958c0a7 | translated: 2026-09-09 | reviewed: 2026-09-03 -->
 # Guia de integração com ASP.NET Core
 
 [English](../aspnetcore.md) | [Español](../es/guia-de-integracion-con-aspnet-core.md) | **Português** | [简体中文](../zh-CN/ASP.NET-Core集成指南.md)
@@ -10,7 +10,7 @@ a exclusão de caminhos e o contexto de requisição/usuário.
 ## Pacote
 
 ```xml
-<PackageReference Include="NarrativeTrace.AspNetCore" Version="0.1.0" />
+<PackageReference Include="NarrativeTrace.AspNetCore" Version="0.1.1" />
 ```
 
 ## 1. Registrar e conectar o middleware

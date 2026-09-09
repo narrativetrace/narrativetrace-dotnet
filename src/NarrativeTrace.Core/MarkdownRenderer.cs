@@ -135,12 +135,17 @@ public static class MarkdownRenderer
         sb.AppendLine();
     }
 
+    // The frontmatter already escapes the scenario (via YamlEscape.Scalar); this header must
+    // escape the same value for the Markdown body — one escaping decision per sink, never a raw
+    // append. A raw scenario here forged document structure (a heading of its own) and injected
+    // active HTML. metadata.Result stays raw on purpose: it is enum-controlled (ScenarioResult),
+    // never caller-supplied.
     private static void AppendHeaderSummary(
         StringBuilder sb, TraceTree tree, TraceMetadata metadata)
     {
         var ms = tree.Roots[0].DurationTicks
             / TimeSpan.TicksPerMillisecond;
-        sb.Append("**Scenario:** ").AppendLine(metadata.Scenario);
+        sb.Append("**Scenario:** ").AppendLine(MarkdownEscape.Text(metadata.Scenario));
         sb.Append("**Duration:** ")
             .Append(ms.ToString(CultureInfo.InvariantCulture))
             .Append("ms | **Result:** ")

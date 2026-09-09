@@ -33,7 +33,7 @@
     <!-- Pre-1.0 product version — keep in step with NarrativeTrace.Version.
          Without this, packages default to 1.0.0 and imply an API commitment
          the project has not made. -->
-    <VersionPrefix>0.1.0</VersionPrefix>
+    <VersionPrefix>0.1.1</VersionPrefix>
     <!-- BSL 1.1 is not OSI/FSF-approved, so NuGet rejects it as a PackageLicenseExpression; ship the file. -->
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <!-- Published packages are public artifacts built from the public GitHub
@@ -71,7 +71,10 @@
     <!-- GitHub, not GitLab: source link maps commits for consumers of the
          published packages, which are built from the public GitHub snapshot.
          Pinned by PackageMetadataTests. -->
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0">
+    <!-- 10.0.401, not 8.0.0: the 8.0.0 release's transitive Microsoft.Build.Tasks.Git
+         carries a known moderate-severity advisory (GHSA-23fw-v26w-5fgq), caught by
+         DependencyAudit/NuGetAuditMode=all. -->
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.401">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>

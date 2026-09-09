@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Licensed under the Business Source License 1.1 (see LICENSE); Change Date: four years from publication; Change License: Apache-2.0
 // Copyright (c) 2026 Empower Agile
+using System.Linq;
 using NarrativeTrace.Core;
 using Xunit;
 
@@ -130,16 +131,31 @@ public class YamlEscapeTests
     }
 
     [Fact]
-    public void A_well_formed_surrogate_pair_passes_through_unescaped()
+    public void A_well_formed_surrogate_pair_becomes_a_unicode_escape()
     {
-        // Every surrogate half triggers quoting on its own (NeedsQuoting has
-        // no way to tell "half of a valid pair" from "lone" without walking
-        // the whole string), but a well-formed pair is copied through intact
-        // once inside the quotes — fidelity for a real character, an emoji
-        // included, is part of being correct; only an actually-invalid code
-        // unit gets replaced.
+        // A raw astral-plane character in the frontmatter is spec-valid YAML, but a downstream
+        // parser that reads in fixed-size chunks can land its buffer boundary between a pair's two
+        // halves — SnakeYAML 2.3 (the java runtime's YAML oracle) reads 1024-char chunks and
+        // crashes with IndexOutOfBoundsException on exactly this input. Frontmatter is emitted
+        // BMP-only: the 8-digit \U escape is YAML's own (ns-esc-32-bit), a conforming parser
+        // decodes it back to the same code point, and no boundary can ever split what is no longer
+        // a pair. Confirmed: YamlDotNet (this port's own YAML oracle) does not reproduce that
+        // crash on any tested alignment/size — the fix is for the machine-readable contract
+        // broadly, not a bug found in this port's own oracle.
         const string emoji = "😀";
 
-        Assert.Equal($"\"{emoji}\"", YamlEscape.Scalar(emoji));
+        Assert.Equal("\"\\U0001f600\"", YamlEscape.Scalar(emoji));
+    }
+
+    [Fact]
+    public void A_long_astral_run_leaves_no_surrogate_at_any_parser_buffer_boundary()
+    {
+        // The minimized shape of java's fuzz crash class: enough astral pairs that a chunked
+        // reader's buffer boundary could land on a high surrogate at some alignment. After
+        // escaping, no output character is a surrogate at all, so the property holds for every
+        // alignment, not just one.
+        var result = YamlEscape.Scalar(string.Concat(Enumerable.Repeat("🙈", 600)));
+
+        Assert.DoesNotContain(result, c => char.IsSurrogate(c));
     }
 }

@@ -24,13 +24,32 @@ tier, never per commit.**
 | OSV-Scanner | `OsvScan` | schedule/web CI only | queries the osv.dev API |
 | `dotnet list package --vulnerable` | `VulnerablePackages` | schedule/web CI only | queries nuget.org |
 
-Every target degrades gracefully when its binary is simply absent from
-`PATH` — a `Console.WriteLine` warning and a clean exit, the same
-warn-and-pass shape the pre-commit hook and the `Fuzz` target (for
-`afl-fuzz`) already use. `scripts/install-security-tools.sh` provisions the
-pinned versions in CI; it is CI-only (wants root, fails loudly on a download
-error) — the opposite of what a developer's machine should do when a tool
-happens to be missing.
+`scripts/install-security-tools.sh` provisions the pinned versions in CI; it
+is CI-only (wants root, fails loudly on a download error) — the opposite of
+what a developer's machine should do when a tool happens to be missing.
+
+## A skipped scan is not a clean scan
+
+`SecretsScan`, `Semgrep` and `OsvScan` used to warn and pass outright when
+their binary was absent — a green build that looked like "secrets/static
+analysis passed" when nothing was checked, the exact failure class a family
+release retrospective pinned as rule 2 ("a graceful-skip tool must prove it
+has ever run") and the one that bit this repository's own first release,
+where a secrets scanner had gracefully skipped for the project's entire
+life. Since 2026-09-08, all three behave the same way when their binary is
+missing (`ScannerGateSupport` in `build/`, unit-tested in
+`tests/BuildScript.Tests`):
+
+- **Locally**: the target **warns** ("a skipped scan is NOT a clean scan")
+  and still passes, so a machine without the tools keeps a working build.
+- **In CI (the bare `CI` environment variable, which GitLab CI and GitHub
+  Actions both set automatically), or under `--security-required`**: the
+  target **fails** — a job meant to provide security assurance must mean the
+  scan ran.
+- Every outcome is recorded under
+  `artifacts/security/scan-status/<tool>.status` as `ran-clean` or
+  `skipped: <reason>` (no file at all reads as `never-ran`), so "ran clean"
+  and "never ran" stay distinguishable after the fact.
 
 ## gitleaks — secrets
 

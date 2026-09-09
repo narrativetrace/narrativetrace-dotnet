@@ -4,6 +4,13 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- A benchmark harness, not a library for consumers — it must never be packable. Nothing
+         previously set this, so `dotnet pack` on the solution packed it by default alongside the
+         real libraries, and NarrativeTrace.Benchmarks 0.1.0 shipped to nuget.org; see
+         VerifyPublication (build/PublicationVerificationSupport.cs), which now derives the
+         packable set from this property rather than a hand-kept list and flags exactly this
+         shape of mistake. -->
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/NarrativeTrace.Core/NarrativeTrace.Core.csproj" />

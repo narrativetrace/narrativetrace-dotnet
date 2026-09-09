@@ -14,7 +14,9 @@ namespace NarrativeTrace.TestingXunit;
 /// <remarks>
 /// <para>
 /// Register it as a class fixture (<c>IClassFixture&lt;NarrativeFixture&gt;</c>)
-/// or construct one per test. It holds a single
+/// or construct one per test with <c>new NarrativeFixture()</c> (environment
+/// config) or <see cref="Create(NarrativeTraceConfig)"/> (explicit config). It
+/// holds a single
 /// <see cref="SyncNarrativeContext"/>, so <b>one fixture serves one test at a
 /// time</b> — sharing an instance across tests that xUnit runs in parallel
 /// merges their spans into one trace. A class fixture is safe because xUnit does
@@ -67,13 +69,17 @@ public sealed class NarrativeFixture : IDisposable
     /// <summary>Creates a fixture with an explicit configuration, ignoring the environment.</summary>
     /// <param name="config">The level and service identity to capture under.</param>
     /// <remarks>
+    /// A factory rather than a constructor: xUnit's <c>IClassFixture&lt;T&gt;</c>
+    /// activator requires a fixture type to declare exactly one public
+    /// constructor, so <see cref="NarrativeFixture()"/> has to be the only one.
     /// Artifact writing is disabled on this path regardless of
     /// <c>NARRATIVETRACE_OUTPUT</c>, since no environment is consulted — use it
-    /// when a test must pin its own tracing level.
+    /// when a test must pin its own tracing level directly (not as a class
+    /// fixture).
     /// </remarks>
-    public NarrativeFixture(NarrativeTraceConfig config)
-        : this(config, _ => null)
+    public static NarrativeFixture Create(NarrativeTraceConfig config)
     {
+        return new NarrativeFixture(config, _ => null);
     }
 
     private NarrativeFixture(

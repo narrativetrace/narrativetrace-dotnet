@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: BUSL-1.1
+# Licensed under the Business Source License 1.1 (see LICENSE); Change Date: four years from publication; Change License: Apache-2.0
+# Copyright (c) 2026 Empower Agile
+name: Mutation
+
+# Mutation testing via Stryker.NET (`./build.sh Mutation`, one run per
+# stryker-config*.json module). Schedule + manual dispatch ONLY — never on
+# push or pull_request. A full sweep across every module is far too slow for
+# a per-commit gate (same tier as Fuzz/Benchmark/Semgrep/OSV-Scanner; see the
+# Quality gates table in README.md), but it still needs to be *defined and
+# runnable* on the public mirror so a GitHub-only contributor has a mutation
+# signal to trigger, not just the private GitLab CI's own MR/schedule job.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  mutation:
+    name: Mutation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.301'
+
+      - name: Mutation
+        run: ./build.sh Mutation

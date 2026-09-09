@@ -111,7 +111,9 @@ public static class YamlEscape
     // hex forms for every other control character. Surrogates (a
     // well-formed pair or a lone one) are handled separately below —
     // frontmatter is read by tooling, so fidelity for a real character, an
-    // emoji included, is part of being correct.
+    // emoji included, is part of being correct: a well-formed pair becomes
+    // one \UXXXXXXXX escape (YAML's own ns-esc-32-bit), not the raw UTF-16
+    // halves.
     private static int AppendOne(StringBuilder sb, string value, int i)
     {
         var c = value[i];
@@ -133,13 +135,29 @@ public static class YamlEscape
         return AppendSurrogateOrPlain(sb, value, i);
     }
 
+    // A well-formed surrogate pair is spec-valid YAML either way (astral
+    // characters are c-printable), but a raw pair puts the two UTF-16 halves
+    // into the emitted chars, and a downstream parser that reads in
+    // fixed-size chunks can land its buffer boundary between them —
+    // SnakeYAML 2.3 (the java runtime's YAML oracle) reads 1024-char chunks
+    // and, when a chunk ends on a high surrogate, reads one char past its
+    // own buffer: IndexOutOfBoundsException on otherwise-valid input.
+    // YamlDotNet (this port's own YAML oracle) does not reproduce that
+    // crash at any alignment or size tested — but
+    // frontmatter is a machine-readable interoperability contract read by
+    // whatever YAML tooling a consumer has, not just this port's own test
+    // oracle, so it is emitted BMP-only regardless: the escape decodes back
+    // to the same code point in any conforming parser, and once no emitted
+    // character is a surrogate, no buffer boundary can ever split what is no
+    // longer a pair.
     private static int AppendSurrogateOrPlain(StringBuilder sb, string value, int i)
     {
         var c = value[i];
         if (char.IsHighSurrogate(c) && i + 1 < value.Length
             && char.IsLowSurrogate(value[i + 1]))
         {
-            sb.Append(c).Append(value[i + 1]);
+            var codePoint = char.ConvertToUtf32(c, value[i + 1]);
+            sb.Append("\\U").Append(codePoint.ToString("x8", CultureInfo.InvariantCulture));
             return i + 2;
         }
 
