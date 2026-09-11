@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/msbuild-cli.md blob 5a9c63ee0eb4 | translated: 2026-09-09 | reviewed: 2026-09-03 -->
+<!-- source: documentation/guides/msbuild-cli.md blob a95d937be511 | translated: 2026-09-09 | reviewed: 2026-09-03 -->
 # NarrativeTrace .NET — MSBuild 与 CLI 指南
 
 [English](../msbuild-cli.md) | [Español](../es/guia-de-msbuild-y-cli.md) | [Português](../pt-BR/guia-de-msbuild-e-cli.md) | **简体中文**
@@ -121,7 +121,7 @@ dotnet-narrativetrace clarity-check \
 依赖中：
 
 ```xml
-<PackageReference Include="NarrativeTrace.MSBuild" Version="0.1.2"
+<PackageReference Include="NarrativeTrace.MSBuild" Version="0.1.3"
                   PrivateAssets="all" />
 ```
 

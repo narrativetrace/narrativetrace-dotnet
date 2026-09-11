@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/dependency-injection.md blob fdd3acbcda54 | translated: 2026-09-09 | reviewed: 2026-09-03 -->
+<!-- source: documentation/guides/dependency-injection.md blob f3a2e3b8ba57 | translated: 2026-09-09 | reviewed: 2026-09-03 -->
 # Guia de encapsulamento automático com injeção de dependências
 
 [English](../dependency-injection.md) | [Español](../es/guia-de-inyeccion-de-dependencias.md) | **Português** | [简体中文](../zh-CN/依赖注入指南.md)
@@ -15,7 +15,7 @@ correspondentes.
 ## Pacote
 
 ```xml
-<PackageReference Include="NarrativeTrace.DependencyInjection" Version="0.1.2" />
+<PackageReference Include="NarrativeTrace.DependencyInjection" Version="0.1.3" />
 ```
 
 ## 1. Registre e encapsule automaticamente

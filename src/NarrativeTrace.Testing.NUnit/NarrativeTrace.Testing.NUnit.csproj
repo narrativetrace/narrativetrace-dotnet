@@ -17,6 +17,7 @@
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="NarrativeTrace.Testing.NUnit.Tests" />
+    <InternalsVisibleTo Include="NarrativeTrace.Testing.NUnit.EngineTests" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../NarrativeTrace.Core/NarrativeTrace.Core.csproj" />

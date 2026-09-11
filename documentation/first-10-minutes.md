@@ -9,10 +9,10 @@ imagined output.
 ## 1. Add the packages
 
 ```xml
-<PackageReference Include="NarrativeTrace.Core" Version="0.1.2" />
-<PackageReference Include="NarrativeTrace.Runtime" Version="0.1.2" />
-<PackageReference Include="NarrativeTrace.Proxy" Version="0.1.2" />
-<PackageReference Include="NarrativeTrace.Testing.Xunit" Version="0.1.2" />
+<PackageReference Include="NarrativeTrace.Core" Version="0.1.3" />
+<PackageReference Include="NarrativeTrace.Runtime" Version="0.1.3" />
+<PackageReference Include="NarrativeTrace.Proxy" Version="0.1.3" />
+<PackageReference Include="NarrativeTrace.Testing.Xunit" Version="0.1.3" />
 ```
 
 ## 2. Add one service interface and implementation

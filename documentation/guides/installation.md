@@ -23,9 +23,9 @@ Start with the minimum and add only what you need.
 
 ```xml
 <!-- Minimum: capture + render -->
-<PackageReference Include="NarrativeTrace.Core" Version="0.1.2" />
-<PackageReference Include="NarrativeTrace.Runtime" Version="0.1.2" />
-<PackageReference Include="NarrativeTrace.Proxy" Version="0.1.2" />
+<PackageReference Include="NarrativeTrace.Core" Version="0.1.3" />
+<PackageReference Include="NarrativeTrace.Runtime" Version="0.1.3" />
+<PackageReference Include="NarrativeTrace.Proxy" Version="0.1.3" />
 ```
 
 | Package | When to add it |
@@ -44,7 +44,7 @@ Start with the minimum and add only what you need.
 | `NarrativeTrace.Cli` | `dotnet-narrativetrace` global tool — reflection-only clarity scan + CI gate. |
 | `NarrativeTrace.MSBuild` | Build-only package that wires the CLI into `dotnet build` / `dotnet test`. |
 
-> Versions are pre-1.0 (`0.1.2`). Match the version you actually
+> Versions are pre-1.0 (`0.1.3`). Match the version you actually
 > installed; keep every `NarrativeTrace.*` package on the same version.
 
 ## Choose an integration path
@@ -192,7 +192,7 @@ See the [Clarity Guide](clarity.md) for the scoring model and CI gate.
 Add the build-only package to run the clarity gate as part of your build:
 
 ```xml
-<PackageReference Include="NarrativeTrace.MSBuild" Version="0.1.2"
+<PackageReference Include="NarrativeTrace.MSBuild" Version="0.1.3"
                   PrivateAssets="all" />
 ```
 

@@ -1,4 +1,4 @@
-<!-- source: documentation/first-10-minutes.md blob 29b945e67aaf | translated: 2026-09-09 | reviewed: 2026-09-03 -->
+<!-- source: documentation/first-10-minutes.md blob 94cabad4ff51 | translated: 2026-09-09 | reviewed: 2026-09-03 -->
 # Primeros 10 minutos
 
 [English](../first-10-minutes.md) | **Español** | [Português](../pt-BR/primeiros-10-minutos.md) | [简体中文](../zh-CN/前10分钟.md)
@@ -10,10 +10,10 @@ repositorio — sin salida imaginada.
 ## 1. Añade los paquetes
 
 ```xml
-<PackageReference Include="NarrativeTrace.Core" Version="0.1.2" />
-<PackageReference Include="NarrativeTrace.Runtime" Version="0.1.2" />
-<PackageReference Include="NarrativeTrace.Proxy" Version="0.1.2" />
-<PackageReference Include="NarrativeTrace.Testing.Xunit" Version="0.1.2" />
+<PackageReference Include="NarrativeTrace.Core" Version="0.1.3" />
+<PackageReference Include="NarrativeTrace.Runtime" Version="0.1.3" />
+<PackageReference Include="NarrativeTrace.Proxy" Version="0.1.3" />
+<PackageReference Include="NarrativeTrace.Testing.Xunit" Version="0.1.3" />
 ```
 
 ## 2. Añade una interfaz de servicio y su implementación
