@@ -33,7 +33,7 @@
     <!-- Pre-1.0 product version — keep in step with NarrativeTrace.Version.
          Without this, packages default to 1.0.0 and imply an API commitment
          the project has not made. -->
-    <VersionPrefix>0.1.1</VersionPrefix>
+    <VersionPrefix>0.1.2</VersionPrefix>
     <!-- BSL 1.1 is not OSI/FSF-approved, so NuGet rejects it as a PackageLicenseExpression; ship the file. -->
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <!-- Published packages are public artifacts built from the public GitHub

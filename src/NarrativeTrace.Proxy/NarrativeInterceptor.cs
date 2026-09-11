@@ -120,6 +120,22 @@ public class NarrativeInterceptor : DispatchProxy
             method.GetParameters().Select(p => p.ParameterType.ToString()).ToArray());
     }
 
+    // The name deny-list decides here, beside the [NotTraced] annotation, and
+    // not in a renderer: BuildParameterInfo runs once per method (behind the
+    // Cache in GetMetadata), so the lookup happens once and never on a traced
+    // call. Deciding at capture also means a denied value never enters the
+    // captured trace at all, so it cannot reach the audit emitter, the
+    // buffered consumer, or any SPI listener either (mirrors the java
+    // flagship's ProxyMethodMetadata/AgentMethodMetadata fix).
+    //
+    // Tested against parameters[i].Name (the REFLECTED name), not the
+    // possibly-overridden names[i] display name: RedactionPolicy.IsRedacted
+    // is the single "is this redacted?" decision every named-member surface
+    // asks (see its own remarks), and NarrationResolver's template path
+    // already asks it with the reflected parameter name — asking it with a
+    // different input here would let the two capture paths drift, and a
+    // [Traced] display-name override (chosen for narrative readability, not
+    // security) would then decide whether a secret is hidden.
     private static (string[] Names, HashSet<int> Redacted)
         BuildParameterInfo(MethodInfo method)
     {
@@ -133,9 +149,11 @@ public class NarrativeInterceptor : DispatchProxy
         {
             names[i] = GetParameterName(
                 parameters[i], traced?.ParameterNames, i);
-            if (parameters[i]
+            var annotated = parameters[i]
                 .GetCustomAttribute<NotTracedAttribute>()
-                is not null)
+                is not null;
+            if (RedactionPolicy.Default.IsRedacted(
+                parameters[i].Name, annotated))
             {
                 redacted.Add(i);
             }
@@ -465,6 +483,18 @@ public class NarrativeInterceptor : DispatchProxy
         _context.ExitMethodWithReturn(rendered, handle);
     }
 
+    // The name axis (meta.RedactedIndices) is decided once per method, at
+    // metadata-build time, because it depends only on the parameter's
+    // declared name. A VALUE-shape secret (JWT/PAN/national-id/SSN) cannot
+    // be decided there — it depends on the actual argument THIS call
+    // carries — so RenderParameter/ValueRenderer.Render already catches it
+    // per call, in the rendered text. Without this, that rendered text was
+    // correctly masked while ParameterCapture.Redacted stayed false for the
+    // same value: a downstream consumer trusting the flag (rather than
+    // string-sniffing RenderedValue) would misclassify it as visible. Found
+    // by RedactionCapturePathConformanceTests, which replays the shared
+    // corpus through this real capture path rather than through
+    // ValueRenderer directly.
     private static IReadOnlyList<ParameterCapture>
         CaptureParameters(
             MethodMetadata meta, object?[] args,
@@ -475,16 +505,26 @@ public class NarrativeInterceptor : DispatchProxy
 
         for (var i = 0; i < captures.Length; i++)
         {
-            var redacted = meta.RedactedIndices.Contains(i);
+            var nameRedacted = meta.RedactedIndices.Contains(i);
+            var rendered = RenderParameter(args[i], nameRedacted, captureValues);
             captures[i] = new ParameterCapture(
                 meta.ParameterNames[i],
-                RenderParameter(args[i], redacted, captureValues),
-                redacted,
+                rendered,
+                nameRedacted || IsMarker(rendered),
                 DeclaredType: DeclaredTypeAt(meta, i));
         }
 
         return captures;
     }
+
+    // Reads the decision back off the text ValueRenderer already rendered,
+    // rather than asking RedactionPolicy a second time (which would repeat
+    // the exact check ValueRenderer just made, on every string parameter of
+    // every traced call): an unredacted string is always quote-wrapped by
+    // ValueRenderer.Render, so it can never collide with the bare marker
+    // constant, and neither can any other scalar's rendering.
+    private static bool IsMarker(string rendered) =>
+        rendered == RedactionPolicy.Marker;
 
     /// <summary>
     /// The declared type of parameter <paramref name="index"/>, or null when

@@ -40,6 +40,36 @@ static class BenchmarkGate
         Console.WriteLine($"Benchmark gate passed ({baseline.Count} checks, 15% time / 0% alloc threshold)");
     }
 
+    /// <summary>
+    /// The same comparison <see cref="CheckRegressions"/> makes, split into its two independent
+    /// kinds instead of one merged pass/fail — <c>./build.sh VerifyAll</c>'s <c>benchmarks</c> and
+    /// <c>allocation</c> report rows both read this <em>one</em> BenchmarkDotNet
+    /// <c>MemoryDiagnoser</c> run (it captures mean time and bytes-allocated-per-operation
+    /// together), rather than paying for two invocations the way JMH's separate GC-profiler pass
+    /// does for the Java port. Never throws — this is a read, not a gate.
+    /// </summary>
+    public static (int Checked, int TimeRegressions, int AllocRegressions) CountRegressionsByKind(
+        Dictionary<string, (double MeanNs, long AllocBytes)> current, string baselineFile)
+    {
+        var baseline = LoadBaseline(baselineFile);
+        var timeRegressions = 0;
+        var allocRegressions = 0;
+
+        foreach (var entry in baseline)
+        {
+            if (!current.TryGetValue(entry.Key, out var cur))
+                continue;
+
+            var (baseMean, baseAlloc) = entry.Value;
+            if (baseMean > 0 && cur.MeanNs / baseMean > 1.15)
+                timeRegressions++;
+            if (cur.AllocBytes > baseAlloc)
+                allocRegressions++;
+        }
+
+        return (baseline.Count, timeRegressions, allocRegressions);
+    }
+
     public static void SaveBaseline(
         Dictionary<string, (double MeanNs, long AllocBytes)> results,
         string baselineFile)

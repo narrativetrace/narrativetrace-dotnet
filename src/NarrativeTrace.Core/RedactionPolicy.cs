@@ -26,9 +26,9 @@ namespace NarrativeTrace.Core;
 /// instead — see <see cref="ShouldRedact"/>.
 /// <para>
 /// The default vocabulary is <b>multilingual and always on</b> — Spanish,
-/// Portuguese, French and Chinese words sit beside the English ones, with
-/// no locale to select and nothing to opt into. A deny-list that only
-/// reads English hides a <c>password</c> field and shows the
+/// Portuguese, French, German and Chinese words sit beside the English
+/// ones, with no locale to select and nothing to opt into. A deny-list
+/// that only reads English hides a <c>password</c> field and shows the
 /// <c>contraseña</c> beside it, which is not a weaker guarantee but a
 /// differently-distributed one: it protects whoever happens to name
 /// fields in the language the list was written in. Names are folded
@@ -82,6 +82,16 @@ public sealed class RedactionPolicy
         "routing_number",
         "pan",
         "iban",
+        "passphrase",
+        "otp",
+        "bearer",
+        "accesskey",
+        "access_key",
+        "socialsecurity",
+        "social_security",
+        "socialsecuritynumber",
+        "taxid",
+        "tax_id",
 
         // Short non-English words matched on identifier-token boundaries, same
         // reason as pan/iban: cpf and cnpj are here for length alone; rut is
@@ -133,6 +143,10 @@ public sealed class RedactionPolicy
         "密码",
         "身份证",
         "shenfenzheng",
+
+        // German: Passwort (password), Kennwort (password/passcode)
+        "passwort",
+        "kennwort",
     ];
 
     // "pan"/"iban" and a set of non-English words are too short to be safe as

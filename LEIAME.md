@@ -1,4 +1,4 @@
-<!-- source: README.md blob 83af386efd06 | translated: 2026-09-09 | reviewed: - -->
+<!-- source: README.md blob 4d229847f923 | translated: 2026-09-10 | reviewed: - -->
 # NarrativeTrace .NET
 
 [English](README.md) | [Español](LEAME.md) | **Português** | [简体中文](自述文件.md)
@@ -325,7 +325,7 @@ equipe vai compartilhar. Verificado contra o código, não presumido:
 
 | Garantia | Como se sustenta |
 |---|---|
-| **A ocultação é incondicional em toda integração distribuída** | `[NotTraced]` e uma lista de negação de 26 padrões de nome (mais detecção de forma de valor para JWT/cartão de pagamento/`Set-Cookie`, independente do nome do campo) se aplicam à captura por proxy, ao auto-wrap de DI, ao middleware do ASP.NET Core, à saída de testes e aos marcadores de template igualmente. Nenhum flag os desativa. |
+| **A ocultação é incondicional em toda integração distribuída** | `[NotTraced]` e uma lista de negação de nomes sempre ativa e multilíngue (mais detecção de forma de valor para JWT/cartão de pagamento/`Set-Cookie`/checksums de identificação nacional, independente do nome do campo) se aplicam à captura por proxy, ao auto-wrap de DI, ao middleware do ASP.NET Core, à saída de testes e aos marcadores de template igualmente. Nenhum flag os desativa. |
 | **`[NotTraced]` vence sempre** | Em uma propriedade ou campo, o getter nunca sequer é invocado; em um parâmetro, o valor nunca é renderizado. Ele supera em prioridade um `ToString()` com curadoria e vence uma saída de emergência `RedactionPolicy.Disabled` que existe, mas que nenhuma integração distribuída conecta. |
 | **O artefato estrutural seguro para IA não carrega nenhum valor** | O arquivo `.nt` (e o `.structural.json` opt-in) contêm apenas nomes, hierarquia e tipo de resultado — um teste de propriedade semeia conteúdo hostil em todo campo de valor e falha se algo disso sobreviver. |
 | **Falhas de tracing não podem derrubar sua aplicação** | Captura e renderização são isoladas de exceção em todo ponto de risco — um `ToString()` que lança exceção, um membro `[NarrativeSummary]` ou um getter de caminho de template degradam para um placeholder sem tocar no resultado da sua chamada de negócio. |
@@ -566,6 +566,7 @@ Ou via [NUKE](https://nuke.build) (`./build.sh`, `build.ps1`, `build.cmd`):
 ```bash
 ./build.sh Test        # roda a suíte completa
 ./build.sh Verify      # clean + format + analyze + test + coverage + metrics + benchmark
+./build.sh VerifyAll   # toda verificação que este repo tem, gate e pesada igualmente — veja abaixo
 ./build.sh Coverage    # relatórios cobertura via Coverlet
 ./build.sh Mutation    # teste de mutação com Stryker.NET
 ./build.sh Pack        # produz pacotes NuGet
@@ -590,9 +591,127 @@ nunca por commit — veja
 build. O CI roda `./build.sh Verify` no GitHub Actions
 (`.github/workflows/ci.yml`).
 
+`./build.sh VerifyAll` é o único comando que roda toda verificação que este
+repositório tem, gate e pesada igualmente — testes unitários, cobertura,
+mutação, testes de propriedade, os dois tiers de fuzz, arquitetura,
+conformidade, benchmarks/alocação, stress de concorrência, e as checagens de
+secrets/SAST/SCA/lint/formato/complexidade/tradução — de uma vez só,
+coletando o resultado de cada categoria em vez de parar no primeiro
+problema. Ele escreve `reports/verification/<date>.json` e seu gêmeo `.md`
+renderizado, na forma cross-runtime que o repositório Java da família define
+(`reports/verification/SCHEMA.md`): os mesmos nomes de campo, os mesmos
+quatro status (`passed`/`failed`/`skipped`/`not-implemented`), os mesmos 21
+ids de categoria em todo runtime do NarrativeTrace. Longo por design — a
+mutação em todo módulo do Stryker e o sweep de stress com iterações elevadas
+são, historicamente, minutos, não segundos — então é uma execução
+agendada/manual, nunca por commit.
+
 ## FAQ
 
-**Qual é o overhead de performance?** Veja [Performance](#performance) acima.
+**Quanto overhead isso adiciona, e o que acontece sob alta concorrência?** Não
+vamos afirmar "overhead zero" — veja [Performance](#performance) acima para os
+números datados que esta resposta resume (BenchmarkDotNet, `TracingLevel.Detail`,
+o padrão, de [`benchmarks/benchmark-baseline.json`](benchmarks/benchmark-baseline.json),
+atualizados em 2026-08-12): um ciclo completo de entrada/saída custa ~2,5 µs e
+aloca 2368 B; renderizar um objeto custa ~819 ns/1611 B; uma renderização
+Markdown pequena custa ~595 ns/2704 B. Ainda não há um benchmark separado para
+`TracingLevel.Off` — melhor dizer isso claramente do que insinuar um número
+que não existe: um contexto no nível off é verificado por teste de
+caracterização para produzir um trace vazio, arquiteturalmente sem captura,
+mas esse caminho ainda não é uma cifra medida em ns/op.
+
+O que o NarrativeTrace em si adiciona é essa captura — interceptar a chamada,
+ler os argumentos, construir a árvore de trace. Tudo depois da captura (a
+escrita do `ILogger`, o collector, o disco ou a rede) é o mesmo custo que sua
+stack de logging já paga; o NarrativeTrace não adiciona um segundo destino.
+Para uma equipe substituindo instruções de log escritas à mão, o lado do
+destino fica quase no zero a zero: N chamadas de log por método viram uma
+escrita de trace, e essas instruções deixam de ser escritas, revisadas e
+mantidas sincronizadas com o código.
+
+Sob concorrência, os dois caminhos do pipeline têm garantias diferentes. Um
+listener síncrono — a exportação para `ILogger` do `NarrativeTrace.Logging`,
+se você conectar — roda em linha: a escrita é concluída antes do método
+retornar, então é exatamente tão durável — e custa exatamente o mesmo — quanto
+uma chamada de log já custa. O caminho com buffer, de melhor esforço, é um
+anel limitado que descarta acima de 70% de ocupação em vez de bloquear quem
+chama, e cada evento descartado é **contado** — sobrescritas do anel e
+descartes do dreno adaptativo igualmente, via
+`BufferedEventConsumer.DroppedCount` — e mostrado no próprio rodapé
+`TraceLoss` do trace ("N events dropped (buffer full)"), nunca em silêncio.
+
+**O limite honesto:** hoje não existe sampling nesta implementação, nem em
+nenhuma implementação do NarrativeTrace — toda chamada traçada é capturada por
+completo no `TracingLevel` configurado. Um amostrador por porcentagem ou por
+taxa está no roadmap, mas não foi lançado. Se você precisa limitar o volume de
+captura agora, use `TracingLevel.Off` ou restrinja o escopo traçado ao limite
+que importa.
+
+**Como sei que um parâmetro com PII ou credenciais não vai vazar em um
+trace?** Quatro camadas independentes, não uma única promessa geral — o
+contrato linha a linha é [Privacidade e
+ocultação](documentation/pt-BR/privacidade-e-ocultacao.md):
+
+1. `[NotTraced]` em um parâmetro, propriedade ou campo — ocultação explícita
+   que você controla. Em uma propriedade ou campo o getter nem sequer é
+   invocado; prevalece sobre um `ToString()` cuidadosamente escrito, e é
+   incondicional — nenhum flag o desliga.
+2. Uma lista de negação por nome, sempre ativa e multilíngue — compara nomes
+   de campos e parâmetros com padrões em inglês, espanhol, português,
+   francês, alemão e chinês para senhas, tokens, identificações nacionais e
+   afins, ampliável (nunca substituível) via
+   `NARRATIVETRACE_REDACTION_ADDITIONALPATTERNS`. Ativa por padrão, não
+   opcional.
+3. Correspondência pela forma do valor, independente do nome do campo — uma
+   string com forma de JWT, um número de cartão válido por Luhn, um valor com
+   forma de `Set-Cookie`, ou um checksum de identificação nacional ou uma
+   regra estrutural (RUT chileno, CPF/CNPJ brasileiro, DNI/NIE espanhol, NIR
+   francês, carteira de identidade chinesa, ou um número de Seguro Social
+   americano escrito com hifens) é ocultado mesmo que chegue sob um nome
+   inocente como `data` ou `value`.
+4. O artefato estrutural `.nt` sem valores (mais o `.structural.json`
+   opcional) — a garantia categórica. Só nomes, hierarquia e tipo de
+   resultado, zero valores em tempo de execução; um teste de propriedades
+   semeia conteúdo hostil em cada campo de valor e falha se algum sobreviver.
+
+Dois limites honestos, já nomeados na [tabela de privacidade e
+segurança](#privacidade-e-segurança-em-uma-tela) acima: a detecção é por
+nome/forma, não estatística — um segredo em um campo com nome inocente, em
+uma forma que nenhuma das checagens reconhece, não é capturado — e a
+resolução de placeholders de template (`[Narrated]`/`[OnError]`) sempre usa a
+lista de negação padrão, mesmo que você tenha conectado um `RedactionPolicy`
+personalizado no `ValueRenderer` em outro lugar. As camadas 1–3 são
+heurísticas e extensíveis; a camada 4, o artefato estrutural, é a única
+*categórica* — recorra a ela se seu modelo de ameaça exigir que nenhum valor
+possa jamais sair do processo.
+
+**Os IDs de trace podem se correlacionar com um ID de correlação padrão entre
+serviços, ou o tracing é só local?** Só local, hoje — e preferimos dizer isso
+claramente a deixar o pacote `NarrativeTrace.Observability` sugerir o
+contrário. Esta implementação não analisa um cabeçalho W3C `traceparent` de
+entrada, nem anexa um nas chamadas HTTP de saída; é uma decisão explícita e
+testada de não fazer isso agora, não um descuido — um teste de propriedades
+stub na suíte de segurança afirma que ainda não existe nenhum tipo
+`Traceparent` em `NarrativeTrace.Core`, exatamente para que um futuro parser
+chegue com seus casos de fuzzing já prontos. `TraceId` é gerado localmente e
+tem forma W3C (32 caracteres hexadecimais minúsculos, comparável byte a byte
+com os IDs que o runtime Java ou um cabeçalho `traceparent` real
+produziriam) — mas nunca é *derivado* de um cabeçalho de entrada, então um ID
+de trace do NarrativeTrace não vai ser igual ao de um trace distribuído
+anterior.
+
+O que existe: `TraceActivityExporter` (em lote) e `OtelTraceEventListener`
+(ao vivo) do `NarrativeTrace.Observability` transformam uma árvore do
+NarrativeTrace concluída ou em andamento em spans de
+`System.Diagnostics.Activity` sob um `ActivitySource("NarrativeTrace")` — mas
+isso é uma repetição, não instrumentação ao vivo: os spans carregam a
+hierarquia própria do trace e não são filhos do que quer que
+`Activity.Current` valha no momento da exportação. Se a correlação entre
+serviços for um requisito obrigatório hoje, propague seu próprio ID de
+correlação através dos scopes de `ILogger` do `NarrativeTrace.Logging` junto
+com a saída do NarrativeTrace; tratar a propagação de contexto W3C como algo
+já lançado aqui seria impreciso — é uma lacuna no roadmap, não um recurso
+publicado.
 
 **Valores de parâmetro e retorno são serializados de forma eager?** Sim —
 os valores são renderizados para string no momento da captura, no nível

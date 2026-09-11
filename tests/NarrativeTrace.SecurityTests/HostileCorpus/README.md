@@ -117,3 +117,16 @@ in `documentation/security-testing.md`.
    output directory, no path component it produces exceeds the filesystem's
    per-component byte limit, and resolving the same name twice always gives
    the same path.
+10. **Redaction, through the real capture path** — the same `redaction.json`
+    oracle as (8), replayed through the actual proxy/interceptor a caller
+    invokes rather than a payload handed straight to the value renderer, and
+    asserted on the captured `ParameterCapture` itself (not only on rendered
+    text). A defect can live in the decision a capture path makes before any
+    renderer runs — the name axis reaching field/property names but not a
+    method *parameter* name was exactly such a defect, invisible to (8) for
+    the library's entire life because every one of its cases starts one
+    layer below where that decision is made. A `name` case's parameter name
+    is corpus data (including accented, decomposed and CJK spellings), so
+    it is synthesized into a real signature at runtime (`System.Reflection.
+    Emit` in the .NET runtime, ASM in the java one) rather than written as a
+    compile-time interface per case.

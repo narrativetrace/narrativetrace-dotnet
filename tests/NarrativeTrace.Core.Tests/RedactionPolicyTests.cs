@@ -345,4 +345,41 @@ public class RedactionPolicyTests
         Assert.True(policy.ShouldRedact("password"));
         Assert.False(policy.ShouldRedact("betalingskort"));
     }
+
+    // Cross-runtime audit (2026-09): these terms were absent from all five
+    // runtimes' deny-lists. Substring-matched like the rest of DefaultPatterns
+    // (not token-boundary — that list is reserved for short words that
+    // collide with ordinary business terms, see the class remarks).
+    [Theory]
+    [InlineData("passphrase")]
+    [InlineData("otp")]
+    [InlineData("bearer")]
+    [InlineData("accesskey")]
+    [InlineData("access_key")]
+    [InlineData("socialsecurity")]
+    [InlineData("social_security")]
+    [InlineData("socialsecuritynumber")]
+    [InlineData("taxid")]
+    [InlineData("tax_id")]
+    [InlineData("passwort")]
+    [InlineData("kennwort")]
+    public void Default_redacts_the_2026_09_widened_terms(string fieldName)
+    {
+        Assert.True(RedactionPolicy.Default.ShouldRedact(fieldName));
+    }
+
+    [Theory]
+    [InlineData("userPassphrase")]
+    [InlineData("otpCode")]
+    [InlineData("bearerCode")]
+    [InlineData("accessKeyId")]
+    [InlineData("access_key_id")]
+    [InlineData("mySocialSecurityNumber")]
+    [InlineData("taxIdNumber")]
+    [InlineData("userPasswort")]
+    [InlineData("meinKennwort")]
+    public void Default_redacts_the_2026_09_widened_terms_as_substrings(string fieldName)
+    {
+        Assert.True(RedactionPolicy.Default.ShouldRedact(fieldName));
+    }
 }

@@ -310,7 +310,7 @@ share. Verified against the code, not assumed:
 
 | Guarantee | How it holds |
 |---|---|
-| **Redaction is unconditional in every shipped integration** | `[NotTraced]` and a 26-pattern name deny-list (plus JWT/payment-card/`Set-Cookie` value-shape detection, independent of field name) apply to proxy capture, DI auto-wrap, ASP.NET Core middleware, test output, and template placeholders alike. No flag turns them off. |
+| **Redaction is unconditional in every shipped integration** | `[NotTraced]` and an always-on, multilingual name deny-list (plus JWT/payment-card/`Set-Cookie`/national-ID-checksum value-shape detection, independent of field name) apply to proxy capture, DI auto-wrap, ASP.NET Core middleware, test output, and template placeholders alike. No flag turns them off. |
 | **`[NotTraced]` wins outright** | On a property or field its getter is never even invoked; on a parameter, the value is never rendered. It outranks a curated `ToString()` and beats a `RedactionPolicy.Disabled` escape hatch that exists but that no shipped integration wires up. |
 | **The AI-safe structural artifact holds no values at all** | The `.nt` file (and the opt-in `.structural.json`) contain names, hierarchy, and outcome kind only — a property test seeds hostile content into every value field and fails if any of it survives. |
 | **Tracing failures cannot fail your application** | Capture and rendering are exception-isolated at every hazard — a throwing `ToString()`, `[NarrativeSummary]` member, or template-path getter degrades to a placeholder without touching your business call's outcome. |
@@ -543,6 +543,7 @@ Or via [NUKE](https://nuke.build) (`./build.sh`, `build.ps1`, `build.cmd`):
 ```bash
 ./build.sh Test        # run the full suite
 ./build.sh Verify      # clean + format + analyze + test + coverage + metrics + benchmark
+./build.sh VerifyAll   # every verification this repo has, gate and heavy alike — see below
 ./build.sh Coverage    # Coverlet cobertura reports
 ./build.sh Mutation    # Stryker.NET mutation testing
 ./build.sh Pack        # produce NuGet packages
@@ -564,9 +565,118 @@ dependency-advisory scanning (OSV-Scanner, `dotnet list package
 `tests/BuildScript.Tests` validates build behavior itself. CI runs
 `./build.sh Verify` on GitHub Actions (`.github/workflows/ci.yml`).
 
+`./build.sh VerifyAll` is the one command that runs every verification this
+repo has, gate and heavy alike — unit tests, coverage, mutation, property
+tests, both fuzz tiers, architecture, conformance, benchmarks/allocation,
+concurrency stress, and the secrets/SAST/SCA/lint/format/complexity/
+translation checks — in one sitting, collecting every category's result
+rather than stopping at the first failure. It writes
+`reports/verification/<date>.json` and a rendered `.md` twin, in the
+cross-runtime shape this family's Java repo defines
+(`reports/verification/SCHEMA.md`): the same field names, the same four
+statuses (`passed`/`failed`/`skipped`/`not-implemented`), the same 21
+category ids across every NarrativeTrace runtime. Long-running by design —
+mutation across every Stryker module and the raised-iteration stress sweep
+are each historically minutes, not seconds — so it is a scheduled/manual run,
+never a per-commit one.
+
 ## FAQ
 
-**What's the performance overhead?** See [Performance](#performance) above.
+**How much overhead does this add, and what happens under high concurrency?**
+We do not claim "zero overhead" — see [Performance](#performance) above for
+the dated numbers this answer summarizes (BenchmarkDotNet, `TracingLevel.Detail`,
+the default, from [`benchmarks/benchmark-baseline.json`](benchmarks/benchmark-baseline.json),
+refreshed 2026-08-12): a full enter/exit cycle costs ~2.5 µs and allocates
+2368 B; rendering an object costs ~819 ns/1611 B; a small Markdown render
+costs ~595 ns/2704 B. There is no separate benchmark yet for
+`TracingLevel.Off` — worth saying plainly rather than implying a number that
+doesn't exist: an off-level context is verified by characterization test to
+produce an empty trace, architecturally zero-capture, but that path isn't a
+measured ns/op figure yet.
+
+What NarrativeTrace itself adds is that capture — intercepting the call,
+reading arguments, building the trace tree. Everything downstream of capture
+(the `ILogger` write, the collector, the disk or network) is the same cost
+your logging stack already pays; NarrativeTrace does not add a second sink.
+For a team replacing hand-written log statements, the sink side is close to a
+wash: N log calls per method become one trace write, and those statements
+stop being written, reviewed, and kept in sync with the code.
+
+Under concurrency, the pipeline's two paths carry different guarantees. A
+synchronous listener — `NarrativeTrace.Logging`'s `ILogger` export, if you
+wire it — runs inline: the write completes before the method returns, so it
+is exactly as durable, and costs exactly what, a log call already does. The
+buffered, best-effort path is a bounded ring that sheds above 70% fill rather
+than blocking the caller, and every dropped event is **counted** — ring
+overwrites and adaptive-drain discards alike, via
+`BufferedEventConsumer.DroppedCount` — and surfaced in the trace's own
+`TraceLoss` footer ("N events dropped (buffer full)"), never silently.
+
+**The honest gap:** there is no sampling in this runtime, or in any
+NarrativeTrace runtime, today — every traced call is captured in full at its
+configured `TracingLevel`. A percentage- or rate-based sampler is on the
+roadmap, not shipped. If you need to cap capture volume now, use
+`TracingLevel.Off` or narrow the traced scope to the boundary that matters.
+
+**How do I know a parameter with PII or credentials won't leak into a
+trace?** Four independent layers, not one blanket promise — the row-by-row
+contract is [Privacy and Redaction](documentation/privacy-and-redaction.md):
+
+1. `[NotTraced]` on a parameter, property, or field — explicit redaction you
+   control. On a property or field the getter is never even invoked; it
+   outranks a curated `ToString()`, and it is unconditional — no flag turns
+   it off.
+2. An always-on, multilingual name deny-list — matches field and parameter
+   names against English, Spanish, Portuguese, French, German and Chinese
+   patterns for passwords, tokens, national IDs and the like, widened
+   (never replaced) via `NARRATIVETRACE_REDACTION_ADDITIONALPATTERNS`. On
+   by default, not opt-in.
+3. Value-shape matching, independent of the field name — a JWT-shaped
+   string, a Luhn-valid card number, a `Set-Cookie`-shaped value, or a
+   national-ID checksum or structural rule (Chilean RUT, Brazilian
+   CPF/CNPJ, Spanish DNI/NIE, French NIR, Chinese resident ID, or a dashed
+   US Social Security number) is redacted even under an innocuous name
+   like `data` or `value`.
+4. The value-free `.nt` structural artifact (plus the opt-in
+   `.structural.json` sibling) — the categorical guarantee. Names,
+   hierarchy, and outcome kind only, zero runtime values; a property test
+   seeds hostile content into every value field and fails if any of it
+   survives.
+
+Two honest limits, already named in the [Privacy and safety
+table](#privacy-and-safety-in-one-screen) above: detection is name/shape-based,
+not statistical — a secret in an innocuously named field, in a shape none of
+the checks recognize, is not caught — and template placeholder resolution
+(`[Narrated]`/`[OnError]`) always uses the default deny-list even if you've
+threaded a custom `RedactionPolicy` into `ValueRenderer` elsewhere. Layers
+1–3 are heuristic and extensible; layer 4, the structural artifact, is the
+only *categorical* one — reach for it if your threat model requires that no
+value can possibly leave the process.
+
+**Can trace IDs correlate with a standard correlation ID across services, or
+is tracing local only?** Local only, today — and we'd rather say that
+plainly than let the `NarrativeTrace.Observability` package imply otherwise.
+This runtime does not parse an inbound W3C `traceparent` header, and does
+not attach one on outbound HTTP calls; that is an explicit, tested
+non-goal right now, not an oversight — a stub property test in the security
+suite asserts that no `Traceparent` type exists in `NarrativeTrace.Core` yet,
+precisely so a future parser lands with its fuzz cases already in place.
+`TraceId` is generated locally and is W3C-*shaped* (32 lowercase hex
+characters, comparable byte-for-byte against ids the Java runtime or a real
+`traceparent` header would produce) — but it is never *derived* from an
+inbound header, so a NarrativeTrace trace id will not equal an upstream
+distributed trace's id.
+
+What does exist: `NarrativeTrace.Observability`'s `TraceActivityExporter`
+(batch) and `OtelTraceEventListener` (live) turn a completed or in-flight
+NarrativeTrace tree into `System.Diagnostics.Activity` spans under an
+`ActivitySource("NarrativeTrace")` — but this is a replay, not live
+instrumentation: the spans carry the trace's own hierarchy and are not
+children of whatever `Activity.Current` happens to be at export time. If
+cross-service correlation is a hard requirement today, propagate your own
+correlation id through `NarrativeTrace.Logging`'s `ILogger` scopes alongside
+NarrativeTrace's output; treating W3C trace-context propagation as shipped
+here would be inaccurate — it is a gap on the roadmap, not a shipped feature.
 
 **Are parameter and return values serialized eagerly?** Yes — values are rendered
 to strings at capture time, at the configured level. That is deliberate: the

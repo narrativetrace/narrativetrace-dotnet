@@ -12,7 +12,7 @@ at your service namespaces and it decorates the matching beans in place.
 ## Package
 
 ```xml
-<PackageReference Include="NarrativeTrace.DependencyInjection" Version="0.1.1" />
+<PackageReference Include="NarrativeTrace.DependencyInjection" Version="0.1.2" />
 ```
 
 ## 1. Register and auto-wrap

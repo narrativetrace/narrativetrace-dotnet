@@ -65,6 +65,17 @@ class Build : NukeBuild
     AbsolutePath FuzzDirectory => ArtifactsDirectory / "fuzz";
     AbsolutePath FuzzProject => RootDirectory / "fuzz" / "NarrativeTrace.Fuzz" / "NarrativeTrace.Fuzz.csproj";
     AbsolutePath FuzzSeeds => RootDirectory / "fuzz" / "NarrativeTrace.Fuzz" / "seeds";
+    AbsolutePath VerifyAllLogDirectory => ArtifactsDirectory / "verifyAll-logs";
+    AbsolutePath VerificationReportsDirectory => RootDirectory / "reports" / "verification";
+
+    [Parameter("VerifyAll: 1-minute host load average above which benchmarks/allocation are " +
+        "skipped rather than measured — this shared host has a documented pattern of phantom " +
+        "benchmark regressions under load. Default 6.0 (this container's own core count).")]
+    readonly double VerifyAllLoadThreshold = 6.0;
+
+    [Parameter("VerifyAll: skip the benchmarks/allocation categories outright, independent of the " +
+        "load-average check — for a run where a timing measurement is known to be pointless.")]
+    readonly bool VerifyAllSkipTiming;
 
     [Parameter("Fuzz: seconds afl-fuzz spends on each target (renderer, json) — default 60")]
     readonly int FuzzSeconds = 60;
@@ -96,35 +107,11 @@ class Build : NukeBuild
         .Where(x => TestProjectSelection.IsSelected(x.Name))
         .ToArray();
 
-    sealed record CoverageGate(int Threshold, string? Include = null);
-
-    /// <summary>
-    /// Per-test-project line-coverage floors, enforced via coverlet. Where an
-    /// Include filter is present the threshold applies only to that assembly —
-    /// each test project's report also loads upstream modules at incidental
-    /// low coverage. Floors are ratchets: measured 2026-08-20, rounded down;
-    /// raise toward the Java 98 % norm as headroom allows
-    /// (see ../narrative-trace-java/documentation/quality-tooling-parity.md).
-    /// </summary>
-    static readonly Dictionary<string, CoverageGate> CoverageThresholds = new()
-    {
-        // no Include: gates Core AND Runtime (both ≥ 98; Runtime has no own test project)
-        ["NarrativeTrace.Core.Tests"] = new(98),
-        ["NarrativeTrace.AspNetCore.Tests"] = new(98, "[NarrativeTrace.AspNetCore]*"),
-        ["NarrativeTrace.Clarity.Tests"] = new(98, "[NarrativeTrace.Clarity]*"),
-        // coverlet's filter parser chokes on the hyphen in dotnet-narrativetrace; prefix wildcard instead
-        ["NarrativeTrace.Cli.Tests"] = new(93, "[dotnet*]*"),
-        ["NarrativeTrace.DependencyInjection.Tests"] = new(98, "[NarrativeTrace.DependencyInjection]*"),
-        ["NarrativeTrace.Diagrams.Tests"] = new(95, "[NarrativeTrace.Diagrams]*"),
-        ["NarrativeTrace.Examples.ECommerce.Tests"] = new(87, "[NarrativeTrace.Examples.ECommerce]*"),
-        ["NarrativeTrace.Glossary.Tests"] = new(98, "[NarrativeTrace.Glossary]*"),
-        ["NarrativeTrace.Legacy.Tests"] = new(98, "[NarrativeTrace.Legacy]*"),
-        ["NarrativeTrace.Logging.Tests"] = new(93, "[NarrativeTrace.Logging]*"),
-        ["NarrativeTrace.Observability.Tests"] = new(96, "[NarrativeTrace.Observability]*"),
-        ["NarrativeTrace.Proxy.Tests"] = new(94, "[NarrativeTrace.Proxy]*"),
-        ["NarrativeTrace.Testing.NUnit.Tests"] = new(86, "[NarrativeTrace.Testing.NUnit]*"),
-        ["NarrativeTrace.Testing.Xunit.Tests"] = new(88, "[NarrativeTrace.Testing.Xunit]*"),
-    };
+    // Per-test-project line-coverage floors and the explicit, written-reason
+    // exemptions from them live in CoverageAccounting.Thresholds/Exemptions —
+    // see that class for both maps and the default-deny check (run at the
+    // top of Coverage, below) that every project in TestProjects is in one
+    // or the other.
 
     /// <summary>
     /// Tests that re-invoke <c>./build.sh</c> (BuildScript.Tests). Excluded
@@ -415,15 +402,39 @@ class Build : NukeBuild
         .Executes(() =>
         {
             Directory.CreateDirectory(TestResultsDirectory);
+            var failures = new List<string>();
             foreach (var project in TestProjects)
             {
-                DotNetTest(s => s
-                    .SetProjectFile(project.Path)
-                    .SetConfiguration(Configuration)
-                    .EnableNoBuild()
-                    .SetFilter(SpawnsBuildFilter)
-                    .SetResultsDirectory(TestResultsDirectory)
-                    .SetLoggers($"trx;LogFileName={project.Name}.trx"));
+                try
+                {
+                    DotNetTest(s => s
+                        .SetProjectFile(project.Path)
+                        .SetConfiguration(Configuration)
+                        .EnableNoBuild()
+                        .SetFilter(SpawnsBuildFilter)
+                        .SetResultsDirectory(TestResultsDirectory)
+                        .SetLoggers($"trx;LogFileName={project.Name}.trx"));
+                }
+                catch (Exception ex)
+                {
+                    // A failing project must not stop the sweep: the ORIGINAL shape aborted the
+                    // loop on the first failing project (DotNetTest asserts a zero exit code),
+                    // leaving every alphabetically-later project's .trx file unwritten (or stale
+                    // from a previous run) — invisible to anything reading test-results/*.trx
+                    // afterward, including VerifyAll's unit-tests/property/fuzz-tier-a/
+                    // architecture/conformance/stress-short rows, all sliced from this same run.
+                    // Found writing VerifyAll.
+                    failures.Add(project.Name);
+                    Console.WriteLine($"Test: {project.Name} failed ({ex.Message}) — continuing with the remaining projects");
+                }
+            }
+
+            if (failures.Count > 0)
+            {
+                throw new Exception(
+                    $"Test: {failures.Count} of {TestProjects.Length} project(s) had failing tests: "
+                    + $"{string.Join(", ", failures)}. Every project still ran — see {TestResultsDirectory} "
+                    + "for each one's .trx.");
             }
         });
 
@@ -638,11 +649,14 @@ class Build : NukeBuild
         .DependsOn(Compile)
         .Executes(() =>
         {
+            CheckCoverageAccounting();
+
             if (Directory.Exists(CoverageDirectory))
                 Directory.Delete(CoverageDirectory, true);
             Directory.CreateDirectory(CoverageDirectory);
             Directory.CreateDirectory(TestResultsDirectory);
 
+            var failures = new List<string>();
             foreach (var project in TestProjects)
             {
                 var dir = (AbsolutePath)Path.Combine(CoverageDirectory, project.Name);
@@ -659,7 +673,7 @@ class Build : NukeBuild
                     .SetProperty("CoverletOutputFormat", "cobertura")
                     .SetProperty("CoverletOutput", dir / "coverage");
 
-                if (CoverageThresholds.TryGetValue(project.Name, out var gate))
+                if (CoverageAccounting.Thresholds.TryGetValue(project.Name, out var gate))
                 {
                     settings = settings
                         .SetProperty(
@@ -672,10 +686,81 @@ class Build : NukeBuild
                         settings = settings.SetProperty("Include", gate.Include);
                 }
 
-                DotNetTest(settings);
+                try
+                {
+                    DotNetTest(settings);
+                }
+                catch (Exception ex)
+                {
+                    // Same fix as Test above, same reason: a project under its coverage threshold
+                    // (or with a failing test) must not stop every alphabetically-later project
+                    // from ever producing its .cobertura.xml — SummarizeCoverage()/CoverageReport
+                    // would otherwise silently total fewer projects than TestProjects actually has.
+                    failures.Add(project.Name);
+                    Console.WriteLine($"Coverage: {project.Name} failed ({ex.Message}) — continuing with the remaining projects");
+                }
             }
 
             SummarizeCoverage();
+
+            if (failures.Count > 0)
+            {
+                throw new Exception(
+                    $"Coverage: {failures.Count} of {TestProjects.Length} project(s) failed their "
+                    + $"tests or coverage threshold: {string.Join(", ", failures)}. Every project "
+                    + $"still ran — see {CoverageDirectory} for each one's report.");
+            }
+        });
+
+    /// <summary>
+    /// Fails fast, before running a single test, when a project
+    /// <see cref="TestProjects"/> would sweep is present in neither
+    /// <see cref="CoverageAccounting.Thresholds"/> nor
+    /// <see cref="CoverageAccounting.Exemptions"/> — default-deny, so adding
+    /// a test project forces a decision instead of inheriting an ungated
+    /// run. Also run standalone as <see cref="CoverageAccountingCheck"/>,
+    /// for a cheap check that needs no compiled output.
+    /// </summary>
+    void CheckCoverageAccounting()
+    {
+        var names = TestProjects.Select(p => p.Name).ToArray();
+        var doubly = CoverageAccounting.DoublyAccounted(
+            CoverageAccounting.Thresholds.Keys.ToList(), CoverageAccounting.Exemptions.Keys.ToList());
+        if (doubly.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Coverage accounting: {string.Join(", ", doubly)} appear in BOTH "
+                + "CoverageAccounting.Thresholds and CoverageAccounting.Exemptions — a project is "
+                + "either gated or exempted, never both. Remove whichever row is the mistake.");
+        }
+
+        var unaccounted = CoverageAccounting.Unaccounted(
+            names, CoverageAccounting.Thresholds.Keys.ToList(), CoverageAccounting.Exemptions.Keys.ToList());
+        if (unaccounted.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Coverage accounting: {unaccounted.Count} test project(s) are in neither "
+                + $"CoverageAccounting.Thresholds nor CoverageAccounting.Exemptions: "
+                + $"{string.Join(", ", unaccounted)}. Add a gate (threshold + the Include filter "
+                + "naming the product assembly it owns) or an exemption (a written reason) in "
+                + "build/CoverageAccounting.cs — coverage must never run silently ungated.");
+        }
+    }
+
+    /// <summary>
+    /// Standalone entry point for <see cref="CheckCoverageAccounting"/> — no
+    /// <see cref="Compile"/> dependency, so it is cheap enough to run on its
+    /// own rather than only as a side effect of the full <see cref="Coverage"/>
+    /// sweep.
+    /// </summary>
+    Target CoverageAccountingCheck => _ => _
+        .Executes(() =>
+        {
+            CheckCoverageAccounting();
+            Console.WriteLine(
+                $"Coverage accounting check passed: {TestProjects.Length} test project(s), "
+                + $"{CoverageAccounting.Thresholds.Count} gated, "
+                + $"{CoverageAccounting.Exemptions.Count} exempted.");
         });
 
     Target CoverageReport => _ => _
@@ -708,20 +793,40 @@ class Build : NukeBuild
 
     // ── Mutation ──────────────────────────────────────────────────────────────
 
+    [Parameter("Mutation/VerifyAll: comma-separated stryker-config module names to SKIP (e.g. " +
+        "\"core\") — a validation-run time-box only. The default (omitted) runs every discovered " +
+        "stryker-config*.json, which is what ./build.sh Mutation and ./build.sh VerifyAll do with " +
+        "no flags.")]
+    readonly string? MutationExclude;
+
     Target Mutation => _ => _
         .DependsOn(Compile)
         .Executes(() =>
         {
+            CheckMutationAccounting();
+
             if (Directory.Exists(MutationDirectory))
                 Directory.Delete(MutationDirectory, true);
             Directory.CreateDirectory(MutationDirectory);
 
             DotNet("tool restore");
 
-            var configs = Directory.EnumerateFiles(RootDirectory, "stryker-config*.json")
-                .OrderBy(x => x)
+            var excluded = (MutationExclude ?? "")
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var configs = MutationAccounting.ConfigFiles(RootDirectory)
+                .Where(config => !excluded.Contains(ExtractStrykerModuleName(config)))
                 .ToList();
 
+            // Every module runs regardless of an earlier one's own outcome — collected below,
+            // never thrown mid-loop. The original shape (DotNet(...), which asserts a zero exit
+            // code) threw on the FIRST module whose mutation score missed its break threshold,
+            // aborting the loop before later modules' StrykerOutput was ever moved into
+            // MutationDirectory — silently dropping their reports, the exact defect class Java's
+            // own verifyAll first run exposed (2 of 5 modules missing). Found writing VerifyAll,
+            // which reads every module's report and would otherwise have inherited the gap.
+            var failures = new List<string>();
             foreach (var config in configs)
             {
                 var moduleName = ExtractStrykerModuleName(config);
@@ -729,7 +834,19 @@ class Build : NukeBuild
                 if (Directory.Exists(strykerOutput))
                     Directory.Delete(strykerOutput, true);
 
-                DotNet($"tool run dotnet-stryker -- --config-file \"{config}\"");
+                // Stryker auto-detects the solution file when exactly one .sln/.slnx sits at the
+                // repo root; -s pins it explicitly instead, because that assumption breaks the
+                // moment NarrativeTrace.Format.sln (WriteFormatSolution's gitignored scratch copy,
+                // left behind by any prior Format/FormatCheck run — an everyday ambient state, not
+                // a contrived one) is still on disk: Stryker then refuses with "found more than
+                // one" and every module fails to mutate. Found running Mutation right after Verify.
+                var process = ProcessTasks.StartProcess(
+                    "dotnet",
+                    $"tool run dotnet-stryker -- --config-file \"{config}\" --solution \"{Solution.Path}\"",
+                    RootDirectory);
+                process.AssertWaitForExit();
+                if (process.ExitCode != 0)
+                    failures.Add($"{moduleName} (exit {process.ExitCode})");
 
                 if (Directory.Exists(strykerOutput))
                 {
@@ -738,7 +855,72 @@ class Build : NukeBuild
                         Directory.Delete(dest, true);
                     Directory.Move(strykerOutput, dest);
                 }
+                else
+                {
+                    Console.WriteLine(
+                        $"Mutation: {moduleName} produced no StrykerOutput — its report will be "
+                        + $"absent from {MutationDirectory}");
+                }
             }
+
+            if (failures.Count > 0)
+            {
+                throw new Exception(
+                    $"Mutation: {failures.Count} of {configs.Count} module(s) missed their break "
+                    + $"threshold or crashed: {string.Join(", ", failures)}. Every module still ran "
+                    + $"— see {MutationDirectory} for each one's report.");
+            }
+        });
+
+    /// <summary>
+    /// Fails fast, before Stryker runs at all, when a project in the solution is present in none —
+    /// or more than one — of <see cref="MutationAccounting"/>'s three buckets (mutation-tested,
+    /// test suite, exempted). Default-deny, the inverse of what a project absent from every bucket
+    /// used to get: nothing enforced or reported the gap. Also run standalone as
+    /// <see cref="MutationAccountingCheck"/>, cheap enough (name/config checks only, no Stryker) to
+    /// ride <see cref="Verify"/> every commit even though the real mutation sweep never does.
+    /// </summary>
+    void CheckMutationAccounting()
+    {
+        var names = Solution.AllProjects.Select(p => p.Name).ToArray();
+        var tested = MutationAccounting.TestedProjectNames(RootDirectory).ToList();
+        var exempted = MutationAccounting.Exemptions.Keys.ToList();
+
+        var doubly = MutationAccounting.DoublyAccounted(names, tested, exempted);
+        if (doubly.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Mutation accounting: {string.Join(", ", doubly)} land in more than one of "
+                + "mutation-tested / test-suite / MutationAccounting.Exemptions — a project is "
+                + "exactly one of those. Remove whichever classification is stale.");
+        }
+
+        var unaccounted = MutationAccounting.Unaccounted(names, tested, exempted);
+        if (unaccounted.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Mutation accounting: {unaccounted.Count} project(s) are mutation-tested by "
+                + $"nothing, no test-suite name pattern, and not exempted: "
+                + $"{string.Join(", ", unaccounted)}. Add a stryker-config targeting it, or an "
+                + "exemption (a written reason) in build/MutationAccounting.cs — mutation coverage "
+                + "must never grow silently ungated.");
+        }
+    }
+
+    /// <summary>
+    /// Standalone entry point for <see cref="CheckMutationAccounting"/> — no
+    /// <see cref="Compile"/> dependency, so it is cheap enough to run on its own, and it is what
+    /// rides <see cref="Verify"/>: config/name checks only, it never invokes Stryker.
+    /// </summary>
+    Target MutationAccountingCheck => _ => _
+        .Executes(() =>
+        {
+            CheckMutationAccounting();
+            var tested = MutationAccounting.TestedProjectNames(RootDirectory);
+            Console.WriteLine(
+                $"Mutation accounting check passed: {Solution.AllProjects.Count()} project(s), "
+                + $"{tested.Count} mutation-tested, {MutationAccounting.Exemptions.Count} exempted, "
+                + "the rest test suites.");
         });
 
     // ── Metrics ───────────────────────────────────────────────────────────────
@@ -1497,6 +1679,603 @@ class Build : NukeBuild
         return env;
     }
 
+    // ── VerifyAll ─────────────────────────────────────────────────────────────
+    //
+    // pro repo TODO §35E: "one command that runs everything and reports numbers." Mirrors the
+    // family's golden Java implementation (`./gradlew verifyAll`) and TypeScript's `verify:all` —
+    // see reports/verification/SCHEMA.md for the cross-port contract this target's output commits
+    // to (field names, the four statuses, the 21 category ids). Runs EVERY verification this repo
+    // has, gate and heavy alike, as a sequence of fresh `./build.sh <Target>` subprocesses — never
+    // this repo's own already-built targets called in-process, for the same reason Java's
+    // `runGradleSubprocess` never calls its Gradle tasks directly: a category's own failure (an
+    // exception thrown deep inside, say, Analyze) must not abort the whole run, and NUKE's
+    // in-process target graph has no `--continue` equivalent. A category's status always comes
+    // from what actually happened (the subprocess's real exit code, a report the tool itself
+    // wrote) — never invented, zeroed, or estimated; a metric this port's tooling cannot honestly
+    // produce is left out of that row's `metrics` with a `note` explaining why, matching SCHEMA.md's
+    // own rule.
+    //
+    // Reads FIVE existing real invocations twice each, at zero extra cost, rather than re-running
+    // them: `Analyze` (lint + complexity + half of sast), the one repo-wide `Test` sweep (unit-tests
+    // + property + fuzz-tier-a + the slices of architecture/conformance/stress-short), and
+    // `Benchmark`'s own BenchmarkDotNet run (benchmarks + allocation, since MemoryDiagnoser already
+    // captures both mean time and bytes-allocated-per-operation together — unlike JMH, which needs
+    // a second GC-profiler pass for the Java port).
+
+    Target VerifyAll => _ => _
+        .Executes(() =>
+        {
+            Directory.CreateDirectory(VerifyAllLogDirectory);
+            var startedAt = DateTimeOffset.UtcNow;
+            var results = new List<CategoryResult>();
+
+            void AddRow(CategoryResult row)
+            {
+                results.Add(row);
+                var elapsed = (DateTimeOffset.UtcNow - startedAt).TotalSeconds;
+                Console.WriteLine(
+                    $"[{elapsed,5:F0}s elapsed] {row.Category,-14} {row.Status,-15} "
+                    + $"({row.DurationSeconds,8:F1}s)  {row.Note}");
+            }
+
+            Console.WriteLine(new string('=', 100));
+            Console.WriteLine("VerifyAll: running every verification this repo has, gate and heavy alike.");
+            Console.WriteLine("This is LONG-RUNNING BY DESIGN (mutation across every Stryker module, the");
+            Console.WriteLine("budgeted fuzz-tier-b sweep, and the long stress sweep are each historically");
+            Console.WriteLine("many minutes on this project's own dev container). A category's failure never");
+            Console.WriteLine("aborts the run — see reports/verification/SCHEMA.md for how to read the report.");
+            Console.WriteLine(new string('=', 100));
+
+            // Each phase is its own safety boundary: an exception this code did not anticipate
+            // (a parser choking on a tool's future output shape, a report file that never
+            // materializes) must never take the whole run down with it — RunSafely logs it and
+            // moves on, and the reconciliation pass below fills in a failed row for whatever
+            // category(ies) that phase never got to add, so the report this run writes is always
+            // complete even when something inside one phase broke.
+            RunSafely("static/security", () => VerifyAllStaticAndSecurityRows(AddRow));
+            RunSafely("test sweep", () => VerifyAllTestSweepRows(AddRow));
+            RunSafely("coverage", () => VerifyAllCoverageRow(AddRow));
+            RunSafely("mutation", () => VerifyAllMutationRow(AddRow));
+            RunSafely("fuzz-tier-b", () => VerifyAllFuzzTierBRow(AddRow));
+            RunSafely("benchmarks/allocation", () => VerifyAllBenchmarkRows(AddRow));
+            RunSafely("stress-long", () => VerifyAllStressLongRow(AddRow));
+
+            foreach (var category in VerificationSchema.Categories)
+            {
+                if (results.Any(r => r.Category == category))
+                    continue;
+                AddRow(new CategoryResult(
+                    category, "none", "failed", new Dictionary<string, object>(), 0.0,
+                    "this category's own phase threw before adding it — see the console output above"));
+            }
+
+            var run = new VerificationRun(
+                "dotnet", ReadVersionPrefix(), VerifyAllExec.ShortCommit(RootDirectory),
+                VerifyAllExec.HostDescriptor(), startedAt, DateTimeOffset.UtcNow, results);
+            var dateStr = startedAt.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+            var jsonFile = VerificationReportsDirectory / $"{dateStr}.json";
+            var mdFile = VerificationReportsDirectory / $"{dateStr}.md";
+            VerificationReportSupport.WriteJson(run, jsonFile);
+            File.WriteAllText(mdFile, VerificationReportSupport.RenderMarkdown(jsonFile));
+
+            Console.WriteLine();
+            Console.WriteLine(VerificationReportSupport.RenderMarkdown(jsonFile));
+            Console.WriteLine($"VerifyAll: wrote {jsonFile} and {mdFile}");
+
+            var failedCount = results.Count(r => r.Status == "failed");
+            if (failedCount > 0)
+            {
+                throw new Exception(
+                    $"VerifyAll: {failedCount} of {results.Count} categories failed — see {mdFile} "
+                    + "for the full table");
+            }
+        });
+
+    CommandOutcome RunLogged(string category, string target, params string[] extraArgs) =>
+        VerifyAllExec.Run(RootDirectory, category, VerifyAllLogDirectory, [target, .. extraArgs]);
+
+    /// <summary>Runs one VerifyAll phase, swallowing any exception it did not itself handle — the
+    /// reconciliation pass in the <see cref="VerifyAll"/> target body fills a <c>failed</c> row for
+    /// whatever category(ies) that phase never got to add, so one broken phase costs only its own
+    /// rows, never the rest of the run or the report this run writes.</summary>
+    static void RunSafely(string phaseName, Action phase)
+    {
+        try
+        {
+            phase();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"VerifyAll: the {phaseName} phase threw and was skipped: {ex}");
+        }
+    }
+
+    static CategoryResult NotImplementedRow(string category, string note) =>
+        new(category, "none", "not-implemented", new Dictionary<string, object>(), 0.0, note);
+
+    // ---------------------------------------------------------- format / lint / complexity / sast / secrets / sca / translation / types / clarity
+
+    void VerifyAllStaticAndSecurityRows(Action<CategoryResult> addRow)
+    {
+        var formatOutcome = RunLogged("format", "FormatCheck");
+        addRow(BuildFormatRow(formatOutcome));
+
+        var analyzeOutcome = RunLogged("lint", "Analyze");
+        var diagnostics = AnalyzeDiagnosticsSupport.ParseDiagnostics(analyzeOutcome.Output);
+        addRow(BuildLintRow(analyzeOutcome, diagnostics));
+        addRow(BuildComplexityRow(diagnostics));
+
+        string[] securityRequiredArgs = SecurityRequired ? ["--security-required"] : [];
+
+        var semgrepOutcome = RunLogged("sast", "Semgrep", securityRequiredArgs);
+        addRow(BuildSastRow(semgrepOutcome, diagnostics));
+
+        var secretsOutcome = RunLogged("secrets", "SecretsScan", securityRequiredArgs);
+        addRow(BuildSecretsRow(secretsOutcome));
+
+        var auditOutcome = RunLogged("sca-audit", "DependencyAudit");
+        var osvOutcome = RunLogged("sca-osv", "OsvScan", securityRequiredArgs);
+        var vulnOutcome = RunLogged("sca-vulnerable", "VulnerablePackages");
+        addRow(BuildScaRow(auditOutcome, osvOutcome, vulnOutcome));
+
+        var translationOutcome = RunLogged("translation", "TranslationCheck");
+        addRow(BuildTranslationRow(translationOutcome));
+
+        addRow(NotImplementedRow(
+            "types",
+            "the C# compiler's own nullable-reference-type checking and generic type inference run "
+            + "on every build; no standalone type-checking tool (a mypy/tsc analog) is wired for "
+            + ".NET — matches the java precedent (javac only)"));
+        addRow(NotImplementedRow(
+            "clarity",
+            "no in-house clarity/naming-quality self-gate exists for this repo's own source (ts/"
+            + "python/swift have one; java and .NET do not). NarrativeTrace.Clarity is a product "
+            + "feature this library offers CONSUMERS, not a self-check on this repo — matches the "
+            + "java precedent exactly"));
+    }
+
+    CategoryResult BuildFormatRow(CommandOutcome outcome)
+    {
+        var status = outcome.ExitCode == 0 ? "passed" : "failed";
+        var note = status == "passed"
+            ? null
+            : "FormatCheck reported formatting violations; dotnet format's console output carries "
+                + "no structured violation count to parse";
+        return new CategoryResult(
+            "format", "dotnet format 10.0.301 (whitespace + style)", status,
+            new Dictionary<string, object>(), outcome.Seconds, VerifyAllExec.WithLogHint(note, outcome, status));
+    }
+
+    CategoryResult BuildLintRow(CommandOutcome outcome, IReadOnlyList<(string Severity, string RuleId)> diagnostics)
+    {
+        var findings = AnalyzeDiagnosticsSupport.CountLintFindings(diagnostics);
+        var status = AnalyzeDiagnosticsSupport.HasLintErrors(diagnostics) ? "failed" : "passed";
+        return new CategoryResult(
+            "lint", "Roslyn analyzers + SonarAnalyzer.CSharp 10.20.0 (non-security, non-S138 rules)",
+            status, new Dictionary<string, object> { ["findings"] = findings }, outcome.Seconds,
+            VerifyAllExec.WithLogHint(null, outcome, status));
+    }
+
+    static CategoryResult BuildComplexityRow(IReadOnlyList<(string Severity, string RuleId)> diagnostics)
+    {
+        var findings = AnalyzeDiagnosticsSupport.CountComplexityFindings(diagnostics);
+        var status = findings > 0 ? "failed" : "passed";
+        return new CategoryResult(
+            "complexity", "SonarAnalyzer S138 (.editorconfig, hard gate ≤20 lines/method)", status,
+            new Dictionary<string, object> { ["findings"] = findings }, 0.0,
+            "derived from the same Analyze run as the lint row above (0s: no separate invocation)");
+    }
+
+    CategoryResult BuildSastRow(CommandOutcome semgrepOutcome, IReadOnlyList<(string Severity, string RuleId)> analyzeDiagnostics)
+    {
+        var caFindings = AnalyzeDiagnosticsSupport.CountSecurityFindings(analyzeDiagnostics);
+        var semgrepScannerStatus = ScannerGateSupport.Status(SecurityScanStatusDirectory, "semgrep");
+        var semgrepSkipped = semgrepScannerStatus.StartsWith("skipped", StringComparison.Ordinal);
+        var semgrepFindings = SecurityReportParsing.CountSemgrepFindings(SecurityDirectory / "semgrep-csharp.json");
+
+        // Composite row (SCHEMA.md "Composite categories"): Semgrep is the tool that actually GATES
+        // (`--error`, real invocation) — CA5xxx (AnalysisModeSecurity=All) only warns today (see
+        // documentation/security-tooling.md's CA-security section), so it is folded in as a
+        // metric/note, not a second vote on status, UNLESS Semgrep itself was skipped, in which
+        // case CA5xxx's own findings are the only real signal left and decide the row.
+        string status;
+        string note;
+        if (!semgrepSkipped)
+        {
+            status = semgrepOutcome.ExitCode == 0 ? "passed" : "failed";
+            note = $"Semgrep p/csharp is the gate tool; CA5xxx findings={caFindings} (warn-only today, "
+                + "not gating — see documentation/security-tooling.md)";
+        }
+        else
+        {
+            status = caFindings > 0 ? "failed" : "passed";
+            note = $"Semgrep status: {semgrepScannerStatus}; falling back to CA5xxx findings={caFindings} "
+                + "as the only tool that ran";
+        }
+
+        var metrics = new Dictionary<string, object> { ["findings"] = semgrepFindings ?? caFindings };
+        if (semgrepFindings is not null)
+            metrics["findings_ca5xxx"] = caFindings;
+
+        return new CategoryResult(
+            "sast", "Semgrep 1.176.0 (p/csharp) + Roslyn CA5xxx (AnalysisModeSecurity=All, warn-only)",
+            status, metrics, semgrepOutcome.Seconds, VerifyAllExec.WithLogHint(note, semgrepOutcome, status));
+    }
+
+    CategoryResult BuildSecretsRow(CommandOutcome outcome)
+    {
+        var scannerStatus = ScannerGateSupport.Status(SecurityScanStatusDirectory, "gitleaks");
+        var skipped = scannerStatus.StartsWith("skipped", StringComparison.Ordinal);
+        var status = skipped ? "skipped" : outcome.ExitCode == 0 ? "passed" : "failed";
+        var findings = SecurityReportParsing.CountGitleaksFindings(SecurityDirectory / "gitleaks-report.json");
+        var metrics = findings is null
+            ? new Dictionary<string, object>()
+            : new Dictionary<string, object> { ["findings"] = findings };
+        var note = skipped ? $"SecretsScan status: {scannerStatus}" : null;
+        return new CategoryResult(
+            "secrets", "gitleaks 8.30.1 (full git history)", status, metrics, outcome.Seconds,
+            VerifyAllExec.WithLogHint(note, outcome, status));
+    }
+
+    CategoryResult BuildScaRow(CommandOutcome auditOutcome, CommandOutcome osvOutcome, CommandOutcome vulnOutcome)
+    {
+        var osvScannerStatus = ScannerGateSupport.Status(SecurityScanStatusDirectory, "osv-scanner");
+        var osvSkipped = osvScannerStatus.StartsWith("skipped", StringComparison.Ordinal);
+        var osvFindings = SecurityReportParsing.CountOsvFindings(SecurityDirectory / "osv-scanner-report.json");
+
+        var failed = auditOutcome.ExitCode != 0 || (!osvSkipped && osvOutcome.ExitCode != 0) || vulnOutcome.ExitCode != 0;
+        var status = failed ? "failed" : "passed";
+        var metrics = osvFindings is null
+            ? new Dictionary<string, object>()
+            : new Dictionary<string, object> { ["findings"] = osvFindings };
+        var note = "DependencyAudit (NuGet audit, NuGetAuditMode=all) exit=" + auditOutcome.ExitCode + "; "
+            + (osvSkipped ? $"OsvScan status: {osvScannerStatus}" : $"OsvScan (osv.dev) exit={osvOutcome.ExitCode}")
+            + $"; VulnerablePackages (dotnet list package --vulnerable) exit={vulnOutcome.ExitCode}";
+        var seconds = auditOutcome.Seconds + osvOutcome.Seconds + vulnOutcome.Seconds;
+
+        return new CategoryResult(
+            "sca", "OSV-Scanner 2.5.1 (source scan) + NuGet audit (NuGetAuditMode=all) + dotnet list "
+                + "package --vulnerable",
+            status, metrics, seconds, VerifyAllExec.WithLogHint(note, status, auditOutcome, osvOutcome, vulnOutcome));
+    }
+
+    static CategoryResult BuildTranslationRow(CommandOutcome outcome)
+    {
+        var status = outcome.ExitCode == 0 ? "passed" : "failed";
+        return new CategoryResult(
+            "translation", "custom TranslationCheck (blob-hash headers + i18n manifest)", status,
+            new Dictionary<string, object>(), outcome.Seconds, VerifyAllExec.WithLogHint(null, outcome, status));
+    }
+
+    // ------------------------------------------------------------------------------- unit-tests / property / fuzz-tier-a / architecture / conformance / stress-short
+
+    /// <summary>
+    /// One repo-wide <c>./build.sh Test</c> sweep, sliced six ways — the .NET analog of Java's
+    /// single <c>./gradlew test</c> feeding <c>unit-tests</c>, <c>property</c>, <c>fuzz-tier-a</c>,
+    /// half of <c>architecture</c> and <c>conformance</c>, and <c>stress-short</c> from one run.
+    /// </summary>
+    void VerifyAllTestSweepRows(Action<CategoryResult> addRow)
+    {
+        var testOutcome = RunLogged("unit-tests", "Test");
+        var byProject = TrxSupport.ReadByProject(TestResultsDirectory, TestProjects.Select(p => p.Name));
+        var allResults = VerifyAllTestSlices.AllResults(byProject);
+
+        var unitTestsStatus = testOutcome.ExitCode == 0 ? "passed" : "failed";
+        addRow(new CategoryResult(
+            "unit-tests", "xUnit 2.9.2 (dotnet test, every *.Tests project in NarrativeTrace.sln)",
+            unitTestsStatus, TrxSupport.Summarize(allResults), testOutcome.Seconds,
+            VerifyAllExec.WithLogHint(
+                "excludes Category=SpawnsBuild (BuildScript.Tests' own nested-build tests — see conformance)",
+                testOutcome, unitTestsStatus)));
+
+        var propertyClasses = PropertyTestScanner.FindPropertyClasses(RootDirectory / "tests");
+        var propertyResults = VerifyAllTestSlices.Property(byProject, propertyClasses);
+        addRow(DerivedTestRow(
+            "property", "FsCheck 3.3.2 (FsCheck.Xunit)", propertyResults, testOutcome,
+            "sliced from the unit-tests row's own ./build.sh Test run: every [Property]-attributed "
+            + $"class repo-wide ({propertyClasses.Count} total), excluding NarrativeTrace.SecurityTests "
+            + "(claimed whole by fuzz-tier-a below) — 0 additional invocations"));
+
+        var fuzzTierAResults = VerifyAllTestSlices.FuzzTierA(byProject);
+        addRow(DerivedTestRow(
+            "fuzz-tier-a", "FsCheck 3.3.2 (hostile-corpus properties + corpus-replay tests, "
+                + "NarrativeTrace.SecurityTests)",
+            fuzzTierAResults, testOutcome,
+            "sliced from the same test run: the whole NarrativeTrace.SecurityTests project, which "
+            + "replays the shared hostile corpus every commit per this repo's own documented Tier A "
+            + "(see documentation/security-testing.md) — 0 additional invocations"));
+
+        var couplingOutcome = RunLogged("architecture", "CouplingReport");
+        addRow(BuildArchitectureRow(VerifyAllTestSlices.ArchitectureSlice(byProject), couplingOutcome));
+
+        addRow(DerivedTestRow(
+            "conformance", "custom canonical-schema/trace-identity conformance tests "
+                + "(NarrativeTrace.Core.Tests) + BuildScript.Tests (validates build behavior itself)",
+            VerifyAllTestSlices.ConformanceSlice(byProject), testOutcome,
+            "sliced from the unit-tests row's own run: the schema/identity conformance classes in "
+            + "NarrativeTrace.Core.Tests, plus the whole of BuildScript.Tests — deliberately NOT the "
+            + "separate BuildScriptTests NUKE target (its Category=SpawnsBuild tests shell out to a "
+            + "nested ./build.sh, which cannot run as a VerifyAll subprocess: NUKE's own engine holds "
+            + ".nuke/temp/build.log open for VerifyAll's whole run, so a nested invocation can never "
+            + "acquire that same path — confirmed reproducing on an unmodified checkout) — "
+            + "0 additional invocations"));
+
+        addRow(DerivedTestRow(
+            "stress-short", "xUnit (NarrativeTrace.StressTests, bounded NARRATIVETRACE_STRESS_ITERATIONS "
+                + "default — see stress-long for the raised sweep)",
+            VerifyAllTestSlices.StressShort(byProject), testOutcome,
+            "sliced from the unit-tests row's own run — 0 additional invocations"));
+    }
+
+    static CategoryResult DerivedTestRow(
+        string category, string tool, IReadOnlyList<TrxTestResult> results, CommandOutcome parentOutcome, string note)
+    {
+        var status = TrxSupport.AllGreen(results) ? "passed" : "failed";
+        return new CategoryResult(
+            category, tool, status, TrxSupport.Summarize(results), TrxSupport.TotalSeconds(results),
+            VerifyAllExec.WithLogHint(note, parentOutcome, status));
+    }
+
+    static CategoryResult BuildArchitectureRow(IReadOnlyList<TrxTestResult> archSlice, CommandOutcome couplingOutcome)
+    {
+        var testsGreen = TrxSupport.AllGreen(archSlice);
+        var couplingPassed = couplingOutcome.ExitCode == 0;
+        var status = testsGreen && couplingPassed ? "passed" : "failed";
+        return new CategoryResult(
+            "architecture", "NetArchTest.Rules 1.3.2 (layered-dependency + no-cycle rules) + "
+                + "CouplingReport (Ca/Ce/D ≤ 0.8)",
+            status, TrxSupport.Summarize(archSlice), TrxSupport.TotalSeconds(archSlice) + couplingOutcome.Seconds,
+            VerifyAllExec.WithLogHint(
+                "NetArchTest tests are sliced from the unit-tests run; CouplingReport (namespace "
+                + "coupling/distance) re-run separately, the .NET analog of JDepend",
+                couplingOutcome, status));
+    }
+
+    // ----------------------------------------------------------------------------------------- coverage
+
+    void VerifyAllCoverageRow(Action<CategoryResult> addRow)
+    {
+        var outcome = RunLogged("coverage", "Coverage");
+        var status = outcome.ExitCode == 0 ? "passed" : "failed";
+        var (coveredPct, linesCovered, linesMissed) = ReadCoverageSummary();
+        var metrics = new Dictionary<string, object>
+        {
+            ["coverage_pct"] = coveredPct,
+            ["lines_covered"] = linesCovered,
+            ["lines_missed"] = linesMissed,
+        };
+        addRow(new CategoryResult(
+            "coverage", "Coverlet 6.0.2 (cobertura, per-project thresholds — see CoverageAccounting.Thresholds)",
+            status, metrics, outcome.Seconds, VerifyAllExec.WithLogHint(null, outcome, status)));
+    }
+
+    /// <summary>
+    /// Aggregates coverage per DISTINCT production class, not per report — <c>Coverage</c>'s own
+    /// <c>coverage-summary.txt</c> (a naive sum of every report's own lines-covered/lines-valid)
+    /// looked wrong when this row first ran for real (35.97%, against every individual project's
+    /// own gate passing at 90%+): coverlet instruments every assembly a test process happens to
+    /// load, so a class incidentally pulled in by an unrelated test project's run is counted AGAIN
+    /// in that report at whatever low coverage that unrelated run happened to exercise, inflating
+    /// the denominator far more than the numerator. Reusing <see cref="ExtractClassCoverage"/>
+    /// (the same per-class reader <c>CoverageReport</c> already trusts) and keeping only the
+    /// highest-covered report per class name removes that double count: a class's real coverage is
+    /// whatever its OWN owning test project's run achieved, not whatever an incidental bystander run
+    /// happened to touch.
+    /// </summary>
+    (double CoveragePct, long LinesCovered, long LinesMissed) ReadCoverageSummary()
+    {
+        var reports = Directory.Exists(CoverageDirectory)
+            ? Directory.EnumerateFiles(CoverageDirectory, "*.cobertura.xml", SearchOption.AllDirectories).ToList()
+            : [];
+        var rows = new List<(int Missed, int Covered, double Rate, string Name)>();
+        foreach (var report in reports)
+            ExtractClassCoverage(report, rows);
+
+        var bestPerClass = rows
+            .GroupBy(r => r.Name)
+            .Select(g => g.OrderByDescending(r => r.Covered).First());
+
+        long covered = 0;
+        long missed = 0;
+        foreach (var row in bestPerClass)
+        {
+            covered += row.Covered;
+            missed += row.Missed;
+        }
+        var pct = covered + missed == 0 ? 0.0 : (double)covered / (covered + missed) * 100.0;
+        return (pct, covered, missed);
+    }
+
+    // ----------------------------------------------------------------------------------------- mutation
+
+    void VerifyAllMutationRow(Action<CategoryResult> addRow)
+    {
+        string[] excludeArgs = string.IsNullOrWhiteSpace(MutationExclude)
+            ? []
+            : ["--mutation-exclude", MutationExclude!];
+        var outcome = RunLogged("mutation", "Mutation", excludeArgs);
+
+        var configs = MutationAccounting.ConfigFiles(RootDirectory);
+        var excludedModules = (MutationExclude ?? "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var reportPaths = configs
+            .Select(ExtractStrykerModuleName)
+            .Where(module => !excludedModules.Contains(module))
+            .ToDictionary(module => module, module => (string)(MutationDirectory / module / "reports" / "mutation-report.json"));
+
+        var totals = StrykerReportSupport.ReadAll(reportPaths, out var missingModules);
+        // A module producing no report at all is always a failure signal for this row, independent
+        // of Mutation's own exit code — the exact silent-drop shape Java's own first run exposed.
+        var status = outcome.ExitCode == 0 && missingModules.Count == 0 ? "passed" : "failed";
+
+        var metrics = new Dictionary<string, object>
+        {
+            ["mutants_killed"] = totals.Killed,
+            ["mutants_survived"] = totals.Survived,
+            ["mutants_no_coverage"] = totals.NoCoverage,
+            ["mutation_score"] = totals.Score,
+        };
+
+        var noteParts = new List<string>();
+        if (excludedModules.Count > 0)
+        {
+            noteParts.Add(
+                $"time-boxed for THIS run via --mutation-exclude={MutationExclude} (skips "
+                + $"{string.Join(", ", excludedModules)}); the default ./build.sh VerifyAll invocation "
+                + "passes nothing and runs Stryker's real sweep across every module");
+        }
+        if (missingModules.Count > 0)
+            noteParts.Add($"no report produced for: {string.Join(", ", missingModules)}");
+        var note = noteParts.Count == 0 ? null : string.Join("; ", noteParts);
+
+        addRow(new CategoryResult(
+            "mutation", $"Stryker.NET 4.16.0 ({reportPaths.Count} of {configs.Count} module(s); "
+                + "per-module thresholds.break — see stryker-config*.json)",
+            status, metrics, outcome.Seconds, VerifyAllExec.WithLogHint(note, outcome, status)));
+    }
+
+    // -------------------------------------------------------------------------------------- fuzz-tier-b
+
+    private static readonly System.Text.RegularExpressions.Regex FuzzExecsPattern = new(
+        @"afl-fuzz ran (\d+) executions", System.Text.RegularExpressions.RegexOptions.Compiled);
+    private static readonly System.Text.RegularExpressions.Regex FuzzTargetPattern = new(
+        @"\[fuzz:(\S+)\] afl-fuzz ran", System.Text.RegularExpressions.RegexOptions.Compiled);
+    private static readonly System.Text.RegularExpressions.Regex FuzzSkipPattern = new(
+        @"afl-fuzz not found on PATH", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    void VerifyAllFuzzTierBRow(Action<CategoryResult> addRow)
+    {
+        var outcome = RunLogged(
+            "fuzz-tier-b", "Fuzz", "--fuzz-seconds",
+            FuzzSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        var skipped = FuzzSkipPattern.IsMatch(outcome.Output);
+        var executions = FuzzExecsPattern.Matches(outcome.Output)
+            .Select(m => long.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture))
+            .Sum();
+        var targetsFuzzed = FuzzTargetPattern.Matches(outcome.Output).Select(m => m.Groups[1].Value).Distinct().Count();
+        const int targetsTotal = 2; // renderer, json — see Fuzz target's RunFuzzTarget loop
+
+        string status;
+        Dictionary<string, object> metrics;
+        string? note;
+        if (skipped)
+        {
+            status = "skipped";
+            metrics = new Dictionary<string, object>();
+            note = "afl-fuzz not on PATH: SharpFuzz instrumentation ran, but the coverage-guided loop did not";
+        }
+        else
+        {
+            status = outcome.ExitCode == 0 ? "passed" : "failed";
+            metrics = new Dictionary<string, object>
+            {
+                ["executions"] = executions,
+                ["targets_fuzzed"] = targetsFuzzed,
+                ["targets_total"] = targetsTotal,
+            };
+            note = $"executions parsed from ReportAndVerifyAflRun's own \"afl-fuzz ran N executions\" "
+                + $"lines, summed across {targetsTotal} targets; FuzzSeconds={FuzzSeconds}s/target (default)";
+        }
+
+        addRow(new CategoryResult(
+            "fuzz-tier-b", $"SharpFuzz 2.3.0 + AFL++ (afl-fuzz, coverage-guided, {targetsTotal} targets x "
+                + $"{FuzzSeconds}s/target)",
+            status, metrics, outcome.Seconds, VerifyAllExec.WithLogHint(note, outcome, status)));
+    }
+
+    // -------------------------------------------------------------------------------- benchmarks / allocation
+
+    void VerifyAllBenchmarkRows(Action<CategoryResult> addRow)
+    {
+        var loadAverage = ReadOneMinuteLoadAverage();
+        var skipForLoad = !VerifyAllSkipTiming && loadAverage is { } load && load > VerifyAllLoadThreshold;
+        var loadDescription = loadAverage is { } l
+            ? $"observed 1-minute load average: {l:F2} (threshold {VerifyAllLoadThreshold:F1})"
+            : "1-minute load average unavailable on this platform (no /proc/loadavg)";
+
+        if (VerifyAllSkipTiming || skipForLoad)
+        {
+            var reason = VerifyAllSkipTiming
+                ? "--verify-all-skip-timing was passed"
+                : "a timing job on a loaded host measures the host, not the code — see the release "
+                    + "retrospective's phantom-benchmark-regression rule";
+            var note = $"{reason}; {loadDescription}";
+            addRow(new CategoryResult(
+                "benchmarks", "BenchmarkDotNet 0.14.0 (not run this time)", "skipped",
+                new Dictionary<string, object>(), 0.0, note));
+            addRow(new CategoryResult(
+                "allocation", "BenchmarkDotNet 0.14.0 MemoryDiagnoser (not run this time)", "skipped",
+                new Dictionary<string, object>(), 0.0, note));
+            return;
+        }
+
+        var outcome = RunLogged("benchmarks", "Benchmark");
+        var current = BenchmarkGate.LoadResults(BenchmarkArtifactsDir);
+        var (checkedCount, timeRegressions, allocRegressions) = File.Exists(BenchmarkBaselineFile)
+            ? BenchmarkGate.CountRegressionsByKind(current, BenchmarkBaselineFile)
+            : (0, 0, 0);
+        var noBaseline = !File.Exists(BenchmarkBaselineFile);
+
+        // Benchmark's own exit code fails on EITHER kind of regression — split back into the two
+        // rows here so each reports only its own kind's count, per SCHEMA.md's per-category shape.
+        var benchmarksStatus = timeRegressions > 0 ? "failed" : "passed";
+        var allocationStatus = allocRegressions > 0 ? "failed" : "passed";
+        var benchmarksNote = noBaseline ? "no benchmark baseline found — run ./build.sh BenchmarkBaseline" : loadDescription;
+        var allocationNote = noBaseline
+            ? "no benchmark baseline found — run ./build.sh BenchmarkBaseline"
+            : "derived from the same BenchmarkDotNet MemoryDiagnoser run as the benchmarks row above "
+                + "(0s: no additional invocation) — this ecosystem's MemoryDiagnoser captures "
+                + "bytes-allocated-per-operation in the same run as mean time, unlike JMH's separate "
+                + "GC-profiler pass for the java port";
+
+        addRow(new CategoryResult(
+            "benchmarks", "BenchmarkDotNet 0.14.0 vs benchmarks/benchmark-baseline.json (15% time threshold)",
+            benchmarksStatus, new Dictionary<string, object> { ["benchmarks_run"] = checkedCount, ["regressions"] = timeRegressions },
+            outcome.Seconds, VerifyAllExec.WithLogHint(benchmarksNote, outcome, benchmarksStatus)));
+        addRow(new CategoryResult(
+            "allocation", "BenchmarkDotNet 0.14.0 MemoryDiagnoser vs benchmarks/benchmark-baseline.json (0% alloc threshold)",
+            allocationStatus, new Dictionary<string, object> { ["benchmarks_run"] = checkedCount, ["regressions"] = allocRegressions },
+            0.0, allocationNote));
+    }
+
+    /// <summary>The container's own 1-minute load average from <c>/proc/loadavg</c> — <c>null</c> on
+    /// a platform without one (e.g. running this build directly on macOS/Windows outside the Linux
+    /// dev container), never a fabricated number.</summary>
+    static double? ReadOneMinuteLoadAverage()
+    {
+        const string path = "/proc/loadavg";
+        if (!File.Exists(path))
+            return null;
+        var firstField = File.ReadAllText(path).Split(' ', 2)[0];
+        return double.TryParse(firstField, System.Globalization.CultureInfo.InvariantCulture, out var load) ? load : null;
+    }
+
+    // ------------------------------------------------------------------------------------- stress-long
+
+    void VerifyAllStressLongRow(Action<CategoryResult> addRow)
+    {
+        var outcome = RunLogged(
+            "stress-long", "Stress", "--stress-sweep-iterations",
+            StressSweepIterations.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        var trxPath = TestResultsDirectory / "NarrativeTrace.StressTests.sweep.trx";
+        // Guarded, not a bare TrxSupport.ReadResults call: if the nested Stress invocation failed
+        // before dotnet test ever wrote a report (a build break, say), the file genuinely does not
+        // exist — that must fall through to a failed row with an empty summary, never throw and
+        // take the whole VerifyAll run down with it at the very last row before the report is written.
+        var results = File.Exists(trxPath) ? TrxSupport.ReadResults(trxPath) : [];
+        var status = outcome.ExitCode == 0 ? "passed" : "failed";
+        addRow(new CategoryResult(
+            "stress-long", $"xUnit (NarrativeTrace.StressTests, NARRATIVETRACE_STRESS_ITERATIONS="
+                + $"{StressSweepIterations})",
+            status, TrxSupport.Summarize(results), outcome.Seconds,
+            VerifyAllExec.WithLogHint(
+                "raised-iteration re-run of the same project stress-short already sliced; "
+                + "--stress-sweep-iterations controls the count — unset here means the real default, "
+                + "not a time-box override",
+                outcome, status)));
+    }
+
     /// <remarks>
     /// <see cref="RunExamples"/> and <see cref="DemoWiringCheck"/> are gate
     /// members, matching Java's <c>check</c> task (which runs its examples and
@@ -1519,6 +2298,18 @@ class Build : NukeBuild
     /// build-free consistency check, so it sits with
     /// <see cref="TranslationCheck"/> and <see cref="DemoWiringCheck"/>
     /// rather than needing its own ordering constraint.
+    ///
+    /// <see cref="CoverageAccountingCheck"/> is the same shape once more —
+    /// no <see cref="Compile"/> dependency, pure in-memory map lookups — so
+    /// it joins the same cluster, ahead of the (slow) <see cref="Coverage"/>
+    /// sweep that also runs it as its own first step; failing here fails
+    /// fast, before Compile even needs to run for Coverage's sake.
+    ///
+    /// <see cref="MutationAccountingCheck"/> joins the same build-free cluster for the identical
+    /// reason, on the mutation side: it is config/name accounting only (which project is a real
+    /// Stryker target, a test suite by name, or exempted with a reason), never a Stryker run, so it
+    /// can — and must — ride every commit even though <see cref="Mutation"/> itself (the real
+    /// sweep) stays MR/schedule/web-tier, same cadence rule as <see cref="Fuzz"/>/<see cref="Benchmark"/>.
     ///
     /// <see cref="LegalCheck"/> joins the same build-free cluster: in default
     /// (non-strict) mode it only warns, so it cannot turn a green
@@ -1546,6 +2337,8 @@ class Build : NukeBuild
         .DependsOn(TranslationCheck)
         .DependsOn(DemoWiringCheck)
         .DependsOn(HeaderAbsenceCheck)
+        .DependsOn(CoverageAccountingCheck)
+        .DependsOn(MutationAccountingCheck)
         .DependsOn(LegalCheck)
         .DependsOn(SecretsScan)
         .DependsOn(Test)

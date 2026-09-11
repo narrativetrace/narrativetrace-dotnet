@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/installation.md blob 305ad017f7d5 | translated: 2026-09-09 | reviewed: 2026-09-03 -->
+<!-- source: documentation/guides/installation.md blob 3cd737eb0d21 | translated: 2026-09-09 | reviewed: 2026-09-03 -->
 # NarrativeTrace .NET — Guia de instalação
 
 [English](../installation.md) | [Español](../es/guia-de-instalacion.md) | **Português** | [简体中文](../zh-CN/安装指南.md)
@@ -26,9 +26,9 @@ Comece com o mínimo e adicione apenas o que você precisar.
 
 ```xml
 <!-- Mínimo: captura + renderização -->
-<PackageReference Include="NarrativeTrace.Core" Version="0.1.1" />
-<PackageReference Include="NarrativeTrace.Runtime" Version="0.1.1" />
-<PackageReference Include="NarrativeTrace.Proxy" Version="0.1.1" />
+<PackageReference Include="NarrativeTrace.Core" Version="0.1.2" />
+<PackageReference Include="NarrativeTrace.Runtime" Version="0.1.2" />
+<PackageReference Include="NarrativeTrace.Proxy" Version="0.1.2" />
 ```
 
 | Pacote | Quando adicionar |
@@ -47,7 +47,7 @@ Comece com o mínimo e adicione apenas o que você precisar.
 | `NarrativeTrace.Cli` | Ferramenta global `dotnet-narrativetrace` — varredura de clareza somente por reflexão + quality gate de CI. |
 | `NarrativeTrace.MSBuild` | Pacote somente de build que conecta a CLI a `dotnet build` / `dotnet test`. |
 
-> As versões são pré-1.0 (`0.1.1`). Use a versão que você realmente
+> As versões são pré-1.0 (`0.1.2`). Use a versão que você realmente
 > instalou; mantenha todos os pacotes `NarrativeTrace.*` na mesma versão.
 
 ## Escolha um caminho de integração
@@ -203,7 +203,7 @@ Adicione o pacote somente de build para executar o quality gate de
 clareza como parte do seu build:
 
 ```xml
-<PackageReference Include="NarrativeTrace.MSBuild" Version="0.1.1"
+<PackageReference Include="NarrativeTrace.MSBuild" Version="0.1.2"
                   PrivateAssets="all" />
 ```
 

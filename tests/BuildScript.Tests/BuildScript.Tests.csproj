@@ -16,6 +16,10 @@
              Link="DemoWiringSupport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/TestProjectSelection.cs"
              Link="TestProjectSelection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/CoverageAccounting.cs"
+             Link="CoverageAccounting.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/MutationAccounting.cs"
+             Link="MutationAccounting.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/HeaderAbsenceSupport.cs"
              Link="HeaderAbsenceSupport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/I18nManifestSupport.cs"
@@ -34,6 +38,20 @@
              Link="ScannerGateSupport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/PublicationVerificationSupport.cs"
              Link="PublicationVerificationSupport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/VerificationReportSchema.cs"
+             Link="VerificationReportSchema.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/TrxSupport.cs"
+             Link="TrxSupport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/StrykerReportSupport.cs"
+             Link="StrykerReportSupport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/VerifyAllExec.cs"
+             Link="VerifyAllExec.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/VerifyAllClassification.cs"
+             Link="VerifyAllClassification.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/VerifyAllSecurityParsing.cs"
+             Link="VerifyAllSecurityParsing.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/BenchmarkGate.cs"
+             Link="BenchmarkGate.cs" />
   </ItemGroup>
 
   <ItemGroup>

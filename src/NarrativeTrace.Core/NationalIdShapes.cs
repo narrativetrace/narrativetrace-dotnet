@@ -57,6 +57,19 @@ internal static class NationalIdShapes
     private static readonly Regex Cnpj =
         new(@"^(?:\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}|\d{14})$", RegexOptions.Compiled);
 
+    /// <summary>United States: <c>AAA-GG-SSSS</c>, dashes required.</summary>
+    /// <remarks>
+    /// <b>@edgeCase</b> The dashes are the entire signal and the reason this
+    /// pattern is safe. An SSN carries no check digit, so nine bare digits
+    /// are arithmetically indistinguishable from an order number, an account
+    /// id or an unpunctuated phone number — matching those would blank
+    /// ordinary business data in every trace, exactly the false-positive
+    /// budget this class exists to protect. Punctuation is the only evidence
+    /// the writer meant an SSN.
+    /// </remarks>
+    private static readonly Regex Ssn =
+        new(@"^\d{3}-\d{2}-\d{4}$", RegexOptions.Compiled);
+
     /// <summary>Spain: a DNI is 8 digits plus a letter; a NIE swaps the leading digit for <c>X/Y/Z</c>.</summary>
     private static readonly Regex SpanishId =
         new(@"^(?:[XYZ]\d{7}|\d{8})-?[A-Z]$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -94,7 +107,8 @@ internal static class NationalIdShapes
     /// <summary>
     /// Whether the value is a national identity number that passes its own
     /// checksum: a valid Chilean RUT, Brazilian CPF or CNPJ, Spanish DNI or
-    /// NIE, French NIR, or Chinese resident identity card.
+    /// NIE, French NIR, Chinese resident identity card, or a dashed US
+    /// Social Security number.
     /// </summary>
     /// <param name="value">A trimmed rendered value.</param>
     internal static bool IsNationalId(string value)
@@ -104,7 +118,47 @@ internal static class NationalIdShapes
             || IsCnpj(value)
             || IsSpanishId(value)
             || IsFrenchNir(value)
-            || IsChineseResidentId(value);
+            || IsChineseResidentId(value)
+            || IsUsSsn(value);
+    }
+
+    /// <summary>
+    /// A US Social Security number written in the dashed form
+    /// <c>AAA-GG-SSSS</c>.
+    /// </summary>
+    /// <remarks>
+    /// The name deny-list carries <c>ssn</c> and, since 2026-09-10, its
+    /// longer spellings — but a real SSN arriving under an innocuous name
+    /// (<c>taxpayerRef</c>, <c>identifier</c>) was caught by nothing at
+    /// all. An audit found the concept covered by name in one language and
+    /// by no shape whatsoever; this is that missing axis.
+    /// <para>
+    /// <b>@edgeCase</b> This is the one matcher here that is not a
+    /// checksum, because the scheme has none. The structural rules the SSA
+    /// publishes stand in for one: area <c>000</c>, <c>666</c> and
+    /// <c>900-999</c> are never issued, group <c>00</c> never is, and
+    /// serial <c>0000</c> never is. Rejecting those keeps
+    /// <c>000-00-0000</c> — the placeholder that fills test fixtures and
+    /// redacted forms everywhere — visible rather than blanked, and costs
+    /// nothing real: those combinations cannot be anyone's number.
+    /// </para>
+    /// </remarks>
+    private static bool IsUsSsn(string value)
+    {
+        if (!Ssn.IsMatch(value))
+        {
+            return false;
+        }
+
+        var area = value[..3];
+        var group = value.Substring(4, 2);
+        var serial = value[7..];
+        if (area is "000" or "666" || area[0] == '9')
+        {
+            return false;
+        }
+
+        return group != "00" && serial != "0000";
     }
 
     private static bool IsRut(string value)

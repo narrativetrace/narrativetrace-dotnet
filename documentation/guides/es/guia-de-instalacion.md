@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/installation.md blob 305ad017f7d5 | translated: 2026-09-09 | reviewed: 2026-09-03 -->
+<!-- source: documentation/guides/installation.md blob 3cd737eb0d21 | translated: 2026-09-09 | reviewed: 2026-09-03 -->
 # NarrativeTrace .NET — Guía de instalación
 
 [English](../installation.md) | **Español** | [Português](../pt-BR/guia-de-instalacao.md) | [简体中文](../zh-CN/安装指南.md)
@@ -26,9 +26,9 @@ id. Empieza por el mínimo y añade solo lo que necesites.
 
 ```xml
 <!-- Mínimo: captura + renderizado -->
-<PackageReference Include="NarrativeTrace.Core" Version="0.1.1" />
-<PackageReference Include="NarrativeTrace.Runtime" Version="0.1.1" />
-<PackageReference Include="NarrativeTrace.Proxy" Version="0.1.1" />
+<PackageReference Include="NarrativeTrace.Core" Version="0.1.2" />
+<PackageReference Include="NarrativeTrace.Runtime" Version="0.1.2" />
+<PackageReference Include="NarrativeTrace.Proxy" Version="0.1.2" />
 ```
 
 | Paquete | Cuándo añadirlo |
@@ -47,7 +47,7 @@ id. Empieza por el mínimo y añade solo lo que necesites.
 | `NarrativeTrace.Cli` | Herramienta global `dotnet-narrativetrace` — análisis de claridad solo por reflexión + puerta de calidad en CI. |
 | `NarrativeTrace.MSBuild` | Paquete solo de build que cablea la CLI en `dotnet build` / `dotnet test`. |
 
-> Las versiones son pre-1.0 (`0.1.1`). Usa la versión que realmente
+> Las versiones son pre-1.0 (`0.1.2`). Usa la versión que realmente
 > instalaste; mantén todos los paquetes `NarrativeTrace.*` en la misma
 > versión.
 
@@ -202,7 +202,7 @@ Añade el paquete solo de build para ejecutar la puerta de claridad como
 parte de tu build:
 
 ```xml
-<PackageReference Include="NarrativeTrace.MSBuild" Version="0.1.1"
+<PackageReference Include="NarrativeTrace.MSBuild" Version="0.1.2"
                   PrivateAssets="all" />
 ```
 

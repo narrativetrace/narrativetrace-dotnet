@@ -26,7 +26,7 @@ public class NukeBuildTests
     {
         var result = RunBuild("--plan", "--target", "Compile", "--target", "Analyze", "--target", "Test", "--target", "Coverage", "--target", "Mutation", "--target", "MetricsReport");
 
-        Assert.Equal(0, result.ExitCode);
+        Assert.True(result.ExitCode == 0, $"exit {result.ExitCode}: {result.Output}");
         Assert.Contains("NUKE Execution Engine", result.Output);
     }
 
@@ -35,7 +35,7 @@ public class NukeBuildTests
     {
         var result = RunBuild("Coverage");
 
-        Assert.Equal(0, result.ExitCode);
+        Assert.True(result.ExitCode == 0, $"exit {result.ExitCode}: {result.Output}");
         var coverageRoot = Path.Combine(RepoRoot, "artifacts", "coverage");
         var summary = Path.Combine(coverageRoot, "coverage-summary.txt");
 
@@ -49,7 +49,7 @@ public class NukeBuildTests
     {
         var result = RunBuild("MetricsReport");
 
-        Assert.Equal(0, result.ExitCode);
+        Assert.True(result.ExitCode == 0, $"exit {result.ExitCode}: {result.Output}");
         var report = Path.Combine(RepoRoot, "artifacts", "metrics", "metrics-report.txt");
         Assert.True(File.Exists(report), "Expected metrics-report.txt to be generated.");
 
@@ -58,25 +58,44 @@ public class NukeBuildTests
         Assert.Contains("Total files:", text);
     }
 
-    private static (int ExitCode, string Output) RunBuild(params string[] args)
-    {
-        for (var attempt = 1; attempt <= 3; attempt++)
-        {
-            var result = RunBuildOnce(args);
-            if (result.ExitCode == 0)
-                return result;
+    /// <summary>
+    /// NUKE's own engine opens <c>.nuke/temp/build.log</c> once per process and keeps it open,
+    /// exclusively, for that whole process's lifetime — verified directly against this project's
+    /// own dev container by polling <c>/proc/&lt;pid&gt;/fd</c> while a build ran: the SAME pid held
+    /// it open, continuously, start to finish. Every method in this class is itself run BY a
+    /// <c>./build.sh</c> invocation (whether that is a bare <c>./build.sh BuildScriptTests</c> or
+    /// one nested further under <c>VerifyAll</c>) — so the <em>outer</em> process already holds
+    /// that exact path for its own entire run before any <see cref="Fact"/> here starts its nested
+    /// child, and without <see cref="RunBuildOnce"/>'s delete-first step below the child could never
+    /// acquire it, no matter how long it retried (a bare retry-with-backoff was tried first and
+    /// confirmed NOT to help, even at 8 attempts/~29s — the hold is not transient). Confirmed
+    /// reproducing on an unmodified checkout: this is the environment (a container whose
+    /// <c>/workspace</c> is a host bind mount), not a defect in any target's own behavior.
+    /// </summary>
+    private static (int ExitCode, string Output) RunBuild(params string[] args) => RunBuildOnce(args);
 
-            if (!result.Output.Contains("build.log", StringComparison.OrdinalIgnoreCase))
-                return result;
-
-            Thread.Sleep(750 * attempt);
-        }
-
-        return RunBuildOnce(args);
-    }
-
+    /// <summary>
+    /// Unlinks <c>.nuke/temp/build.log</c> before starting the nested build, for the exact reason
+    /// <see cref="RunBuild"/>'s remarks describe. POSIX <c>unlink</c> only removes the directory
+    /// entry, not the file an already-open handle still references, so the OUTER process (whichever
+    /// <c>./build.sh</c> invocation is running this test) keeps writing to the same inode via its
+    /// existing handle exactly as before, while THIS nested process's own <c>open()</c> at the now-
+    /// vacant path creates a brand-new, entirely unlocked inode. Verified directly: a nested build
+    /// started this way while an outer one was independently confirmed still running (via <c>ps</c>)
+    /// completed cleanly, and the outer build then finished cleanly too.
+    /// </summary>
     private static (int ExitCode, string Output) RunBuildOnce(params string[] args)
     {
+        try
+        {
+            File.Delete(Path.Combine(RepoRoot, ".nuke", "temp", "build.log"));
+        }
+        catch
+        {
+            // Best-effort — worst case is falling back to the "used by another process" failure
+            // this step exists to avoid, never a new one.
+        }
+
         var joined = string.Join(' ', args);
         var psi = new ProcessStartInfo
         {
