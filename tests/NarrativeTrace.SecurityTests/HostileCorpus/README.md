@@ -68,6 +68,10 @@ or `kind`, naming a shape a stack cannot express:
 | `emptyContainers` | every empty container, nested |
 | `future` | a `Future` in the given `state` |
 | `throwable` | an exception carrying `payload`, optionally with an `n`-deep cause chain |
+| `curatedToString` | a composite with a deny-listed field whose own hand-written `toString`/`ToString` interpolates it directly |
+| `curatedToStringNested` | a composite with no sensitive fields of its own, whose hand-written `toString`/`ToString` interpolates a nested composite that carries one |
+| `mapKey` | a composite carrying a deny-listed field, used as a `Map`/`Dictionary` key |
+| `throwingSummary` | a composite whose curated summary (`[NarrativeSummary]`/annotation equivalent) throws, the sentinel folded into the exception message |
 
 `payload: "secret-record"` means the builder plants a record with a
 `@NotTraced` component holding a **unique per-case sentinel token** at that

@@ -24,10 +24,14 @@ produce, not assumed.
 | `glossary.md` | **Yes**, alongside `glossary.json` | Human-readable rendering of the same file, rewritten only when the JSON's bytes change (anti-churn). |
 | `<output-dir>/glossary-usage.json` | No | Volatile per-run usage statistics — regenerated, not curated. |
 
-`<output-dir>` defaults to `./narrativetrace-output` when
-`NARRATIVETRACE_OUTPUT_DIR` isn't set. Add it to `.gitignore` unless you
-have a specific CI reason to archive it as a build artifact (which is a CI
-retention decision, not a "commit to source control" one).
+Trace output is **on by default** (set `NARRATIVETRACE_OUTPUT=false` to opt
+out); `<output-dir>` defaults to `./TestResults/narrativetrace` when
+`NARRATIVETRACE_OUTPUT_DIR` isn't set — the `.NET` convention `dotnet test
+--results-directory` and Visual Studio/Rider already treat as disposable
+test output, and this repository's own `.gitignore` already excludes
+`TestResults/`. Keep it out of source control in your own projects too,
+unless you have a specific CI reason to archive it as a build artifact
+(which is a CI retention decision, not a "commit to source control" one).
 
 ## Glossary harvesting is opt-in by file presence
 

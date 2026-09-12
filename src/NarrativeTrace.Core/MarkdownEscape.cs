@@ -29,6 +29,10 @@ namespace NarrativeTrace.Core;
 /// </remarks>
 internal static class MarkdownEscape
 {
+    // Every character this escaper rewrites grows by three or four, so a little
+    // slack keeps the builder from resizing on the first entity.
+    private const int EscapeHeadroom = 8;
+
     /// <summary>
     /// Neutralizes control characters, then HTML-escapes <c>&amp;</c>, <c>&lt;</c> and <c>&gt;</c>
     /// so interpolated prose cannot introduce active HTML, and a raw line break cannot open document
@@ -37,19 +41,58 @@ internal static class MarkdownEscape
     public static string Text(string text)
     {
         var safe = ControlEscape.Sanitize(text);
-        var sb = new StringBuilder(safe.Length);
-        foreach (var c in safe)
+        var first = IndexOfHtmlSpecial(safe);
+        if (first < 0)
         {
-            sb.Append(c switch
-            {
-                '&' => "&amp;",
-                '<' => "&lt;",
-                '>' => "&gt;",
-                var other => other.ToString(),
-            });
+            return safe;
+        }
+
+        var sb = new StringBuilder(safe.Length + EscapeHeadroom);
+        sb.Append(safe, 0, first);
+        for (var i = first; i < safe.Length; i++)
+        {
+            AppendEscaped(sb, safe[i]);
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// The first character this escaper would rewrite, or <c>-1</c> when there is
+    /// none.
+    /// </summary>
+    /// <remarks>
+    /// Nearly every string interpolated into the document — a class name, a
+    /// method name, a parameter name, an ordinary rendered value — contains no
+    /// <c>&amp;</c>, <c>&lt;</c> or <c>&gt;</c>, and for those the escaped form
+    /// is the input. The previous shape allocated a
+    /// <see cref="StringBuilder"/> <em>and</em> a fresh one-character string per
+    /// character scanned, on a path the renderer walks several times per traced
+    /// node; scanning first is one allocation-free pass that lets the clean case
+    /// return what <see cref="ControlEscape"/> already produced.
+    /// </remarks>
+    private static int IndexOfHtmlSpecial(string safe)
+    {
+        for (var i = 0; i < safe.Length; i++)
+        {
+            if (safe[i] is '&' or '<' or '>')
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private static void AppendEscaped(StringBuilder sb, char c)
+    {
+        switch (c)
+        {
+            case '&': sb.Append("&amp;"); break;
+            case '<': sb.Append("&lt;"); break;
+            case '>': sb.Append("&gt;"); break;
+            default: sb.Append(c); break;
+        }
     }
 
     /// <summary>

@@ -2,6 +2,21 @@
 
 **English** | [Español](LEAME.md) | [Português](LEIAME.md) | [简体中文](自述文件.md)
 
+## Start here
+
+[See a trace in 60 seconds](documentation/first-10-minutes.md) — a console
+app, one run, and the trace is in your terminal.
+
+## Demo
+
+Clone the repository and run `./demo.sh`.
+
+## Examples
+
+See [the examples](examples/) — NarrativeTrace in realistic applications.
+
+## Code is the log
+
 **Turn what your code *did* into a story you can read.** NarrativeTrace records
 method execution as a narrative trace — a nested, human-readable account of the
 calls, arguments, outcomes, and timing behind a unit of work — and scores the
@@ -180,22 +195,6 @@ still want one.
 - **Tooling** — a `dotnet-narrativetrace` CLI (scan assemblies, gate on clarity)
   and a `NarrativeTrace.MSBuild` package that wires it into your build.
 
-## Try it locally
-
-No project, no wiring — run the shipped examples and watch the narration
-happen live:
-
-```bash
-./demo.sh --example ecommerce --no-pause    # the flagship service graph
-./demo.sh --example ecommerce --classic     # the same run as timestamped log lines
-./demo.sh --list                            # every example this repo ships
-```
-
-See [Demo](#demo) below for the full picker, and
-[First 10 Minutes](documentation/first-10-minutes.md) for a walkthrough that
-adds tracing to a service of your own, step by step, with real output at
-each one.
-
 ## Add it to one test
 
 The least-ceremony path from "interesting library" to "I saw a trace of my
@@ -222,11 +221,15 @@ public class OrderTests : IClassFixture<NarrativeFixture>
 **NUnit** — derive from `NarrativeTestBase`; failures are detected and
 narrated automatically in teardown via `TestContext`.
 
-Set `NARRATIVETRACE_OUTPUT=true` before `dotnet test` and both write real
-files to disk (`traces/<Class>/<slug>.md`, a sibling `.json`, a `.mmd`
-diagram, and a value-free `.nt`) — [First 10 Minutes](documentation/first-10-minutes.md)
-walks the whole thing, including renaming a method and watching the clarity
-score drop.
+Both write real files to disk by default, no flag to set:
+`TestResults/narrativetrace/traces/<Class>/<slug>.md`, a sibling `.json`, a
+`.mmd` diagram, and a value-free `.nt` — under the ephemeral, gitignored
+directory `dotnet test` already treats as disposable output. Set
+`NARRATIVETRACE_OUTPUT=false` to opt out. See
+[See a trace in 60 seconds](documentation/first-10-minutes.md) for the
+fastest path to a trace, and the
+[Clarity guide](documentation/guides/clarity.md) for renaming a method and
+watching the score drop.
 
 ## Choose your integration
 
@@ -256,9 +259,7 @@ Console.WriteLine(IndentedTextRenderer.Render(context.CaptureTrace()));
 ```
 
 ```
-OrderService.PlaceOrder(sku: "book-123", quantity: 2) → "confirmed"
-  PaymentService.Charge(amount: 19.98) → "approved"
-  InventoryService.Reserve(sku: "book-123", quantity: 2) → true
+└── IOrderService.PlaceOrder(sku: "book-123", quantity: 2) → "confirmed" — 6ms
 ```
 
 **Dependency injection — auto-wrap every interface whose implementation
@@ -480,7 +481,7 @@ Capture levels, from least to most detail: `Off`, `Errors`, `Summary`,
 
 Start here:
 
-- [First 10 Minutes](documentation/first-10-minutes.md) — one tiny service, one test, real output at every step
+- [See a trace in 60 seconds](documentation/first-10-minutes.md) — one console app, `dotnet run`, real output in your terminal
 - [Choosing an Integration](documentation/choosing-an-integration.md) — which module you need, as a decision diagram
 - [Troubleshooting](documentation/troubleshooting.md) — symptom → cause → fix for the failure modes people actually hit
 - [What to Commit](documentation/what-to-commit.md) — which generated files are throwaway output and which are reviewed
@@ -510,26 +511,6 @@ For AI consumers: [`llms.txt`](documentation/guides/llms.txt) and
 - Modern runtime: `net10.0`
 - Compatibility: `netstandard2.0`
 - Legacy: `net48` (in `NarrativeTrace.Legacy`)
-
-## Demo
-
-The fastest way to watch the examples run — one command, the live `→ ← !!`
-narration colorized and indented by call depth, a stop point after every
-scenario with a note on how that scenario's trace is wired:
-
-```bash
-./demo.sh                                 # interactive picker
-./demo.sh --example ecommerce             # non-interactive; --list enumerates the examples
-./demo.sh --example ecommerce --classic   # the same run as traditional timestamped logs
-./demo.sh --example ecommerce --no-pause  # play straight through (what pipes and CI get)
-```
-
-`./build.sh Demo --example <name> --no-pause` and `./build.sh RunExamples` run
-the same things from the build; `demo.ps1` is the thin PowerShell wrapper. Four
-examples ship — `ecommerce`, `clarity`, `minecraft`, and `library` (F#) — and
-each also runs on its own with `dotnet run --project examples/<project>`. See
-[`examples/README.md`](examples/README.md) for the project map and what each
-one teaches.
 
 ## Build and test
 

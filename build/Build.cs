@@ -253,6 +253,51 @@ class Build : NukeBuild
         });
 
     /// <summary>
+    /// Fails when a marked code or output block in an English page
+    /// (<c>&lt;!-- snippet: PATH --&gt;</c>) has drifted from the real,
+    /// tested project it embeds — rule 8 (docs as tests; see
+    /// <see cref="SnippetCheckSupport"/>). Depends on <see cref="Test"/>
+    /// because a block's source can be a captured-stdout file a test just
+    /// wrote (<c>artifacts/sixty-seconds/</c>); reads only tracked and
+    /// freshly-built files, no network.
+    /// </summary>
+    Target SnippetCheck => _ => _
+        .DependsOn(Test)
+        .Executes(() =>
+        {
+            var problems = SnippetCheckSupport.Check(RootDirectory);
+            foreach (var problem in problems)
+                Console.WriteLine($"  {problem}");
+
+            if (problems.Count > 0)
+                throw new InvalidOperationException(
+                    $"Snippet check failed: {problems.Count} problem(s), first: {problems[0]}");
+
+            Console.WriteLine("Snippet check passed");
+        });
+
+    /// <summary>
+    /// Rewrites every marked block in every English page to match its
+    /// source, unmasked — never a translated mirror (restamp those by hand
+    /// after reviewing what changed). Run after <see cref="SnippetCheck"/>
+    /// reports drift, then read the diff: the page's marked blocks are
+    /// approval artifacts of the code, so a change here means the page was
+    /// wrong, not the other way round.
+    /// </summary>
+    Target SnippetSync => _ => _
+        .DependsOn(Test)
+        .Executes(() =>
+        {
+            var changes = SnippetCheckSupport.Sync(RootDirectory);
+            foreach (var change in changes)
+                Console.WriteLine($"  {change}");
+
+            Console.WriteLine(changes.Count == 0
+                ? "Snippet sync: already up to date, nothing changed"
+                : $"Snippet sync: {changes.Count} block(s) resynced");
+        });
+
+    /// <summary>
     /// Prints the full translation coverage and review-field matrix, one line
     /// per manifest language. A human dashboard, not a gate — deliberately
     /// not a <see cref="Verify"/> dependency, since publish-gating on review
@@ -2335,6 +2380,7 @@ class Build : NukeBuild
         .DependsOn(FormatCheck)
         .DependsOn(Analyze)
         .DependsOn(TranslationCheck)
+        .DependsOn(SnippetCheck)
         .DependsOn(DemoWiringCheck)
         .DependsOn(HeaderAbsenceCheck)
         .DependsOn(CoverageAccountingCheck)

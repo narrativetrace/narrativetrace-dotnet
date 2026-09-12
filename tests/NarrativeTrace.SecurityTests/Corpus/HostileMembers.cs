@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Licensed under the Business Source License 1.1 (see LICENSE); Change Date: four years from publication; Change License: Apache-2.0
 // Copyright (c) 2026 Empower Agile
+using NarrativeTrace.Core.Annotation;
+
 namespace NarrativeTrace.SecurityTests.Corpus;
 
 /// <summary>
@@ -205,6 +207,73 @@ public static class HostileMembers
         public string K = "11";
         public HostileGraphs.Secret Secret = held;
 #pragma warning restore CA1051, S1104
+    }
+
+    /// <summary>
+    /// A record with a deny-listed field (matched by name, not <c>[NotTraced]</c>) whose own
+    /// hand-written <c>ToString</c> interpolates it directly.
+    /// </summary>
+    /// <remarks>
+    /// This is the shape the never-trust-ToString invariant pins the absence of: the reflective
+    /// walk (which redacts <see cref="Password"/> by name before ever reading it) must win over
+    /// this type's own <c>ToString</c> whenever the type has public state — the renderer must
+    /// never fall back to this string.
+    /// </remarks>
+    public sealed record CuratedToStringRecord(string Password)
+    {
+        /// <inheritdoc />
+        public override string ToString() => $"CuratedToStringRecord[password={Password}]";
+    }
+
+    /// <summary>
+    /// A composite with no sensitive field of its own, whose hand-written <c>ToString</c>
+    /// interpolates a nested <see cref="CuratedToStringRecord"/> that does carry one.
+    /// </summary>
+    public sealed record CuratedToStringRecordNested(string Label, CuratedToStringRecord Nested)
+    {
+        /// <inheritdoc />
+        public override string ToString() => $"CuratedToStringRecordNested[{Label}: {Nested}]";
+    }
+
+    /// <summary>The plain-class analogue of <see cref="CuratedToStringRecord"/> — records get the
+    /// walk via <c>IsRecord</c>, a plain class via <c>HasPublicMembers</c>; both paths must redact.</summary>
+    public sealed class CuratedToStringClass(string password)
+    {
+        /// <summary>The deny-listed member, matched by name.</summary>
+        public string Password { get; } = password;
+
+        /// <inheritdoc />
+        public override string ToString() => $"CuratedToStringClass[password={Password}]";
+    }
+
+    /// <summary>The plain-class analogue of <see cref="CuratedToStringRecordNested"/>.</summary>
+    public sealed class CuratedToStringClassNested(string label, CuratedToStringRecord nested)
+    {
+        /// <summary>An ordinary, non-sensitive field.</summary>
+        public string Label { get; } = label;
+
+        /// <summary>The nested composite carrying the deny-listed field.</summary>
+        public CuratedToStringRecord Nested { get; } = nested;
+
+        /// <inheritdoc />
+        public override string ToString() => $"CuratedToStringClassNested[{Label}: {Nested}]";
+    }
+
+    /// <summary>
+    /// A composite whose <c>[NarrativeSummary]</c> member throws, with the sentinel folded into
+    /// the exception message so a leak through the message text — not just a captured value —
+    /// would be caught by the same containment oracle.
+    /// </summary>
+    public sealed class ThrowingSummaryHolder(string sentinel)
+    {
+        /// <summary>An ordinary, non-sensitive field the summary was curated to replace.</summary>
+        public string Label { get; } = "visible-label";
+
+        /// <summary>Never returns; the renderer must degrade to a typed placeholder, not this type's fields.</summary>
+        [NarrativeSummary]
+#pragma warning disable S3877 // the throw is the fixture: a summary that refuses
+        public string Summary => throw new InvalidOperationException("summary refused for " + sentinel);
+#pragma warning restore S3877
     }
 
     /// <summary>A ring: every node holds the next, and the last holds the first.</summary>

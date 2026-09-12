@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/configuration.md blob 39d1b98903b3 | translated: 2026-09-07 | reviewed: - -->
+<!-- source: documentation/guides/configuration.md blob 20b9590e7323 | translated: 2026-09-11 | reviewed: - -->
 # NarrativeTrace .NET — Guia de configuração
 
 [English](../configuration.md) | [Español](../es/guia-de-configuracion.md) | **Português** | [简体中文](../zh-CN/配置指南.md)
@@ -70,14 +70,25 @@ configuração incorreta nunca derruba a captura.
 | Variável | Valores | Padrão |
 |---|---|---|
 | `NARRATIVETRACE_LEVEL` | `Off`, `Errors`, `Summary`, `Narrative`, `Detail` | `Detail` |
-| `NARRATIVETRACE_OUTPUT` | `true` / `false` (ou `1`) | `false` |
-| `NARRATIVETRACE_OUTPUT_DIR` | qualquer caminho com permissão de escrita | (nenhum) |
+| `NARRATIVETRACE_OUTPUT` | `true` / `false` (ou `1` / `0`) | `true` |
+| `NARRATIVETRACE_OUTPUT_DIR` | qualquer caminho com permissão de escrita | `TestResults/narrativetrace` |
 | `NARRATIVETRACE_FORMAT` | `Markdown`, `Text`, `Prose`, `Json` | `Markdown` |
 | `NARRATIVETRACE_CANONICAL_JSON` | `true` / `false` (ou `1`) | `false` |
 | `NARRATIVETRACE_STRUCTURAL_JSON` | `true` / `false` (ou `1`) | `false` |
 
 O parsing de nível e formato é tolerante (insensível a maiúsculas/minúsculas
 e pontuação: `detail`, `DETAIL` e `Detail` resolvem igualmente).
+
+`NARRATIVETRACE_OUTPUT` está **ativado por padrão** (decisão do
+responsável, 2026-09-11): os artefatos por teste que o fixture do xUnit e a
+base do NUnit escrevem são a recompensa de adotar esta biblioteca, então a
+escrita acontece sem nenhuma flag. Só um `NARRATIVETRACE_OUTPUT=false`
+explícito (ou `0`) desativa; `true`/`1` são aceitos como no-op para scripts
+que ainda os definem explicitamente. Sem uma sobrescrita de
+`NARRATIVETRACE_OUTPUT_DIR`, os arquivos caem em
+`TestResults/narrativetrace/` — a convenção do `.NET` que `dotnet test
+--results-directory` e o Visual Studio/Rider já tratam como descartável, e
+que o próprio `.gitignore` deste repositório já exclui.
 
 ```csharp
 var resolved = ConfigResolver.Resolve();          // lê o ambiente do processo
@@ -317,9 +328,9 @@ renderizadores, nem a nenhum logger.
 
 | Ambiente | Nível | Saída |
 |---|---|---|
-| Trabalho local em funcionalidades | `Detail` | `NARRATIVETRACE_OUTPUT=true`, `FORMAT=Markdown` |
-| Execuções de teste em CI | `Narrative` ou `Summary` | `OUTPUT=true`, `FORMAT=Markdown` |
-| Produção sensível a desempenho | `Errors` (ou `Off`) | sem saída em arquivo |
+| Trabalho local em funcionalidades | `Detail` | ativada por padrão, `FORMAT=Markdown` |
+| Execuções de teste em CI | `Narrative` ou `Summary` | ativada por padrão, `FORMAT=Markdown` |
+| Produção sensível a desempenho | `Errors` (ou `Off`) | nenhum fixture de teste roda aqui — sem saída em arquivo |
 
 ## Veja também
 

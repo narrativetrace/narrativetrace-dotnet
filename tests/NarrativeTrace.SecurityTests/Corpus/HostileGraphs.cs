@@ -74,6 +74,14 @@ public static class HostileGraphs
         "emptyContainers" => EmptyContainers(),
         "future" => Future(graphCase.State, sentinel),
         "throwable" => Throwable(graphCase.State, graphCase.N),
+        "curatedToString" => new HostileMembers.CuratedToStringRecord(sentinel),
+        "curatedToStringNested" => new HostileMembers.CuratedToStringRecordNested(
+            "visible-label", new HostileMembers.CuratedToStringRecord(sentinel)),
+        "mapKey" => new Dictionary<HostileMembers.CuratedToStringRecord, string>
+        {
+            [new HostileMembers.CuratedToStringRecord(sentinel)] = "value",
+        },
+        "throwingSummary" => new HostileMembers.ThrowingSummaryHolder(sentinel),
         _ => throw new ArgumentException($"unknown graph kind: {graphCase.Kind}"),
     };
 

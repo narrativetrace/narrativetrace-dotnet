@@ -32,6 +32,13 @@ namespace NarrativeTrace.SecurityTests;
 /// (<see cref="OutputDirectoryResolver"/>), so the full corpus — over-length and noncharacter cases
 /// included — runs unconditionally through every property below; nothing is excluded any more.
 /// </para>
+/// <para>
+/// @edgeCase The "noncharacter" case (U+FFFE/U+FFFF) is legal UTF-8 that ext4/NTFS accept but
+/// macOS/APFS refuses outright at the syscall level — see
+/// <see cref="FilesystemRefusesNoncharacters"/> on the two properties that touch a real
+/// filesystem. Still exercised everywhere, just against the platform-correct expectation
+/// instead of silently skipped.
+/// </para>
 /// </remarks>
 public class ArtifactNamingPropertyTests
 {
@@ -51,11 +58,29 @@ public class ArtifactNamingPropertyTests
 
         var classException = Record.Exception(
             () => Emitters.WrittenArtifacts(tree, output, name.Value, "m"));
-        Assert.Null(classException);
-
         var methodException = Record.Exception(
             () => Emitters.WrittenArtifacts(tree, output, "cls", name.Value));
-        Assert.Null(methodException);
+
+        if (FilesystemRefusesNoncharacters(name))
+        {
+            // Only the CLASS-name path carries the raw noncharacters to disk: it
+            // feeds OutputDirectoryResolver.ToDirectorySlug, which strips only what
+            // every path cannot carry at all (separators, control characters, lone
+            // surrogates) and otherwise keeps a name's own spelling — U+FFFE/U+FFFF
+            // pass through unfiltered into the directory CreateDirectory then
+            // refuses. ToFileSlug (the method-name path) is the narrower slug used
+            // for the leaf file name; its allow-list regex already reduces anything
+            // outside [a-z0-9_] to an underscore, so the same noncharacters never
+            // reach disk when they arrive as a method name instead — methodException
+            // is expected to stay null.
+            AssertRefusedByFilesystem(classException, name);
+            Assert.Null(methodException);
+        }
+        else
+        {
+            Assert.Null(classException);
+            Assert.Null(methodException);
+        }
 
         Directory.Delete(sandbox, recursive: true);
     }
@@ -74,16 +99,55 @@ public class ArtifactNamingPropertyTests
         var enclosure = SandboxFor(name.Id);
         var output = Path.Combine(enclosure, "out");
 
-        Emitters.WrittenArtifacts(tree, output, name.Value, name.Value);
-
-        var written = FilesUnder(enclosure);
-        Assert.True(written.Count > 0, $"{name.Id} wrote nothing, so nothing was checked");
-        foreach (var file in written)
+        if (FilesystemRefusesNoncharacters(name))
         {
-            Assert.StartsWith(output, file, StringComparison.Ordinal);
+            // The filesystem itself refuses to create the path (see
+            // FilesystemRefusesNoncharacters), so nothing reaches disk at all —
+            // trivially nothing escaped the sandbox either. Assert both halves of
+            // that explicitly rather than silently declaring victory.
+            var exception = Record.Exception(
+                () => Emitters.WrittenArtifacts(tree, output, name.Value, name.Value));
+            AssertRefusedByFilesystem(exception, name);
+            Assert.Empty(FilesUnder(enclosure));
+        }
+        else
+        {
+            Emitters.WrittenArtifacts(tree, output, name.Value, name.Value);
+
+            var written = FilesUnder(enclosure);
+            Assert.True(written.Count > 0, $"{name.Id} wrote nothing, so nothing was checked");
+            foreach (var file in written)
+            {
+                Assert.StartsWith(output, file, StringComparison.Ordinal);
+            }
         }
 
         Directory.Delete(enclosure, recursive: true);
+    }
+
+    /// <summary>
+    /// macOS/APFS refuses the noncharacters U+FFFE/U+FFFF outright at the syscall level — the
+    /// write fails with <see cref="IOException"/> ("Illegal byte sequence"), confirmed
+    /// empirically on this filesystem, not assumed — even though they are legal UTF-8 bytes
+    /// that ext4 and NTFS accept without complaint (see the corpus row's own description in
+    /// <c>HostileCorpus/names.json</c>). This is a filesystem-level refusal outside
+    /// <see cref="NarrativeTrace.Core.TraceArtifactWriter"/>/<see cref="OutputDirectoryResolver"/>'s
+    /// control, not a defect in either, so it is asserted here explicitly by name rather than
+    /// silently skipped: on any filesystem that accepts the byte sequence (this predicate
+    /// returns <see langword="false"/> there), the corpus case still runs the normal
+    /// no-exception assertion above unchanged.
+    /// </summary>
+    private static bool FilesystemRefusesNoncharacters(CorpusCase name) =>
+        name.Id == "noncharacter" && OperatingSystem.IsMacOS();
+
+    private static void AssertRefusedByFilesystem(Exception? exception, CorpusCase name)
+    {
+        Assert.True(
+            exception is IOException,
+            $"{name.Id}: expected macOS/APFS to refuse this name with an IOException, " +
+            $"got {exception?.GetType().Name ?? "no exception"}");
+        Assert.Contains(
+            "Illegal byte sequence", exception!.Message, StringComparison.Ordinal);
     }
 
     [Fact]

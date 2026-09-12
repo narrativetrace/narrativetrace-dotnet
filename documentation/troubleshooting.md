@@ -134,26 +134,34 @@ degrades to its default rather than throwing on an unrecognized value —
 **Fix:** don't rely on a typo being caught — double-check spelling, or log
 the resolved configuration at startup if you need to be sure.
 
-## `NARRATIVETRACE_OUTPUT=true` but no files appear
+## No trace files appear, even though output is on by default
 
-**Cause**, either of:
+**Cause**, one of:
 
+- `NARRATIVETRACE_OUTPUT=false` is set somewhere upstream (a CI variable, a
+  `.runsettings` env override, a parent shell) — the one switch that opts
+  out of the otherwise-on-by-default writer.
 - `NARRATIVETRACE_LEVEL` is `Off` — nothing was ever captured.
 - The trace really is empty. **An empty trace writes nothing at all, by
   design** — a missing artifact means "nothing was captured," not "the
   write failed." This usually means the test called the raw, unwrapped
   service instead of the proxy-wrapped one.
+- You're looking in the wrong place: with no `NARRATIVETRACE_OUTPUT_DIR`
+  override, files land under `TestResults/narrativetrace/` relative to the
+  test run's working directory, not the repo root.
 
-**Fix:** confirm the level isn't `Off`, and confirm you're calling through
-`NarrativeTraceProxy.Create<T>` (or an auto-wrapped DI service), not the
-bare implementation.
+**Fix:** confirm `NARRATIVETRACE_OUTPUT` isn't set to `false`, confirm the
+level isn't `Off`, confirm you're calling through
+`NarrativeTraceProxy.Create<T>` (or an auto-wrapped DI service) rather than
+the bare implementation, and check `TestResults/narrativetrace/` under the
+test project.
 
 ## `clarity-report.md` doesn't match what I expect from `NARRATIVETRACE_OUTPUT`
 
 **Cause:** the suite-level `clarity-results.json`/`clarity-report.md` are
 written whenever the suite fixture runs and accumulates at least one entry —
 **independent of `NARRATIVETRACE_OUTPUT`**. Only the per-test `.md`/`.json`/
-`.mmd`/`.nt` files need that flag.
+`.mmd`/`.nt` files are gated by that flag (on by default; `false` opts out).
 
 **Fix:** don't treat "no per-test trace files" as "no clarity report" —
 they're gated by two different conditions.

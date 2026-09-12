@@ -27,6 +27,11 @@ BEGIN {
     "DualPathPipeline (NarrationStreamListener in Examples.Common, logging through an\n" \
     "ordinary ILogger), formatting each event as it happens — the only view you get\n" \
     "without writing any rendering code, and what your log tool ingests.\n" \
+    "The SAME live stream also feeds the shipped NarrativeTrace.Logging bridge\n" \
+    "(LoggingTraceEventListener, wired once in DemoRun.Create — see\n" \
+    "documentation/guides/installation.md) into a real ILogger sink at\n" \
+    "narrativetrace-realistic.log next to this build, independent of the console view\n" \
+    "above — the file a production app's own logging provider would receive instead.\n" \
     "Configuration picks a renderer in exactly one place, trace files written from tests:\n" \
     "NARRATIVETRACE_OUTPUT=true with NARRATIVETRACE_FORMAT=markdown|text|mermaid|plantuml\n" \
     "(markdown is the default; the NarrativeTrace.MSBuild package's NarrativeTraceOutput /\n" \

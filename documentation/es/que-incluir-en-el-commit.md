@@ -1,4 +1,4 @@
-<!-- source: documentation/what-to-commit.md blob ff035537307e | translated: 2026-09-07 | reviewed: - -->
+<!-- source: documentation/what-to-commit.md blob fcbc186452ee | translated: 2026-09-11 | reviewed: - -->
 # Qué incluir en el commit
 
 [English](../what-to-commit.md) | **Español** | [Português](../pt-BR/o-que-incluir-no-commit.md) | [简体中文](../zh-CN/应提交的内容.md)
@@ -25,8 +25,13 @@ writers de esta implementación realmente producen, no asumido.
 | `glossary.md` | **Sí**, junto a `glossary.json` | Renderizado legible por humanos del mismo archivo, reescrito solo cuando cambian los bytes del JSON (anti-churn). |
 | `<output-dir>/glossary-usage.json` | No | Estadísticas de uso volátiles por ejecución — se regenera, no se cura. |
 
-`<output-dir>` por defecto es `./narrativetrace-output` cuando
-`NARRATIVETRACE_OUTPUT_DIR` no está definido. Añádelo a `.gitignore` a
+La escritura de trazas está **activada por defecto** (define
+`NARRATIVETRACE_OUTPUT=false` para desactivarla); `<output-dir>` por
+defecto es `./TestResults/narrativetrace` cuando `NARRATIVETRACE_OUTPUT_DIR`
+no está definido — la convención de `.NET` que `dotnet test
+--results-directory` y Visual Studio/Rider ya tratan como salida
+desechable, y que el propio `.gitignore` de este repositorio ya excluye.
+Mantenlo fuera del control de versiones también en tus propios proyectos, a
 menos que tengas una razón concreta de CI para archivarlo como artefacto
 de build (que es una decisión de retención de CI, no una de "hacer commit
 al control de versiones").

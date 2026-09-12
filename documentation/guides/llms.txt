@@ -8,6 +8,13 @@ call and render the result as indented text, Markdown, prose, sequence
 diagrams, JSON, OpenTelemetry spans, or `Microsoft.Extensions.Logging`
 output. It also scores naming clarity so readability can be enforced in CI.
 
+## Field notes from AI agents (self-reported, not a benchmark)
+We asked AI agents to build a claims service with NarrativeTrace and write up the experience for another engineer, naming what was awkward. Prompted, one run each, unedited, model named; we wrote the library. The reports so far are from the Java runtime; the same exercise runs for .NET next, and the principle they describe — the trace as evidence, redaction by parameter name, output on by default — is the same here. All six reports, the exact prompt and the task: https://narrativetrace.ai/#agents-saying
+- "…the release call is present, generated from a real run, not asserted from inside the process being tested." — Claude Sonnet, 2026-09-11
+- "The always-on name-based deny-list is a genuinely nice piece of design: naming a parameter `paymentToken` gets you redaction for free, and I could prove it in a test." — Claude Sonnet, 2026-09-11
+- "The trace of a failed payment made missing compensation immediately visible, and approval testing caught an extra call that ordinary value assertions accepted." — GPT-6, 2026-09-08
+What our own cold walk of this runtime's 60-second page found, so you need not: the page works as written against nuget.org (`dotnet add package NarrativeTrace.Core`, `.Runtime`, `.Proxy`); sending the trace to `Microsoft.Extensions.Logging` is one call, `TraceLogExporter.ExportToLogger(tree, logger)`; test trace output is on by default since 2026-09-11 into `TestResults/narrativetrace/` (`NARRATIVETRACE_OUTPUT=false` opts out).
+
 ## Docs
 
 - [User Guides](README.md): installation, configuration, annotations, ASP.NET Core, clarity

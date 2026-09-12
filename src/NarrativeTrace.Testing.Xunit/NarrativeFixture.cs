@@ -23,9 +23,10 @@ namespace NarrativeTrace.TestingXunit;
 /// not parallelize within a class.
 /// </para>
 /// <para>
-/// Artifact writing is opt-in through <c>NARRATIVETRACE_OUTPUT</c>; with it
-/// unset, <see cref="WriteArtifacts(string, string, bool)"/> does nothing, so
-/// the fixture is inert in normal test runs.
+/// Artifact writing is <b>on by default</b> (owner ruling, 2026-09-11):
+/// <see cref="WriteArtifacts(string, string, bool)"/> writes to the ephemeral,
+/// gitignored <see cref="TestArtifactSettings.DefaultDirectory"/> unless
+/// <c>NARRATIVETRACE_OUTPUT=false</c> opts out.
 /// </para>
 /// </remarks>
 /// <example>
@@ -101,8 +102,9 @@ public sealed class NarrativeFixture : IDisposable
     public INarrativeContext Context => _context;
 
     /// <summary>
-    /// When <c>NARRATIVETRACE_OUTPUT</c> is enabled, writes this test's captured
-    /// trace to disk in the resolved format and directory (a no-op otherwise).
+    /// Writes this test's captured trace to disk in the resolved format and
+    /// directory. On by default; a no-op only when
+    /// <c>NARRATIVETRACE_OUTPUT=false</c> opts out.
     /// </summary>
     public void WriteArtifacts(
         string testClass, string testMethod, bool failed)

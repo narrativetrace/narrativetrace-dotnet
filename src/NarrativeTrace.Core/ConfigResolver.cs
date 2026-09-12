@@ -7,7 +7,12 @@ namespace NarrativeTrace.Core;
 /// Resolved ambient configuration for a trace run.
 /// </summary>
 /// <param name="Level">The capture level in force.</param>
-/// <param name="Output">Whether per-test trace artifacts are written at all.</param>
+/// <param name="Output">
+/// Whether per-test trace artifacts are written at all. <b>On by default</b> —
+/// the artifact is the point of wrapping a service in a test, so writing
+/// happens unless <see cref="ConfigResolver.OutputKey"/> is explicitly set to
+/// <c>false</c>.
+/// </param>
 /// <param name="OutputDir">The artifact root, or null for the caller's default.</param>
 /// <param name="Format">The primary artifact format.</param>
 /// <param name="CanonicalJson">
@@ -48,9 +53,13 @@ public static class ConfigResolver
     public const string LevelKey = "NARRATIVETRACE_LEVEL";
 
     /// <summary>
-    /// Environment variable enabling trace output. Only <c>"true"</c>
-    /// (case-insensitive) and <c>"1"</c> enable it; every other value,
-    /// <c>"yes"</c> and <c>"on"</c> included, reads as disabled.
+    /// Environment variable controlling whether per-test trace artifacts are
+    /// written to disk. <b>On by default</b> (owner ruling, 2026-09-11):
+    /// unset — or any value other than <c>"false"</c> (case-insensitive) or
+    /// <c>"0"</c> — leaves writing enabled. Setting it to <c>"true"</c> (or
+    /// <c>"1"</c>) is accepted as a no-op for compatibility with existing
+    /// scripts that set it explicitly. Only <c>"false"</c>/<c>"0"</c> opts
+    /// out.
     /// </summary>
     public const string OutputKey = "NARRATIVETRACE_OUTPUT";
 
@@ -116,7 +125,7 @@ public static class ConfigResolver
         return new ResolvedConfig(
             TracingLevelExtensions.FromName(
                 read(LevelKey), defaultLevel),
-            ParseBool(read(OutputKey)),
+            ParseOutputFlag(read(OutputKey)),
             NullIfBlank(read(OutputDirKey)),
             OutputFormatExtensions.FromName(
                 read(FormatKey), OutputFormat.Markdown),
@@ -132,6 +141,25 @@ public static class ConfigResolver
                     value.Trim(), "true",
                     StringComparison.OrdinalIgnoreCase)
                 || value.Trim() == "1");
+    }
+
+    /// <summary>
+    /// Parses <see cref="OutputKey"/>: the inverse lenience of
+    /// <see cref="ParseBool"/>, since this switch is on by default. Only an
+    /// explicit <c>"false"</c> (case-insensitive) or <c>"0"</c> disables it —
+    /// unset, <c>"true"</c>, and any unrecognized value (a typo, <c>"yes"</c>,
+    /// <c>"on"</c>) all resolve to enabled, the safe default.
+    /// </summary>
+    private static bool ParseOutputFlag(string? value)
+    {
+        if (value is null)
+        {
+            return true;
+        }
+
+        var trimmed = value.Trim();
+        return !string.Equals(trimmed, "false", StringComparison.OrdinalIgnoreCase)
+            && trimmed != "0";
     }
 
     private static bool IsOff(string? value)

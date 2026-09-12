@@ -139,7 +139,7 @@ public class ValueRendererTotalityTests
 
         Assert.Contains("\"a\"", result);
         Assert.Contains("\"c\"", result);
-        Assert.Contains("<ThrowingToStringValue>", result);
+        Assert.Contains("<error: InvalidOperationException>", result);
     }
 
     private sealed class ThrowingGetEnumerator : System.Collections.IEnumerable

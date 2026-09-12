@@ -9,7 +9,11 @@ namespace NarrativeTrace.Core;
 /// environment. Shared by the xUnit and NUnit integrations so both gate output
 /// identically.
 /// </summary>
-/// <param name="Enabled">Whether artifacts are written at all.</param>
+/// <param name="Enabled">
+/// Whether artifacts are written at all. <b>On by default</b> (owner ruling,
+/// 2026-09-11) — set <see cref="ConfigResolver.OutputKey"/> to <c>false</c>
+/// to opt out.
+/// </param>
 /// <param name="Directory">The artifact root.</param>
 /// <param name="Format">The primary artifact format.</param>
 /// <param name="EntryArtifacts">
@@ -23,10 +27,16 @@ public sealed record TestArtifactSettings(
     EntryArtifacts EntryArtifacts = default)
 {
     /// <summary>
-    /// The directory used when none is configured — relative, so it lands under
+    /// The directory used when <see cref="ConfigResolver.OutputDirKey"/> isn't
+    /// set: <c>TestResults/</c> is the one location every .NET test convention
+    /// already treats as ephemeral — it's what <c>dotnet test
+    /// --results-directory</c> and Visual Studio/Rider write TRX and coverage
+    /// output into, and this repository's own <c>.gitignore</c> already
+    /// excludes it — nested one level under <c>narrativetrace/</c> so this
+    /// runtime's files don't collide with those. Relative, so it lands under
     /// the test run's working directory.
     /// </summary>
-    public const string DefaultDirectory = "narrativetrace-output";
+    public const string DefaultDirectory = "TestResults/narrativetrace";
 
     /// <summary>Resolves artifact settings from a configuration source.</summary>
     /// <param name="read">

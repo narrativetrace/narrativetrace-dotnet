@@ -1,4 +1,4 @@
-<!-- source: documentation/privacy-and-redaction.md blob e30ee83747b0 | translated: 2026-09-07 | reviewed: - -->
+<!-- source: documentation/privacy-and-redaction.md blob 07afc780d0bb | translated: 2026-09-11 | reviewed: - -->
 # Privacidade e ocultação
 
 [English](../privacy-and-redaction.md) | [Español](../es/privacidad-y-ocultacion.md) | **Português** | [简体中文](../zh-CN/隐私与脱敏.md)
@@ -128,12 +128,46 @@ ocultação:
   retorno e mensagem de exceção — um teste de propriedades semeia
   conteúdo hostil em todo campo de valor de uma entrada capturada e
   falha se algo disso sobrevive à projeção.
+- **O próprio `ToString()` de um valor nunca é confiável assim que seu
+  tipo tem estado público.** Um record ou uma classe que expõe pelo menos
+  uma propriedade ou campo público é sempre renderizado refletindo sobre
+  esses membros pelo mesmo caminho verificado pela ocultação — um membro
+  na lista de negação ou `[NotTraced]` é substituído pelo marcador *antes*
+  de qualquer coisa ler seu valor, e o próprio `ToString()` do tipo nunca
+  é invocado para produzir a saída, em qualquer profundidade de
+  aninhamento. Um `ToString()` escrito à mão que interpola um campo da
+  lista de negação diretamente (`return "Account[password=" + password +
+  "]";`) não consegue burlar isso: em vez disso, a reflexão renderiza o
+  objeto, e aquele texto escrito à mão nunca é alcançado. A única via de
+  entrada além da reflexão é `[NarrativeSummary]` em um membro que você
+  mesmo nomeou — veja a não garantia abaixo. Um tipo sem nenhum membro
+  público (nada para percorrer) é o único caso em que seu próprio
+  `ToString()` é usado, e mesmo assim o resultado é sanitizado e limitado
+  em comprimento como qualquer outra string.
 - **A renderização não pode fazer sua aplicação falhar.** A captura e a
-  renderização são isoladas de exceções em todo ponto de risco: um
-  `ToString()` personalizado que lança, um membro `[NarrativeSummary]`
-  que lança, um getter de propriedade que lança nomeado em um template,
-  um enumerador ou dicionário hostil — cada um degrada para um marcador
-  de posição sem abortar a chamada, a coleção ou a trace.
+  renderização são isoladas de exceções nos três pontos que alcançam
+  código escrito por quem chama: um `ToString()` personalizado que lança,
+  um membro `[NarrativeSummary]` que lança, e um getter de propriedade ou
+  campo que lança ao ser alcançado pela introspecção reflexiva (incluindo
+  um nomeado em um template). Cada um degrada *essa única parte* para um
+  marcador de posição tipado `<error: TypeName>` — o nome do próprio tipo
+  da exceção capturada, ex. `<error: InvalidOperationException>`, nunca
+  sua `.Message` (uma mensagem pode carregar o próprio valor que a
+  renderização tentava proteger) — sem abortar a chamada, a coleção ou a
+  trace. Um `[NarrativeSummary]` que lança degrada da mesma forma em vez
+  de recair sobre os campos do tipo: o resumo foi curado precisamente
+  para que os campos não fossem mostrados crus. Isso é uma proteção de
+  `try`/`catch`, não uma proteção de profundidade de pilha — uma
+  `StackOverflowException` de um `ToString()` que recorre é uma falha não
+  gerenciada do CLR que nenhum manipulador gerenciado consegue capturar,
+  então nunca é alcançada por este caminho. O que de fato impede um tipo
+  que recorre é o limite `MaxDepth` da reflexão e sua proteção de ciclos
+  por identidade de referência, que também é a razão pela qual o próprio
+  `ToString()` de um tipo só é invocado para um valor folha sem membros
+  públicos para percorrer, nunca para o composto que está recorrendo. Um
+  enumerador ou dicionário hostil é um risco à parte, igualmente
+  protegido mas fora desses três pontos de entrada nomeados, e degrada
+  para um `<error>` simples em vez da forma tipada.
 - **O uso de recursos é limitado.** Comprimento, tamanho de coleção,
   largura de objeto e profundidade de aninhamento são todos limitados,
   com detecção de ciclos por identidade de referência independente da
@@ -142,6 +176,15 @@ ocultação:
   sem par são escapados antes de um valor renderizado chegar a um
   arquivo, então um valor hostil não pode injetar uma linha de log falsa
   nem corromper a sintaxe de Markdown/JSON/diagrama.
+- **Os artefatos de teste caem em um lugar efêmero, não no controle de
+  versão.** As integrações de teste do xUnit e do NUnit escrevem, por
+  padrão, em `TestResults/narrativetrace/` sob o projeto de teste — o
+  mesmo local que `dotnet test`/Visual Studio/Rider já tratam como saída
+  descartável, e que o próprio `.gitignore` deste repositório exclui.
+  Defina `NARRATIVETRACE_OUTPUT=false` para parar de escrever
+  completamente, ou `NARRATIVETRACE_OUTPUT_DIR` para redirecioná-la;
+  veja [O que incluir no commit](o-que-incluir-no-commit.md) para saber o
+  que há dentro e se algo disso pertence ao seu próprio repositório.
 
 ## Não garantias
 
@@ -160,13 +203,20 @@ ocultação:
   com nome inocente e um formato não reconhecido não é capturado. Isso é
   uma rede de segurança, não uma garantia de que todo segredo será
   encontrado.
-- **O próprio `ToString()`/`[NarrativeSummary]` de um valor é código
-  confiável.** Uma vez que um valor é capturado por conta própria (não
-  atrás de um membro ocultado), o renderizador confia no que quer que o
-  método de resumo daquele tipo escolha expor — o mesmo modelo de
-  confiança de um `ToString()` escrito à mão que você leria em um
-  depurador. Anote o *membro* com `[NotTraced]` se o resumo próprio de um
-  tipo não puder ser confiado com um campo.
+- **Um membro `[NarrativeSummary]` é código confiável, uma vez que você o
+  nomeou.** Esta é a única exceção deliberada à garantia acima: anotar um
+  membro tira aquele tipo completamente da reflexão, e o renderizador
+  mostra apenas o que o resumo retorna — diferente de um `ToString()`
+  simples (nunca confiável para um tipo com estado público), um membro
+  `[NarrativeSummary]` *é* confiável, precisamente porque nomeá-lo foi um
+  ato deliberado no seu próprio código-fonte. Se o próprio resumo devolver
+  um campo, isso é o resumo que você escreveu escolhendo expô-lo, o mesmo
+  modelo de confiança de um `ToString()` escrito à mão que você leria em
+  um depurador — não uma brecha que o renderizador introduziu. Se em vez
+  disso ele lançar, o valor degrada para o marcador tipado
+  `<error: TypeName>`, nunca um vazamento do que ele mostraria. Anote o
+  *membro* com `[NotTraced]` em vez disso se o resumo próprio de um tipo
+  não puder ser confiado com um campo.
 - **Nenhum loop de comparação com linha de base em produção lê o
   artefato estrutural de volta ainda.** O arquivo `.nt` é determinístico
   e sem valores por construção, mas esta implementação não distribui nada que o

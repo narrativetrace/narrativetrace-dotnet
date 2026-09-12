@@ -44,8 +44,11 @@ public class ConfigResolverTests
     [InlineData("TRUE", true)]
     [InlineData("1", true)]
     [InlineData("false", false)]
+    [InlineData("FALSE", false)]
     [InlineData("0", false)]
-    [InlineData("yes", false)]
+    [InlineData("yes", true)]
+    [InlineData("on", true)]
+    [InlineData("garbage", true)]
     public void Parses_output_flag(string value, bool expected)
     {
         var config = ConfigResolver.Resolve(
@@ -55,11 +58,20 @@ public class ConfigResolverTests
     }
 
     [Fact]
-    public void Output_defaults_to_false_when_absent()
+    public void Output_defaults_to_true_when_absent()
     {
         var config = ConfigResolver.Resolve(Env(), TracingLevel.Detail);
 
-        Assert.False(config.Output);
+        Assert.True(config.Output);
+    }
+
+    [Fact]
+    public void Output_is_disabled_only_by_an_explicit_false_or_zero()
+    {
+        Assert.False(ConfigResolver.Resolve(
+            Env(("NARRATIVETRACE_OUTPUT", "false")), TracingLevel.Detail).Output);
+        Assert.False(ConfigResolver.Resolve(
+            Env(("NARRATIVETRACE_OUTPUT", "0")), TracingLevel.Detail).Output);
     }
 
     [Fact]

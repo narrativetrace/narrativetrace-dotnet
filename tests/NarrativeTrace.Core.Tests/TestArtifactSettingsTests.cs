@@ -9,14 +9,24 @@ namespace NarrativeTrace.Core.Tests;
 public class TestArtifactSettingsTests
 {
     [Fact]
-    public void Defaults_to_disabled_markdown_in_default_directory()
+    public void Defaults_to_enabled_markdown_in_the_ephemeral_default_directory()
     {
         var settings = TestArtifactSettings.Resolve(_ => null);
 
-        Assert.False(settings.Enabled);
+        Assert.True(settings.Enabled);
         Assert.Equal(
             TestArtifactSettings.DefaultDirectory, settings.Directory);
+        Assert.Equal("TestResults/narrativetrace", settings.Directory);
         Assert.Equal(TraceArtifactFormat.Markdown, settings.Format);
+    }
+
+    [Fact]
+    public void Explicit_false_opts_out_of_writing()
+    {
+        var settings = TestArtifactSettings.Resolve(
+            key => key == ConfigResolver.OutputKey ? "false" : null);
+
+        Assert.False(settings.Enabled);
     }
 
     [Fact]
@@ -35,6 +45,16 @@ public class TestArtifactSettingsTests
         Assert.True(settings.Enabled);
         Assert.Equal("artifacts/traces", settings.Directory);
         Assert.Equal(TraceArtifactFormat.Mermaid, settings.Format);
+    }
+
+    [Fact]
+    public void The_override_directory_key_still_works_when_output_is_the_default()
+    {
+        var settings = TestArtifactSettings.Resolve(
+            key => key == ConfigResolver.OutputDirKey ? "custom/dir" : null);
+
+        Assert.True(settings.Enabled);
+        Assert.Equal("custom/dir", settings.Directory);
     }
 
     [Fact]

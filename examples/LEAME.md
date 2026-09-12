@@ -1,4 +1,4 @@
-<!-- source: examples/README.md blob ed5a75d0d1a0 | translated: 2026-09-06 | reviewed: - -->
+<!-- source: examples/README.md blob d2dbe3dbaf5e | translated: 2026-09-11 | reviewed: - -->
 # Ejemplos de NarrativeTrace
 
 [English](README.md) | **Español** | [简体中文](自述文件.md)
@@ -74,11 +74,11 @@ renderizador en absoluto: son un listener sobre el `DualPathPipeline`
 (`NarrationStreamListener` en `Examples.Common`, el gemelo `ILogger` del
 `Slf4jTraceEventListener` de Java), la única vista que no cuesta código de renderizado. La
 configuración elige un renderizador en exactamente un lugar, los archivos de traza
-escritos desde las pruebas: `NARRATIVETRACE_OUTPUT=true` más
-`NARRATIVETRACE_FORMAT=markdown|text|mermaid|plantuml`, donde `markdown` es el valor por
-defecto y las propiedades `NarrativeTraceOutput` / `NarrativeTraceFormat` del paquete
-`NarrativeTrace.MSBuild` ajustan los mismos interruptores. Cada marcador de sección nombra
-el renderizador que lo produjo.
+escritos desde las pruebas (activado por defecto; `NARRATIVETRACE_OUTPUT=false`
+lo desactiva): `NARRATIVETRACE_FORMAT=markdown|text|mermaid|plantuml`, donde
+`markdown` es el valor por defecto y las propiedades `NarrativeTraceOutput` /
+`NarrativeTraceFormat` del paquete `NarrativeTrace.MSBuild` ajustan los mismos
+interruptores. Cada marcador de sección nombra el renderizador que lo produjo.
 
 **La salida de log clásica es un modo de primera clase.** La narración es tráfico
 `ILogger` corriente a través de un proveedor de logging corriente, así que se renderiza
@@ -182,6 +182,33 @@ marcadores de sección; `ConsoleLoggerFactory` es la `ILoggerFactory` sin depend
 por la que loguean las ejecuciones, en formato escueto o clásico; `DemoOptions` analiza
 `--classic`. Es andamiaje de ejemplo, no código del producto: una aplicación real conecta
 su propio proveedor de logging en la misma costura `ILogger`.
+
+## Dónde está configurado el logger
+
+Todos los ejemplos envían su traza a un logger real, no solo a la consola estilizada de
+arriba. `DemoRun.Create` (`examples/NarrativeTrace.Examples.Common/DemoRun.cs`) es la
+única raíz de composición que comparten los cuatro ejemplos, y en ella se conecta el
+puente ya incluido `NarrativeTrace.Logging` (`LoggingTraceEventListener` — ver la
+[Guía de instalación](../documentation/guides/es/guia-de-instalacion.md)) como un segundo
+listener, independiente, sobre el mismo stream de eventos en vivo del que sale la
+narración de consola. Como la vista de consola de la demo está deliberadamente
+estilizada para leerse (el recorrido colorizado de `./demo.sh`), el puente escribe en un
+archivo de log real en vez de intercalarse con ella:
+
+| Ejemplo | Salida del logger real |
+|---|---|
+| `NarrativeTrace.Examples.ECommerce` | `examples/NarrativeTrace.Examples.ECommerce/bin/<Debug\|Release>/net10.0/narrativetrace-realistic.log` |
+| `NarrativeTrace.Examples.Clarity` | `examples/NarrativeTrace.Examples.Clarity/bin/<Debug\|Release>/net10.0/narrativetrace-realistic.log` |
+| `NarrativeTrace.Examples.Minecraft` | `examples/NarrativeTrace.Examples.Minecraft/bin/<Debug\|Release>/net10.0/narrativetrace-realistic.log` |
+| `NarrativeTrace.Examples.Library` | `examples/NarrativeTrace.Examples.Library/bin/<Debug\|Release>/net10.0/narrativetrace-realistic.log` |
+
+Ejecuta cualquier ejemplo (`dotnet run --project examples/<nombre>`, o `./demo.sh`) y
+abre su archivo: formato tradicional de herramienta de logs (timestamp, nivel, hilo,
+nombre del logger), parámetros redactados como `[REDACTED]`, excepciones y eventos de
+ciclo de vida fork/join incluidos, producidos por el mismo paquete que instalaría un
+proyecto real (`dotnet add package NarrativeTrace.Logging`). La nota de cableado del
+propio launcher de la demo, en la primera sección `--- Trace tree ---`, también nombra
+este archivo.
 
 ## Puertas de calidad
 

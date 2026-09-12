@@ -208,13 +208,17 @@ The library reads four `NARRATIVETRACE_*` environment variables through
 | Variable | Values | Default |
 |---|---|---|
 | `NARRATIVETRACE_LEVEL` | `Off`, `Errors`, `Summary`, `Narrative`, `Detail` | `Detail` |
-| `NARRATIVETRACE_OUTPUT` | `true` / `false` (also `1`) | `false` |
-| `NARRATIVETRACE_OUTPUT_DIR` | any writable path | (none) |
+| `NARRATIVETRACE_OUTPUT` | `true` / `false` (also `1` / `0`) | `true` |
+| `NARRATIVETRACE_OUTPUT_DIR` | any writable path | `TestResults/narrativetrace` |
 | `NARRATIVETRACE_FORMAT` | `Markdown`, `Text`, `Prose`, `Json` | `Markdown` |
 
 Invalid values degrade to the default rather than throwing, so bad
 configuration never crashes capture. Level parsing is case- and
 punctuation-lenient (`detail`, `DETAIL`, `Detail` all resolve).
+`NARRATIVETRACE_OUTPUT` is on by default — the xUnit fixture and NUnit base
+write per-test artifacts to `TestResults/narrativetrace/` (ephemeral,
+already gitignored by the `.NET` `TestResults/` convention) without any
+flag; set it to `false` to opt out.
 
 ## Validate installation
 

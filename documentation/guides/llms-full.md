@@ -333,8 +333,10 @@ values are captured only at `Detail`.
 `ResolvedConfig(Level, Output, OutputDir, Format, CanonicalJson, StructuralJson)`:
 
 - `NARRATIVETRACE_LEVEL` (default `Detail`)
-- `NARRATIVETRACE_OUTPUT` (`true`/`false`/`1`, default `false`)
-- `NARRATIVETRACE_OUTPUT_DIR` (default none)
+- `NARRATIVETRACE_OUTPUT` (`true`/`false`/`1`/`0`, default `true` — on by
+  default since 2026-09-11; only an explicit `false`/`0` opts out)
+- `NARRATIVETRACE_OUTPUT_DIR` (default `TestResults/narrativetrace`, the
+  ephemeral, already-gitignored `.NET` test-output convention)
 - `NARRATIVETRACE_FORMAT` (`Markdown`/`Text`/`Prose`/`Json`, default `Markdown`)
 - `NARRATIVETRACE_CANONICAL_JSON` (default `false`) — also write
   `<test>.canonical.json`, the trace flattened into `entry.schema.json` entries

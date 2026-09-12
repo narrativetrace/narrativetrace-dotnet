@@ -114,17 +114,57 @@ Every rendered value is capped and sanitized, regardless of redaction:
   every parameter value, return value, and exception message — a property
   test seeds hostile content into every value field of a captured entry and
   fails if any of it survives the projection.
+- **A value's own `ToString()` is never trusted once its type has public
+  state.** A record or class that exposes at least one public property or
+  field is always rendered by reflecting over those members through the
+  same redaction-checked path — a deny-listed or `[NotTraced]` member is
+  substituted with the marker *before* anything reads its value, and the
+  type's own `ToString()` is never invoked to produce the output, at any
+  nesting depth. A hand-written `ToString()` that interpolates a
+  deny-listed field directly (`return "Account[password=" + password +
+  "]";`) cannot bypass this: the reflective walk renders the object
+  instead, and that hand-written text is never reached. The only opt-in
+  past the walk is `[NarrativeSummary]` on a member you named yourself —
+  see the non-guarantee below. A type with genuinely no public members at
+  all (nothing to walk) is the sole case where its own `ToString()` is
+  used, and even then the result is sanitized and length-capped like every
+  other string.
 - **Rendering cannot fail your application.** Capture and rendering are
-  exception-isolated at every hazard: a throwing custom `ToString()`, a
-  throwing `[NarrativeSummary]` member, a throwing property getter named in
-  a template, a hostile enumerator or dictionary — each degrades to a
-  placeholder without aborting the call, the collection, or the trace.
+  exception-isolated at the three points that reach caller-written code: a
+  throwing custom `ToString()`, a throwing `[NarrativeSummary]` member, and
+  a throwing property/field getter reached during reflective introspection
+  (including one named in a template). Each degrades *that one part* to a
+  typed `<error: TypeName>` placeholder — the caught exception's own type
+  name, e.g. `<error: InvalidOperationException>`, never its `.Message`
+  (a message can carry the very value the render was protecting) — without
+  aborting the call, the collection, or the trace. A throwing
+  `[NarrativeSummary]` degrades the same way rather than falling back to
+  the type's fields: the summary was curated precisely so the fields
+  wouldn't be shown raw. This is a `try`/`catch` guard, not a stack-depth
+  guard — a `StackOverflowException` from a recursing `ToString()` is an
+  unmanaged CLR fault no managed handler can catch, so it is never reached
+  through this path. What actually stops a recursing type is the
+  reflective walk's `MaxDepth` cap and its reference-identity cycle guard,
+  which is also why a type's own `ToString()` is only ever entered for a
+  leaf value with no public members left to walk, never for the composite
+  doing the recursing. A hostile enumerator or dictionary is a separate,
+  still-guarded hazard outside those three named extension points, and
+  degrades to a bare `<error>` rather than the typed form.
 - **Resource use is bounded.** Length, collection size, object width, and
   nesting depth are all capped, with reference-identity cycle detection
   independent of depth.
 - **Output cannot be forged.** Control characters and unpaired surrogates
   are escaped before a rendered value reaches a file, so a hostile value
   cannot inject a fake log line or corrupt Markdown/JSON/diagram syntax.
+- **Test artifacts land somewhere ephemeral, not source control.** The xUnit
+  and NUnit test integrations write on by default to
+  `TestResults/narrativetrace/` under the test project — the same location
+  `dotnet test`/Visual Studio/Rider already treat as disposable output, and
+  which this repository's own `.gitignore` excludes. Set
+  `NARRATIVETRACE_OUTPUT=false` to stop writing entirely, or
+  `NARRATIVETRACE_OUTPUT_DIR` to redirect it; see
+  [What to Commit](what-to-commit.md) for what's inside and whether any of
+  it belongs in your own repository.
 
 ## Non-guarantees
 
@@ -140,12 +180,20 @@ Every rendered value is capped and sanitized, regardless of redaction:
   entropy or "looks random" heuristic — a secret sitting in an innocuously
   named field with an unrecognized shape is not caught. This is a backstop,
   not a guarantee that every secret is found.
-- **A value's own `ToString()`/`[NarrativeSummary]` is trusted code.** Once
-  a value is captured on its own (not behind a redacted member), the
-  renderer trusts whatever that type's summary method chooses to expose —
-  the same trust model as a hand-written `ToString()` you'd read in a
-  debugger. Annotate the *member* with `[NotTraced]` if a type's own summary
-  can't be trusted with a field.
+- **A `[NarrativeSummary]` member is trusted code, once you've named it.**
+  This is the one deliberate exception to the guarantee above: annotating a
+  member opts that type out of the reflective walk entirely, and the
+  renderer shows only what the summary returns — unlike a plain
+  `ToString()` (never trusted for a type with public state), a
+  `[NarrativeSummary]` member *is* trusted, precisely because naming it was
+  a deliberate act in your own source. If the summary itself echoes a
+  field back, that is the summary you wrote choosing to expose it, the
+  same trust model as a hand-written `ToString()` you'd read in a
+  debugger — not a gap the renderer introduced. If it throws instead, the
+  value degrades to the typed `<error: TypeName>` placeholder, never a
+  leak of whatever it would have shown. Annotate the *member* with
+  `[NotTraced]` instead if a type's own summary can't be trusted with a
+  field.
 - **No production baseline-comparison loop reads the structural artifact
   back yet.** The `.nt` file is deterministic and value-free by
   construction, but this runtime doesn't ship anything that diffs it against a

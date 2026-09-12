@@ -214,13 +214,17 @@ public class ValueRendererTests
     }
 
     [Fact]
-    public void NarrativeSummary_that_throws_falls_through_to_fields()
+    public void NarrativeSummary_method_that_throws_renders_typed_error_marker()
     {
         var obj = new ThrowingSummary { Value = 7 };
 
         var result = ValueRenderer.Render(obj);
 
-        Assert.Contains("Value: 7", result);
+        // A curated summary was written precisely so the fields wouldn't be
+        // shown raw — a throwing summary must not fall back to dumping them.
+        Assert.Equal("<error: InvalidOperationException>", result);
+        Assert.DoesNotContain("Value: 7", result);
+        Assert.DoesNotContain("boom", result, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -232,11 +236,15 @@ public class ValueRendererTests
     }
 
     [Fact]
-    public void NarrativeSummary_property_that_throws_falls_through_to_fields()
+    public void NarrativeSummary_property_that_throws_renders_typed_error_marker()
     {
         var obj = new ThrowingPropertySummary { Value = 7 };
 
-        Assert.Contains("Value: 7", ValueRenderer.Render(obj));
+        var result = ValueRenderer.Render(obj);
+
+        Assert.Equal("<error: InvalidOperationException>", result);
+        Assert.DoesNotContain("Value: 7", result);
+        Assert.DoesNotContain("boom", result, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -463,11 +471,14 @@ public class ValueRendererTests
     }
 
     [Fact]
-    public void ToString_exception_falls_back_to_type_name()
+    public void ToString_exception_renders_typed_error_marker()
     {
         var obj = new ThrowingToString();
 
-        Assert.Equal("<ThrowingToString>", ValueRenderer.Render(obj));
+        var result = ValueRenderer.Render(obj);
+
+        Assert.Equal("<error: InvalidOperationException>", result);
+        Assert.DoesNotContain("boom", result, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -493,13 +504,14 @@ public class ValueRendererTests
     }
 
     [Fact]
-    public void Throwing_property_renders_as_error()
+    public void Throwing_property_renders_typed_error_marker()
     {
         var obj = new ThrowingProperty();
 
         var result = ValueRenderer.Render(obj);
 
-        Assert.Equal("ThrowingProperty{Boom: <error>}", result);
+        Assert.Equal("ThrowingProperty{Boom: <error: InvalidOperationException>}", result);
+        Assert.DoesNotContain("boom", result, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -541,16 +553,17 @@ public class ValueRendererTests
     }
 
     [Fact]
-    public void Throwing_dictionary_key_renders_a_type_placeholder()
+    public void Throwing_dictionary_key_renders_a_typed_error_placeholder()
     {
         var dict = new System.Collections.Hashtable();
         dict[new ThrowingToString()] = "value";
 
         var result = ValueRenderer.Render(dict);
 
-        // The guarded path names the type (Java: `<ExplodingKey>`); the old
-        // bare-ToString path could only say `<error>`.
-        Assert.Equal("{<ThrowingToString>=\"value\"}", result);
+        // The guarded path names the caught exception's type (Java:
+        // `<ExplodingKey>`); the old bare-ToString path could only say
+        // `<error>`.
+        Assert.Equal("{<error: InvalidOperationException>=\"value\"}", result);
     }
 
     [Fact]

@@ -1,98 +1,98 @@
 {
   "ConcurrencyBenchmarks.DetectOverlapping": {
-    "meanNs": 29.33,
+    "meanNs": 29.34,
     "allocatedBytes": 40
   },
   "ConcurrencyBenchmarks.DetectSequential": {
-    "meanNs": 85.27,
+    "meanNs": 86.86,
     "allocatedBytes": 40
   },
   "ConcurrencyBenchmarks.ExportForkJoinJson": {
-    "meanNs": 9326.33,
-    "allocatedBytes": 45660
+    "meanNs": 8843.69,
+    "allocatedBytes": 47435
   },
   "ConcurrencyBenchmarks.FireAndForget_Launch": {
-    "meanNs": 1718.9,
-    "allocatedBytes": 2320
+    "meanNs": 1271.39,
+    "allocatedBytes": 2720
   },
   "ConcurrencyBenchmarks.ForkJoin_TwoTasks": {
-    "meanNs": 3877.28,
-    "allocatedBytes": 5602
+    "meanNs": 3311.25,
+    "allocatedBytes": 6316
   },
   "ConcurrencyBenchmarks.ForkJoin_WhenAll": {
-    "meanNs": 3869.56,
-    "allocatedBytes": 5751
+    "meanNs": 3497.77,
+    "allocatedBytes": 6472
   },
   "ConcurrencyBenchmarks.RenderForkJoinIndented": {
-    "meanNs": 1015.37,
-    "allocatedBytes": 4352
+    "meanNs": 1095.2,
+    "allocatedBytes": 4784
   },
   "ConcurrencyBenchmarks.RenderForkJoinMarkdown": {
-    "meanNs": 1274.85,
-    "allocatedBytes": 3784
+    "meanNs": 2055.64,
+    "allocatedBytes": 6680
   },
   "CoreBenchmarks.BuildTree(NodeCount=10)": {
-    "meanNs": 16224.74,
-    "allocatedBytes": 11696
+    "meanNs": 6109.81,
+    "allocatedBytes": 12464
   },
   "CoreBenchmarks.BuildTree(NodeCount=100)": {
-    "meanNs": 157800.27,
-    "allocatedBytes": 109160
+    "meanNs": 66595.94,
+    "allocatedBytes": 112808
   },
   "CoreBenchmarks.BuildTree(NodeCount=1000)": {
-    "meanNs": 4030413.22,
-    "allocatedBytes": 1072262
+    "meanNs": 3225151.87,
+    "allocatedBytes": 1104707
   },
   "CoreBenchmarks.EnterExitCycle(NodeCount=10)": {
-    "meanNs": 2489.96,
-    "allocatedBytes": 2368
+    "meanNs": 1131.25,
+    "allocatedBytes": 2848
   },
   "CoreBenchmarks.EnterExitCycle(NodeCount=100)": {
-    "meanNs": 2645.25,
-    "allocatedBytes": 2368
+    "meanNs": 1128.21,
+    "allocatedBytes": 2848
   },
   "CoreBenchmarks.EnterExitCycle(NodeCount=1000)": {
-    "meanNs": 2533.55,
-    "allocatedBytes": 2368
+    "meanNs": 1134.66,
+    "allocatedBytes": 2848
   },
   "CoreBenchmarks.RenderObject(NodeCount=10)": {
-    "meanNs": 818.53,
-    "allocatedBytes": 1611
+    "meanNs": 2230.02,
+    "allocatedBytes": 896
   },
   "CoreBenchmarks.RenderObject(NodeCount=100)": {
-    "meanNs": 786.43,
-    "allocatedBytes": 1611
+    "meanNs": 2317.85,
+    "allocatedBytes": 896
   },
   "CoreBenchmarks.RenderObject(NodeCount=1000)": {
-    "meanNs": 802.95,
-    "allocatedBytes": 1611
+    "meanNs": 2236.57,
+    "allocatedBytes": 896
   },
   "CoreBenchmarks.RenderPrimitive(NodeCount=10)": {
-    "meanNs": 76.81,
-    "allocatedBytes": 313
+    "meanNs": 27.92,
+    "allocatedBytes": 152
   },
   "CoreBenchmarks.RenderPrimitive(NodeCount=100)": {
-    "meanNs": 75.36,
-    "allocatedBytes": 313
+    "meanNs": 27.78,
+    "allocatedBytes": 152
   },
   "CoreBenchmarks.RenderPrimitive(NodeCount=1000)": {
-    "meanNs": 73.26,
-    "allocatedBytes": 313
+    "meanNs": 29.58,
+    "allocatedBytes": 152
   },
   "RendererBenchmarks.ClaritySmall": {
-    "meanNs": 2412.19,
-    "allocatedBytes": 3952
+    "meanNs": 5210.39,
+    "allocatedBytes": 9384
   },
   "RendererBenchmarks.JsonExportSmall": {
-    "meanNs": 3529.03,
-    "allocatedBytes": 16328
+    "meanNs": 3810.93,
+    "allocatedBytes": 17264
   },
   "RendererBenchmarks.MarkdownMedium": {
-    "meanNs": 3822.43,
-    "allocatedBytes": 17096
+    "meanNs": 6233.67,
+    "allocatedBytes": 19384
   },
   "RendererBenchmarks.MarkdownSmall": {
-    "meanNs": 594.99,
-    "allocatedBytes": 2704
+    "meanNs": 1194.99,
+    "allocatedBytes": 5000
   }
 }

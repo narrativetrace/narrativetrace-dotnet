@@ -153,6 +153,11 @@ internal static class MutationAccounting
         ["NarrativeTrace.Examples.Minecraft"] = new(
             "demo/consumer code, run non-interactively by RunExamples (CI smoke run) — proven by "
             + "being executed, not by mutants"),
+        ["NarrativeTrace.Examples.SixtySeconds"] = new(
+            "the \"See a trace in 60 seconds\" quickstart page as a project (rule 8) — not run by "
+            + "RunExamples (it is not a demo.sh scenario), but executed on every commit by its own "
+            + "NarrativeTrace.Examples.SixtySeconds.Tests via the real traced proxy; proven by being "
+            + "executed and by snippet-check comparing its output to the page, not by mutants"),
 
         // ---- harnesses: drive an external tool, assert nothing themselves ----------------------
         ["NarrativeTrace.Benchmarks"] = new(

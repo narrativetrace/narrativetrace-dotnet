@@ -1,7 +1,23 @@
-<!-- source: README.md blob 4d229847f923 | translated: 2026-09-10 | reviewed: - -->
+<!-- source: README.md blob 5fe4ac8dd682 | translated: 2026-09-11 | reviewed: - -->
 # NarrativeTrace .NET
 
 [English](README.md) | **Español** | [Português](LEIAME.md) | [简体中文](自述文件.md)
+
+## Empieza aquí
+
+[Ve una traza en 60 segundos](documentation/es/primeros-10-minutos.md) — una
+aplicación de consola, una ejecución, y la traza está en tu terminal.
+
+## Demo
+
+Clona el repositorio y ejecuta `./demo.sh`.
+
+## Ejemplos
+
+Consulta [los ejemplos](examples/) — NarrativeTrace en aplicaciones
+realistas.
+
+## El código es el log
 
 **Convierte lo que tu código *hizo* en una historia que puedes leer.**
 NarrativeTrace registra la ejecución de métodos como una traza narrativa — un
@@ -191,22 +207,6 @@ quieras uno.
   aplicar la puerta de claridad) y un paquete `NarrativeTrace.MSBuild` que la
   cablea en tu build.
 
-## Pruébalo localmente
-
-Sin proyecto propio, sin cableado — ejecuta los ejemplos incluidos y observa
-la narración en vivo:
-
-```bash
-./demo.sh --example ecommerce --no-pause    # el grafo de servicios insignia
-./demo.sh --example ecommerce --classic     # la misma ejecución como líneas de log con marca de tiempo
-./demo.sh --list                            # todos los ejemplos que incluye este repositorio
-```
-
-Consulta [Demo](#demo) más abajo para ver el selector completo, y
-[First 10 Minutes](documentation/first-10-minutes.md) para un recorrido que
-añade tracing a un servicio propio, paso a paso, con salida real en cada
-uno.
-
 ## Añádelo a una prueba
 
 El camino con menos ceremonia desde "biblioteca interesante" hasta "vi una
@@ -234,12 +234,15 @@ public class OrderTests : IClassFixture<NarrativeFixture>
 **NUnit** — deriva de `NarrativeTestBase`; los fallos se detectan y narran
 automáticamente en el teardown vía `TestContext`.
 
-Define `NARRATIVETRACE_OUTPUT=true` antes de `dotnet test` y ambos escriben
-archivos reales en disco (`traces/<Class>/<slug>.md`, un `.json` hermano, un
-diagrama `.mmd` y un `.nt` libre de valores) —
-[First 10 Minutes](documentation/first-10-minutes.md) recorre todo el
-proceso, incluido renombrar un método y ver cómo cae la puntuación de
-claridad.
+Ambos escriben archivos reales en disco por defecto, sin ninguna opción que
+activar: `TestResults/narrativetrace/traces/<Class>/<slug>.md`, un `.json`
+hermano, un diagrama `.mmd` y un `.nt` libre de valores — en el directorio
+efímero e ignorado por Git que `dotnet test` ya trata como salida
+desechable. Define `NARRATIVETRACE_OUTPUT=false` para desactivarlo. Consulta
+[Ve una traza en 60 segundos](documentation/es/primeros-10-minutos.md) para
+el camino más rápido hacia una traza, y la
+[Guía de claridad](documentation/guides/es/guia-de-claridad.md) para
+renombrar un método y ver cómo cae la puntuación.
 
 ## Elige tu integración
 
@@ -269,9 +272,7 @@ Console.WriteLine(IndentedTextRenderer.Render(context.CaptureTrace()));
 ```
 
 ```
-OrderService.PlaceOrder(sku: "book-123", quantity: 2) → "confirmed"
-  PaymentService.Charge(amount: 19.98) → "approved"
-  InventoryService.Reserve(sku: "book-123", quantity: 2) → true
+└── IOrderService.PlaceOrder(sku: "book-123", quantity: 2) → "confirmed" — 6ms
 ```
 
 **Inyección de dependencias — envuelve automáticamente cada interfaz cuya
@@ -502,7 +503,7 @@ Niveles de captura, de menos a más detalle: `Off`, `Errors`, `Summary`,
 
 Empieza aquí:
 
-- [Primeros 10 minutos](documentation/es/primeros-10-minutos.md) — un servicio diminuto, una prueba, salida real en cada paso
+- [Ve una traza en 60 segundos](documentation/es/primeros-10-minutos.md) — una app de consola, `dotnet run`, salida real en tu terminal
 - [Elegir una integración](documentation/es/elegir-una-integracion.md) — qué módulo necesitas, como diagrama de decisión
 - [Solución de problemas](documentation/es/solucion-de-problemas.md) — síntoma → causa → arreglo para los fallos que la gente realmente encuentra
 - [Qué incluir en el commit](documentation/es/que-incluir-en-el-commit.md) — qué archivos generados son desechables y cuáles se revisan
@@ -534,28 +535,6 @@ Para consumidores de IA (solo en inglés):
 - Runtime moderno: `net10.0`
 - Compatibilidad: `netstandard2.0`
 - Legacy: `net48` (en `NarrativeTrace.Legacy`)
-
-## Demo
-
-La forma más rápida de ver los ejemplos en marcha: un solo comando, la
-narración en vivo `→ ← !!` coloreada e indentada según la profundidad de
-llamadas, y una pausa tras cada escenario con una nota sobre cómo está cableada
-la traza de ese escenario:
-
-```bash
-./demo.sh                                 # selector interactivo
-./demo.sh --example ecommerce             # no interactivo; --list enumera los ejemplos
-./demo.sh --example ecommerce --classic   # la misma ejecución como logs tradicionales con marca de tiempo
-./demo.sh --example ecommerce --no-pause  # de un tirón, sin pausas (lo que reciben las tuberías y la CI)
-```
-
-`./build.sh Demo --example <nombre> --no-pause` y `./build.sh RunExamples`
-ejecutan lo mismo desde el build; `demo.ps1` es el envoltorio fino de
-PowerShell. Se incluyen cuatro ejemplos — `ecommerce`, `clarity`, `minecraft` y
-`library` (F#) — y cada uno también se ejecuta por su cuenta con
-`dotnet run --project examples/<proyecto>`. Consulta
-[`examples/LEAME.md`](examples/LEAME.md) para el mapa de proyectos y lo que
-enseña cada uno.
 
 ## Build y pruebas
 

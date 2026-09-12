@@ -1,4 +1,4 @@
-<!-- source: documentation/troubleshooting.md blob e9ef976588dc | translated: 2026-09-07 | reviewed: - -->
+<!-- source: documentation/troubleshooting.md blob 599e20b64830 | translated: 2026-09-11 | reviewed: - -->
 # Solução de problemas
 
 [English](../troubleshooting.md) | [Español](../es/solucion-de-problemas.md) | **Português** | [简体中文](../zh-CN/故障排查.md)
@@ -148,26 +148,37 @@ para `Detail`, não um erro.
 verifique a ortografia novamente, ou registre a configuração resolvida
 ao iniciar se precisar ter certeza.
 
-## `NARRATIVETRACE_OUTPUT=true` mas nenhum arquivo aparece
+## Nenhum arquivo de trace aparece, mesmo com a saída ativada por padrão
 
-**Causa**, qualquer uma destas:
+**Causa**, uma destas:
 
+- `NARRATIVETRACE_OUTPUT=false` está definida em algum lugar anterior (uma
+  variável de CI, uma sobrescrita de ambiente em `.runsettings`, um shell
+  pai) — o único interruptor que desativa o escritor, que por padrão está
+  ativado.
 - `NARRATIVETRACE_LEVEL` é `Off` — nada foi capturado.
 - A trace realmente está vazia. **Uma trace vazia não escreve nada, por
   design** — um artefato ausente significa "nada foi capturado", não "a
   escrita falhou". Isso geralmente significa que o teste chamou o
   serviço cru, sem encapsulamento, em vez do encapsulado pelo proxy.
+- Você está olhando no lugar errado: sem uma sobrescrita de
+  `NARRATIVETRACE_OUTPUT_DIR`, os arquivos caem em
+  `TestResults/narrativetrace/` relativo ao diretório de trabalho da
+  execução de testes, não à raiz do repositório.
 
-**Correção:** confirme que o nível não é `Off`, e confirme que você está
-chamando através de `NarrativeTraceProxy.Create<T>` (ou um serviço de DI
-com encapsulamento automático), não a implementação nua.
+**Correção:** confirme que `NARRATIVETRACE_OUTPUT` não está definida como
+`false`, confirme que o nível não é `Off`, confirme que você está chamando
+através de `NarrativeTraceProxy.Create<T>` (ou um serviço de DI com
+encapsulamento automático) em vez da implementação nua, e verifique
+`TestResults/narrativetrace/` dentro do projeto de teste.
 
 ## `clarity-report.md` não corresponde ao que eu espero de `NARRATIVETRACE_OUTPUT`
 
 **Causa:** o `clarity-results.json`/`clarity-report.md` no nível da suíte
 são escritos sempre que o fixture da suíte roda e acumula pelo menos uma
 entrada — **independentemente de `NARRATIVETRACE_OUTPUT`**. Apenas os
-arquivos `.md`/`.json`/`.mmd`/`.nt` por teste precisam dessa flag.
+arquivos `.md`/`.json`/`.mmd`/`.nt` por teste estão sujeitos a essa flag
+(ativada por padrão; `false` a desativa).
 
 **Correção:** não trate "sem arquivos de trace por teste" como "sem
 relatório de clareza" — eles são condicionados por duas condições

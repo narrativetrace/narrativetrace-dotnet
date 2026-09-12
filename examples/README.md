@@ -68,11 +68,12 @@ renderer you want (`IndentedTextRenderer.Render(trace)`); the renderers are stat
 live `→ ← !!` lines are not a renderer at all — that is a listener on the
 `DualPathPipeline` (`NarrationStreamListener` in `Examples.Common`, the `ILogger` twin of
 the Java `Slf4jTraceEventListener`), the only view that costs no rendering code.
-Configuration selects a renderer in exactly one place, trace files written from tests:
-`NARRATIVETRACE_OUTPUT=true` plus `NARRATIVETRACE_FORMAT=markdown|text|mermaid|plantuml`,
-where `markdown` is the default and the `NarrativeTrace.MSBuild` package's
-`NarrativeTraceOutput` / `NarrativeTraceFormat` properties set the same switches. Each
-section marker names the renderer that produced it.
+Configuration selects a renderer in exactly one place, trace files written from tests
+(on by default; `NARRATIVETRACE_OUTPUT=false` opts out): `NARRATIVETRACE_FORMAT=
+markdown|text|mermaid|plantuml`, where `markdown` is the default and the
+`NarrativeTrace.MSBuild` package's `NarrativeTraceOutput` / `NarrativeTraceFormat`
+properties set the same switches. Each section marker names the renderer that
+produced it.
 
 **Classic log output is a first-class mode.** The narration is ordinary `ILogger`
 traffic through an ordinary logger provider, so it renders in the traditional format
@@ -170,6 +171,31 @@ markers; `ConsoleLoggerFactory` is the dependency-free `ILoggerFactory` the runs
 through, in bare or classic format; `DemoOptions` parses `--classic`. It is example
 scaffolding, not product code — a real application plugs its own logger provider into
 the same `ILogger` seam.
+
+## Where the logger is configured
+
+Every example sends its trace to a real logger, not just the styled console above.
+`DemoRun.Create` (`examples/NarrativeTrace.Examples.Common/DemoRun.cs`) is the one
+composition root all four examples share, and it attaches the shipped
+`NarrativeTrace.Logging` bridge (`LoggingTraceEventListener` — see the
+[Installation Guide](../documentation/guides/installation.md)) as a second, independent
+listener on the same live event stream the console narration comes from. Because the
+demo's console view is deliberately styled for reading (`./demo.sh`'s colorized walk),
+the bridge writes to a real log file instead of interleaving with it:
+
+| Example | Realistic logger output |
+|---|---|
+| `NarrativeTrace.Examples.ECommerce` | `examples/NarrativeTrace.Examples.ECommerce/bin/<Debug\|Release>/net10.0/narrativetrace-realistic.log` |
+| `NarrativeTrace.Examples.Clarity` | `examples/NarrativeTrace.Examples.Clarity/bin/<Debug\|Release>/net10.0/narrativetrace-realistic.log` |
+| `NarrativeTrace.Examples.Minecraft` | `examples/NarrativeTrace.Examples.Minecraft/bin/<Debug\|Release>/net10.0/narrativetrace-realistic.log` |
+| `NarrativeTrace.Examples.Library` | `examples/NarrativeTrace.Examples.Library/bin/<Debug\|Release>/net10.0/narrativetrace-realistic.log` |
+
+Run any example (`dotnet run --project examples/<name>`, or `./demo.sh`) and open its
+file — traditional log-tool format (timestamp, level, thread, logger name), redacted
+parameters as `[REDACTED]`, exceptions and fork/join lifecycle events included, produced
+by the exact package a real project adds (`dotnet add package NarrativeTrace.Logging`).
+The demo launcher's own wiring note at the first `--- Trace tree ---` section names this
+file too.
 
 ## Quality gates
 

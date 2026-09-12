@@ -69,14 +69,24 @@ capture.
 | Variable | Values | Default |
 |---|---|---|
 | `NARRATIVETRACE_LEVEL` | `Off`, `Errors`, `Summary`, `Narrative`, `Detail` | `Detail` |
-| `NARRATIVETRACE_OUTPUT` | `true` / `false` (or `1`) | `false` |
-| `NARRATIVETRACE_OUTPUT_DIR` | any writable path | (none) |
+| `NARRATIVETRACE_OUTPUT` | `true` / `false` (or `1` / `0`) | `true` |
+| `NARRATIVETRACE_OUTPUT_DIR` | any writable path | `TestResults/narrativetrace` |
 | `NARRATIVETRACE_FORMAT` | `Markdown`, `Text`, `Prose`, `Json` | `Markdown` |
 | `NARRATIVETRACE_CANONICAL_JSON` | `true` / `false` (or `1`) | `false` |
 | `NARRATIVETRACE_STRUCTURAL_JSON` | `true` / `false` (or `1`) | `false` |
 
 Level and format parsing is lenient (case- and punctuation-insensitive:
 `detail`, `DETAIL`, and `Detail` all resolve).
+
+`NARRATIVETRACE_OUTPUT` is **on by default** (owner ruling, 2026-09-11): the
+per-test artifacts the xUnit fixture and NUnit base write are the payoff of
+adopting this library, so writing happens without any flag. Only an explicit
+`NARRATIVETRACE_OUTPUT=false` (or `0`) opts out; `true`/`1` are accepted as a
+no-op for scripts that still set it. With no `NARRATIVETRACE_OUTPUT_DIR`
+override, files land under `TestResults/narrativetrace/` — the `.NET`
+convention `dotnet test --results-directory` and Visual Studio/Rider already
+treat as disposable, and which this repository's own `.gitignore` already
+excludes.
 
 ```csharp
 var resolved = ConfigResolver.Resolve();          // reads the process env
@@ -303,9 +313,9 @@ out by TracingLevel never reaches the tree, renderers, or any logger.
 
 | Environment | Level | Output |
 |---|---|---|
-| Local feature work | `Detail` | `NARRATIVETRACE_OUTPUT=true`, `FORMAT=Markdown` |
-| CI test runs | `Narrative` or `Summary` | `OUTPUT=true`, `FORMAT=Markdown` |
-| Performance-sensitive prod | `Errors` (or `Off`) | no file output |
+| Local feature work | `Detail` | on by default, `FORMAT=Markdown` |
+| CI test runs | `Narrative` or `Summary` | on by default, `FORMAT=Markdown` |
+| Performance-sensitive prod | `Errors` (or `Off`) | no test fixtures run here — no file output |
 
 ## See also
 

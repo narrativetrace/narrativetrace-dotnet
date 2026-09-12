@@ -12,7 +12,10 @@ namespace NarrativeTrace.Proxy.Tests;
 /// A parameter whose <c>ToString()</c> throws must never break the traced call.
 /// <para>
 /// <c>ValueRenderer.SafeToString</c> already treats a rogue <c>ToString()</c> as a known
-/// hazard and degrades to a type marker. These tests hold the narration path to the same
+/// hazard and degrades to the typed <c>&lt;error: TypeName&gt;</c> marker documented in
+/// privacy-and-redaction.md (the caught exception's own type, e.g.
+/// <c>&lt;error: InvalidOperationException&gt;</c> — never the failing value's type, and
+/// never <see cref="Exception.Message"/>). These tests hold the narration path to the same
 /// contract: observability failure must never become application failure.
 /// </para>
 /// </summary>
@@ -28,7 +31,7 @@ public class RogueToStringNarrationTests
         proxy.Handle(new RogueToString());
 
         Assert.Equal(
-            "Processing <RogueToString>",
+            "Processing <error: InvalidOperationException>",
             ctx.CaptureTrace().Roots[0].Signature.Narration);
     }
 
@@ -42,7 +45,7 @@ public class RogueToStringNarrationTests
         proxy.Inspect(new Holder(new RogueToString()));
 
         Assert.Equal(
-            "Processing <RogueToString>",
+            "Processing <error: InvalidOperationException>",
             ctx.CaptureTrace().Roots[0].Signature.Narration);
     }
 
@@ -129,7 +132,7 @@ public class RogueToStringNarrationTests
             () => proxy.Fail(new RogueToString()));
 
         Assert.Equal(
-            "Failed while processing <RogueToString>",
+            "Failed while processing <error: InvalidOperationException>",
             ctx.CaptureTrace().Roots[0].Signature.ErrorContext);
     }
 
@@ -143,7 +146,7 @@ public class RogueToStringNarrationTests
         proxy.HandleWithId(7, new RogueToString());
 
         Assert.Equal(
-            "7: <RogueToString>",
+            "7: <error: InvalidOperationException>",
             ctx.CaptureTrace().Roots[0].Signature.Narration);
     }
 

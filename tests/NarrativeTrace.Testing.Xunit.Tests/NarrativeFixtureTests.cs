@@ -171,13 +171,37 @@ public class NarrativeFixtureTests
     }
 
     [Fact]
-    public void Writes_nothing_when_output_is_disabled()
+    public void Writes_artifacts_by_default_with_no_env_var_set()
     {
         var dir = TempDir();
         try
         {
             using var fixture = new NarrativeFixture(
                 key => key == ConfigResolver.OutputDirKey ? dir : null);
+            RecordOneCall(fixture);
+
+            fixture.WriteArtifacts("OrderTests", "PlacesOrder", failed: false);
+
+            Assert.True(File.Exists(Trace(dir, "places_order.md")));
+        }
+        finally
+        {
+            DeleteDir(dir);
+        }
+    }
+
+    [Fact]
+    public void Writes_nothing_when_output_is_explicitly_disabled()
+    {
+        var dir = TempDir();
+        try
+        {
+            using var fixture = new NarrativeFixture(key => key switch
+            {
+                ConfigResolver.OutputKey => "false",
+                ConfigResolver.OutputDirKey => dir,
+                _ => null,
+            });
             RecordOneCall(fixture);
 
             fixture.WriteArtifacts("OrderTests", "PlacesOrder", failed: false);

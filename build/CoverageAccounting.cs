@@ -80,6 +80,12 @@ internal static class CoverageAccounting
         ["NarrativeTrace.Examples.Common.Tests"] = new(100, "[NarrativeTrace.Examples.Common]*"),
         ["NarrativeTrace.Examples.Library.Tests"] = new(91, "[NarrativeTrace.Examples.Library]*"),
         ["NarrativeTrace.Examples.Minecraft.Tests"] = new(98, "[NarrativeTrace.Examples.Minecraft]*"),
+        // Rule 8's (docs as tests) "See a trace in 60 seconds" quickstart project —
+        // two tests, one per page output block; 84.61% measured 2026-09-11
+        // (own-assembly Include), rounded down. The uncovered lines are Program.cs's own
+        // top-level-statement entry point (exercised for real by `dotnet run`, never by this test
+        // project, on purpose — see SixtySecondsTests' doc comment).
+        ["NarrativeTrace.Examples.SixtySeconds.Tests"] = new(84, "[NarrativeTrace.Examples.SixtySeconds]*"),
         // Exercises the shipped NUnit engine/runner adapter narrowly (the integration seam, not
         // the breadth NarrativeTrace.Testing.NUnit.Tests already covers at 86) — 71% is the
         // honest floor of that narrower slice, not an aspirational number; see the backlog entry

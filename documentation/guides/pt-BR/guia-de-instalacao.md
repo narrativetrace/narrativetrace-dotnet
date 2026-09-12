@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/installation.md blob 75b1451e0562 | translated: 2026-09-09 | reviewed: 2026-09-03 -->
+<!-- source: documentation/guides/installation.md blob 583536695e87 | translated: 2026-09-11 | reviewed: - -->
 # NarrativeTrace .NET — Guia de instalação
 
 [English](../installation.md) | [Español](../es/guia-de-instalacion.md) | **Português** | [简体中文](../zh-CN/安装指南.md)
@@ -220,14 +220,18 @@ do `ConfigResolver` — o canal de sobrescrita nativo do `.NET`:
 | Variável | Valores | Padrão |
 |---|---|---|
 | `NARRATIVETRACE_LEVEL` | `Off`, `Errors`, `Summary`, `Narrative`, `Detail` | `Detail` |
-| `NARRATIVETRACE_OUTPUT` | `true` / `false` (também `1`) | `false` |
-| `NARRATIVETRACE_OUTPUT_DIR` | qualquer caminho com permissão de escrita | (nenhum) |
+| `NARRATIVETRACE_OUTPUT` | `true` / `false` (também `1` / `0`) | `true` |
+| `NARRATIVETRACE_OUTPUT_DIR` | qualquer caminho com permissão de escrita | `TestResults/narrativetrace` |
 | `NARRATIVETRACE_FORMAT` | `Markdown`, `Text`, `Prose`, `Json` | `Markdown` |
 
 Valores inválidos degradam para o padrão em vez de lançar uma exceção,
 então uma configuração incorreta nunca derruba a captura. O parsing do
 nível é tolerante a maiúsculas/minúsculas e pontuação (`detail`,
-`DETAIL`, `Detail` todos resolvem para o mesmo valor).
+`DETAIL`, `Detail` todos resolvem para o mesmo valor). `NARRATIVETRACE_OUTPUT`
+está ativada por padrão — o fixture do xUnit e a base do NUnit escrevem os
+artefatos por teste em `TestResults/narrativetrace/` (efêmero, já ignorado
+pelo Git graças à convenção `TestResults/` do `.NET`) sem nenhuma flag;
+defina `false` para desativar.
 
 ## Validar a instalação
 

@@ -1,4 +1,4 @@
-<!-- source: documentation/choosing-an-integration.md blob 66bb4be4f7cf | translated: 2026-09-07 | reviewed: - -->
+<!-- source: documentation/choosing-an-integration.md blob d41db990ede8 | translated: 2026-09-11 | reviewed: - -->
 # Elegir una integración
 
 [English](../choosing-an-integration.md) | **Español** | [Português](../pt-BR/escolhendo-uma-integracao.md) | [简体中文](../zh-CN/选择集成方式.md)
@@ -117,4 +117,4 @@ Código completo y ejecutable para cada vía de arriba vive en la
 [Guía de instalación](../guides/es/guia-de-instalacion.md#elige-una-vía-de-integración).
 Para la vía de menor ceremonia de principio a fin — un servicio, una
 prueba, salida real — consulta
-[Primeros 10 minutos](primeros-10-minutos.md).
+[Ve una traza en 60 segundos](primeros-10-minutos.md).

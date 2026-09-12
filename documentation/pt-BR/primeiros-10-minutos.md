@@ -1,155 +1,147 @@
-<!-- source: documentation/first-10-minutes.md blob 94cabad4ff51 | translated: 2026-09-09 | reviewed: 2026-09-03 -->
-# Primeiros 10 minutos
+<!-- source: documentation/first-10-minutes.md blob 85c4e7df07b9 | translated: 2026-09-12 | reviewed: - -->
+# Veja um trace em 60 segundos
 
 [English](../first-10-minutes.md) | [Español](../es/primeros-10-minutos.md) | **Português** | [简体中文](../zh-CN/前10分钟.md)
 
-Um serviço minúsculo, um teste xUnit, saída real em cada etapa. Tudo
-abaixo foi executado de verdade contra os próprios pacotes deste
-repositório — nenhuma saída imaginada.
+Sem instruções de log, sem framework de testes, sem arquivos para abrir: um
+app de console, um `dotnet run`, e um trace no seu terminal. Tudo abaixo foi
+executado de verdade contra os pacotes publicados — a saída está colada,
+não imaginada.
 
-## 1. Adicione os pacotes
+## 1. Novo app de console, adicione os pacotes
 
-```xml
-<PackageReference Include="NarrativeTrace.Core" Version="0.1.3" />
-<PackageReference Include="NarrativeTrace.Runtime" Version="0.1.3" />
-<PackageReference Include="NarrativeTrace.Proxy" Version="0.1.3" />
-<PackageReference Include="NarrativeTrace.Testing.Xunit" Version="0.1.3" />
+```bash
+dotnet new console -n Hello && cd Hello
+dotnet add package NarrativeTrace.Core
+dotnet add package NarrativeTrace.Runtime
+dotnet add package NarrativeTrace.Proxy
 ```
 
-## 2. Adicione uma interface de serviço e sua implementação
+Três pacotes, resolvidos a partir do nuget.org — ainda não existe um único
+metapacote que traga tudo de uma vez.
+
+## 2. Substitua o Program.cs
 
 ```csharp
-using NarrativeTrace.Core.Annotation;
+using NarrativeTrace.Core;
+using NarrativeTrace.Proxy;
+using NarrativeTrace.Runtime;
+
+var context = new SyncNarrativeContext(new NarrativeTraceConfig());
+var orders = NarrativeTraceProxy.Create<IOrderService>(new OrderService(), context);
+
+orders.PlaceOrder("cust-1", "book-123", 2);
+
+Console.WriteLine(IndentedTextRenderer.Render(context.CaptureTrace()));
 
 public interface IOrderService
 {
-    string PlaceOrder(
-        string customerId, string productId, int quantity,
-        [NotTraced] string internalNote);
+    string PlaceOrder(string customerId, string productId, int quantity);
 }
 
 public sealed class OrderService : IOrderService
 {
-    public string PlaceOrder(
-        string customerId, string productId, int quantity, string internalNote)
+    public string PlaceOrder(string customerId, string productId, int quantity)
         => $"confirmed:{customerId}:{productId}:{quantity}";
 }
 ```
 
-`[NotTraced]` vai no parâmetro da **interface** — o proxy despacha contra
-os metadados do método da interface, então é de lá que os atributos são
-lidos.
-
-## 3. Adicione um teste xUnit
-
-```csharp
-using NarrativeTrace.Proxy;
-using NarrativeTrace.TestingXunit;
-using Xunit;
-
-public sealed class OrderServiceTests : IClassFixture<NarrativeFixture>
-{
-    private readonly NarrativeFixture _fixture;
-    public OrderServiceTests(NarrativeFixture fixture) => _fixture = fixture;
-
-    [Fact]
-    public void Places_an_order()
-    {
-        _fixture.Run(nameof(Places_an_order), ctx =>
-        {
-            var orders = NarrativeTraceProxy.Create<IOrderService>(new OrderService(), ctx);
-            orders.PlaceOrder("cust-1", "book-123", 2, "gift wrap");
-        });
-
-        _fixture.WriteArtifacts(nameof(OrderServiceTests), nameof(Places_an_order), failed: false);
-    }
-}
-```
-
-`WriteArtifacts` é o passo explícito que escreve arquivos — sem ele, o
-`NarrativeFixture` fica inerte, então não custa nada em uma execução de
-testes normal.
-
-## 4. Execute a suíte
+## 3. Execute
 
 ```bash
-export NARRATIVETRACE_OUTPUT=true
-dotnet test
+dotnet run
 ```
-
-## 5. Abra a narrativa
 
 ```text
-narrativetrace-output/traces/OrderServiceTests/places_an_order.md
+└── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 9ms
 ```
 
-Você verá a chamada renderizada com todos os argumentos exceto
-`internalNote` (coberto no passo 7), o valor de retorno e o tempo de
-execução — gerado inteiramente a partir dos nomes de método e parâmetros
-acima, sem nenhuma instrução de log escrita à mão.
+(O tempo vai variar de uma execução para outra — o resto é estável.)
 
-## 6. Renomeie `PlaceOrder` para `Process` e observe a clareza cair
+Você não escreveu uma única instrução de log. Essa narrativa veio inteira
+do nome do seu método, dos nomes dos seus parâmetros e do valor que você
+retornou.
 
-Renomeie o método (interface e implementação) para `Process`, mantenha
-tudo o mais igual, e pontue a mesma trace capturada em linha — sem CLI,
-sem etapa de assembly compilado, apenas o analisador sobre a trace que
-você já tem:
+## O que acabou de acontecer
 
-```csharp
-using NarrativeTrace.Clarity;
+- `NarrativeTraceProxy.Create<T>` envolve `OrderService` atrás da sua
+  interface `IOrderService` e registra cada chamada feita através do
+  wrapper.
+- `SyncNarrativeContext` guarda a gravação em memória;
+  `NarrativeTraceConfig()` usa por padrão `TracingLevel.Detail` — captura
+  completa de parâmetros e valores de retorno, sem nenhum flag para ligar.
+- `CaptureTrace()` retorna a árvore gravada; `IndentedTextRenderer` a
+  imprimiu acima. `MarkdownRenderer` e `ProseRenderer` renderizam a mesma
+  árvore em outros formatos. Envolva um serviço que chama outros serviços
+  traçados e a árvore se aninha — uma chamada, uma história.
 
-var before = ClarityAnalyzer.Analyze(_fixture.CaptureTrace());
-Console.WriteLine(before.Overall); // PlaceOrder: um verbo específico do domínio
+## Envie para o seu logger
+
+Mais dois pacotes, a mesma árvore capturada, nenhuma lógica de captura nova
+— `TraceLogExporter` a reproduz sobre o `ILogger` que seu app já tem
+conectado.
+
+```bash
+dotnet add package NarrativeTrace.Logging
+dotnet add package Microsoft.Extensions.Logging.Console
 ```
 
-Execute novamente após a renomeação e imprima `Overall` de novo — ela cai,
-porque `Process` é exatamente o tipo de verbo genérico e sem conteúdo que
-o analisador foi construído para penalizar. Nada mais na chamada mudou; só
-o nome.
+```diff
++using Microsoft.Extensions.Logging;
+ using NarrativeTrace.Core;
++using NarrativeTrace.Logging;
+ using NarrativeTrace.Proxy;
+ using NarrativeTrace.Runtime;
 
-## 7. Adicione `[NotTraced]` e veja a ocultação
+ var context = new SyncNarrativeContext(new NarrativeTraceConfig());
+ var orders = NarrativeTraceProxy.Create<IOrderService>(new OrderService(), context);
 
-Abra novamente `places_an_order.md` do passo 5: `internalNote` nunca
-aparece com seu valor real. Para ver o *marcador* explicitamente,
-renderize a trace em texto em vez de ler o arquivo Markdown:
+ orders.PlaceOrder("cust-1", "book-123", 2);
 
-```csharp
-using NarrativeTrace.Core;
-
-Console.WriteLine(IndentedTextRenderer.Render(_fixture.CaptureTrace()));
+-Console.WriteLine(IndentedTextRenderer.Render(context.CaptureTrace()));
++var tree = context.CaptureTrace();
++Console.WriteLine(IndentedTextRenderer.Render(tree));
++
++using var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
++TraceLogExporter.ExportToLogger(tree, loggerFactory.CreateLogger("NarrativeTrace"));
 ```
 
-O argumento `internalNote` é renderizado como `[REDACTED]` — substituído
-antes mesmo de o valor ser lido, não apenas ocultado depois do fato.
-Remova `[NotTraced]` e execute novamente para ver o valor real aparecer
-em seu lugar, assim a diferença fica inequívoca.
-
-## 8. Veja o artefato estrutural seguro para IA
-
-Junto ao arquivo Markdown, a mesma execução escreveu um segundo arquivo,
-sem valores:
+```bash
+dotnet run
+```
 
 ```text
-narrativetrace-output/structural/OrderServiceTests/places_an_order.nt
+└── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 0ms
+
+info: NarrativeTrace[1]
+      IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) -> "confirmed:cust-1:book-123:2"
 ```
 
-Abra-o: apenas nomes, hierarquia de chamadas e tipo de resultado — sem
-`internalNote`, sem `customerId`, sem valor de retorno. Este é o arquivo
-seguro para entregar a uma ferramenta de IA ou colar em um ticket sem uma
-revisão de ocultação, porque não há nada para ocultar em primeiro lugar.
-Veja [Privacidade e ocultação](privacidade-e-ocultacao.md#garantias) para
-o que está verificado sobre ele, e
-[O que incluir no commit](o-que-incluir-no-commit.md) para saber se vale a
-pena mantê-lo por perto.
+(O tempo vai variar de uma execução para outra — o resto é estável.)
 
-## Para onde ir depois
+O mesmo trace, dois destinos: o renderizador de console continua exatamente
+igual, e o registro de `ILogger` abaixo prova que a árvore chega ao destino
+que você já tem — troque `AddConsole()` pelo seu provedor real e mais nada
+muda. Veja o [Guia de instalação](../guides/pt-BR/guia-de-instalacao.md)
+para os outros pontos de entrada do `NarrativeTrace.Logging`
+(`LoggingNarrativeContext` para logging ao vivo por chamada,
+`AddNarrativeLogging()` para DI).
 
-- [Escolhendo uma integração](escolhendo-uma-integracao.md) — proxy, DI,
-  ASP.NET Core ou um framework de testes: qual escolher para seu app.
-- [Guia de instalação](../guides/pt-BR/guia-de-instalacao.md) — todos os
-  pacotes e caminhos de integração por completo.
-- [Guia de configuração](../guides/pt-BR/guia-de-configuracao.md) — níveis
-  de tracing, formato de saída e todas as variáveis `NARRATIVETRACE_*`
-  usadas acima.
-- [Solução de problemas](solucao-de-problemas.md) — sintoma → causa →
-  correção para os modos de falha que as pessoas realmente encontram.
+## Próximos passos
+
+- **Use em seus testes, ou cablear em DI / ASP.NET Core** —
+  [Escolhendo uma integração](escolhendo-uma-integracao.md) é o diagrama de
+  decisão; o [Guia de instalação](../guides/pt-BR/guia-de-instalacao.md) tem
+  a referência completa de pacotes e conexão.
+- **Mantenha um valor fora do trace** — `[NotTraced]`, a lista de bloqueio
+  de nomes sempre ativa, e o artefato estrutural `.nt` sem valores são três
+  camadas independentes — veja
+  [Privacidade e ocultação](privacidade-e-ocultacao.md).
+- **Pontue sua nomenclatura** — renomeie `PlaceOrder` para `Process`,
+  mantenha tudo o mais igual, e a pontuação de clareza cai — veja o
+  [Guia de clareza](../guides/pt-BR/guia-de-clareza.md).
+- **Cada opção** — [Guia de configuração](../guides/pt-BR/guia-de-configuracao.md):
+  níveis de tracing, formato de saída, cada variável `NARRATIVETRACE_*`.
+- **Algo não está funcionando?** — [Solução de problemas](solucao-de-problemas.md):
+  sintoma → causa → correção para os modos de falha que as pessoas realmente
+  encontram.

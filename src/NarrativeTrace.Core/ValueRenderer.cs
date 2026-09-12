@@ -206,12 +206,29 @@ public static class ValueRenderer
                 RenderStructuredDictionary(dict, opts, seen, depth),
             System.Collections.IEnumerable seq =>
                 RenderStructuredList(seq, opts, seen, depth),
-            _ when TryNarrativeSummary(value, out var summary) =>
-                new RenderedValue.StringVal(summary),
-            _ when IsRecord(value) || HasPublicMembers(value) =>
-                RenderStructuredObject(value, opts, seen, depth),
-            _ => new RenderedValue.StringVal(SafeToString(value, opts)),
+            _ => RenderStructuredShaped(value, opts, seen, depth),
         };
+    }
+
+    // The same ordered decision RenderShaped makes, resolved from one cached
+    // TypeShape instead of three reflective probes per render: a
+    // [NarrativeSummary] member wins, then a record renders as an object even
+    // with no public members, then any type that has public members, and only
+    // a type with none of those reaches its own ToString().
+    private static RenderedValue RenderStructuredShaped(
+        object value, RenderOptions opts,
+        HashSet<object> seen, int depth)
+    {
+        var shape = TypeShape.Of(value.GetType());
+        if (shape.SummaryMethod is { } summary)
+        {
+            return new RenderedValue.StringVal(
+                InvokeSummary(summary, value));
+        }
+
+        return shape.IsRecord || shape.Members.Length > 0
+            ? RenderStructuredObject(value, shape, opts, seen, depth)
+            : new RenderedValue.StringVal(SafeToString(value, opts));
     }
 
     // Safe enumeration primitives shared by both the flat and structured
@@ -329,7 +346,7 @@ public static class ValueRenderer
     }
 
     private static RenderedValue RenderStructuredObject(
-        object value, RenderOptions opts,
+        object value, TypeShape shape, RenderOptions opts,
         HashSet<object> seen, int depth)
     {
         if (!seen.Add(value))
@@ -339,16 +356,16 @@ public static class ValueRenderer
 
         try
         {
-            var type = value.GetType();
             var fields = new Dictionary<string, RenderedValue>();
-            foreach (var member in GetPublicMembers(type)
-                .Take(opts.MaxObjectKeys))
+            var members = shape.Members;
+            var limit = Math.Min(members.Length, opts.MaxObjectKeys);
+            for (var i = 0; i < limit; i++)
             {
-                fields[member.Name] = RenderStructuredMember(
-                    member, value, opts, seen, depth);
+                fields[members[i].Name] = RenderStructuredMember(
+                    members[i], value, opts, seen, depth);
             }
 
-            return new RenderedValue.ObjectVal(type.Name, fields);
+            return new RenderedValue.ObjectVal(shape.TypeName, fields);
         }
         finally
         {
@@ -357,7 +374,7 @@ public static class ValueRenderer
     }
 
     private static RenderedValue RenderStructuredMember(
-        System.Reflection.MemberInfo member, object target,
+        MemberSlot member, object target,
         RenderOptions opts, HashSet<object> seen, int depth)
     {
         if (IsRedacted(member, opts))
@@ -368,11 +385,11 @@ public static class ValueRenderer
         try
         {
             return RenderStructuredItem(
-                ValueOf(member, target), opts, seen, depth + 1);
+                member.Read(target), opts, seen, depth + 1);
         }
-        catch
+        catch (Exception ex)
         {
-            return new RenderedValue.StringVal("<error>");
+            return new RenderedValue.StringVal(ErrorMarker(ex));
         }
     }
 
@@ -597,14 +614,35 @@ public static class ValueRenderer
                 RenderDictionary(dict, opts, seen, depth),
             System.Collections.IEnumerable seq =>
                 RenderEnumerable(seq, opts, seen, depth),
-            _ when TryNarrativeSummary(value, out var summary) =>
-                summary,
-            _ when IsRecord(value) =>
-                RenderObject(value, opts, seen, "(", ")", depth),
-            _ when HasPublicMembers(value) =>
-                RenderObject(value, opts, seen, "{", "}", depth),
-            _ => SafeToString(value, opts),
+            _ => RenderShaped(value, opts, seen, depth),
         };
+    }
+
+    // A found [NarrativeSummary] member always short-circuits this decision,
+    // success or failure: a throwing summary must degrade to a typed
+    // placeholder for that part, never fall through to a full reflective field
+    // dump of the same object — the summary was curated precisely so the
+    // fields wouldn't be shown raw. A record keeps the parenthesised form even
+    // with no public members, which is why IsRecord is asked before the member
+    // count rather than folded into it.
+    private static string RenderShaped(
+        object value, RenderOptions opts,
+        HashSet<object> seen, int depth)
+    {
+        var shape = TypeShape.Of(value.GetType());
+        if (shape.SummaryMethod is { } summary)
+        {
+            return InvokeSummary(summary, value);
+        }
+
+        if (shape.IsRecord)
+        {
+            return RenderObject(value, shape, opts, seen, "(", ")", depth);
+        }
+
+        return shape.Members.Length > 0
+            ? RenderObject(value, shape, opts, seen, "{", "}", depth)
+            : SafeToString(value, opts);
     }
 
     private static string RenderItem(
@@ -616,141 +654,18 @@ public static class ValueRenderer
             : RenderValue(value, opts, seen, depth);
     }
 
-    private static readonly
-        System.Collections.Concurrent.ConcurrentDictionary<
-            Type, System.Reflection.MethodInfo?> SummaryCache = new();
-
-    private static bool TryNarrativeSummary(
-        object value, out string summary)
+    private static string InvokeSummary(
+        System.Reflection.MethodInfo method, object value)
     {
-        summary = "";
-        var method = SummaryCache.GetOrAdd(
-            value.GetType(), FindSummaryMethod);
-        if (method is null)
-        {
-            return false;
-        }
-
         try
         {
-            summary = ControlEscape.Sanitize(
+            return ControlEscape.Sanitize(
                 method.Invoke(value, null)?.ToString() ?? "null");
-            return true;
         }
-        catch
+        catch (Exception ex)
         {
-            return false;
+            return ErrorMarker(ex);
         }
-    }
-
-    private static System.Reflection.MethodInfo? FindSummaryMethod(
-        Type type)
-    {
-        return SummaryMethodOf(type) ?? SummaryPropertyGetterOf(type);
-    }
-
-    private static System.Reflection.MethodInfo? SummaryMethodOf(Type type)
-    {
-        foreach (var method in type.GetMethods(
-            System.Reflection.BindingFlags.Public
-            | System.Reflection.BindingFlags.Instance))
-        {
-            if (method.GetParameters().Length == 0
-                && HasNarrativeSummary(method))
-            {
-                return method;
-            }
-        }
-
-        return null;
-    }
-
-    // A [NarrativeSummary] property carries the attribute on the property
-    // itself, never on its generated getter, so the method scan above cannot
-    // see it — the property table has to be walked separately.
-    private static System.Reflection.MethodInfo? SummaryPropertyGetterOf(
-        Type type)
-    {
-        return GetPublicProperties(type)
-            .FirstOrDefault(HasNarrativeSummary)
-            ?.GetGetMethod();
-    }
-
-    private static bool HasNarrativeSummary(
-        System.Reflection.ICustomAttributeProvider member)
-    {
-        return HasAttribute(
-            member, typeof(NarrativeSummaryAttribute), inherit: true);
-    }
-
-    private static bool IsRecord(object value)
-    {
-        return value.GetType().GetMethod("<Clone>$") is not null;
-    }
-
-    private static bool HasPublicMembers(object value)
-    {
-        return GetPublicMembers(value.GetType()).Length > 0;
-    }
-
-    // Properties first, then fields: the order every property-only type
-    // rendered before fields were introspected at all, so adding fields
-    // cannot reshuffle existing output.
-    private static System.Reflection.MemberInfo[] GetPublicMembers(Type type)
-    {
-        return [.. GetPublicProperties(type), .. GetPublicFields(type)];
-    }
-
-    // Java introspects getDeclaredFields() minus static and synthetic; the
-    // .NET equivalent is the public instance field table — private fields
-    // here are compiler-generated property backing stores, not state a user
-    // declared.
-    private static System.Reflection.FieldInfo[] GetPublicFields(Type type)
-    {
-        return [.. type.GetFields(
-            System.Reflection.BindingFlags.Public
-            | System.Reflection.BindingFlags.Instance)
-            .Where(f => !f.IsSpecialName && !IsCompilerGenerated(f))];
-    }
-
-    // Excludes what Java's !isSynthetic() filter excludes — an enum's
-    // value__ storage is a public instance field, and rendering it would
-    // turn every enum into an object dump.
-    private static bool IsCompilerGenerated(
-        System.Reflection.MemberInfo member)
-    {
-        return HasAttribute(
-            member,
-            typeof(System.Runtime.CompilerServices
-                .CompilerGeneratedAttribute),
-            inherit: false);
-    }
-
-    private static bool HasAttribute(
-        System.Reflection.ICustomAttributeProvider member,
-        Type attributeType,
-        bool inherit)
-    {
-        return member.GetCustomAttributes(attributeType, inherit).Length > 0;
-    }
-
-    // GetPublicMembers yields properties and fields only, so the cast is a
-    // fail-fast assertion rather than a branch — an unreachable third arm
-    // would just be dead code no test could kill.
-    private static object? ValueOf(
-        System.Reflection.MemberInfo member, object target)
-    {
-        return member is System.Reflection.PropertyInfo property
-            ? property.GetValue(target)
-            : ((System.Reflection.FieldInfo)member).GetValue(target);
-    }
-
-    private static System.Reflection.PropertyInfo[] GetPublicProperties(
-        Type type)
-    {
-        return type.GetProperties(
-            System.Reflection.BindingFlags.Public
-            | System.Reflection.BindingFlags.Instance);
     }
 
     private static string CircularRef(object value)
@@ -761,8 +676,8 @@ public static class ValueRenderer
     }
 
     private static string RenderObject(
-        object value, RenderOptions opts, HashSet<object> seen,
-        string open, string close, int depth)
+        object value, TypeShape shape, RenderOptions opts,
+        HashSet<object> seen, string open, string close, int depth)
     {
         if (!seen.Add(value))
         {
@@ -771,15 +686,10 @@ public static class ValueRenderer
 
         try
         {
-            var type = value.GetType();
-            var members = GetPublicMembers(type);
-            var rendered = members.Select(m =>
-                $"{m.Name}: {RenderMember(
-                    m, value, opts, seen, depth + 1)}");
-
-            return CollectAndJoin(
-                rendered, members.Length, opts.MaxObjectKeys,
-                $"{type.Name}{open}", close);
+            return JoinWithTruncation(
+                RenderMembers(value, shape, opts, seen, depth),
+                shape.Members.Length, opts.MaxObjectKeys,
+                $"{shape.TypeName}{open}", close);
         }
         finally
         {
@@ -787,49 +697,40 @@ public static class ValueRenderer
         }
     }
 
-    // Deferred to RedactionPolicy.IsRedacted so this renderer and template
-    // resolution (NarrationResolver) apply one rule rather than two
-    // implementations of it.
-    private static bool IsRedacted(
-        System.Reflection.MemberInfo member, RenderOptions opts)
+    // An indexed loop rather than Select+Take: the projection captured
+    // value/opts/seen/depth into a display class on every render, and this path
+    // runs for every member of every rendered object.
+    private static List<string> RenderMembers(
+        object value, TypeShape shape, RenderOptions opts,
+        HashSet<object> seen, int depth)
     {
-        var annotated = HasNotTraced(member)
-            || (member is System.Reflection.PropertyInfo prop
-                && IsNotTracedRecordComponent(prop));
-        return opts.RedactionPolicy.IsRedacted(member.Name, annotated);
-    }
-
-    private static bool HasNotTraced(
-        System.Reflection.ICustomAttributeProvider member)
-    {
-        return HasAttribute(
-            member, typeof(NotTracedAttribute), inherit: true);
-    }
-
-    // A positional record parameter puts plain [NotTraced] on the primary
-    // constructor parameter, not the generated property (Java's
-    // RECORD_COMPONENT target maps to this).
-    private static bool IsNotTracedRecordComponent(
-        System.Reflection.PropertyInfo prop)
-    {
-        var ctors = prop.DeclaringType?.GetConstructors() ?? [];
-        foreach (var ctor in ctors)
+        var members = shape.Members;
+        var limit = Math.Min(members.Length, opts.MaxObjectKeys);
+        var rendered = new List<string>(Math.Max(limit, 0));
+        for (var i = 0; i < limit; i++)
         {
-            foreach (var parameter in ctor.GetParameters())
-            {
-                if (parameter.Name == prop.Name
-                    && HasNotTraced(parameter))
-                {
-                    return true;
-                }
-            }
+            rendered.Add(
+                $"{members[i].Name}: {RenderMember(
+                    members[i], value, opts, seen, depth + 1)}");
         }
 
-        return false;
+        return rendered;
+    }
+
+    // Deferred to RedactionPolicy.IsRedacted so this renderer and template
+    // resolution (NarrationResolver) apply one rule rather than two
+    // implementations of it. The annotation half of the answer is a property of
+    // the member alone, so TypeShape resolves it once per type; only the
+    // name-based deny-list, which belongs to the caller's policy rather than to
+    // the type, is asked per render.
+    private static bool IsRedacted(MemberSlot member, RenderOptions opts)
+    {
+        return opts.RedactionPolicy.IsRedacted(
+            member.Name, member.Annotated);
     }
 
     private static string RenderMember(
-        System.Reflection.MemberInfo member, object target,
+        MemberSlot member, object target,
         RenderOptions opts, HashSet<object> seen, int depth)
     {
         if (IsRedacted(member, opts))
@@ -840,11 +741,11 @@ public static class ValueRenderer
         try
         {
             return RenderItem(
-                ValueOf(member, target), opts, seen, depth);
+                member.Read(target), opts, seen, depth);
         }
-        catch
+        catch (Exception ex)
         {
-            return "<error>";
+            return ErrorMarker(ex);
         }
     }
 
@@ -924,14 +825,6 @@ public static class ValueRenderer
         }
     }
 
-    private static string CollectAndJoin(
-        IEnumerable<string> source, int totalCount, int max,
-        string open, string close)
-    {
-        var items = source.Take(max).ToList();
-        return JoinWithTruncation(items, totalCount, max, open, close);
-    }
-
     private static string JoinWithTruncation(
         List<string> items, int totalCount, int max,
         string open, string close)
@@ -968,11 +861,43 @@ public static class ValueRenderer
                 ? Truncate(ControlEscape.Sanitize(s), opts)
                 : $"<{value.GetType().Name}>";
         }
-        catch
+        catch (Exception ex)
         {
-            return $"<{value.GetType().Name}>";
+            return ErrorMarker(ex);
         }
     }
+
+    /// <summary>
+    /// The typed placeholder for a part of the render that failed: a custom
+    /// <see cref="object.ToString"/>, a <see cref="NarrativeSummaryAttribute"/>
+    /// member, or a property/field getter reached during reflective
+    /// introspection — the three extension points into caller code the
+    /// README documents as exception-isolated. Carries the caught
+    /// exception's own type name only, never <see cref="Exception.Message"/>,
+    /// which could carry the very value the render was trying to protect.
+    /// </summary>
+    /// <remarks>
+    /// This is a <see langword="try"/>/<see langword="catch"/> guard, not a
+    /// stack-depth guard: a <see cref="StackOverflowException"/> from a
+    /// recursing <c>ToString()</c> is an unmanaged fault the CLR cannot
+    /// deliver to any managed handler, so it terminates the process before
+    /// this method — or anything else in this class — ever runs. What
+    /// actually stops that case is <see cref="RenderOptions.MaxDepth"/> and
+    /// the reference-identity cycle guard on the reflective walk, which is
+    /// why user <c>ToString()</c> is only ever entered for a leaf value —
+    /// one with no public members left to walk — never for the composite
+    /// doing the recursing.
+    /// </remarks>
+    private static string ErrorMarker(Exception ex) => $"<error: {Unwrapped(ex).GetType().Name}>";
+
+    // PropertyInfo.GetValue and MethodInfo.Invoke both reach the target
+    // member through reflection's own invoker, which wraps whatever that
+    // member threw in a TargetInvocationException — the marker must name the
+    // real failure (e.g. InvalidOperationException), not that plumbing.
+    private static Exception Unwrapped(Exception ex) =>
+        ex is System.Reflection.TargetInvocationException { InnerException: { } inner }
+            ? inner
+            : ex;
 
     private static string Truncate(string s, RenderOptions opts)
     {

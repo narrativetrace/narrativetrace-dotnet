@@ -12,6 +12,8 @@
          analyzers. -->
     <Compile Include="$(MSBuildThisFileDirectory)../../build/TranslationCheckSupport.cs"
              Link="TranslationCheckSupport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/SnippetCheckSupport.cs"
+             Link="SnippetCheckSupport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/DemoWiringSupport.cs"
              Link="DemoWiringSupport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/TestProjectSelection.cs"

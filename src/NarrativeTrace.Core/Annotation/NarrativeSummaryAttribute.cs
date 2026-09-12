@@ -13,8 +13,10 @@ namespace NarrativeTrace.Core.Annotation;
 /// it invokes that member before falling back to record rendering,
 /// reflective property introspection, or <c>ToString()</c>. The member
 /// must be public and take no parameters; its result is converted with
-/// <c>ToString()</c>. If invocation throws, normal renderer fallback
-/// rules apply.
+/// <c>ToString()</c>. If invocation throws, the whole value degrades to a
+/// typed <c>&lt;error: TypeName&gt;</c> placeholder naming the caught
+/// exception — it never falls back to rendering the type's fields, which
+/// the summary was curated specifically to replace.
 /// </remarks>
 [AttributeUsage(
     AttributeTargets.Method | AttributeTargets.Property,

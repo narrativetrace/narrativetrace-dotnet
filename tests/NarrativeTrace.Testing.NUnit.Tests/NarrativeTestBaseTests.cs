@@ -112,6 +112,57 @@ public class NarrativeTestBaseTests
     }
 
     [Fact]
+    public void Writes_artifacts_by_default_with_no_env_var_set()
+    {
+        var dir = Path.Combine(
+            Path.GetTempPath(), "nt-nunit-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var test = new DirOnlySubject(dir);
+            test.SetUpTrace();
+            test.Context.EnterMethod("Svc", "PlacesOrder", []);
+            test.Context.ExitMethodWithReturn(null);
+
+            test.EmitArtifacts("OrderTests", "PlacesOrder");
+
+            Assert.True(File.Exists(Path.Combine(
+                dir, "traces", "OrderTests", "places_order.md")));
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void Writes_nothing_when_output_is_explicitly_disabled()
+    {
+        var dir = Path.Combine(
+            Path.GetTempPath(), "nt-nunit-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var test = new DisabledOutputSubject(dir);
+            test.SetUpTrace();
+            test.Context.EnterMethod("Svc", "PlacesOrder", []);
+            test.Context.ExitMethodWithReturn(null);
+
+            test.EmitArtifacts("OrderTests", "PlacesOrder");
+
+            Assert.False(Directory.Exists(dir));
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void Writes_the_entry_arrays_when_their_switches_are_set()
     {
         var dir = Path.Combine(
@@ -163,6 +214,51 @@ public class NarrativeTestBaseTests
                 ConfigResolver.OutputDirKey => _dir,
                 ConfigResolver.CanonicalJsonKey or ConfigResolver.StructuralJsonKey =>
                     _entryArrays ? "true" : null,
+                _ => null,
+            };
+        }
+    }
+
+    private sealed class DirOnlySubject : NarrativeTestBase
+    {
+        private readonly string _dir;
+
+        public DirOnlySubject(string dir)
+        {
+            _dir = dir;
+        }
+
+        public void EmitArtifacts(string testClass, string testMethod)
+        {
+            WriteArtifacts(testClass, testMethod, failed: false, TextWriter.Null);
+        }
+
+        protected override string? ReadEnvironment(string key)
+        {
+            return key == ConfigResolver.OutputDirKey ? _dir : null;
+        }
+    }
+
+    private sealed class DisabledOutputSubject : NarrativeTestBase
+    {
+        private readonly string _dir;
+
+        public DisabledOutputSubject(string dir)
+        {
+            _dir = dir;
+        }
+
+        public void EmitArtifacts(string testClass, string testMethod)
+        {
+            WriteArtifacts(testClass, testMethod, failed: false, TextWriter.Null);
+        }
+
+        protected override string? ReadEnvironment(string key)
+        {
+            return key switch
+            {
+                ConfigResolver.OutputKey => "false",
+                ConfigResolver.OutputDirKey => _dir,
                 _ => null,
             };
         }

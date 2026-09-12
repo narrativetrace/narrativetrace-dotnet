@@ -127,8 +127,16 @@ public static class VerificationReportSupport
         _ => value.ToString() ?? "",
     };
 
+    // InvariantCulture, matching FormatMetricValue's own explicit choice a few lines up: the
+    // default interpolated-string ":F1" specifier binds CultureInfo.CurrentCulture, which
+    // renders a comma decimal separator ("1,0") on a host whose locale uses one (sr-RS, most of
+    // continental Europe, ...) -- silently corrupting the Markdown table's Duration column on
+    // exactly the machines this was never run on. The JSON twin never had this bug because
+    // System.Text.Json always serializes numbers culture-invariant; the Markdown renderer must
+    // match it.
     private static string RenderRow(ReportCategoryJson row) =>
-        $"| {row.Category} | {row.Tool} | {StatusBadge(row.Status)} | {row.DurationSeconds:F1} | "
+        $"| {row.Category} | {row.Tool} | {StatusBadge(row.Status)} | "
+            + $"{row.DurationSeconds.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)} | "
             + $"{MetricsCell(row.Metrics)} | {row.Note ?? ""} |";
 
     /// <summary>

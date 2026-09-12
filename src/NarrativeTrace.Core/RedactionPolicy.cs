@@ -273,19 +273,27 @@ public sealed class RedactionPolicy
         }
 
         var canonical = SecretValueShapes.Canonical(fieldName);
+        return MatchesSubstringPattern(canonical)
+            || MatchesTokenPattern(fieldName, canonical);
+    }
 
-        // S3267: a plain foreach over the concrete HashSet<string> field (not
-        // the IEnumerable<string> interface) uses its struct enumerator and
-        // binds Matches as a direct call — no delegate, no closure.
-        // ValueRenderer asks this for every reflected member of every
-        // rendered object, a path CoreBenchmarks.RenderObject holds to a
-        // zero-allocation-regression budget; a LINQ .Any(lambda) would
-        // allocate a closure on every call just to fail to match an ordinary
-        // member name.
+    // The substring half of the vocabulary: every pattern that is not one of
+    // the short TokenBoundaryPatterns words matches anywhere in the folded name.
+    //
+    // S3267 is suppressed deliberately: iterating the concrete hash-set field,
+    // rather than through the sequence interface, uses its struct enumerator and
+    // binds the test as a direct call, so nothing is allocated. ValueRenderer
+    // asks this for every reflected member of every rendered object, a path the
+    // RenderObject benchmark holds to a zero-allocation-regression budget, and
+    // the suggested LINQ quantifier would allocate a closure on every call just
+    // to fail to match an ordinary member name.
+    private bool MatchesSubstringPattern(string canonical)
+    {
 #pragma warning disable S3267
         foreach (var pattern in _lowerPatterns)
         {
-            if (Matches(pattern, fieldName, canonical))
+            if (!TokenBoundaryPatterns.Contains(pattern)
+                && canonical.Contains(pattern))
             {
                 return true;
             }
@@ -293,6 +301,70 @@ public sealed class RedactionPolicy
 #pragma warning restore S3267
 
         return false;
+    }
+
+    /// <summary>
+    /// The token-boundary half, walked from the <em>name's</em> side rather than
+    /// the pattern's: each identifier token is folded once and looked up, where
+    /// asking "does this name contain pattern P as a token?" once per short
+    /// pattern re-folded the same token ten times over.
+    /// </summary>
+    /// <remarks>
+    /// The decision is unchanged, only the number of folds. Matching any
+    /// token-boundary pattern is a disjunction over patterns, so it can be read
+    /// from either side: a token matches iff its folded form is one this policy
+    /// carries <em>and</em> one of the always-token-matched words — exactly the
+    /// conjunction the per-pattern loop tested. The whole-name comparison is
+    /// preserved as the same membership test on the folded name, which is what
+    /// lets oddly-cased input like <c>IbAn</c> match even though tokenizing
+    /// alone would split it into <c>Ib</c> + <c>An</c>.
+    /// </remarks>
+    private bool MatchesTokenPattern(string fieldName, string canonical)
+    {
+        if (IsTokenPattern(canonical))
+        {
+            return true;
+        }
+
+        var start = 0;
+        for (var i = 1; i <= fieldName.Length; i++)
+        {
+            if (i < fieldName.Length && !IsTokenBoundary(fieldName, i))
+            {
+                continue;
+            }
+
+            if (IsWordChar(fieldName[start])
+                && IsTokenPattern(FoldedToken(fieldName, start, i)))
+            {
+                return true;
+            }
+
+            start = i;
+        }
+
+        return false;
+    }
+
+    // Reached only for a word this policy actually carries AND that is one of
+    // the short words always matched on identifier-token boundaries rather than
+    // as a substring.
+    private bool IsTokenPattern(string? candidate)
+    {
+        return candidate is not null
+            && TokenBoundaryPatterns.Contains(candidate)
+            && _lowerPatterns.Contains(candidate);
+    }
+
+    // Folded once per token, not once per token-boundary pattern. Every entry in
+    // _lowerPatterns is already canonicalized by the constructor, so only the
+    // name side needs folding — and only the (short) token, never the whole
+    // field name.
+    private static string? FoldedToken(string name, int start, int end)
+    {
+        return end - start == 0
+            ? null
+            : SecretValueShapes.Canonical(name[start..end]);
     }
 
     /// <summary>
@@ -321,66 +393,17 @@ public sealed class RedactionPolicy
             && SecretValueShapes.Matches(value);
     }
 
-    private static bool Matches(string pattern, string original, string canonical)
-    {
-        return TokenBoundaryPatterns.Contains(pattern)
-            ? MatchesTokenBoundary(pattern, original, canonical)
-            : canonical.Contains(pattern);
-    }
-
-    private static bool MatchesTokenBoundary(
-        string pattern, string original, string canonical)
-    {
-        return canonical == pattern || HasMatchingToken(original, pattern);
-    }
-
     // A minimal, self-contained tokenizer: splits on any non-alphanumeric
     // character, a digit/letter boundary, and a case boundary (camelCase,
-    // PascalCase, and an acronym's last capital before a new word), comparing
-    // each token span against pattern in place rather than materializing a
-    // token list — this runs on every reflected member name ValueRenderer
-    // renders (see ShouldRedact's own remark on the benchmark budget). Not a
-    // reuse of NarrativeTrace.Clarity's IdentifierTokenizer — Core cannot
-    // depend on Clarity — and deliberately guards against that type's own
-    // known gap (a run of non-word characters surviving as a bogus token; see
-    // the project backlog, item 24) by only ever comparing a span that starts
-    // on a letter-or-digit.
-    private static bool HasMatchingToken(string name, string pattern)
-    {
-        var start = 0;
-        for (var i = 1; i <= name.Length; i++)
-        {
-            if (i < name.Length && !IsTokenBoundary(name, i))
-            {
-                continue;
-            }
-
-            if (IsWordChar(name[start]) && TokenEquals(name, start, i, pattern))
-            {
-                return true;
-            }
-
-            start = i;
-        }
-
-        return false;
-    }
-
-    // pattern is always already-canonicalized (every entry in _lowerPatterns
-    // is folded in the constructor), so only the name side's token needs
-    // folding — and only the (short) matched span is folded, not the whole
-    // field name, so this stays cheap for the ordinary member name that
-    // matches nothing.
-    private static bool TokenEquals(string name, int start, int end, string pattern)
-    {
-        if (end - start == 0)
-        {
-            return false;
-        }
-
-        return SecretValueShapes.Canonical(name[start..end]) == pattern;
-    }
-
+    // PascalCase, and an acronym's last capital before a new word), walking
+    // MatchesTokenPattern's spans in place rather than materializing a token
+    // list — this runs on every reflected member name ValueRenderer renders (see
+    // ShouldRedact's own remark on the benchmark budget). Not a reuse of
+    // NarrativeTrace.Clarity's IdentifierTokenizer — Core cannot depend on
+    // Clarity — and deliberately guards against that type's own known gap (a run
+    // of non-word characters surviving as a bogus token; see the project
+    // backlog, item 24) by only ever comparing a span that starts on a
+    // letter-or-digit.
     private static bool IsTokenBoundary(string s, int i)
     {
         var prev = s[i - 1];

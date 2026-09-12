@@ -50,6 +50,10 @@
     { "id": "future-cancelled", "description": "a cancelled future", "kind": "future", "state": "cancelled" },
     { "id": "exception-with-message", "description": "an exception carrying prose - what a message may legitimately show, so the oracle here is well-formedness, not containment", "kind": "throwable", "payload": "plain-text" },
     { "id": "exception-cause-chain", "description": "a fifty-deep cause chain", "kind": "throwable", "n": 50, "payload": "plain-text" },
-    { "id": "suppressed-exception", "description": "a suppressed exception, which no cause-chain walk reaches", "kind": "throwable", "state": "suppressed", "payload": "plain-text" }
+    { "id": "suppressed-exception", "description": "a suppressed exception, which no cause-chain walk reaches", "kind": "throwable", "state": "suppressed", "payload": "plain-text" },
+    { "id": "curated-tostring-top-level", "description": "a composite whose hand-written toString interpolates its own deny-listed field directly - the reflective walk must still win", "kind": "curatedToString", "payload": "secret-record" },
+    { "id": "curated-tostring-nested", "description": "a composite with no sensitive fields of its own, whose hand-written toString interpolates a nested composite that carries one", "kind": "curatedToStringNested", "payload": "secret-record" },
+    { "id": "sensitive-map-key", "description": "a composite carrying a deny-listed field, used as a Map key - the rendered key must carry no secret", "kind": "mapKey", "payload": "secret-record" },
+    { "id": "throwing-summary", "description": "a composite whose curated summary throws, the sentinel folded into the exception message - the call must still succeed and no message text may reach any output", "kind": "throwingSummary", "payload": "secret-record" }
   ]
 }

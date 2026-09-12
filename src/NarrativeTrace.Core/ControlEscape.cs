@@ -49,14 +49,74 @@ public static class ControlEscape
     /// </remarks>
     public static string Sanitize(string text)
     {
+        var first = FirstIndexNeedingEscape(text);
+        if (first < 0)
+        {
+            return text;
+        }
+
         var sb = new StringBuilder(text.Length);
-        var index = 0;
+        sb.Append(text, 0, first);
+        var index = first;
         while (index < text.Length)
         {
             index = AppendOne(sb, text, index);
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// The first position this escaper would change, or <c>-1</c> when it would
+    /// change nothing.
+    /// </summary>
+    /// <remarks>
+    /// Virtually every string reaching this method — a class name, a method
+    /// name, a parameter name, an ordinary rendered value — carries no control
+    /// character and no lone surrogate at all, and for those the correct output
+    /// is the input. Building a <see cref="StringBuilder"/> and a second string
+    /// to reproduce it byte for byte is pure waste on the only path that is
+    /// always taken: every Markdown/indented-text/prose seam sanitizes, several
+    /// times per rendered node. Scanning first costs one pass with no
+    /// allocation and lets the clean case return the original instance.
+    /// </remarks>
+    private static int FirstIndexNeedingEscape(string text)
+    {
+        var i = 0;
+        while (i < text.Length)
+        {
+            var c = text[i];
+            if (char.IsControl(c))
+            {
+                return i;
+            }
+
+            if (!char.IsSurrogate(c))
+            {
+                i++;
+                continue;
+            }
+
+            // A well-formed pair is ordinary content (an emoji) and is copied
+            // through, so the scan steps over BOTH halves; reaching a surrogate
+            // that does not open one means the text carries a lone surrogate,
+            // which AppendPlainOrEscaped does rewrite.
+            if (!IsWellFormedPairAt(text, i))
+            {
+                return i;
+            }
+
+            i += 2;
+        }
+
+        return -1;
+    }
+
+    private static bool IsWellFormedPairAt(string text, int i)
+    {
+        return char.IsHighSurrogate(text[i])
+            && i + 1 < text.Length
+            && char.IsLowSurrogate(text[i + 1]);
     }
 
     /// <summary>
