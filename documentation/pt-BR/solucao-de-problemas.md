@@ -1,4 +1,4 @@
-<!-- source: documentation/troubleshooting.md blob 599e20b64830 | translated: 2026-09-11 | reviewed: - -->
+<!-- source: documentation/troubleshooting.md blob 0e28726f70d3 | translated: 2026-09-12 | reviewed: - -->
 # Solução de problemas
 
 [English](../troubleshooting.md) | [Español](../es/solucion-de-problemas.md) | **Português** | [简体中文](../zh-CN/故障排查.md)
@@ -155,7 +155,7 @@ ao iniciar se precisar ter certeza.
 - `NARRATIVETRACE_OUTPUT=false` está definida em algum lugar anterior (uma
   variável de CI, uma sobrescrita de ambiente em `.runsettings`, um shell
   pai) — o único interruptor que desativa o escritor, que por padrão está
-  ativado.
+  ativado *(since 0.1.4, unreleased)*.
 - `NARRATIVETRACE_LEVEL` é `Off` — nada foi capturado.
 - A trace realmente está vazia. **Uma trace vazia não escreve nada, por
   design** — um artefato ausente significa "nada foi capturado", não "a

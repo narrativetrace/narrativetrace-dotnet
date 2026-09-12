@@ -1,4 +1,4 @@
-<!-- source: documentation/choosing-an-integration.md blob d41db990ede8 | translated: 2026-09-11 | reviewed: - -->
+<!-- source: documentation/choosing-an-integration.md blob 3ec6646bb9ad | translated: 2026-09-12 | reviewed: - -->
 # Escolhendo uma integração
 
 [English](../choosing-an-integration.md) | [Español](../es/elegir-una-integracion.md) | **Português** | [简体中文](../zh-CN/选择集成方式.md)
@@ -119,4 +119,4 @@ Código completo e executável para cada caminho acima vive no
 [Guia de instalação](../guides/pt-BR/guia-de-instalacao.md#escolha-um-caminho-de-integracao).
 Para o caminho de menor cerimônia do início ao fim — um serviço, um
 teste, saída real — veja
-[Veja um trace em 60 segundos](primeiros-10-minutos.md).
+[Veja um trace em 60 segundos](sessenta-segundos.md).

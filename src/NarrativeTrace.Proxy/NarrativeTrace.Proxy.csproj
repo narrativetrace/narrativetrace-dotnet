@@ -6,7 +6,19 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../NarrativeTrace.Core/NarrativeTrace.Core.csproj" />
+    <!--
+      Referencing Runtime rather than Core directly: Runtime already carries
+      Core as a package dependency (it needs the capture engine's model
+      types), so this project reference flows through to the packed nuspec
+      as a NarrativeTrace.Runtime dependency, which pulls Core with it. One
+      `dotnet add package NarrativeTrace.Proxy` therefore restores all three
+      packages the 60-second tutorial needs, instead of requiring three
+      separate `dotnet add package` invocations. Compilation sees Core's
+      types the same way either way (project references resolve
+      transitively), so this is a packaging-graph change only — no source
+      in this project touches a Runtime type.
+    -->
+    <ProjectReference Include="../NarrativeTrace.Runtime/NarrativeTrace.Runtime.csproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="NarrativeTrace.Proxy.Tests" />

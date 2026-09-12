@@ -1,4 +1,4 @@
-<!-- source: documentation/what-to-commit.md blob fcbc186452ee | translated: 2026-09-11 | reviewed: - -->
+<!-- source: documentation/what-to-commit.md blob 4477b106b539 | translated: 2026-09-12 | reviewed: - -->
 # Qué incluir en el commit
 
 [English](../what-to-commit.md) | **Español** | [Português](../pt-BR/o-que-incluir-no-commit.md) | [简体中文](../zh-CN/应提交的内容.md)
@@ -25,7 +25,7 @@ writers de esta implementación realmente producen, no asumido.
 | `glossary.md` | **Sí**, junto a `glossary.json` | Renderizado legible por humanos del mismo archivo, reescrito solo cuando cambian los bytes del JSON (anti-churn). |
 | `<output-dir>/glossary-usage.json` | No | Estadísticas de uso volátiles por ejecución — se regenera, no se cura. |
 
-La escritura de trazas está **activada por defecto** (define
+La escritura de trazas está **activada por defecto** *(since 0.1.4, unreleased)* (define
 `NARRATIVETRACE_OUTPUT=false` para desactivarla); `<output-dir>` por
 defecto es `./TestResults/narrativetrace` cuando `NARRATIVETRACE_OUTPUT_DIR`
 no está definido — la convención de `.NET` que `dotnet test

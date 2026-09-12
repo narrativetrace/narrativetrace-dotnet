@@ -1,19 +1,67 @@
 # NarrativeTrace .NET
 
+<!-- published-version -->
+*(Docs and published both at 0.1.3.)* <!-- published-version checked 2026-09-12T13:49:46Z (live) -->
+<!-- /published-version -->
+
 > Code is the log. Auto-generate human-readable execution narratives from method names, parameter names, and return values — no manual logging.
 
-NarrativeTrace is a .NET library that wraps interface-based services with
-`System.Reflection.DispatchProxy` tracing proxies to capture every method
-call and render the result as indented text, Markdown, prose, sequence
-diagrams, JSON, OpenTelemetry spans, or `Microsoft.Extensions.Logging`
-output. It also scores naming clarity so readability can be enforced in CI.
+## Install and first trace (copy this)
+
+```bash
+dotnet new console -n Hello && cd Hello
+dotnet add package NarrativeTrace.Proxy
+```
+<!-- snippet: examples/NarrativeTrace.Examples.SixtySeconds/Program.cs -->
+```csharp
+using NarrativeTrace.Core;
+using NarrativeTrace.Proxy;
+using NarrativeTrace.Runtime;
+
+var context = new SyncNarrativeContext(new NarrativeTraceConfig());
+var orders = NarrativeTraceProxy.Create<IOrderService>(new OrderService(), context);
+
+orders.PlaceOrder("cust-1", "book-123", 2);
+
+Console.WriteLine(IndentedTextRenderer.Render(context.CaptureTrace()));
+
+public interface IOrderService
+{
+    string PlaceOrder(string customerId, string productId, int quantity);
+}
+
+public sealed class OrderService : IOrderService
+{
+    public string PlaceOrder(string customerId, string productId, int quantity)
+        => $"confirmed:{customerId}:{productId}:{quantity}";
+}
+```
+<!-- /snippet -->
+```bash
+dotnet run
+```
+<!-- snippet: artifacts/sixty-seconds/see-a-trace.txt mask=duration -->
+```text
+└── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 12ms
+```
+<!-- /snippet -->
+Then to your logger, same tree, two lines:
+```csharp
+using var loggerFactory = LoggerFactory.Create(b => b.AddConsole());
+TraceLogExporter.ExportToLogger(context.CaptureTrace(), loggerFactory.CreateLogger("NarrativeTrace"));
+```
+
+## Before you start
+- `NarrativeTrace.Proxy` pulls in `.Runtime`+`.Core` *(since 0.1.4, unreleased)*; `0.1.3` (nuget.org today) needs all three by hand.
+- `NARRATIVETRACE_OUTPUT` defaults **on** *(since 0.1.4, unreleased)*; `0.1.3` defaults it **off** — set it explicitly there.
+- `new ProxyOptions(Redaction: ...)` reaches the proxy *(since 0.1.4, unreleased)*; `0.1.3`, DI, and ASP.NET Core have no redaction hook.
+- No compiler flag needed for parameter names — unlike the JVM's `-parameters`.
 
 ## Field notes from AI agents (self-reported, not a benchmark)
 We asked AI agents to build a claims service with NarrativeTrace and write up the experience for another engineer, naming what was awkward. Prompted, one run each, unedited, model named; we wrote the library. The reports so far are from the Java runtime; the same exercise runs for .NET next, and the principle they describe — the trace as evidence, redaction by parameter name, output on by default — is the same here. All six reports, the exact prompt and the task: https://narrativetrace.ai/#agents-saying
 - "…the release call is present, generated from a real run, not asserted from inside the process being tested." — Claude Sonnet, 2026-09-11
 - "The always-on name-based deny-list is a genuinely nice piece of design: naming a parameter `paymentToken` gets you redaction for free, and I could prove it in a test." — Claude Sonnet, 2026-09-11
 - "The trace of a failed payment made missing compensation immediately visible, and approval testing caught an extra call that ordinary value assertions accepted." — GPT-6, 2026-09-08
-What our own cold walk of this runtime's 60-second page found, so you need not: the page works as written against nuget.org (`dotnet add package NarrativeTrace.Core`, `.Runtime`, `.Proxy`); sending the trace to `Microsoft.Extensions.Logging` is one call, `TraceLogExporter.ExportToLogger(tree, logger)`; test trace output is on by default since 2026-09-11 into `TestResults/narrativetrace/` (`NARRATIVETRACE_OUTPUT=false` opts out).
 
 ## Docs
 

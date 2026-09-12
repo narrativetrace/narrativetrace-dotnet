@@ -54,6 +54,8 @@
              Link="VerifyAllSecurityParsing.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/BenchmarkGate.cs"
              Link="BenchmarkGate.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/PublishedVersionSupport.cs"
+             Link="PublishedVersionSupport.cs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -4,7 +4,7 @@
 
 ## Start here
 
-[See a trace in 60 seconds](documentation/first-10-minutes.md) — a console
+[See a trace in 60 seconds](documentation/sixty-seconds.md) — a console
 app, one run, and the trace is in your terminal.
 
 ## Demo
@@ -221,12 +221,13 @@ public class OrderTests : IClassFixture<NarrativeFixture>
 **NUnit** — derive from `NarrativeTestBase`; failures are detected and
 narrated automatically in teardown via `TestContext`.
 
-Both write real files to disk by default, no flag to set:
+Both write real files to disk by default, no flag to set
+*(since 0.1.4, unreleased)*:
 `TestResults/narrativetrace/traces/<Class>/<slug>.md`, a sibling `.json`, a
 `.mmd` diagram, and a value-free `.nt` — under the ephemeral, gitignored
 directory `dotnet test` already treats as disposable output. Set
 `NARRATIVETRACE_OUTPUT=false` to opt out. See
-[See a trace in 60 seconds](documentation/first-10-minutes.md) for the
+[See a trace in 60 seconds](documentation/sixty-seconds.md) for the
 fastest path to a trace, and the
 [Clarity guide](documentation/guides/clarity.md) for renaming a method and
 watching the score drop.
@@ -481,7 +482,7 @@ Capture levels, from least to most detail: `Off`, `Errors`, `Summary`,
 
 Start here:
 
-- [See a trace in 60 seconds](documentation/first-10-minutes.md) — one console app, `dotnet run`, real output in your terminal
+- [See a trace in 60 seconds](documentation/sixty-seconds.md) — one console app, `dotnet run`, real output in your terminal
 - [Choosing an Integration](documentation/choosing-an-integration.md) — which module you need, as a decision diagram
 - [Troubleshooting](documentation/troubleshooting.md) — symptom → cause → fix for the failure modes people actually hit
 - [What to Commit](documentation/what-to-commit.md) — which generated files are throwaway output and which are reviewed

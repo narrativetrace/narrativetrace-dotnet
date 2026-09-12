@@ -140,7 +140,7 @@ the resolved configuration at startup if you need to be sure.
 
 - `NARRATIVETRACE_OUTPUT=false` is set somewhere upstream (a CI variable, a
   `.runsettings` env override, a parent shell) — the one switch that opts
-  out of the otherwise-on-by-default writer.
+  out of the otherwise-on-by-default writer *(since 0.1.4, unreleased)*.
 - `NARRATIVETRACE_LEVEL` is `Off` — nothing was ever captured.
 - The trace really is empty. **An empty trace writes nothing at all, by
   design** — a missing artifact means "nothing was captured," not "the

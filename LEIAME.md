@@ -1,11 +1,11 @@
-<!-- source: README.md blob 5fe4ac8dd682 | translated: 2026-09-11 | reviewed: - -->
+<!-- source: README.md blob b8eda103f5c0 | translated: 2026-09-12 | reviewed: - -->
 # NarrativeTrace .NET
 
 [English](README.md) | [Español](LEAME.md) | **Português** | [简体中文](自述文件.md)
 
 ## Comece aqui
 
-[Veja um trace em 60 segundos](documentation/pt-BR/primeiros-10-minutos.md)
+[Veja um trace em 60 segundos](documentation/pt-BR/sessenta-segundos.md)
 — um aplicativo de console, uma execução, e o trace está no seu terminal.
 
 ## Demo
@@ -235,11 +235,12 @@ public class OrderTests : IClassFixture<NarrativeFixture>
 narradas automaticamente no teardown via `TestContext`.
 
 Ambos escrevem arquivos reais em disco por padrão, sem nenhuma opção para
-ativar: `TestResults/narrativetrace/traces/<Class>/<slug>.md`, um `.json`
+ativar *(since 0.1.4, unreleased)*:
+`TestResults/narrativetrace/traces/<Class>/<slug>.md`, um `.json`
 irmão, um diagrama `.mmd` e um `.nt` sem valores — no diretório efêmero e
 ignorado pelo Git que o `dotnet test` já trata como saída descartável.
 Defina `NARRATIVETRACE_OUTPUT=false` para desativar. Veja
-[Veja um trace em 60 segundos](documentation/pt-BR/primeiros-10-minutos.md)
+[Veja um trace em 60 segundos](documentation/pt-BR/sessenta-segundos.md)
 para o caminho mais rápido até um trace, e o
 [Guia de clareza](documentation/guides/pt-BR/guia-de-clareza.md) para
 renomear um método e ver a pontuação cair.
@@ -502,7 +503,7 @@ Todo ajuste pode ser resolvido a partir de variáveis de ambiente
 
 Comece aqui:
 
-- [Veja um trace em 60 segundos](documentation/pt-BR/primeiros-10-minutos.md) — um app de console, `dotnet run`, saída real no seu terminal
+- [Veja um trace em 60 segundos](documentation/pt-BR/sessenta-segundos.md) — um app de console, `dotnet run`, saída real no seu terminal
 - [Escolhendo uma integração](documentation/pt-BR/escolhendo-uma-integracao.md) — qual módulo você precisa, como um diagrama de decisão
 - [Solução de problemas](documentation/pt-BR/solucao-de-problemas.md) — sintoma → causa → correção para os modos de falha que as pessoas realmente encontram
 - [O que incluir no commit](documentation/pt-BR/o-que-incluir-no-commit.md) — quais arquivos gerados são descartáveis e quais são revisados

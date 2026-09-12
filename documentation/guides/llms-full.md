@@ -58,7 +58,7 @@ into a single tree.
 |---|---|---|
 | `NarrativeTrace.Core` | — | Trace model, `INarrativeContext`, config, redaction, value + text/Markdown/prose renderers, and the `NarrativeTrace.Core.Annotation` attributes `[Narrated]`/`[OnError]`/`[NotTraced]`/`[NarrativeSummary]`. |
 | `NarrativeTrace.Runtime` | Core | Capture engine (`SyncNarrativeContext`, `AsyncNarrativeContext`), concurrency groups, event pipeline, JSON/chapter exporters. |
-| `NarrativeTrace.Proxy` | Core | `NarrativeTraceProxy`, `NarrativeInterceptor`, `[Traced]`; reads the Core annotations. |
+| `NarrativeTrace.Proxy` | Runtime | `NarrativeTraceProxy`, `NarrativeInterceptor`, `[Traced]`; reads the Core annotations. Depends on `Runtime` (not `Core` directly) *(since 0.1.4, unreleased)* — `0.1.3` has `Proxy` depend on `Core` alone. |
 | `NarrativeTrace.DependencyInjection` | Core, Proxy, Runtime | `AddNarrativeTracing` namespace auto-wrap. |
 | `NarrativeTrace.AspNetCore` | Core, Runtime, Proxy | Per-request middleware, `ITraceExporter`, request/user context. |
 | `NarrativeTrace.Logging` | Core | `Microsoft.Extensions.Logging` bridge. |
@@ -252,7 +252,7 @@ rather than the code's, so a committed baseline must not pin it.
 T Create<T>(T target, INarrativeContext context, ProxyOptions? options = null) where T : class;
 object Create(Type interfaceType, object target, INarrativeContext context, ProxyOptions? options = null);
 
-sealed record ProxyOptions(string? ClassName = null, bool IncludeReturnValues = true);
+sealed record ProxyOptions(string? ClassName = null, bool IncludeReturnValues = true, RedactionPolicy? Redaction = null);
 ```
 
 `Create<T>` requires `T` to be an interface (`DispatchProxy` limitation).
@@ -260,6 +260,9 @@ The interceptor caches per-method metadata (names, redaction set,
 narration/error templates), captures parameters (respecting the tracing
 level and redaction), records return values or exceptions, and unwraps
 `TargetInvocationException` so the original exception propagates.
+`ProxyOptions.Redaction` *(since 0.1.4, unreleased)* threads a custom
+`RedactionPolicy` into this proxy's own renders, replacing (not widening)
+the default name-based decision; `0.1.3` has no such field.
 
 Attributes. All but `[Traced]` live in `NarrativeTrace.Core.Annotation` — pure
 metadata in Core, read here by the interceptor; `[Traced]` is
@@ -334,7 +337,7 @@ values are captured only at `Detail`.
 
 - `NARRATIVETRACE_LEVEL` (default `Detail`)
 - `NARRATIVETRACE_OUTPUT` (`true`/`false`/`1`/`0`, default `true` — on by
-  default since 2026-09-11; only an explicit `false`/`0` opts out)
+  default *(since 0.1.4, unreleased)*; only an explicit `false`/`0` opts out)
 - `NARRATIVETRACE_OUTPUT_DIR` (default `TestResults/narrativetrace`, the
   ephemeral, already-gitignored `.NET` test-output convention)
 - `NARRATIVETRACE_FORMAT` (`Markdown`/`Text`/`Prose`/`Json`, default `Markdown`)

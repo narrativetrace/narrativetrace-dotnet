@@ -1,4 +1,4 @@
-<!-- source: documentation/privacy-and-redaction.md blob 07afc780d0bb | translated: 2026-09-11 | reviewed: - -->
+<!-- source: documentation/privacy-and-redaction.md blob 2095cdb1be16 | translated: 2026-09-12 | reviewed: - -->
 # Privacidade e ocultação
 
 [English](../privacy-and-redaction.md) | [Español](../es/privacidad-y-ocultacion.md) | **Português** | [简体中文](../zh-CN/隐私与脱敏.md)
@@ -14,14 +14,14 @@ decidir se é seguro para seus dados antes de conectá-lo.
 
 Toda integração distribuída nesta implementação renderiza valores de parâmetros e
 de retorno através do mesmo motor (`ValueRenderer`,
-`NarrativeInterceptor`), que sempre resolve para
-`RedactionPolicy.Default` — nenhuma delas expõe um botão de configuração
-para desativá-la:
+`NarrativeInterceptor`). A maioria resolve para `RedactionPolicy.Default`
+sem forma de mudar isso; o caminho de `NarrativeTraceProxy` é a única
+superfície que aceita uma política diferente *(since 0.1.4, unreleased)*:
 
-| Superfície | Pode desativar a ocultação embutida? | Por quê |
+| Superfície | Pode conectar uma `RedactionPolicy` personalizada? | Por quê |
 |---|---|---|
-| `NarrativeTraceProxy.Create<T>` (captura crua do `DispatchProxy`) | Não | Renderiza todo argumento/valor de retorno sem nenhum argumento `RenderOptions` — sempre `RedactionPolicy.Default`. |
-| Encapsulamento automático de DI (`AddNarrativeTracing`) | Não | Encapsula com `NarrativeTraceProxy.Create` internamente; `NarrativeTracingDiOptions` não tem nenhum campo de ocultação. |
+| `NarrativeTraceProxy.Create<T>` / `.Create` (captura crua do `DispatchProxy`) | **Sim**, via `new ProxyOptions(Redaction: ...)` *(since 0.1.4, unreleased)* | Conecta a política em toda chamada a `ValueRenderer.Render` que esse interceptador faz (parâmetros, percursos de objetos aninhados, valores de retorno) e também na decisão de nome de nível superior — veja o [Guia de configuração §6](../guides/pt-BR/guia-de-configuracao.md#6-ocultação). Dada explicitamente, ela *substitui* a decisão padrão em vez de ampliá-la, então `RedactionPolicy.Disabled` aqui realmente desativa a ocultação baseada em nome de ponta a ponta. A `0.1.3` (a versão atual no nuget.org) não tem nenhum `ProxyOptions.Redaction`. |
+| Encapsulamento automático de DI (`AddNarrativeTracing`) | Não | Encapsula com `NarrativeTraceProxy.Create` internamente mas não passa um `ProxyOptions`; `NarrativeTracingDiOptions` ainda não tem nenhum campo de ocultação. |
 | Middleware do ASP.NET Core | Não | `NarrativeTraceOptions` não tem nenhum campo de ocultação; as traces vêm de qualquer caminho de proxy que as produziu. |
 | `NarrativeFixture` do xUnit | Não | Não há parâmetro `RedactionPolicy`/`RenderOptions` em lugar nenhum do tipo. |
 | `NarrativeTestBase` do NUnit | Não | Mesma forma do fixture do xUnit. |
@@ -29,15 +29,13 @@ para desativá-la:
 | Projeção JSON canônico / JSON estrutural | N/D — nada para desativar | Consome strings já renderizadas (já ocultadas); a projeção estrutural também elide todo valor incondicionalmente. |
 | Artefato estrutural `.nt` | N/D — não existem valores | `StructuralTraceRenderer` emite apenas nomes, hierarquia e tipo de resultado, nunca um valor. |
 | `dotnet-narrativetrace clarity-scan` | N/D — nunca lê valores | Apenas reflexão sobre um `MetadataLoadContext`: nunca constrói uma instância nem invoca nada, então não há valor algum para ocultar. |
-| Uma chamada personalizada a `ValueRenderer.Render(value, options)` no **seu próprio código** | Sim | A única válvula de escape na base de código: passe você mesmo `new RenderOptions(Redaction: RedactionPolicy.Disabled)`. `[NotTraced]` ainda oculta mesmo assim. |
+| Uma chamada personalizada a `ValueRenderer.Render(value, options)` no **seu próprio código** | Sim | Passe você mesmo `new RenderOptions(Redaction: ...)`. `[NotTraced]` ainda oculta mesmo assim. |
+| Toda superfície acima, de forma aditiva | Sim, mas só *ampliando* | `NARRATIVETRACE_REDACTION_ADDITIONALPATTERNS` (padrões de nome de campo separados por vírgula) é unido a `RedactionPolicy.Default` no início do processo, então alcança também toda superfície desta tabela que ainda diz "Não" — incluindo as que não têm nenhum gancho por chamada. Só pode adicionar padrões, nunca remover ou substituir, e — por ser lido em um campo `static readonly` — precisa ser definido antes de qualquer coisa no processo tocar em `RedactionPolicy` pela primeira vez. |
 
-Essa última linha é a única exceção honesta, e é deliberada, não um
-descuido: `RedactionPolicy.Disabled` existe como primitiva da biblioteca
-(`RedactionPolicy.Disabled = new([], valueShapesEnabled: false)`), mas
-nenhuma integração distribuída a conecta. Alcançá-la significa escrever
-sua própria chamada a `ValueRenderer.Render`/`RenderStructured` com um
-`RenderOptions` explícito — um ato deliberado e revisável no seu próprio
-código-fonte, nunca uma flag ou variável de ambiente.
+As linhas de DI e ASP.NET Core são a lacuna ainda aberta: ampliar
+`NarrativeTracingDiOptions`/`NarrativeTraceOptions` com o mesmo campo
+`Redaction` e conectá-lo à sua construção interna de `ProxyOptions` é um
+próximo passo proposto, ainda não construído.
 
 ## O que a lista de negação captura, e o que a supera em prioridade
 
@@ -88,16 +86,13 @@ independentemente da lista de negação:
 
 A lacuna mais estreita, já conhecida: a resolução de marcadores de
 template (`[Narrated]`/`[OnError]`) é um caminho de código totalmente
-estático e sempre usa `RedactionPolicy.Default`. Se o código da
-aplicação algum dia conectar uma `RedactionPolicy` *personalizada* no
-`ValueRenderer` diretamente (a linha da válvula de escape acima, ao
-contrário — endurecendo em vez de desativar), essa política
-personalizada é respeitada em todo lugar onde `ValueRenderer` é chamado
-manualmente, mas **não** dentro dos templates `[Narrated]`/`[OnError]`,
-que continuam usando a lista de negação padrão independentemente disso.
-Nenhuma integração distribuída conecta uma política personalizada hoje,
-então isso só importa se você construir diretamente contra a API de
-renderização do `NarrativeTrace.Core` você mesmo.
+estático e sempre usa `RedactionPolicy.Default`, **mesmo em um proxy
+criado com um `ProxyOptions.Redaction` personalizado**. Um template
+`[Narrated("issued {token}")]` substitui `token` pela lista de negação
+padrão independentemente de qual política esse mesmo proxy usa para
+renderizar seus parâmetros e valores de retorno capturados — o único
+lugar que uma política personalizada dada a `NarrativeTraceProxy` não
+alcança.
 
 ## Limites e escaping
 
@@ -115,13 +110,18 @@ ocultação:
 
 ## Garantias
 
-- **A ocultação é incondicional em toda integração distribuída.**
+- **A ocultação é incondicional por padrão em toda integração
+  distribuída**, e continua assim a menos que o código da aplicação
+  desative deliberadamente um proxy no seu próprio código-fonte:
   `[NotTraced]` e a lista de negação de 26 padrões (mais os três formatos
   de valor) se aplicam a todo caminho de saída que esta implementação distribui —
   captura por proxy, encapsulamento automático de DI, middleware do
   ASP.NET Core, saída de testes xUnit/NUnit, marcadores de template e
-  todo formato de exportação. Nenhuma flag, variável de ambiente ou
-  propriedade do MSBuild os desativa.
+  todo formato de exportação — a menos que aquele proxy específico tenha
+  sido construído com `new ProxyOptions(Redaction: ...)`. Nenhuma flag,
+  variável de ambiente ou propriedade do MSBuild desativa a ocultação; só
+  esse argumento de construtor explícito e revisável pode fazer isso, e
+  `[NotTraced]` ainda oculta mesmo assim.
 - **Os artefatos estruturais não carregam nenhum valor em tempo de
   execução.** Tanto o artefato de texto `.nt` quanto o array de entradas
   opcional `.structural.json` removem todo valor de parâmetro, valor de
@@ -150,7 +150,8 @@ ocultação:
   um membro `[NarrativeSummary]` que lança, e um getter de propriedade ou
   campo que lança ao ser alcançado pela introspecção reflexiva (incluindo
   um nomeado em um template). Cada um degrada *essa única parte* para um
-  marcador de posição tipado `<error: TypeName>` — o nome do próprio tipo
+  marcador de posição tipado `<error: TypeName>`
+  *(since 0.1.4, unreleased)* — o nome do próprio tipo
   da exceção capturada, ex. `<error: InvalidOperationException>`, nunca
   sua `.Message` (uma mensagem pode carregar o próprio valor que a
   renderização tentava proteger) — sem abortar a chamada, a coleção ou a
@@ -188,16 +189,20 @@ ocultação:
 
 ## Não garantias
 
-- **Nenhuma integração distribuída permite que você desative a
-  ocultação.** A única válvula de escape é código de aplicação que
-  constrói sua própria chamada a `ValueRenderer.Render` com
-  `RedactionPolicy.Disabled` — um ato deliberado no seu próprio
-  código-fonte, nunca um estado de configuração. `[NotTraced]` ainda
-  oculta mesmo sob `Disabled`.
+- **O encapsulamento automático de DI e o middleware do ASP.NET Core
+  ainda não expõem um gancho de ocultação.** `NarrativeTraceProxy.Create`/
+  `.Create<T>` aceitam `new ProxyOptions(Redaction: ...)`, mas
+  `AddNarrativeTracing` e `AddNarrativeTrace` constroem seus proxies sem
+  um — um ato deliberado no seu próprio código-fonte (passar `ProxyOptions`
+  para uma chamada direta a `Create`, ou a variável de ambiente
+  `NARRATIVETRACE_REDACTION_ADDITIONALPATTERNS` no nível do processo)
+  ainda é a única forma de ampliar ou substituir a ocultação nesses dois
+  caminhos. `[NotTraced]` ainda oculta mesmo sob
+  `RedactionPolicy.Disabled`.
 - **Os marcadores de template não respeitam uma `RedactionPolicy`
   personalizada.** A resolução de `[Narrated]`/`[OnError]` sempre usa a
-  lista de negação padrão, mesmo que você tenha conectado uma política
-  personalizada no `ValueRenderer` em outro lugar.
+  lista de negação padrão, mesmo em um proxy criado com um
+  `ProxyOptions.Redaction` personalizado.
 - **A detecção é baseada em nome e formato, não estatística.** Não há
   heurística de entropia ou "parece aleatório" — um segredo em um campo
   com nome inocente e um formato não reconhecido não é capturado. Isso é
@@ -214,7 +219,7 @@ ocultação:
   modelo de confiança de um `ToString()` escrito à mão que você leria em
   um depurador — não uma brecha que o renderizador introduziu. Se em vez
   disso ele lançar, o valor degrada para o marcador tipado
-  `<error: TypeName>`, nunca um vazamento do que ele mostraria. Anote o
+  `<error: TypeName>` *(since 0.1.4, unreleased)*, nunca um vazamento do que ele mostraria. Anote o
   *membro* com `[NotTraced]` em vez disso se o resumo próprio de um tipo
   não puder ser confiado com um campo.
 - **Nenhum loop de comparação com linha de base em produção lê o

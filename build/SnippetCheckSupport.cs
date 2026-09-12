@@ -140,6 +140,14 @@ internal static class SnippetCheckSupport
     private static string Relative(string root, string file) =>
         Path.GetRelativePath(root, file).Replace('\\', '/');
 
+    /// <summary>
+    /// Every page this check watches: every <c>*.md</c> under
+    /// <c>documentation/</c> or at the repo root, plus <c>llms.txt</c> —
+    /// the agent-facing index is a <c>.txt</c> file so it falls outside the
+    /// Markdown glob, but its own "copy this" block is exactly the kind of
+    /// quickstart code+output pairing rule 8 exists to keep honest, so it
+    /// gets the same marker treatment as every other quickstart page.
+    /// </summary>
     private static IEnumerable<string> MarkdownFiles(string root)
     {
         var documentation = Path.Combine(root, "documentation");
@@ -147,7 +155,10 @@ internal static class SnippetCheckSupport
             ? Directory.EnumerateFiles(documentation, "*.md", SearchOption.AllDirectories)
             : Enumerable.Empty<string>();
         var atRoot = Directory.EnumerateFiles(root, "*.md", SearchOption.TopDirectoryOnly);
-        return underDocs.Concat(atRoot).OrderBy(f => f, StringComparer.Ordinal);
+        var llmsTxt = Directory.Exists(documentation)
+            ? Directory.EnumerateFiles(documentation, "llms.txt", SearchOption.AllDirectories)
+            : Enumerable.Empty<string>();
+        return underDocs.Concat(atRoot).Concat(llmsTxt).OrderBy(f => f, StringComparer.Ordinal);
     }
 
     private static IEnumerable<string> CheckFile(string root, string relative, string text)

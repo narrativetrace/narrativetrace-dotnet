@@ -49,6 +49,8 @@ class Build : NukeBuild
     AbsolutePath BenchmarkBaselineFile => RootDirectory / "benchmarks" / "benchmark-baseline.json";
     AbsolutePath SecurityDirectory => ArtifactsDirectory / "security";
     AbsolutePath SecurityScanStatusDirectory => SecurityDirectory / "scan-status";
+    AbsolutePath LlmsTxtFile => RootDirectory / "documentation" / "guides" / "llms.txt";
+    AbsolutePath LlmsPublishedVersionCacheFile => RootDirectory / ".nuke" / "temp" / "llms-published-version-cache.json";
 
     /// <summary>
     /// Whether a missing scanner binary must fail its target rather than warn-and-pass — always
@@ -265,7 +267,8 @@ class Build : NukeBuild
         .DependsOn(Test)
         .Executes(() =>
         {
-            var problems = SnippetCheckSupport.Check(RootDirectory);
+            var problems = SnippetCheckSupport.Check(RootDirectory).ToList();
+            problems.AddRange(CheckLlmsPublishedVersionLine());
             foreach (var problem in problems)
                 Console.WriteLine($"  {problem}");
 
@@ -288,7 +291,9 @@ class Build : NukeBuild
         .DependsOn(Test)
         .Executes(() =>
         {
-            var changes = SnippetCheckSupport.Sync(RootDirectory);
+            var changes = SnippetCheckSupport.Sync(RootDirectory).ToList();
+            if (SyncLlmsPublishedVersionLine() is { } lineChange)
+                changes.Add(lineChange);
             foreach (var change in changes)
                 Console.WriteLine($"  {change}");
 
@@ -1276,7 +1281,7 @@ class Build : NukeBuild
     /// rather than shelled out: (1) every package the solution's own projects say they publish is
     /// present at the given version, and no package a project explicitly does NOT publish is
     /// present anyway; (2) a consumer smoke test that scaffolds this repository's own documented
-    /// first-10-minutes recipe into a temp directory, with a cold isolated NuGet package cache and
+    /// sixty-seconds recipe into a temp directory, with a cold isolated NuGet package cache and
     /// a <c>NuGet.config</c> pinning nuget.org as the only source, and asserts the traced test
     /// actually wrote its trace file with the expected content. "It resolves and compiles" is
     /// explicitly not the bar.
@@ -1454,6 +1459,125 @@ class Build : NukeBuild
                 PublicationVerificationSupport.NuspecUrl(PublicationVerificationSupport.NuGetOrgFlatContainerBase, packageId, version))),
         });
 
+    // ── llms.txt "docs vs published" banner (design note docs-vs-published-gate-2026-09-12 §1) ──
+
+    /// <summary>GET body, or <see langword="null"/> on any failure (no response, non-200, malformed) — the same "no answer" shape <see cref="HeadStatus"/> gives <see cref="RemoteCheckOne"/>.</summary>
+    static string? GetBodyOrNull(string url)
+    {
+        try
+        {
+            using var response = VerifyPublicationHttp.GetAsync(url).GetAwaiter().GetResult();
+            return response.IsSuccessStatusCode ? response.Content.ReadAsStringAsync().GetAwaiter().GetResult() : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Resolves the published-side figure for the <c>llms.txt</c> banner, network allowed: a
+    /// fresh (&lt;= 1h) cache hit needs no network at all; otherwise fetches the flat-container
+    /// index and refreshes the cache on success. On a failed fetch, falls back to whatever cache
+    /// exists (even stale, its age disclosed) rather than a false "no answer"; true offline (no
+    /// cache, no network) is the only case that reports <see langword="null"/>.
+    /// </summary>
+    (string? Version, TimeSpan? CacheAge) ResolvePublishedVersionWithNetwork()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var cached = PublishedVersionSupport.ParseCache(
+            File.Exists(LlmsPublishedVersionCacheFile) ? File.ReadAllText(LlmsPublishedVersionCacheFile) : null);
+        if (cached is not null && PublishedVersionSupport.IsFresh(cached, now))
+        {
+            return (cached.Version, now - cached.FetchedAtUtc);
+        }
+
+        var url = PublishedVersionSupport.FlatContainerIndexUrl(
+            PublicationVerificationSupport.NuGetOrgFlatContainerBase, PublishedVersionSupport.TrackedPackageId);
+        var fetched = PublishedVersionSupport.ParseLatestVersion(GetBodyOrNull(url));
+        if (fetched is not null)
+        {
+            var entry = new PublishedVersionSupport.CacheEntry(fetched, now);
+            Directory.CreateDirectory(Path.GetDirectoryName(LlmsPublishedVersionCacheFile)!);
+            File.WriteAllText(LlmsPublishedVersionCacheFile, PublishedVersionSupport.SerializeCache(entry));
+            return (fetched, null);
+        }
+
+        return cached is not null ? (cached.Version, now - cached.FetchedAtUtc) : (null, null);
+    }
+
+    /// <summary>
+    /// Regenerates the <c>llms.txt</c> banner and writes it back if it changed. Returns a
+    /// change description for <see cref="SnippetSync"/>'s log, or <see langword="null"/> when the
+    /// file already carried the current line.
+    /// </summary>
+    string? SyncLlmsPublishedVersionLine()
+    {
+        var repoVersion = ReadVersionPrefix();
+        var (published, cacheAge) = ResolvePublishedVersionWithNetwork();
+        var line = PublishedVersionSupport.BuildLine(repoVersion, published);
+        var comment = PublishedVersionSupport.BuildProvenanceComment(DateTimeOffset.UtcNow, cacheAge);
+
+        var text = File.ReadAllText(LlmsTxtFile);
+        var beforeLine = PublishedVersionSupport.ExtractLine(text);
+        if (string.Equals(beforeLine, line, StringComparison.Ordinal))
+        {
+            // The visible claim hasn't moved — leave the file (and its provenance timestamp)
+            // untouched rather than dirtying a tracked file with a new "checked at" stamp on
+            // every build; the stamp's job is to disclose staleness when the line DOES change.
+            return null;
+        }
+
+        File.WriteAllText(LlmsTxtFile, PublishedVersionSupport.UpsertBlock(text, line, comment));
+        return $"documentation/guides/llms.txt: published-version banner -> {line}";
+    }
+
+    /// <summary>
+    /// Offline-only check (no network, matching <see cref="SnippetCheck"/>'s own "no network"
+    /// contract): the banner block must exist, must be one of the three canonical forms, and must
+    /// cite today's repo version — catching the common regression of bumping
+    /// <c>VersionPrefix</c> without regenerating the banner. When a still-fresh cache happens to
+    /// be on disk, also checks the published-side figure against it (still zero network calls);
+    /// deeper drift against the live registry is the nightly job's concern, not a per-commit gate's.
+    /// </summary>
+    List<string> CheckLlmsPublishedVersionLine()
+    {
+        var repoVersion = ReadVersionPrefix();
+        var text = File.ReadAllText(LlmsTxtFile);
+        var line = PublishedVersionSupport.ExtractLine(text);
+        if (line is null)
+        {
+            return ["documentation/guides/llms.txt: missing the published-version banner "
+                + "— run ./build.sh SnippetSync"];
+        }
+
+        if (!PublishedVersionSupport.TryParseLine(line, out var describedVersion, out var linePublished))
+        {
+            return [$"documentation/guides/llms.txt: published-version banner is not one of the "
+                + $"three canonical forms: {line}"];
+        }
+
+        if (describedVersion != repoVersion)
+        {
+            return ["documentation/guides/llms.txt: published-version banner cites a stale "
+                + $"repo version — expected '{repoVersion}', found: {line} — run ./build.sh SnippetSync"];
+        }
+
+        // Deeper drift against the live registry needs a network call this offline check never
+        // makes; a still-fresh cache (no network needed to read it) is the one case this can
+        // still verify: does the banner's published figure match what SnippetSync last saw.
+        var cached = PublishedVersionSupport.ParseCache(
+            File.Exists(LlmsPublishedVersionCacheFile) ? File.ReadAllText(LlmsPublishedVersionCacheFile) : null);
+        if (cached is not null && PublishedVersionSupport.IsFresh(cached, DateTimeOffset.UtcNow)
+            && linePublished != cached.Version)
+        {
+            return ["documentation/guides/llms.txt: published-version banner does not match "
+                + $"the cached lookup — expected '{cached.Version}', found: {line} — run ./build.sh SnippetSync"];
+        }
+
+        return [];
+    }
+
     PublicationVerificationSupport.Presence LocalCheckOne(string packageId, string version)
     {
         var found = Directory.Exists(ArtifactsDirectory)
@@ -1513,7 +1637,7 @@ class Build : NukeBuild
             .ToList();
 
     /// <summary>
-    /// Scaffolds <c>documentation/first-10-minutes.md</c>'s exact recipe into a fresh temp
+    /// Scaffolds <c>documentation/sixty-seconds.md</c>'s exact recipe into a fresh temp
     /// directory — a cold isolated <c>NUGET_PACKAGES</c>, a <c>NuGet.config</c> pinning nuget.org
     /// (or, under <see cref="LocalRehearsal"/>, the local feed) as the only source — and asserts
     /// the traced test wrote its trace artifact with the expected content. Resolving and
@@ -1612,7 +1736,7 @@ class Build : NukeBuild
             </Project>
             """);
 
-        // Verbatim from documentation/first-10-minutes.md steps 2 and 3 — this smoke test IS that
+        // Verbatim from documentation/sixty-seconds.md steps 2 and 3 — this smoke test IS that
         // documented recipe, run for real against whatever the target version actually published.
         File.WriteAllText(Path.Combine(workDir, "OrderService.cs"), SmokeOrderServiceSource);
         File.WriteAllText(Path.Combine(workDir, "OrderServiceTests.cs"), SmokeOrderServiceTestsSource);

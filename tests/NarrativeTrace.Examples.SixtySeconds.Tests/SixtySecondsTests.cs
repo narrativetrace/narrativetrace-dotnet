@@ -10,7 +10,7 @@ using Xunit;
 namespace NarrativeTrace.Examples.SixtySeconds.Tests;
 
 /// <summary>
-/// "See a trace in 60 seconds" (<c>documentation/first-10-minutes.md</c>) as
+/// "See a trace in 60 seconds" (<c>documentation/sixty-seconds.md</c>) as
 /// a real, compiled, tested project — rule 8 (docs as tests). Runs the
 /// page's exact call
 /// through the real traced proxy and saves the two output blocks the page

@@ -1,24 +1,35 @@
-<!-- source: documentation/first-10-minutes.md blob 85c4e7df07b9 | translated: 2026-09-12 | reviewed: - -->
+<!-- source: documentation/sixty-seconds.md blob ad3bb96f919c | translated: 2026-09-12 | reviewed: - -->
 # Veja um trace em 60 segundos
 
-[English](../first-10-minutes.md) | [Español](../es/primeros-10-minutos.md) | **Português** | [简体中文](../zh-CN/前10分钟.md)
+[English](../sixty-seconds.md) | [Español](../es/sesenta-segundos.md) | **Português** | [简体中文](../zh-CN/60秒.md)
 
 Sem instruções de log, sem framework de testes, sem arquivos para abrir: um
 app de console, um `dotnet run`, e um trace no seu terminal. Tudo abaixo foi
-executado de verdade contra os pacotes publicados — a saída está colada,
-não imaginada.
+executado de verdade — a saída está colada, não imaginada. (A instalação de
+um único pacote *(since 0.1.4, unreleased)* é o grafo de dependências que o
+proxy traz; na `0.1.3`, a
+versão atual no nuget.org, adicione `.Runtime` e `.Core` manualmente também
+— veja abaixo.)
 
-## 1. Novo app de console, adicione os pacotes
+## 1. Novo app de console, adicione o pacote
 
 ```bash
 dotnet new console -n Hello && cd Hello
+dotnet add package NarrativeTrace.Proxy
+```
+
+Um único pacote: `NarrativeTrace.Proxy` depende de `NarrativeTrace.Runtime`,
+que depende de `NarrativeTrace.Core` — `dotnet add package` resolve a cadeia
+inteira, então `SyncNarrativeContext` e `IndentedTextRenderer` logo abaixo
+ficam disponíveis sem mais dois `dotnet add package`
+*(since 0.1.4, unreleased)*. Na `0.1.3`, `Proxy`
+depende só de `Core`; até a `0.1.4` sair, rode os três:
+
+```bash
 dotnet add package NarrativeTrace.Core
 dotnet add package NarrativeTrace.Runtime
 dotnet add package NarrativeTrace.Proxy
 ```
-
-Três pacotes, resolvidos a partir do nuget.org — ainda não existe um único
-metapacote que traga tudo de uma vez.
 
 ## 2. Substitua o Program.cs
 

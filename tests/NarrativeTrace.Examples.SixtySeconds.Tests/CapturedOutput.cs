@@ -5,7 +5,7 @@ namespace NarrativeTrace.Examples.SixtySeconds.Tests;
 
 /// <summary>
 /// Saves a byte-stable captured-stdout file for
-/// <c>documentation/first-10-minutes.md</c>'s output blocks to embed via
+/// <c>documentation/sixty-seconds.md</c>'s output blocks to embed via
 /// <c>snippet-check</c> — the design note's other option alongside the
 /// runtime's own test-artifact writer (<see cref="Testing.Xunit.NarrativeFixture.WriteArtifacts"/>),
 /// used here because the page's output blocks are the bare renderer line the

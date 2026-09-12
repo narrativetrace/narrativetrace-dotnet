@@ -8,7 +8,7 @@ namespace NarrativeTrace.Testing.Xunit.Tests;
 
 /// <summary>
 /// Exercises <see cref="NarrativeFixture"/> exactly the way every doc teaches
-/// it (first-10-minutes.md, README.md): registered as
+/// it (sixty-seconds.md, README.md): registered as
 /// <c>IClassFixture&lt;NarrativeFixture&gt;</c> and injected through the test
 /// class constructor.
 /// </summary>

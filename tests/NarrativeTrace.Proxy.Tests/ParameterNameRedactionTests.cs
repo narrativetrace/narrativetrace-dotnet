@@ -2,6 +2,7 @@
 // Licensed under the Business Source License 1.1 (see LICENSE); Change Date: four years from publication; Change License: Apache-2.0
 // Copyright (c) 2026 Empower Agile
 using NarrativeTrace.Core;
+using NarrativeTrace.Core.Annotation;
 using NarrativeTrace.Runtime;
 using Xunit;
 
@@ -103,19 +104,13 @@ public class ParameterNameRedactionTests
         Assert.Contains(RedactionPolicy.Marker, json, StringComparison.Ordinal);
     }
 
-    // Monotonicity: application code can construct a NARROWER
-    // RedactionPolicy (RedactionPolicy.OfPatterns replaces the built-in
-    // vocabulary wholesale rather than extending it — see its own remarks),
-    // but there is no seam anywhere in the proxy pipeline (ProxyOptions,
-    // NarrativeTraceProxy.Create/.Create<T>, NarrativeInterceptor) that
-    // accepts a RedactionPolicy at all: BuildParameterInfo is hardcoded to
-    // RedactionPolicy.Default, and Cache/GetMetadata/BuildMetadata/
-    // BuildParameterInfo are all `private static`, so not even a subclass
-    // could override the decision. Constructing the narrower policy here
-    // is the point — its mere existence changes nothing, because nothing
-    // can hand it to the interceptor.
+    // Monotonicity: merely constructing a RedactionPolicy changes nothing
+    // by itself — it has to be handed to something. Proxies created with no
+    // ProxyOptions (or ProxyOptions with no Redaction) keep using
+    // RedactionPolicy.Default regardless of what other policy objects exist
+    // in the same process.
     [Fact]
-    public void A_narrower_custom_policy_cannot_reach_capture()
+    public void A_custom_policy_never_given_to_ProxyOptions_does_not_reach_capture()
     {
         var narrower = RedactionPolicy.OfPatterns(["ssn"]);
         Assert.False(narrower.ShouldRedact("password")); // it really is narrower
@@ -131,13 +126,96 @@ public class ParameterNameRedactionTests
         Assert.Equal(RedactionPolicy.Marker, parameter.RenderedValue);
     }
 
+    // The seam: ProxyOptions.Redaction reaches BuildParameterInfo's name
+    // decision (via NameRedacted) end to end. RedactionPolicy.Disabled
+    // REPLACES the default decision rather than widening it (same contract
+    // as RedactionPolicy.OfPatterns), so a parameter the default policy
+    // would have redacted is visible once a proxy explicitly opts out.
+    [Fact]
+    public void A_custom_policy_given_to_ProxyOptions_replaces_the_default_at_capture()
+    {
+        var ctx = new SyncNarrativeContext(new NarrativeTraceConfig());
+        var proxy = NarrativeTraceProxy.Create<IAccountService>(
+            new AccountService(), ctx,
+            new ProxyOptions(Redaction: RedactionPolicy.Disabled));
+
+        proxy.Authenticate("ada", "hunter2");
+
+        var parameter = ctx.CaptureTrace().Roots[0].Signature.Parameters[1];
+        Assert.False(parameter.Redacted);
+        Assert.Equal("\"hunter2\"", parameter.RenderedValue);
+    }
+
+    // [NotTraced] always wins, even under RedactionPolicy.Disabled — the
+    // same guarantee the annotation carries everywhere else in this runtime.
+    [Fact]
+    public void NotTraced_still_wins_under_a_custom_policy()
+    {
+        var ctx = new SyncNarrativeContext(new NarrativeTraceConfig());
+        var proxy = NarrativeTraceProxy.Create<IAccountService>(
+            new AccountService(), ctx,
+            new ProxyOptions(Redaction: RedactionPolicy.Disabled));
+
+        proxy.PayWithAccount("POL-123", "tok-super-secret-xyz", "acct-1");
+
+        var parameter = ctx.CaptureTrace().Roots[0].Signature.Parameters[2];
+        Assert.True(parameter.Redacted);
+        Assert.Equal(RedactionPolicy.Marker, parameter.RenderedValue);
+    }
+
+    // The reported leak: a plain-string PII property two levels down
+    // (Policy.HolderName) is not caught by RedactionPolicy.Default, and
+    // before ProxyOptions.Redaction existed, application code had no way to
+    // widen the deny-list for a name like this anywhere the proxy path
+    // rendered — only a hand-written ValueRenderer.Render call reached
+    // RedactionPolicy.OfPatterns at all. This proves the custom policy
+    // reaches a NESTED object's reflective walk too, not just top-level
+    // parameter names.
+    [Fact]
+    public void A_custom_policy_redacts_a_nested_property_the_default_policy_misses()
+    {
+        var ctx = new SyncNarrativeContext(new NarrativeTraceConfig());
+        var proxy = NarrativeTraceProxy.Create<IAccountService>(
+            new AccountService(), ctx,
+            new ProxyOptions(Redaction: RedactionPolicy.OfPatterns(["holdername"])));
+
+        proxy.Renew(new Policy("POL-123", "Ada Lovelace"));
+
+        var parameter = ctx.CaptureTrace().Roots[0].Signature.Parameters[0];
+        Assert.False(parameter.Redacted); // the Policy argument itself has an ordinary name
+        Assert.DoesNotContain("Ada Lovelace", parameter.RenderedValue, StringComparison.Ordinal);
+        Assert.Contains(RedactionPolicy.Marker, parameter.RenderedValue, StringComparison.Ordinal);
+    }
+
+    // Without the custom policy, the same nested field is plainly visible —
+    // proves the previous test's redaction comes from the policy, not from
+    // some other guard (value-shape masking, [NotTraced], …).
+    [Fact]
+    public void The_same_nested_property_is_visible_under_the_default_policy()
+    {
+        var ctx = new SyncNarrativeContext(new NarrativeTraceConfig());
+        var proxy = NarrativeTraceProxy.Create<IAccountService>(
+            new AccountService(), ctx);
+
+        proxy.Renew(new Policy("POL-123", "Ada Lovelace"));
+
+        var parameter = ctx.CaptureTrace().Roots[0].Signature.Parameters[0];
+        Assert.Contains("Ada Lovelace", parameter.RenderedValue, StringComparison.Ordinal);
+    }
+
     public interface IAccountService
     {
         void Authenticate(string user, string password);
 
         void Pay(string policyId, string paymentToken);
 
+        void PayWithAccount(
+            string policyId, string paymentToken,
+            [NotTraced] string accountId);
+
         void PlaceOrder(string orderNumber, int quantity);
+
+        void Renew(Policy policy);
     }
 
     private sealed class AccountService : IAccountService
@@ -150,8 +228,22 @@ public class ParameterNameRedactionTests
         {
         }
 
+        public void PayWithAccount(
+            string policyId, string paymentToken, string accountId)
+        {
+        }
+
         public void PlaceOrder(string orderNumber, int quantity)
         {
         }
+
+        public void Renew(Policy policy)
+        {
+        }
     }
+
+    // The reported shape: an ordinary top-level parameter name
+    // ("policy") wrapping a plain-string PII property the built-in
+    // deny-list does not recognize.
+    public sealed record Policy(string PolicyId, string HolderName);
 }

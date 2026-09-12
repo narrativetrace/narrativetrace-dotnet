@@ -1,22 +1,33 @@
 # See a trace in 60 seconds
 
-**English** | [Español](es/primeros-10-minutos.md) | [Português](pt-BR/primeiros-10-minutos.md) | [简体中文](zh-CN/前10分钟.md)
+**English** | [Español](es/sesenta-segundos.md) | [Português](pt-BR/sessenta-segundos.md) | [简体中文](zh-CN/60秒.md)
 
 No log statements, no test framework, no files to open: a console app, one
 `dotnet run`, and a trace in your terminal. Everything below was run for
-real against the published packages — the output is pasted, not imagined.
+real — the output is pasted, not imagined. (The one-package install
+*(since 0.1.4, unreleased)* is the dependency graph the proxy ships; on
+`0.1.3`, the current nuget.org release, add `.Runtime` and `.Core` by hand
+too — see below.)
 
-## 1. New console app, add the packages
+## 1. New console app, add the package
 
 ```bash
 dotnet new console -n Hello && cd Hello
+dotnet add package NarrativeTrace.Proxy
+```
+
+One package: `NarrativeTrace.Proxy` depends on `NarrativeTrace.Runtime`,
+which depends on `NarrativeTrace.Core` — `dotnet add package` resolves the
+whole chain, so `SyncNarrativeContext` and `IndentedTextRenderer` below are
+available without two more `dotnet add package` calls
+*(since 0.1.4, unreleased)*. On `0.1.3`, `Proxy` depends on `Core` alone; until `0.1.4` is
+out, run all three:
+
+```bash
 dotnet add package NarrativeTrace.Core
 dotnet add package NarrativeTrace.Runtime
 dotnet add package NarrativeTrace.Proxy
 ```
-
-Three packages, resolved from nuget.org — there's no single metapackage
-that pulls in everything at once (yet).
 
 ## 2. Replace Program.cs
 
@@ -54,7 +65,7 @@ dotnet run
 
 <!-- snippet: artifacts/sixty-seconds/see-a-trace.txt mask=duration -->
 ```text
-└── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 9ms
+└── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 12ms
 ```
 <!-- /snippet -->
 

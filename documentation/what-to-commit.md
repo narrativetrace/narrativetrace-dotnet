@@ -24,7 +24,8 @@ produce, not assumed.
 | `glossary.md` | **Yes**, alongside `glossary.json` | Human-readable rendering of the same file, rewritten only when the JSON's bytes change (anti-churn). |
 | `<output-dir>/glossary-usage.json` | No | Volatile per-run usage statistics — regenerated, not curated. |
 
-Trace output is **on by default** (set `NARRATIVETRACE_OUTPUT=false` to opt
+Trace output is **on by default** *(since 0.1.4, unreleased)* (set
+`NARRATIVETRACE_OUTPUT=false` to opt
 out); `<output-dir>` defaults to `./TestResults/narrativetrace` when
 `NARRATIVETRACE_OUTPUT_DIR` isn't set — the `.NET` convention `dotnet test
 --results-directory` and Visual Studio/Rider already treat as disposable

@@ -106,4 +106,4 @@ too — see [Privacy and Redaction](privacy-and-redaction.md); there is no
 Full, runnable code for every path above lives in the
 [Installation Guide](guides/installation.md#choose-an-integration-path).
 For the least-ceremony path end-to-end — one service, one test, real
-output — see [See a trace in 60 seconds](first-10-minutes.md).
+output — see [See a trace in 60 seconds](sixty-seconds.md).

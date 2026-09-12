@@ -34,13 +34,13 @@ public sealed class TranslationCompletenessSupportTests : IDisposable
         var manifest = new I18nManifest(
             "en",
             [Language("es", I18nStatus.Complete)],
-            [new I18nDocument("documentation/first-10-minutes.md", new Dictionary<string, string>())]);
+            [new I18nDocument("documentation/sixty-seconds.md", new Dictionary<string, string>())]);
 
         var result = TranslationCompletenessSupport.Check(_repo, manifest);
 
         var failure = Assert.Single(result.Failures);
         Assert.Contains("es (complete)", failure, StringComparison.Ordinal);
-        Assert.Contains("documentation/first-10-minutes.md", failure, StringComparison.Ordinal);
+        Assert.Contains("documentation/sixty-seconds.md", failure, StringComparison.Ordinal);
         Assert.Empty(result.Warnings);
     }
 
@@ -50,7 +50,7 @@ public sealed class TranslationCompletenessSupportTests : IDisposable
         var manifest = new I18nManifest(
             "en",
             [Language("es", I18nStatus.InProgress)],
-            [new I18nDocument("documentation/first-10-minutes.md", new Dictionary<string, string>())]);
+            [new I18nDocument("documentation/sixty-seconds.md", new Dictionary<string, string>())]);
 
         var result = TranslationCompletenessSupport.Check(_repo, manifest);
 

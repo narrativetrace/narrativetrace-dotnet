@@ -1,11 +1,11 @@
-<!-- source: README.md blob 5fe4ac8dd682 | translated: 2026-09-11 | reviewed: - -->
+<!-- source: README.md blob b8eda103f5c0 | translated: 2026-09-12 | reviewed: - -->
 # NarrativeTrace .NET
 
 [English](README.md) | **Español** | [Português](LEIAME.md) | [简体中文](自述文件.md)
 
 ## Empieza aquí
 
-[Ve una traza en 60 segundos](documentation/es/primeros-10-minutos.md) — una
+[Ve una traza en 60 segundos](documentation/es/sesenta-segundos.md) — una
 aplicación de consola, una ejecución, y la traza está en tu terminal.
 
 ## Demo
@@ -235,11 +235,12 @@ public class OrderTests : IClassFixture<NarrativeFixture>
 automáticamente en el teardown vía `TestContext`.
 
 Ambos escriben archivos reales en disco por defecto, sin ninguna opción que
-activar: `TestResults/narrativetrace/traces/<Class>/<slug>.md`, un `.json`
+activar *(since 0.1.4, unreleased)*:
+`TestResults/narrativetrace/traces/<Class>/<slug>.md`, un `.json`
 hermano, un diagrama `.mmd` y un `.nt` libre de valores — en el directorio
 efímero e ignorado por Git que `dotnet test` ya trata como salida
 desechable. Define `NARRATIVETRACE_OUTPUT=false` para desactivarlo. Consulta
-[Ve una traza en 60 segundos](documentation/es/primeros-10-minutos.md) para
+[Ve una traza en 60 segundos](documentation/es/sesenta-segundos.md) para
 el camino más rápido hacia una traza, y la
 [Guía de claridad](documentation/guides/es/guia-de-claridad.md) para
 renombrar un método y ver cómo cae la puntuación.
@@ -503,7 +504,7 @@ Niveles de captura, de menos a más detalle: `Off`, `Errors`, `Summary`,
 
 Empieza aquí:
 
-- [Ve una traza en 60 segundos](documentation/es/primeros-10-minutos.md) — una app de consola, `dotnet run`, salida real en tu terminal
+- [Ve una traza en 60 segundos](documentation/es/sesenta-segundos.md) — una app de consola, `dotnet run`, salida real en tu terminal
 - [Elegir una integración](documentation/es/elegir-una-integracion.md) — qué módulo necesitas, como diagrama de decisión
 - [Solución de problemas](documentation/es/solucion-de-problemas.md) — síntoma → causa → arreglo para los fallos que la gente realmente encuentra
 - [Qué incluir en el commit](documentation/es/que-incluir-en-el-commit.md) — qué archivos generados son desechables y cuáles se revisan

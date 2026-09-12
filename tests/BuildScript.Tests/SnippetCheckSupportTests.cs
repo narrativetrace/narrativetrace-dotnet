@@ -42,6 +42,24 @@ public sealed class SnippetCheckSupportTests : IDisposable
     }
 
     [Fact]
+    public void Llms_txt_is_checked_even_though_it_is_not_markdown()
+    {
+        Write("src/Program.cs", "Console.WriteLine(\"hi\");\n");
+        Write("documentation/guides/llms.txt",
+            "# NarrativeTrace .NET\n\n"
+            + "<!-- snippet: src/Program.cs -->\n"
+            + "```csharp\n"
+            + "Console.WriteLine(\"bye\");\n"
+            + "```\n"
+            + "<!-- /snippet -->\n");
+
+        var problem = Assert.Single(SnippetCheckSupport.Check(_repo));
+
+        Assert.Contains("documentation/guides/llms.txt", problem, StringComparison.Ordinal);
+        Assert.Contains("drifted", problem, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void A_block_that_has_drifted_from_its_source_names_both_paths()
     {
         Write("src/Program.cs", "Console.WriteLine(\"hi\");\n");

@@ -58,7 +58,7 @@ public sealed class TranslationPlatformSupportTests : IDisposable
                 { "code": "es", "displayName": "Español", "directory": "documentation/es",
                   "index": "documentation/es/index.md", "rootReadme": "LEAME.md", "status": "in-progress" }
               ],
-              "documents": [ { "source": "documentation/first-10-minutes.md" } ]
+              "documents": [ { "source": "documentation/sixty-seconds.md" } ]
             }
             """);
         // Español has no sibling file on disk yet, so both English index pages render it plain.

@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/installation.md blob 583536695e87 | translated: 2026-09-11 | reviewed: - -->
+<!-- source: documentation/guides/installation.md blob d5dc94e2e332 | translated: 2026-09-12 | reviewed: - -->
 # NarrativeTrace .NET — Guía de instalación
 
 [English](../installation.md) | **Español** | [Português](../pt-BR/guia-de-instalacao.md) | [简体中文](../zh-CN/安装指南.md)
@@ -26,6 +26,17 @@ id. Empieza por el mínimo y añade solo lo que necesites.
 
 ```xml
 <!-- Mínimo: captura + renderizado -->
+<PackageReference Include="NarrativeTrace.Proxy" Version="0.1.4" />
+```
+
+`NarrativeTrace.Proxy` depende de `.Runtime`, que depende de `.Core` — un
+solo `dotnet add package NarrativeTrace.Proxy` restaura los tres, y sus
+tipos (`SyncNarrativeContext`, `IndentedTextRenderer`, …) quedan
+disponibles para que los uses directamente *(since 0.1.4, unreleased)*. En
+`0.1.3`, `Proxy` depende
+solo de `Core`; añade los tres explícitamente hasta que salga `0.1.4`:
+
+```xml
 <PackageReference Include="NarrativeTrace.Core" Version="0.1.3" />
 <PackageReference Include="NarrativeTrace.Runtime" Version="0.1.3" />
 <PackageReference Include="NarrativeTrace.Proxy" Version="0.1.3" />
@@ -33,9 +44,9 @@ id. Empieza por el mínimo y añade solo lo que necesites.
 
 | Paquete | Cuándo añadirlo |
 |---|---|
-| `NarrativeTrace.Core` | Siempre — modelo de trazas, `INarrativeContext`, configuración, ocultación, renderizadores Markdown/Prose/texto y los atributos `[Narrated]`/`[OnError]`/`[NotTraced]`/`[NarrativeSummary]` (namespace `NarrativeTrace.Core.Annotation`). |
-| `NarrativeTrace.Runtime` | Siempre — el motor de captura (`SyncNarrativeContext`, `AsyncNarrativeContext`, exportadores JSON/de capítulos). |
-| `NarrativeTrace.Proxy` | Tracing de interfaces vía `DispatchProxy`, más la sobrescritura de nombres de parámetros `[Traced]`, específica del proxy. |
+| `NarrativeTrace.Core` | Siempre — modelo de trazas, `INarrativeContext`, configuración, ocultación, renderizadores Markdown/Prose/texto y los atributos `[Narrated]`/`[OnError]`/`[NotTraced]`/`[NarrativeSummary]` (namespace `NarrativeTrace.Core.Annotation`). `.Runtime` lo trae de forma transitiva *(since 0.1.4, unreleased)*. |
+| `NarrativeTrace.Runtime` | Siempre — el motor de captura (`SyncNarrativeContext`, `AsyncNarrativeContext`, exportadores JSON/de capítulos). `.Proxy` lo trae de forma transitiva *(since 0.1.4, unreleased)*. |
+| `NarrativeTrace.Proxy` | Tracing de interfaces vía `DispatchProxy`, más la sobrescritura de nombres de parámetros `[Traced]`, específica del proxy, y `ProxyOptions.Redaction` (una `RedactionPolicy` personalizada para las capturas de ese proxy — consulta [Configuración §6](guia-de-configuracion.md#6-ocultación)). |
 | `NarrativeTrace.DependencyInjection` | `AddNarrativeTracing` — envoltura automática de los servicios con interfaz que coinciden por namespace en el contenedor de MS.DI. |
 | `NarrativeTrace.AspNetCore` | Middleware con ciclo de vida de trazas por petición para ASP.NET Core. |
 | `NarrativeTrace.Testing.Xunit` | `NarrativeFixture` — contexto por prueba e impresión de la narrativa en los fallos (namespace `NarrativeTrace.TestingXunit`). |
@@ -47,9 +58,9 @@ id. Empieza por el mínimo y añade solo lo que necesites.
 | `NarrativeTrace.Cli` | Herramienta global `dotnet-narrativetrace` — análisis de claridad solo por reflexión + puerta de calidad en CI. |
 | `NarrativeTrace.MSBuild` | Paquete solo de build que cablea la CLI en `dotnet build` / `dotnet test`. |
 
-> Las versiones son pre-1.0 (`0.1.3`). Usa la versión que realmente
-> instalaste; mantén todos los paquetes `NarrativeTrace.*` en la misma
-> versión.
+> Las versiones son pre-1.0 (`0.1.3` en nuget.org al momento de escribir
+> esto, `0.1.4` a continuación). Usa la versión que realmente instalaste;
+> mantén todos los paquetes `NarrativeTrace.*` en la misma versión.
 
 ## Elige una vía de integración
 
@@ -227,7 +238,8 @@ Los valores inválidos degradan al valor por defecto en lugar de lanzar
 una excepción, así que una configuración incorrecta nunca rompe la
 captura. El parseo del nivel es tolerante a mayúsculas y puntuación
 (`detail`, `DETAIL`, `Detail` resuelven todos). `NARRATIVETRACE_OUTPUT`
-está activada por defecto — el fixture de xUnit y la base de NUnit
+está activada por defecto *(since 0.1.4, unreleased)* — el fixture de
+xUnit y la base de NUnit
 escriben los artefactos por prueba en `TestResults/narrativetrace/`
 (efímero, ya ignorado por Git gracias a la convención `TestResults/` de
 `.NET`) sin ninguna opción; define `false` para desactivarlo.

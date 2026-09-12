@@ -99,7 +99,7 @@ public class NarrativeInterceptor : DispatchProxy
     private static MethodMetadata BuildMetadata(
         MethodInfo method)
     {
-        var (names, redacted) = BuildParameterInfo(
+        var (names, redacted, notTraced, reflected) = BuildParameterInfo(
             method);
         var narration = method
             .GetCustomAttribute<NarratedAttribute>()
@@ -117,7 +117,9 @@ public class NarrativeInterceptor : DispatchProxy
             errors,
             method.DeclaringType?.Namespace,
             method.ReturnType.ToString(),
-            method.GetParameters().Select(p => p.ParameterType.ToString()).ToArray());
+            method.GetParameters().Select(p => p.ParameterType.ToString()).ToArray(),
+            notTraced,
+            reflected);
     }
 
     // The name deny-list decides here, beside the [NotTraced] annotation, and
@@ -136,30 +138,46 @@ public class NarrativeInterceptor : DispatchProxy
     // different input here would let the two capture paths drift, and a
     // [Traced] display-name override (chosen for narrative readability, not
     // security) would then decide whether a secret is hidden.
-    private static (string[] Names, HashSet<int> Redacted)
+    private static (string[] Names, HashSet<int> Redacted, HashSet<int> NotTraced, string?[] Reflected)
         BuildParameterInfo(MethodInfo method)
     {
         var parameters = method.GetParameters();
         var traced = method
             .GetCustomAttribute<TracedAttribute>();
         var names = new string[parameters.Length];
+        var reflected = new string?[parameters.Length];
         var redacted = new HashSet<int>();
+        var notTraced = new HashSet<int>();
 
         for (var i = 0; i < parameters.Length; i++)
         {
             names[i] = GetParameterName(
                 parameters[i], traced?.ParameterNames, i);
-            var annotated = parameters[i]
-                .GetCustomAttribute<NotTracedAttribute>()
-                is not null;
-            if (RedactionPolicy.Default.IsRedacted(
-                parameters[i].Name, annotated))
-            {
-                redacted.Add(i);
-            }
+            reflected[i] = parameters[i].Name;
+            ClassifyParameter(parameters[i], i, redacted, notTraced);
         }
 
-        return (names, redacted);
+        return (names, redacted, notTraced, reflected);
+    }
+
+    // Split out of BuildParameterInfo purely to stay under this codebase's
+    // method-length gate — same single decision, same inputs.
+    private static void ClassifyParameter(
+        ParameterInfo parameter, int index,
+        HashSet<int> redacted, HashSet<int> notTraced)
+    {
+        var annotated = parameter
+            .GetCustomAttribute<NotTracedAttribute>()
+            is not null;
+        if (annotated)
+        {
+            notTraced.Add(index);
+        }
+
+        if (RedactionPolicy.Default.IsRedacted(parameter.Name, annotated))
+        {
+            redacted.Add(index);
+        }
     }
 
     private SpanId EnterTrace(
@@ -169,7 +187,8 @@ public class NarrativeInterceptor : DispatchProxy
         var className = _options?.ClassName
             ?? meta.ClassName;
         var parameters = CaptureParameters(
-            meta, args, _context.CapturesParameterValues);
+            meta, args, _context.CapturesParameterValues,
+            _options?.Redaction, RenderOptionsFor);
         var options = new MethodOptions(
             ResolveNarration(meta, args, method),
             Namespace: meta.Namespace,
@@ -443,7 +462,7 @@ public class NarrativeInterceptor : DispatchProxy
         try
         {
             var rendered = ShouldRenderReturn
-                ? ValueRenderer.Render(result)
+                ? ValueRenderer.Render(result, RenderOptionsFor)
                 : null;
             _context.ExitMethodWithReturn(rendered, handle);
         }
@@ -468,6 +487,17 @@ public class NarrativeInterceptor : DispatchProxy
     private bool ShouldRenderReturn =>
         _options?.IncludeReturnValues ?? true;
 
+    // Built once per resolved call rather than cached on the instance: a
+    // RenderOptions is a cheap record, and NarrativeTraceConfig.Level can be
+    // flipped at runtime on a shared context, so nothing about this proxy's
+    // rendering should be frozen at Initialize time. Null when no custom
+    // policy was given, which is exactly the "existing default behavior in
+    // every ValueRenderer.Render(value) call this replaces.
+    private RenderOptions? RenderOptionsFor =>
+        _options?.Redaction is { } redaction
+            ? new RenderOptions(Redaction: redaction)
+            : null;
+
     /// <summary>
     /// Void-completion contract: a <c>void</c> method carries no rendered
     /// value at all, so a rendered <c>"null"</c> always means the method
@@ -478,19 +508,20 @@ public class NarrativeInterceptor : DispatchProxy
     {
         var rendered = ShouldRenderReturn
             && returnType != typeof(void)
-            ? ValueRenderer.Render(result)
+            ? ValueRenderer.Render(result, RenderOptionsFor)
             : null;
         _context.ExitMethodWithReturn(rendered, handle);
     }
 
-    // The name axis (meta.RedactedIndices) is decided once per method, at
-    // metadata-build time, because it depends only on the parameter's
-    // declared name. A VALUE-shape secret (JWT/PAN/national-id/SSN) cannot
-    // be decided there — it depends on the actual argument THIS call
-    // carries — so RenderParameter/ValueRenderer.Render already catches it
-    // per call, in the rendered text. Without this, that rendered text was
-    // correctly masked while ParameterCapture.Redacted stayed false for the
-    // same value: a downstream consumer trusting the flag (rather than
+    // The name axis (meta.RedactedIndices, or a custom policy's own
+    // decision below) is decided once per method, at metadata-build time,
+    // because it depends only on the parameter's declared name. A
+    // VALUE-shape secret (JWT/PAN/national-id/SSN) cannot be decided there
+    // — it depends on the actual argument THIS call carries — so
+    // RenderParameter/ValueRenderer.Render already catches it per call, in
+    // the rendered text. Without this, that rendered text was correctly
+    // masked while ParameterCapture.Redacted stayed false for the same
+    // value: a downstream consumer trusting the flag (rather than
     // string-sniffing RenderedValue) would misclassify it as visible. Found
     // by RedactionCapturePathConformanceTests, which replays the shared
     // corpus through this real capture path rather than through
@@ -498,15 +529,17 @@ public class NarrativeInterceptor : DispatchProxy
     private static IReadOnlyList<ParameterCapture>
         CaptureParameters(
             MethodMetadata meta, object?[] args,
-            bool captureValues)
+            bool captureValues,
+            RedactionPolicy? customPolicy,
+            RenderOptions? renderOptions)
     {
         var captures =
             new ParameterCapture[meta.ParameterNames.Length];
 
         for (var i = 0; i < captures.Length; i++)
         {
-            var nameRedacted = meta.RedactedIndices.Contains(i);
-            var rendered = RenderParameter(args[i], nameRedacted, captureValues);
+            var nameRedacted = NameRedacted(meta, i, customPolicy);
+            var rendered = RenderParameter(args[i], nameRedacted, captureValues, renderOptions);
             captures[i] = new ParameterCapture(
                 meta.ParameterNames[i],
                 rendered,
@@ -515,6 +548,34 @@ public class NarrativeInterceptor : DispatchProxy
         }
 
         return captures;
+    }
+
+    // A given custom policy REPLACES the default name-based decision for
+    // this position, rather than widening it — the same contract
+    // RedactionPolicy.OfPatterns documents, so ProxyOptions.Redaction set to
+    // RedactionPolicy.Disabled really does disable name-based redaction end
+    // to end, not just for nested object fields. [NotTraced] always wins
+    // regardless of which policy (or none) is in force. Tested against the
+    // REFLECTED parameter name, matching meta.RedactedIndices' own input, so
+    // the two paths cannot answer differently for a [Traced] display-name
+    // override.
+    private static bool NameRedacted(
+        MethodMetadata meta, int index, RedactionPolicy? customPolicy)
+    {
+        if (customPolicy is null)
+        {
+            return meta.RedactedIndices.Contains(index);
+        }
+
+        if (meta.NotTracedIndices?.Contains(index) == true)
+        {
+            return true;
+        }
+
+        var reflectedName = meta.ReflectedParameterNames is { } names
+            ? names[index]
+            : null;
+        return customPolicy.ShouldRedact(reflectedName);
     }
 
     // Reads the decision back off the text ValueRenderer already rendered,
@@ -538,7 +599,7 @@ public class NarrativeInterceptor : DispatchProxy
     }
 
     private static string RenderParameter(
-        object? arg, bool redacted, bool captureValues)
+        object? arg, bool redacted, bool captureValues, RenderOptions? options)
     {
         if (!captureValues)
         {
@@ -547,7 +608,7 @@ public class NarrativeInterceptor : DispatchProxy
 
         return redacted
             ? RedactionPolicy.Marker
-            : ValueRenderer.Render(arg);
+            : ValueRenderer.Render(arg, options);
     }
 
     private static string GetParameterName(

@@ -78,8 +78,9 @@ capture.
 Level and format parsing is lenient (case- and punctuation-insensitive:
 `detail`, `DETAIL`, and `Detail` all resolve).
 
-`NARRATIVETRACE_OUTPUT` is **on by default** (owner ruling, 2026-09-11): the
-per-test artifacts the xUnit fixture and NUnit base write are the payoff of
+`NARRATIVETRACE_OUTPUT` is **on by default** (owner ruling, 2026-09-11)
+*(since 0.1.4, unreleased)*: the per-test artifacts the xUnit fixture and
+NUnit base write are the payoff of
 adopting this library, so writing happens without any flag. Only an explicit
 `NARRATIVETRACE_OUTPUT=false` (or `0`) opts out; `true`/`1` are accepted as a
 no-op for scripts that still set it. With no `NARRATIVETRACE_OUTPUT_DIR`
@@ -254,6 +255,42 @@ it off.
 For sensitive **parameters**, prefer the
 [`[NotTraced]`](annotations.md#nottraced) attribute — it redacts by
 position regardless of name.
+
+**Wiring a custom policy into the proxy path.** The `RenderOptions` above is
+what `ValueRenderer.Render` takes when you call it yourself; reaching the
+*shipped* `NarrativeTraceProxy` capture path is a separate step, through
+`ProxyOptions.Redaction` *(since 0.1.4, unreleased)*:
+
+```csharp
+var proxy = NarrativeTraceProxy.Create<IOrderService>(
+    new OrderService(), context,
+    new ProxyOptions(Redaction: RedactionPolicy.OfPatterns(["ssn", "holderName"])));
+```
+
+Given explicitly, the policy *replaces* the default name-based decision —
+for both a proxy parameter's own name and a nested object's reflected
+property names — rather than adding to it, so `RedactionPolicy.Disabled`
+here really does turn name-based redaction off end to end (`[NotTraced]`
+still redacts regardless). Leave `Redaction` unset (the default) and a
+proxy behaves exactly as before. DI auto-wrap (`AddNarrativeTracing`) and
+the ASP.NET Core middleware do not expose this field yet — see
+[Privacy and Redaction](../privacy-and-redaction.md) for the full,
+surface-by-surface picture.
+
+**Widening every surface at once, without a code change.**
+`NARRATIVETRACE_REDACTION_ADDITIONALPATTERNS` is a comma-separated list of
+extra field-name patterns unioned into `RedactionPolicy.Default` itself:
+
+```bash
+NARRATIVETRACE_REDACTION_ADDITIONALPATTERNS=holderName,betalingskort
+```
+
+Unlike `ProxyOptions.Redaction`, this can only add patterns, never remove
+built-in ones, and it reaches every surface in the table above — including
+DI auto-wrap and the ASP.NET Core middleware, which have no per-call hook.
+It is read once, into a `static readonly` field, so it must be set before
+anything in the process first touches `RedactionPolicy` (an app's own
+startup code, or a test setting it at runtime, is too late).
 
 ## 7. Logging bridge (`Microsoft.Extensions.Logging`)
 

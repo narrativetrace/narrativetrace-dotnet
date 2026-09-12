@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/configuration.md blob 20b9590e7323 | translated: 2026-09-11 | reviewed: - -->
+<!-- source: documentation/guides/configuration.md blob 82efb7918666 | translated: 2026-09-12 | reviewed: - -->
 # NarrativeTrace .NET — Guía de configuración
 
 [English](../configuration.md) | **Español** | [Português](../pt-BR/guia-de-configuracao.md) | [简体中文](../zh-CN/配置指南.md)
@@ -80,7 +80,7 @@ El parseo del nivel y del formato es tolerante (insensible a mayúsculas y
 puntuación: `detail`, `DETAIL` y `Detail` resuelven todos).
 
 `NARRATIVETRACE_OUTPUT` está **activado por defecto** (decisión del
-responsable, 2026-09-11): los artefactos por prueba que escriben el fixture
+responsable, 2026-09-11) *(since 0.1.4, unreleased)*: los artefactos por prueba que escriben el fixture
 de xUnit y la base de NUnit son la recompensa de adoptar esta biblioteca,
 así que la escritura ocurre sin ninguna opción. Solo un
 `NARRATIVETRACE_OUTPUT=false` explícito (o `0`) lo desactiva; `true`/`1` se
@@ -264,6 +264,48 @@ credencial); solo `RedactionPolicy.Disabled` lo desactiva.
 Para **parámetros** sensibles, prefiere el atributo
 [`[NotTraced]`](guia-de-atributos.md#nottraced) — oculta por posición, sin
 depender del nombre.
+
+**Conectar una política personalizada a la vía del proxy.** El
+`RenderOptions` de arriba es lo que toma `ValueRenderer.Render` cuando lo
+llamas tú mismo; llegar a la vía de captura *distribuida* de
+`NarrativeTraceProxy` es un paso aparte, mediante `ProxyOptions.Redaction`
+*(since 0.1.4, unreleased)*:
+
+```csharp
+var proxy = NarrativeTraceProxy.Create<IOrderService>(
+    new OrderService(), context,
+    new ProxyOptions(Redaction: RedactionPolicy.OfPatterns(["ssn", "holderName"])));
+```
+
+Dada explícitamente, la política *reemplaza* la decisión por defecto
+basada en nombre — tanto para el nombre propio de un parámetro del proxy
+como para los nombres de propiedad reflejados de un objeto anidado — en
+lugar de ampliarla, así que `RedactionPolicy.Disabled` aquí realmente
+desactiva la ocultación basada en nombre de principio a fin (`[NotTraced]`
+sigue ocultando de todos modos). Deja `Redaction` sin definir (el valor
+por defecto) y un proxy se comporta exactamente como antes. La
+auto-envoltura de DI (`AddNarrativeTracing`) y el middleware de ASP.NET
+Core todavía no exponen este campo — consulta
+[Privacidad y ocultación](../../es/privacidad-y-ocultacion.md) para el cuadro
+completo, superficie por superficie.
+
+**Ampliar todas las superficies a la vez, sin tocar el código.**
+`NARRATIVETRACE_REDACTION_ADDITIONALPATTERNS` es una lista de patrones de
+nombre de campo separados por comas
+que se une a `RedactionPolicy.Default` en sí:
+
+```bash
+NARRATIVETRACE_REDACTION_ADDITIONALPATTERNS=holderName,betalingskort
+```
+
+A diferencia de `ProxyOptions.Redaction`, esto solo puede añadir patrones,
+nunca quitar los integrados, y alcanza toda superficie de la tabla de
+arriba — incluidas la auto-envoltura de DI y el middleware de ASP.NET
+Core, que no tienen ningún gancho por llamada. Se lee una sola vez, en un
+campo `static readonly`, así que debe fijarse antes de que algo en el
+proceso toque `RedactionPolicy` por primera vez (el propio código de
+arranque de una app, o una prueba que lo fija en tiempo de ejecución,
+llegan demasiado tarde).
 
 ## 7. Puente de logging (`Microsoft.Extensions.Logging`)
 

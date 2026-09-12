@@ -12,14 +12,15 @@ wire it in.
 ## Redaction, surface by surface
 
 Every shipped integration in this runtime renders parameter and return values
-through the same engine (`ValueRenderer`, `NarrativeInterceptor`), which
-always resolves to `RedactionPolicy.Default` — none of them expose a
-configuration knob to turn it off:
+through the same engine (`ValueRenderer`, `NarrativeInterceptor`). Most
+resolve to `RedactionPolicy.Default` with no way to change it; the
+`NarrativeTraceProxy` path is the one surface that accepts a different
+policy *(since 0.1.4, unreleased)*:
 
-| Surface | Can disable built-in redaction? | Why |
+| Surface | Can plug in a custom `RedactionPolicy`? | Why |
 |---|---|---|
-| `NarrativeTraceProxy.Create<T>` (raw `DispatchProxy` capture) | No | Renders every argument/return value with no `RenderOptions` argument at all — always `RedactionPolicy.Default`. |
-| DI auto-wrap (`AddNarrativeTracing`) | No | Wraps with `NarrativeTraceProxy.Create` internally; `NarrativeTracingDiOptions` has no redaction field. |
+| `NarrativeTraceProxy.Create<T>` / `.Create` (raw `DispatchProxy` capture) | **Yes**, via `new ProxyOptions(Redaction: ...)` *(since 0.1.4, unreleased)* | Threads the policy into every `ValueRenderer.Render` call this interceptor makes (parameters, nested object walks, return values) and into the top-level parameter-name decision alike — see [Configuration Guide §6](guides/configuration.md#6-redaction). Given explicitly, it *replaces* the default decision rather than widening it, so `RedactionPolicy.Disabled` here really disables name-based redaction end to end. `0.1.3` (the current nuget.org release) has no `ProxyOptions.Redaction` at all. |
+| DI auto-wrap (`AddNarrativeTracing`) | No | Wraps with `NarrativeTraceProxy.Create` internally but does not pass a `ProxyOptions`; `NarrativeTracingDiOptions` has no redaction field yet. |
 | ASP.NET Core middleware | No | `NarrativeTraceOptions` has no redaction field; traces come from whatever proxy path produced them. |
 | xUnit `NarrativeFixture` | No | No `RedactionPolicy`/`RenderOptions` parameter anywhere in the type. |
 | NUnit `NarrativeTestBase` | No | Same shape as the xUnit fixture. |
@@ -27,15 +28,13 @@ configuration knob to turn it off:
 | Canonical JSON / structural JSON projection | N/A — nothing to turn off | Consumes already-rendered (already-redacted) strings; the structural projection additionally elides every value unconditionally. |
 | Structural `.nt` artifact | N/A — no values exist | `StructuralTraceRenderer` emits names, hierarchy and outcome kind only, never a value. |
 | `dotnet-narrativetrace clarity-scan` | N/A — never reads values | Reflection-only over a `MetadataLoadContext`: it never constructs an instance or invokes anything, so there is no value to redact. |
-| A custom `ValueRenderer.Render(value, options)` call in **your own code** | Yes | The only escape hatch in the codebase: pass `new RenderOptions(Redaction: RedactionPolicy.Disabled)` yourself. `[NotTraced]` still redacts even then. |
+| A custom `ValueRenderer.Render(value, options)` call in **your own code** | Yes | Pass `new RenderOptions(Redaction: ...)` yourself. `[NotTraced]` still redacts even then. |
+| Every surface above, additively | Yes, but only *widening* | `NARRATIVETRACE_REDACTION_ADDITIONALPATTERNS` (comma-separated field-name patterns) is unioned into `RedactionPolicy.Default` itself at process start, so it reaches every surface in this table that still says "No" too — including the ones with no per-call hook. It can only add patterns, never remove or replace, and — being read into a `static readonly` field — must be set before anything in the process first touches `RedactionPolicy`. |
 
-That last row is the one honest exception, and it is deliberate rather than
-an oversight: `RedactionPolicy.Disabled` exists as a library primitive
-(`RedactionPolicy.Disabled = new([], valueShapesEnabled: false)`), but no
-shipped integration wires it up. Reaching it means writing your own call to
-`ValueRenderer.Render`/`RenderStructured` with an explicit `RenderOptions` —
-a deliberate, reviewable act in your own source, never a flag or environment
-variable.
+The DI and ASP.NET Core rows are the still-open gap: extending
+`NarrativeTracingDiOptions`/`NarrativeTraceOptions` with the same
+`Redaction` field and threading it into their internal `ProxyOptions`
+construction is a proposed follow-up, not yet built.
 
 ## What the deny-list catches, and what outranks it
 
@@ -79,14 +78,12 @@ the deny-list:
 
 The narrower, already-known gap: template placeholder resolution
 (`[Narrated]`/`[OnError]`) is a fully static code path and always uses
-`RedactionPolicy.Default`. If application code ever threads a *custom*
-`RedactionPolicy` into `ValueRenderer` directly (the escape-hatch row
-above, run in reverse — tightening rather than disabling), that custom
-policy is honored everywhere `ValueRenderer` is called by hand, but **not**
-inside `[Narrated]`/`[OnError]` templates, which keep using the default
-deny-list regardless. No shipped integration threads a custom policy at
-all today, so this only matters if you build directly against
-`NarrativeTrace.Core`'s rendering API yourself.
+`RedactionPolicy.Default`, **even on a proxy created with a custom
+`ProxyOptions.Redaction`**. A `[Narrated("issued {token}")]` template
+substitutes `token` through the default deny-list regardless of what
+policy the same proxy renders its captured parameters and return values
+with — the one place a custom policy given to `NarrativeTraceProxy` does
+not reach.
 
 ## Bounds and escaping
 
@@ -103,12 +100,16 @@ Every rendered value is capped and sanitized, regardless of redaction:
 
 ## Guarantees
 
-- **Redaction is unconditional in every shipped integration.** `[NotTraced]`
-  and the 26-pattern deny-list (plus the three value shapes) apply to every
-  output path this runtime ships — proxy capture, DI auto-wrap, ASP.NET Core
-  middleware, xUnit/NUnit test output, template placeholders, and every
-  export format. No flag, environment variable, or MSBuild property turns
-  them off.
+- **Redaction is unconditional by default in every shipped integration**,
+  and stays that way unless application code deliberately opts a proxy out
+  in its own source: `[NotTraced]` and the 26-pattern deny-list (plus the
+  three value shapes) apply to every output path this runtime ships —
+  proxy capture, DI auto-wrap, ASP.NET Core middleware, xUnit/NUnit test
+  output, template placeholders, and every export format — unless that
+  specific proxy was constructed with `new ProxyOptions(Redaction: ...)`.
+  No flag, environment variable, or MSBuild property turns redaction off;
+  only that one explicit, reviewable constructor argument can, and
+  `[NotTraced]` still redacts even then.
 - **The structural artifacts hold no runtime values at all.** Both the
   `.nt` text artifact and the opt-in `.structural.json` entry array strip
   every parameter value, return value, and exception message — a property
@@ -134,7 +135,8 @@ Every rendered value is capped and sanitized, regardless of redaction:
   throwing custom `ToString()`, a throwing `[NarrativeSummary]` member, and
   a throwing property/field getter reached during reflective introspection
   (including one named in a template). Each degrades *that one part* to a
-  typed `<error: TypeName>` placeholder — the caught exception's own type
+  typed `<error: TypeName>` placeholder *(since 0.1.4, unreleased)* — the
+  caught exception's own type
   name, e.g. `<error: InvalidOperationException>`, never its `.Message`
   (a message can carry the very value the render was protecting) — without
   aborting the call, the collection, or the trace. A throwing
@@ -168,14 +170,17 @@ Every rendered value is capped and sanitized, regardless of redaction:
 
 ## Non-guarantees
 
-- **No shipped integration lets you turn redaction off.** The only escape
-  hatch is application code that constructs its own `ValueRenderer.Render`
-  call with `RedactionPolicy.Disabled` — a deliberate act in your own
-  source, never a configuration state. `[NotTraced]` still redacts even
-  under `Disabled`.
+- **DI auto-wrap and the ASP.NET Core middleware don't expose a redaction
+  hook yet.** `NarrativeTraceProxy.Create`/`.Create<T>` accept
+  `new ProxyOptions(Redaction: ...)`, but `AddNarrativeTracing` and
+  `AddNarrativeTrace` build their proxies without one — a deliberate act in
+  your own source (passing `ProxyOptions` to a direct `Create` call, or the
+  process-wide `NARRATIVETRACE_REDACTION_ADDITIONALPATTERNS` env var) is
+  still the only way to widen or replace redaction on those two paths.
+  `[NotTraced]` still redacts even under `RedactionPolicy.Disabled`.
 - **Template placeholders don't honor a custom `RedactionPolicy`.**
   `[Narrated]`/`[OnError]` resolution always uses the default deny-list,
-  even if you've threaded a custom policy into `ValueRenderer` elsewhere.
+  even on a proxy created with a custom `ProxyOptions.Redaction`.
 - **Detection is name- and shape-based, not statistical.** There is no
   entropy or "looks random" heuristic — a secret sitting in an innocuously
   named field with an unrecognized shape is not caught. This is a backstop,
@@ -190,7 +195,8 @@ Every rendered value is capped and sanitized, regardless of redaction:
   field back, that is the summary you wrote choosing to expose it, the
   same trust model as a hand-written `ToString()` you'd read in a
   debugger — not a gap the renderer introduced. If it throws instead, the
-  value degrades to the typed `<error: TypeName>` placeholder, never a
+  value degrades to the typed `<error: TypeName>` placeholder *(since
+  0.1.4, unreleased)*, never a
   leak of whatever it would have shown. Annotate the *member* with
   `[NotTraced]` instead if a type's own summary can't be trusted with a
   field.

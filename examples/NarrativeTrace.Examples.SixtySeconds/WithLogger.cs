@@ -12,7 +12,7 @@ namespace NarrativeTrace.Examples.SixtySeconds;
 
 /// <summary>
 /// The "Send it to your logger" postscript
-/// (<c>documentation/first-10-minutes.md</c>) — the same tutorial call as
+/// (<c>documentation/sixty-seconds.md</c>) — the same tutorial call as
 /// <c>Program.cs</c>, plus the two packages and four lines the page's diff
 /// block adds. A second file rather than a second run mode of
 /// <c>Program.cs</c>, so that file — and the code block it backs — stays
