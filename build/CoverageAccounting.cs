@@ -80,12 +80,19 @@ internal static class CoverageAccounting
         ["NarrativeTrace.Examples.Common.Tests"] = new(100, "[NarrativeTrace.Examples.Common]*"),
         ["NarrativeTrace.Examples.Library.Tests"] = new(91, "[NarrativeTrace.Examples.Library]*"),
         ["NarrativeTrace.Examples.Minecraft.Tests"] = new(98, "[NarrativeTrace.Examples.Minecraft]*"),
-        // Rule 8's (docs as tests) "See a trace in 60 seconds" quickstart project —
-        // two tests, one per page output block; 84.61% measured 2026-09-11
-        // (own-assembly Include), rounded down. The uncovered lines are Program.cs's own
-        // top-level-statement entry point (exercised for real by `dotnet run`, never by this test
-        // project, on purpose — see SixtySecondsTests' doc comment).
-        ["NarrativeTrace.Examples.SixtySeconds.Tests"] = new(84, "[NarrativeTrace.Examples.SixtySeconds]*"),
+        // Rule 8's (docs as tests) "See a trace in 60 seconds" quickstart project.
+        // The original 84 here (84.61% measured 2026-09-11) was a Debug-only number:
+        // Release drops the brace-only sequence points Debug emits for method/try/finally
+        // blocks, so the SAME code measures 81.82% in Release — and CI always builds
+        // Release, which is why the public-snapshot pipeline failed Coverage on an
+        // otherwise-unchanged tree (found 2026-09-12). The honest fix was not a smaller
+        // number: Program.cs's own top-level-statement entry point — the one branch this
+        // suite left untested, on the theory that only `dotnet run` exercises it — is now
+        // run for real by SixtySecondsTests (its own compiler-generated entry point,
+        // invoked via reflection so the embedded doc snippet stays untouched). 100%
+        // measured in BOTH Debug and Release; 98 leaves the two points of headroom every
+        // other 98-gated project in this map gets.
+        ["NarrativeTrace.Examples.SixtySeconds.Tests"] = new(98, "[NarrativeTrace.Examples.SixtySeconds]*"),
         // Exercises the shipped NUnit engine/runner adapter narrowly (the integration seam, not
         // the breadth NarrativeTrace.Testing.NUnit.Tests already covers at 86) — 71% is the
         // honest floor of that narrower slice, not an aspirational number; see the backlog entry

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Licensed under the Business Source License 1.1 (see LICENSE); Change Date: four years from publication; Change License: Apache-2.0
 // Copyright (c) 2026 Empower Agile
+using System.Reflection;
 using NarrativeTrace.Core;
 using NarrativeTrace.Proxy;
 using NarrativeTrace.Runtime;
@@ -64,5 +65,70 @@ public sealed class SixtySecondsTests : IClassFixture<NarrativeFixture>
 
         Assert.Contains("info: NarrativeTrace[1]", captured);
         CapturedOutput.Write("see-a-trace-with-logger.txt", captured);
+    }
+
+    /// <summary>
+    /// Runs Section 2's <c>Program.cs</c> exactly as <c>dotnet run</c> would —
+    /// through its own compiler-generated entry point, not a hand-copied
+    /// re-statement of its lines.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// INTENT: <c>Program.cs</c> is a top-level-statements file the page
+    /// embeds verbatim (rule 8, docs as tests) — its content is the contract,
+    /// so no test may restate its body in a testable helper the way
+    /// <see cref="WithLogger"/> does for the postscript; that would let the
+    /// embedded snippet drift from what actually executes.
+    /// <see cref="Places_an_order_through_the_real_traced_proxy"/> exercises
+    /// the same <see cref="IOrderService"/>/<see cref="OrderService"/> types
+    /// but through a context this test class builds, never through
+    /// <c>Program.cs</c>'s own four statements — so those lines went
+    /// untested (found 2026-09-12: a Release build measures 81.82% line
+    /// coverage on this assembly against Debug's 84.61%, because Release
+    /// drops the brace-only sequence points Debug emits for method/try/finally
+    /// blocks, and CI always builds Release).
+    /// </para>
+    /// <para>
+    /// The fix is to run the real entry point, not to lower the coverage
+    /// floor to Release's number: the top-level statements compile to an
+    /// <c>internal</c> <c>Program</c> class with a compiler-named
+    /// <c>&lt;Main&gt;$</c> method, found and invoked here purely by
+    /// reflection (no <c>InternalsVisibleTo</c> needed — reflection ignores
+    /// accessibility) with output captured the same way
+    /// <see cref="WithLogger.Run"/> captures its own.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void Runs_program_cs_through_its_own_compiled_entry_point()
+    {
+        var captured = RunProgramMain();
+
+        Assert.Contains("IOrderService.PlaceOrder", captured);
+        Assert.Contains("confirmed:cust-1:book-123:2", captured);
+    }
+
+    private static string RunProgramMain()
+    {
+        var originalOut = Console.Out;
+        var captured = new StringWriter { NewLine = "\n" };
+        Console.SetOut(captured);
+        try
+        {
+            InvokeCompiledMain();
+            return captured.ToString();
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
+
+    private static void InvokeCompiledMain()
+    {
+        var assembly = typeof(IOrderService).Assembly;
+        var programType = assembly.GetType("Program", throwOnError: true)!;
+        var main = programType.GetMethod(
+            "<Main>$", BindingFlags.NonPublic | BindingFlags.Static)!;
+        main.Invoke(null, [Array.Empty<string>()]);
     }
 }
