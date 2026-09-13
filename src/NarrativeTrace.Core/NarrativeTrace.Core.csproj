@@ -8,5 +8,11 @@
   <ItemGroup>
     <InternalsVisibleTo Include="NarrativeTrace.Core.Tests" />
     <InternalsVisibleTo Include="NarrativeTrace.Runtime" />
+    <!--
+      Glossary already references Core (see NarrativeTrace.Glossary.csproj);
+      this grant lets it call Core's internal JsonEscape rather than keep its
+      own copy — see JsonEscape.cs's remarks.
+    -->
+    <InternalsVisibleTo Include="NarrativeTrace.Glossary" />
   </ItemGroup>
 </Project>

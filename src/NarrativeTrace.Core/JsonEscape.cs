@@ -7,11 +7,15 @@ using System.Text;
 namespace NarrativeTrace.Core;
 
 /// <summary>
-/// RFC 8259 JSON string escaping for Core's own hand-rolled JSON emitters
-/// (<see cref="ScenarioManifest"/>). A separate copy from
-/// <c>NarrativeTrace.Glossary.JsonEscape</c>: Core takes no dependency on any
-/// other module, so the one small escaping routine is duplicated rather than
-/// shared — mirrors the Java runtime's shared <c>JsonEscape</c> behavior.
+/// RFC 8259 JSON string escaping for the hand-rolled JSON emitters in Core
+/// (<see cref="ScenarioManifest"/>) and, via <c>InternalsVisibleTo</c>, in
+/// <c>NarrativeTrace.Glossary</c> (<c>GlossaryJsonWriter</c>,
+/// <c>GlossaryUsageReport</c>). Glossary already references Core for
+/// <c>CanonicalEntryMapper</c>, so this one small escaping routine is folded
+/// into the lowest project both depend on rather than kept as two copies —
+/// mirrors the Java runtime's single shared <c>JsonEscape</c> (the .NET
+/// Python port already delegates the same way; Java's own duplicate elsewhere
+/// is a separate, still-exempt zero-dependency-CLI case, not this pair).
 /// </summary>
 internal static class JsonEscape
 {

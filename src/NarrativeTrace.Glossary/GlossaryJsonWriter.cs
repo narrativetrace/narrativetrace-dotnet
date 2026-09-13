@@ -4,6 +4,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Text;
+using NarrativeTrace.Core;
 
 namespace NarrativeTrace.Glossary;
 
