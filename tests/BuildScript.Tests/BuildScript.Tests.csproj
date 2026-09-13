@@ -26,6 +26,8 @@
              Link="MutationAccounting.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/HeaderAbsenceSupport.cs"
              Link="HeaderAbsenceSupport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/AssetMetadataSupport.cs"
+             Link="AssetMetadataSupport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/I18nManifestSupport.cs"
              Link="I18nManifestSupport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/TranslationCompletenessSupport.cs"

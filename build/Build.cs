@@ -410,6 +410,30 @@ class Build : NukeBuild
         });
 
     /// <summary>
+    /// Fails when a committed image under <c>assets/</c> carries an embedded text metadata
+    /// chunk (iTXt/tEXt/zTXt/XMP/C2PA) — the class of leak <c>assets/icon.png</c> shipped in
+    /// every published NuGet package until 2026-09-13 (a C2PA provenance chunk naming the AI
+    /// vendor), invisible to the publish gates' <c>grep -I</c> content scan. Cheap and
+    /// build-free, so it rides every commit rather than waiting for a publish dry run to
+    /// surface it.
+    /// </summary>
+    Target AssetMetadataCheck => _ => _
+        .Executes(() =>
+        {
+            var problems = AssetMetadataSupport.Check(RootDirectory);
+            foreach (var problem in problems)
+                Console.WriteLine($"  {problem}");
+
+            if (problems.Count > 0)
+                throw new InvalidOperationException(
+                    $"Asset metadata check failed: {problems.Count} committed image(s) under assets/ "
+                    + "carry an embedded text metadata chunk. Strip it before committing.");
+
+            Console.WriteLine(
+                "Asset metadata check passed: no committed asset under assets/ carries a text metadata chunk");
+        });
+
+    /// <summary>
     /// Verifies the <c>legal:*</c> marked regions in README.md and its root
     /// translations (<c>legal.properties</c>, <c>scripts/legal-check.sh</c>)
     /// are well-formed and, when the sibling golden Java repo is checked out
@@ -2827,6 +2851,12 @@ class Build : NukeBuild
     /// <see cref="TranslationCheck"/> and <see cref="DemoWiringCheck"/>
     /// rather than needing its own ordering constraint.
     ///
+    /// <see cref="AssetMetadataCheck"/> is the same shape once more: a handful of small files
+    /// under <c>assets/</c>, no <see cref="Compile"/> dependency, so it joins the same
+    /// build-free cluster — catching the 2026-09-13 icon-metadata class of leak on every commit
+    /// rather than only at publish time, when <c>scripts/publish-public.sh</c>'s own binary
+    /// trace-gate pass would otherwise be the first line of defense.
+    ///
     /// <see cref="CoverageAccountingCheck"/> is the same shape once more —
     /// no <see cref="Compile"/> dependency, pure in-memory map lookups — so
     /// it joins the same cluster, ahead of the (slow) <see cref="Coverage"/>
@@ -2869,6 +2899,7 @@ class Build : NukeBuild
         .DependsOn(SkillsLint)
         .DependsOn(SkillsReplay)
         .DependsOn(HeaderAbsenceCheck)
+        .DependsOn(AssetMetadataCheck)
         .DependsOn(CoverageAccountingCheck)
         .DependsOn(MutationAccountingCheck)
         .DependsOn(DuplicationCheck)
