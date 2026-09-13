@@ -19,6 +19,22 @@ namespace NarrativeTrace.Logging;
 /// <c>Class.Method(params) -&gt; outcome</c>, indented two spaces per depth
 /// level, with children following their parent depth-first. Redacted
 /// parameters render as <c>[REDACTED]</c>.
+/// <para>
+/// <b>Ordering with the stock console logger.</b> <c>Microsoft.Extensions
+/// .Logging.Console</c> writes through a background queue by default, so the
+/// lines this method logs can appear after — or interleaved oddly with —
+/// output the caller writes synchronously to the console around this call.
+/// That is a platform behavior of the console provider, not something this
+/// method does: it calls straight through to the supplied <c>logger</c>
+/// synchronously, in tree order, on the calling thread. The fix that
+/// actually works is on the caller's side — dispose the <c>ILoggerFactory</c>
+/// (or the console provider) before relying on the order, e.g.
+/// <c>using var loggerFactory = LoggerFactory.Create(...)</c>: disposal
+/// blocks until the provider's background writer thread has drained
+/// everything queued. See the Configuration Guide's logging-bridge section
+/// and the "Send it to your logger" step of the sixty-seconds tutorial for a
+/// worked, verified example.
+/// </para>
 /// </remarks>
 public static class TraceLogExporter
 {

@@ -1,4 +1,4 @@
-<!-- source: documentation/sixty-seconds.md blob 318fcdf13e69 | translated: 2026-09-13 | reviewed: - -->
+<!-- source: documentation/sixty-seconds.md blob b461ec499340 | translated: 2026-09-13 | reviewed: - -->
 # Veja um trace em 60 segundos
 
 [English](../sixty-seconds.md) | [Español](../es/sesenta-segundos.md) | **Português** | [简体中文](../zh-CN/60秒.md)
@@ -120,6 +120,7 @@ dotnet add package Microsoft.Extensions.Logging.Console
 
 ```diff
 +using Microsoft.Extensions.Logging;
++using Microsoft.Extensions.Logging.Console;
  using NarrativeTrace.Core;
 +using NarrativeTrace.Logging;
  using NarrativeTrace.Proxy;
@@ -135,9 +136,29 @@ dotnet add package Microsoft.Extensions.Logging.Console
 +var tree = context.CaptureTrace();
 +Console.WriteLine(IndentedTextRenderer.Render(tree));
 +
-+using var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
++using var loggerFactory = LoggerFactory.Create(builder =>
++    builder.AddSimpleConsole(options => options.ColorBehavior = LoggerColorBehavior.Disabled));
 +TraceLogExporter.ExportToLogger(tree, loggerFactory.CreateLogger("NarrativeTrace"));
 ```
+
+**Por que `AddSimpleConsole(… ColorBehavior.Disabled)` dentro de um
+`using var`, e não simplesmente `builder.AddConsole()`.**
+`Microsoft.Extensions.Logging.Console` escreve por meio de uma fila em
+segundo plano por padrão, então uma linha registrada por ali pode aparecer
+depois — ou intercalada de forma estranha com — uma saída síncrona de
+`Console.Write*` que logicamente veio depois. Isso é um comportamento da
+plataforma, próprio do provedor de console, não um defeito do
+NarrativeTrace, e piora quanto mais qualquer um dos dois lados escreve. A
+correção que realmente funciona, verificada rodando este exemplo
+repetidamente: **liberar (`Dispose`) o `ILoggerFactory` antes que algo
+posterior dependa da ordem** — o `using var` acima faz isso
+automaticamente quando `Main` termina, e `Dispose()` bloqueia até que a
+thread escritora em segundo plano do provedor tenha esvaziado tudo o que
+estava na fila, e é exatamente por isso que o bloco abaixo sai na mesma
+ordem sempre. `ColorBehavior.Disabled` corrige um problema diferente —
+mantém os códigos de escape ANSI fora de uma saída que você planeja
+capturar, comparar ou colar em uma página como esta — então vale a pena
+manter os dois, mas só a liberação do `using var` corrige a ordem.
 
 ```bash
 dotnet run
@@ -158,7 +179,7 @@ estável.)
 
 O mesmo trace, dois destinos: o renderizador de console continua exatamente
 igual, e o registro de `ILogger` abaixo prova que a árvore chega ao destino
-que você já tem — troque `AddConsole()` pelo seu provedor real e mais nada
+que você já tem — troque `AddSimpleConsole(...)` pelo seu provedor real e mais nada
 muda. Veja o [Guia de instalação](../guides/pt-BR/guia-de-instalacao.md)
 para os outros pontos de entrada do `NarrativeTrace.Logging`
 (`LoggingNarrativeContext` para logging ao vivo por chamada,

@@ -368,6 +368,19 @@ To export a completed tree once, use `TraceLogExporter`:
 TraceLogExporter.ExportToLogger(context.CaptureTrace(), logger);
 ```
 
+**A note on ordering with the stock console logger.** If `logger` above is
+backed by `Microsoft.Extensions.Logging.Console`, its lines write through a
+background queue by default, so they can land after, or interleaved oddly
+with, output your process writes synchronously (`Console.Write*`, a
+different provider, a test runner capturing stdout) — a platform behavior of
+the console provider, not a NarrativeTrace defect. The fix that actually
+works: dispose the `ILoggerFactory` (or the console provider) — most simply
+with `using var loggerFactory = LoggerFactory.Create(...)` — before anything
+depends on the order; `Dispose()` blocks until the provider's background
+writer thread has drained everything queued. See the [sixty-seconds
+tutorial's "Send it to your logger"](../sixty-seconds.md#send-it-to-your-logger)
+step for a worked, verified example.
+
 In a hosted application, wire the **event-stream** bridge through DI instead of
 constructing it yourself:
 
@@ -421,6 +434,319 @@ out by TracingLevel never reaches the tree, renderers, or any logger.
 | Local feature work | `Detail` | on by default, `FORMAT=Markdown` |
 | CI test runs | `Narrative` or `Summary` | on by default, `FORMAT=Markdown` |
 | Performance-sensitive prod | `Errors` (or `Off`) | no test fixtures run here — no file output |
+
+## 10. Environment variable worked examples
+
+Every `NARRATIVETRACE_*` variable the code reads, in one place — what it
+sets, its default, and a runnable demonstration of the effect. The
+`ConfigResolver` variables are introduced in §2 above; the rest are
+introduced where they live (redaction in §6, the logging bridge in §7);
+this section is the worked-example companion to all of them.
+
+| Variable | Sets | Default |
+|---|---|---|
+| `NARRATIVETRACE_LEVEL` | The `TracingLevel` a context captures at. | `Detail` |
+| `NARRATIVETRACE_OUTPUT` | Whether per-test trace artifacts are written to disk. | `true` |
+| `NARRATIVETRACE_OUTPUT_DIR` | The directory trace artifacts are written under. | `TestResults/narrativetrace` |
+| `NARRATIVETRACE_FORMAT` | The primary artifact format (`Markdown`/`Text`/`Prose`/`Json`). | `Markdown` |
+| `NARRATIVETRACE_CANONICAL_JSON` | Whether to also write the per-test canonical entry array. | `false` |
+| `NARRATIVETRACE_STRUCTURAL_JSON` | Whether to also write the per-test value-free entry array. | `false` |
+| `NARRATIVETRACE_APPROVAL` | Whether a passing test's structure is checked against its committed `*.approved.nt` baseline. | `false` |
+| `NARRATIVETRACE_APPROVED_DIR` | The directory approval baselines live in. | `narratives` |
+| `NARRATIVETRACE_REDACTION_ADDITIONALPATTERNS` | Comma-separated field-name patterns unioned into `RedactionPolicy.Default`. | *(none)* |
+| `NARRATIVETRACE_NARRATION` | Vetoes the logging bridge when set to `off`; anything else leaves it on. | *(unset — narrating)* |
+| `NARRATIVETRACE_GLOSSARY` | An explicit glossary file path for suite harvesting, or `off` to disable harvesting outright. | Upward search from the test run for `glossary.json` |
+| `NARRATIVETRACE_GLOSSARY_PATH` | A glossary file to load for live translation, overriding the file beside the deployed app. | The `glossary.json` beside the app, if any |
+
+Each worked example below runs through the same injected-reader overload
+`ConfigResolver`/`GlossarySettings`/`GlossaryLoader`/`AddNarrativeLogging`
+already expose for tests (`Resolve(Func<string, string?> read, …)` and
+friends) — the seam that lets the demonstration set exactly one variable
+without touching the real process environment. In your own shell, set the
+variable for real; the observable effect is identical either way.
+
+### `NARRATIVETRACE_LEVEL`
+
+```bash
+export NARRATIVETRACE_LEVEL=Narrative
+```
+
+<!-- snippet: tests/NarrativeTrace.Core.Tests/DocConfigResolverExamples.cs region=level -->
+```csharp
+var resolved = ConfigResolver.Resolve(key => key == "NARRATIVETRACE_LEVEL" ? "Narrative" : null);
+Console.WriteLine($"resolved.Level == TracingLevel.{resolved.Level}");
+```
+<!-- /snippet -->
+
+Observable effect — the resolved level reflects the variable, leniently parsed:
+
+<!-- snippet: artifacts/config-envvars/level.txt -->
+```text
+resolved.Level == TracingLevel.Narrative
+```
+<!-- /snippet -->
+
+### `NARRATIVETRACE_OUTPUT`
+
+```bash
+export NARRATIVETRACE_OUTPUT=false
+```
+
+<!-- snippet: tests/NarrativeTrace.Core.Tests/DocConfigResolverExamples.cs region=output -->
+```csharp
+var resolved = ConfigResolver.Resolve(key => key == "NARRATIVETRACE_OUTPUT" ? "false" : null);
+Console.WriteLine($"resolved.Output == {resolved.Output}");
+```
+<!-- /snippet -->
+
+Observable effect — only an explicit `false`/`0` turns writing off (§2 above spells out the full lenience):
+
+<!-- snippet: artifacts/config-envvars/output.txt -->
+```text
+resolved.Output == False
+```
+<!-- /snippet -->
+
+### `NARRATIVETRACE_OUTPUT_DIR`
+
+```bash
+export NARRATIVETRACE_OUTPUT_DIR=artifacts/traces
+```
+
+<!-- snippet: tests/NarrativeTrace.Core.Tests/DocConfigResolverExamples.cs region=output-dir -->
+```csharp
+var resolved = ConfigResolver.Resolve(key => key == "NARRATIVETRACE_OUTPUT_DIR" ? "artifacts/traces" : null);
+Console.WriteLine($"resolved.OutputDir == \"{resolved.OutputDir}\"");
+```
+<!-- /snippet -->
+
+Observable effect — the configured path passes through verbatim (trimmed; blank is treated as unset):
+
+<!-- snippet: artifacts/config-envvars/output-dir.txt -->
+```text
+resolved.OutputDir == "artifacts/traces"
+```
+<!-- /snippet -->
+
+### `NARRATIVETRACE_FORMAT`
+
+```bash
+export NARRATIVETRACE_FORMAT=Json
+```
+
+<!-- snippet: tests/NarrativeTrace.Core.Tests/DocConfigResolverExamples.cs region=format -->
+```csharp
+var resolved = ConfigResolver.Resolve(key => key == "NARRATIVETRACE_FORMAT" ? "Json" : null);
+Console.WriteLine($"resolved.Format == OutputFormat.{resolved.Format}");
+```
+<!-- /snippet -->
+
+Observable effect — the primary artifact format switches from the `Markdown` default:
+
+<!-- snippet: artifacts/config-envvars/format.txt -->
+```text
+resolved.Format == OutputFormat.Json
+```
+<!-- /snippet -->
+
+### `NARRATIVETRACE_CANONICAL_JSON`
+
+```bash
+export NARRATIVETRACE_CANONICAL_JSON=true
+```
+
+<!-- snippet: tests/NarrativeTrace.Core.Tests/DocConfigResolverExamples.cs region=canonical-json -->
+```csharp
+var resolved = ConfigResolver.Resolve(key => key == "NARRATIVETRACE_CANONICAL_JSON" ? "true" : null);
+Console.WriteLine($"resolved.CanonicalJson == {resolved.CanonicalJson}");
+```
+<!-- /snippet -->
+
+Observable effect — the per-test `<test>.canonical.json` machine artifact starts being written alongside the primary format:
+
+<!-- snippet: artifacts/config-envvars/canonical-json.txt -->
+```text
+resolved.CanonicalJson == True
+```
+<!-- /snippet -->
+
+### `NARRATIVETRACE_STRUCTURAL_JSON`
+
+```bash
+export NARRATIVETRACE_STRUCTURAL_JSON=true
+```
+
+<!-- snippet: tests/NarrativeTrace.Core.Tests/DocConfigResolverExamples.cs region=structural-json -->
+```csharp
+var resolved = ConfigResolver.Resolve(key => key == "NARRATIVETRACE_STRUCTURAL_JSON" ? "true" : null);
+Console.WriteLine($"resolved.StructuralJson == {resolved.StructuralJson}");
+```
+<!-- /snippet -->
+
+Observable effect — the per-test `<test>.structural.json` value-free array starts being written:
+
+<!-- snippet: artifacts/config-envvars/structural-json.txt -->
+```text
+resolved.StructuralJson == True
+```
+<!-- /snippet -->
+
+### `NARRATIVETRACE_APPROVAL`
+
+```bash
+export NARRATIVETRACE_APPROVAL=true
+```
+
+<!-- snippet: tests/NarrativeTrace.Core.Tests/DocConfigResolverExamples.cs region=approval -->
+```csharp
+var resolved = ConfigResolver.Resolve(key => key == "NARRATIVETRACE_APPROVAL" ? "true" : null);
+Console.WriteLine($"resolved.Approval == {resolved.Approval}");
+```
+<!-- /snippet -->
+
+Observable effect — a passing test's structure now gets checked against its committed baseline (see [Structural Trace Format](../structural-trace-format.md)):
+
+<!-- snippet: artifacts/config-envvars/approval.txt -->
+```text
+resolved.Approval == True
+```
+<!-- /snippet -->
+
+### `NARRATIVETRACE_APPROVED_DIR`
+
+```bash
+export NARRATIVETRACE_APPROVED_DIR=baselines
+```
+
+<!-- snippet: tests/NarrativeTrace.Core.Tests/DocConfigResolverExamples.cs region=approved-dir -->
+```csharp
+var resolved = ConfigResolver.Resolve(key => key == "NARRATIVETRACE_APPROVED_DIR" ? "baselines" : null);
+Console.WriteLine($"resolved.ApprovedDir == \"{resolved.ApprovedDir}\"");
+```
+<!-- /snippet -->
+
+Observable effect — approval baselines are now read from and written to `baselines/` instead of the `narratives` default:
+
+<!-- snippet: artifacts/config-envvars/approved-dir.txt -->
+```text
+resolved.ApprovedDir == "baselines"
+```
+<!-- /snippet -->
+
+### `NARRATIVETRACE_REDACTION_ADDITIONALPATTERNS`
+
+Unlike the variables above, there is no code to change at the call site —
+`RedactionPolicy.Default` reads this variable itself, once, into a `static
+readonly` field (§6 above). That means the demonstration has to run in its
+**own process**, started with the variable already set, rather than through
+the injected-reader seam the other examples use — so this one is verified
+by hand rather than snippet-checked against a committed source file, per
+the same rule 8 that backs every other example on this page (a real,
+compiled run, not a typed guess):
+
+```bash
+export NARRATIVETRACE_REDACTION_ADDITIONALPATTERNS=holderName,betalingskort
+```
+
+```csharp
+using NarrativeTrace.Core;
+
+Console.WriteLine(RedactionPolicy.Default.ShouldRedact("holderName"));
+Console.WriteLine(RedactionPolicy.Default.ShouldRedact("password"));
+```
+
+Observable effect — run once with the variable unset and once with it set
+(`dotnet run` twice, in two separate process invocations):
+
+```text
+# unset
+False
+True
+
+# NARRATIVETRACE_REDACTION_ADDITIONALPATTERNS=holderName,betalingskort
+True
+True
+```
+
+`password` redacts either way (it is already in the built-in deny-list);
+`holderName` only redacts once the variable widens it. Setting the
+variable *after* anything in the process has already touched
+`RedactionPolicy` has no effect — see §6 above.
+
+### `NARRATIVETRACE_NARRATION`
+
+```bash
+export NARRATIVETRACE_NARRATION=off
+```
+
+<!-- snippet: tests/NarrativeTrace.Logging.Tests/DocNarrationExample.cs region=narration -->
+```csharp
+var services = new ServiceCollection();
+services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
+
+services.AddNarrativeLogging(null, key => key == "NARRATIVETRACE_NARRATION" ? "off" : null);
+
+var listener = services.BuildServiceProvider().GetService<LoggingTraceEventListener>();
+Console.WriteLine($"listener is null == {listener is null}");
+```
+<!-- /snippet -->
+
+Observable effect — `off` (case-insensitive) vetoes registration entirely, even with an `ILoggerFactory` present; anything else, including a typo, leaves narration on:
+
+<!-- snippet: artifacts/config-envvars/narration.txt -->
+```text
+listener is null == True
+```
+<!-- /snippet -->
+
+### `NARRATIVETRACE_GLOSSARY`
+
+```bash
+export NARRATIVETRACE_GLOSSARY=off
+```
+
+<!-- snippet: tests/NarrativeTrace.Glossary.Tests/DocGlossaryExamples.cs region=glossary -->
+```csharp
+var resolved = GlossarySettings.ResolveFile(
+    key => key == "NARRATIVETRACE_GLOSSARY" ? "off" : null, root);
+Console.WriteLine($"resolved == {(resolved is null ? "null (harvesting disabled)" : resolved)}");
+```
+<!-- /snippet -->
+
+(`root` above is whatever directory the upward search would otherwise start
+from — a test run's working directory in practice.) Observable effect —
+the literal value `off` disables harvesting outright, overriding the
+upward `glossary.json` search even when a file would otherwise be found:
+
+<!-- snippet: artifacts/config-envvars/glossary.txt -->
+```text
+resolved == null (harvesting disabled)
+```
+<!-- /snippet -->
+
+### `NARRATIVETRACE_GLOSSARY_PATH`
+
+```bash
+export NARRATIVETRACE_GLOSSARY_PATH=/srv/app/committed-glossary.json
+```
+
+<!-- snippet: tests/NarrativeTrace.Glossary.Tests/DocGlossaryExamples.cs region=glossary-path -->
+```csharp
+var loaded = GlossaryLoader.Load(
+    key => key == "NARRATIVETRACE_GLOSSARY_PATH" ? overridePath : null, root);
+Console.WriteLine($"loaded from override == {loaded is not null}");
+```
+<!-- /snippet -->
+
+(`overridePath` above is the file the variable names; `root` is the
+deployed application's base directory.) Observable effect — the override
+wins over any `glossary.json` sitting beside the deployed application:
+
+<!-- snippet: artifacts/config-envvars/glossary-path.txt -->
+```text
+loaded from override == True
+```
+<!-- /snippet -->
 
 ## See also
 

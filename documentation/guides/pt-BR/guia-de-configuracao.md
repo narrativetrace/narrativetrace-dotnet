@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/configuration.md blob 70f09b65a472 | translated: 2026-09-13 | reviewed: - -->
+<!-- source: documentation/guides/configuration.md blob da0becfadddb | translated: 2026-09-13 | reviewed: - -->
 # NarrativeTrace .NET — Guia de configuração
 
 [English](../configuration.md) | [Español](../es/guia-de-configuracion.md) | **Português** | [简体中文](../zh-CN/配置指南.md)
@@ -392,6 +392,21 @@ Para exportar uma árvore concluída uma única vez, use `TraceLogExporter`:
 TraceLogExporter.ExportToLogger(context.CaptureTrace(), logger);
 ```
 
+**Uma nota sobre a ordem com o logger de console padrão.** Se o `logger`
+acima é apoiado por `Microsoft.Extensions.Logging.Console`, suas linhas são
+escritas por meio de uma fila em segundo plano por padrão, então podem
+aparecer depois, ou intercaladas de forma estranha com, uma saída que seu
+processo escreve de forma síncrona (`Console.Write*`, outro provedor, um
+test runner capturando stdout) — um comportamento da plataforma próprio do
+provedor de console, não um defeito do NarrativeTrace. A correção que
+realmente funciona: libere (`Dispose`) o `ILoggerFactory` (ou o provedor de
+console) — mais simplesmente com `using var loggerFactory =
+LoggerFactory.Create(...)` — antes que algo dependa da ordem; `Dispose()`
+bloqueia até que a thread escritora em segundo plano do provedor tenha
+esvaziado tudo o que estava na fila. Veja o passo ["Envie para o seu
+logger" do tutorial de sessenta segundos](../../pt-BR/sessenta-segundos.md#envie-para-o-seu-logger)
+para um exemplo verificado e trabalhado.
+
 Em uma aplicação hospedada, conecte a ponte do **fluxo de eventos** via DI
 em vez de construí-la você mesmo:
 
@@ -451,6 +466,283 @@ renderizadores, nem a nenhum logger.
 | Trabalho local em funcionalidades | `Detail` | ativada por padrão, `FORMAT=Markdown` |
 | Execuções de teste em CI | `Narrative` ou `Summary` | ativada por padrão, `FORMAT=Markdown` |
 | Produção sensível a desempenho | `Errors` (ou `Off`) | nenhum fixture de teste roda aqui — sem saída em arquivo |
+
+## 10. Exemplos práticos das variáveis de ambiente
+
+Todas as variáveis `NARRATIVETRACE_*` lidas pelo código, em um só
+lugar — o que cada uma configura, seu valor padrão e uma demonstração
+executável do efeito. As variáveis do `ConfigResolver` são apresentadas
+no §2 acima; as demais são apresentadas onde vivem (ocultação no §6,
+ponte de logging no §7); esta seção é a companheira com exemplos
+práticos de todas elas.
+
+| Variável | Configura | Padrão |
+|---|---|---|
+| `NARRATIVETRACE_LEVEL` | O `TracingLevel` com o qual um contexto captura. | `Detail` |
+| `NARRATIVETRACE_OUTPUT` | Se os artefatos de trace por teste são gravados em disco. | `true` |
+| `NARRATIVETRACE_OUTPUT_DIR` | O diretório sob o qual os artefatos de trace são gravados. | `TestResults/narrativetrace` |
+| `NARRATIVETRACE_FORMAT` | O formato principal do artefato (`Markdown`/`Text`/`Prose`/`Json`). | `Markdown` |
+| `NARRATIVETRACE_CANONICAL_JSON` | Se o array de entradas canônico por teste também é gravado. | `false` |
+| `NARRATIVETRACE_STRUCTURAL_JSON` | Se o array de entradas sem valores por teste também é gravado. | `false` |
+| `NARRATIVETRACE_APPROVAL` | Se a estrutura de um teste que passa é conferida contra sua linha de base `*.approved.nt` versionada. | `false` |
+| `NARRATIVETRACE_APPROVED_DIR` | O diretório onde vivem as linhas de base de aprovação. | `narratives` |
+| `NARRATIVETRACE_REDACTION_ADDITIONALPATTERNS` | Padrões de nome de campo, separados por vírgula, unidos ao `RedactionPolicy.Default`. | *(nenhum)* |
+| `NARRATIVETRACE_NARRATION` | Veta a ponte de logging quando definida como `off`; qualquer outro valor a mantém ativa. | *(não definida — narrando)* |
+| `NARRATIVETRACE_GLOSSARY` | Um caminho de arquivo de glossário explícito para a coleta da suíte, ou `off` para desabilitá-la completamente. | Busca ascendente a partir da execução do teste por `glossary.json` |
+| `NARRATIVETRACE_GLOSSARY_PATH` | Um arquivo de glossário a carregar para tradução ao vivo, substituindo o arquivo ao lado da app implantada. | O `glossary.json` ao lado da app, se existir |
+
+Cada exemplo prático abaixo roda através da mesma sobrecarga de leitor
+injetado que `ConfigResolver`/`GlossarySettings`/`GlossaryLoader`/
+`AddNarrativeLogging` já expõem para os testes (`Resolve(Func<string,
+string?> read, …)` e semelhantes) — o mecanismo que permite à
+demonstração definir exatamente uma variável sem tocar no ambiente real
+do processo. No seu próprio shell, defina a variável de verdade; o
+efeito observável é idêntico em ambos os casos.
+
+### `NARRATIVETRACE_LEVEL`
+
+```bash
+export NARRATIVETRACE_LEVEL=Narrative
+```
+
+```csharp
+var resolved = ConfigResolver.Resolve(key => key == "NARRATIVETRACE_LEVEL" ? "Narrative" : null);
+Console.WriteLine($"resolved.Level == TracingLevel.{resolved.Level}");
+```
+
+Efeito observável — o nível resolvido reflete a variável, interpretada de forma tolerante:
+
+```text
+resolved.Level == TracingLevel.Narrative
+```
+
+### `NARRATIVETRACE_OUTPUT`
+
+```bash
+export NARRATIVETRACE_OUTPUT=false
+```
+
+```csharp
+var resolved = ConfigResolver.Resolve(key => key == "NARRATIVETRACE_OUTPUT" ? "false" : null);
+Console.WriteLine($"resolved.Output == {resolved.Output}");
+```
+
+Efeito observável — apenas um `false`/`0` explícito desativa a gravação (o §2 acima detalha toda a tolerância):
+
+```text
+resolved.Output == False
+```
+
+### `NARRATIVETRACE_OUTPUT_DIR`
+
+```bash
+export NARRATIVETRACE_OUTPUT_DIR=artifacts/traces
+```
+
+```csharp
+var resolved = ConfigResolver.Resolve(key => key == "NARRATIVETRACE_OUTPUT_DIR" ? "artifacts/traces" : null);
+Console.WriteLine($"resolved.OutputDir == \"{resolved.OutputDir}\"");
+```
+
+Efeito observável — o caminho configurado passa tal como está (aparado; em branco é tratado como não definido):
+
+```text
+resolved.OutputDir == "artifacts/traces"
+```
+
+### `NARRATIVETRACE_FORMAT`
+
+```bash
+export NARRATIVETRACE_FORMAT=Json
+```
+
+```csharp
+var resolved = ConfigResolver.Resolve(key => key == "NARRATIVETRACE_FORMAT" ? "Json" : null);
+Console.WriteLine($"resolved.Format == OutputFormat.{resolved.Format}");
+```
+
+Efeito observável — o formato principal do artefato muda em relação ao padrão `Markdown`:
+
+```text
+resolved.Format == OutputFormat.Json
+```
+
+### `NARRATIVETRACE_CANONICAL_JSON`
+
+```bash
+export NARRATIVETRACE_CANONICAL_JSON=true
+```
+
+```csharp
+var resolved = ConfigResolver.Resolve(key => key == "NARRATIVETRACE_CANONICAL_JSON" ? "true" : null);
+Console.WriteLine($"resolved.CanonicalJson == {resolved.CanonicalJson}");
+```
+
+Efeito observável — o artefato de máquina `<test>.canonical.json` por teste passa a ser gravado junto ao formato principal:
+
+```text
+resolved.CanonicalJson == True
+```
+
+### `NARRATIVETRACE_STRUCTURAL_JSON`
+
+```bash
+export NARRATIVETRACE_STRUCTURAL_JSON=true
+```
+
+```csharp
+var resolved = ConfigResolver.Resolve(key => key == "NARRATIVETRACE_STRUCTURAL_JSON" ? "true" : null);
+Console.WriteLine($"resolved.StructuralJson == {resolved.StructuralJson}");
+```
+
+Efeito observável — o array sem valores `<test>.structural.json` por teste passa a ser gravado:
+
+```text
+resolved.StructuralJson == True
+```
+
+### `NARRATIVETRACE_APPROVAL`
+
+```bash
+export NARRATIVETRACE_APPROVAL=true
+```
+
+```csharp
+var resolved = ConfigResolver.Resolve(key => key == "NARRATIVETRACE_APPROVAL" ? "true" : null);
+Console.WriteLine($"resolved.Approval == {resolved.Approval}");
+```
+
+Efeito observável — a estrutura de um teste que passa agora é conferida contra sua linha de base versionada (veja [Formato de Trace Estrutural](../../structural-trace-format.md)):
+
+```text
+resolved.Approval == True
+```
+
+### `NARRATIVETRACE_APPROVED_DIR`
+
+```bash
+export NARRATIVETRACE_APPROVED_DIR=baselines
+```
+
+```csharp
+var resolved = ConfigResolver.Resolve(key => key == "NARRATIVETRACE_APPROVED_DIR" ? "baselines" : null);
+Console.WriteLine($"resolved.ApprovedDir == \"{resolved.ApprovedDir}\"");
+```
+
+Efeito observável — as linhas de base de aprovação agora são lidas e gravadas em `baselines/` em vez do padrão `narratives`:
+
+```text
+resolved.ApprovedDir == "baselines"
+```
+
+### `NARRATIVETRACE_REDACTION_ADDITIONALPATTERNS`
+
+Diferente das variáveis acima, não há código para mudar no ponto de
+chamada — o `RedactionPolicy.Default` lê essa variável sozinho, uma
+única vez, em um campo `static readonly` (§6 acima). Isso significa que
+a demonstração precisa rodar em seu **próprio processo**, iniciado com a
+variável já definida, em vez de através do mecanismo de leitor injetado
+que os outros exemplos usam — então este é verificado manualmente em vez
+de conferido contra um arquivo-fonte versionado, seguindo a mesma regra
+8 que sustenta todos os outros exemplos desta página (uma execução real
+e compilada, não um palpite digitado):
+
+```bash
+export NARRATIVETRACE_REDACTION_ADDITIONALPATTERNS=holderName,betalingskort
+```
+
+```csharp
+using NarrativeTrace.Core;
+
+Console.WriteLine(RedactionPolicy.Default.ShouldRedact("holderName"));
+Console.WriteLine(RedactionPolicy.Default.ShouldRedact("password"));
+```
+
+Efeito observável — rode uma vez com a variável não definida e outra com
+ela definida (`dotnet run` duas vezes, em duas invocações de processo
+separadas):
+
+```text
+# não definida
+False
+True
+
+# NARRATIVETRACE_REDACTION_ADDITIONALPATTERNS=holderName,betalingskort
+True
+True
+```
+
+`password` é ocultado nos dois casos (já está na lista de bloqueio
+embutida); `holderName` só é ocultado depois que a variável a amplia.
+Definir a variável *depois* que algo no processo já tocou
+`RedactionPolicy` não tem efeito — veja o §6 acima.
+
+### `NARRATIVETRACE_NARRATION`
+
+```bash
+export NARRATIVETRACE_NARRATION=off
+```
+
+```csharp
+var services = new ServiceCollection();
+services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
+
+services.AddNarrativeLogging(null, key => key == "NARRATIVETRACE_NARRATION" ? "off" : null);
+
+var listener = services.BuildServiceProvider().GetService<LoggingTraceEventListener>();
+Console.WriteLine($"listener is null == {listener is null}");
+```
+
+Efeito observável — `off` (sem diferenciar maiúsculas/minúsculas) veta o
+registro completamente, mesmo com um `ILoggerFactory` presente; qualquer
+outro valor, incluindo um erro de digitação, mantém a narração ativa:
+
+```text
+listener is null == True
+```
+
+### `NARRATIVETRACE_GLOSSARY`
+
+```bash
+export NARRATIVETRACE_GLOSSARY=off
+```
+
+```csharp
+var resolved = GlossarySettings.ResolveFile(
+    key => key == "NARRATIVETRACE_GLOSSARY" ? "off" : null, root);
+Console.WriteLine($"resolved == {(resolved is null ? "null (harvesting disabled)" : resolved)}");
+```
+
+(`root` acima é o diretório a partir do qual a busca ascendente
+começaria — na prática, o diretório de trabalho de uma execução de
+teste.) Efeito observável — o valor literal `off` desabilita a coleta
+completamente, sobrepondo a busca ascendente por `glossary.json` mesmo
+quando um arquivo seria encontrado de outra forma:
+
+```text
+resolved == null (harvesting disabled)
+```
+
+### `NARRATIVETRACE_GLOSSARY_PATH`
+
+```bash
+export NARRATIVETRACE_GLOSSARY_PATH=/srv/app/committed-glossary.json
+```
+
+```csharp
+var loaded = GlossaryLoader.Load(
+    key => key == "NARRATIVETRACE_GLOSSARY_PATH" ? overridePath : null, root);
+Console.WriteLine($"loaded from override == {loaded is not null}");
+```
+
+(`overridePath` acima é o arquivo nomeado pela variável; `root` é o
+diretório base da aplicação implantada.) Efeito observável — a
+substituição vence qualquer `glossary.json` ao lado da aplicação
+implantada:
+
+```text
+loaded from override == True
+```
 
 ## Veja também
 

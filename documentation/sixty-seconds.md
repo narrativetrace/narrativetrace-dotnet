@@ -118,6 +118,7 @@ dotnet add package Microsoft.Extensions.Logging.Console
 
 ```diff
 +using Microsoft.Extensions.Logging;
++using Microsoft.Extensions.Logging.Console;
  using NarrativeTrace.Core;
 +using NarrativeTrace.Logging;
  using NarrativeTrace.Proxy;
@@ -133,9 +134,26 @@ dotnet add package Microsoft.Extensions.Logging.Console
 +var tree = context.CaptureTrace();
 +Console.WriteLine(IndentedTextRenderer.Render(tree));
 +
-+using var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
++using var loggerFactory = LoggerFactory.Create(builder =>
++    builder.AddSimpleConsole(options => options.ColorBehavior = LoggerColorBehavior.Disabled));
 +TraceLogExporter.ExportToLogger(tree, loggerFactory.CreateLogger("NarrativeTrace"));
 ```
+
+**Why `AddSimpleConsole(… ColorBehavior.Disabled)` inside a `using var`, and
+not just `builder.AddConsole()`.** `Microsoft.Extensions.Logging.Console`
+writes through a background queue by default, so a line logged through it can
+land after — or interleaved oddly with — synchronous `Console.Write*` output
+that logically came later. That is a platform behavior of the console
+provider, not a NarrativeTrace defect, and it gets worse the more output
+either side writes. The fix that actually works, verified by running this
+example repeatedly: **dispose the `ILoggerFactory` before anything downstream
+depends on the order** — `using var` above does that automatically when
+`Main` returns, and `Dispose()` blocks until the provider's background writer
+thread has drained everything queued, which is exactly why the block below
+comes out in the same order every time. `ColorBehavior.Disabled` fixes a
+different problem — it keeps ANSI escape codes out of output you plan to
+capture, diff, or paste into a page like this one — so both are worth
+keeping, but only the `using var` disposal fixes ordering.
 
 ```bash
 dotnet run
@@ -158,8 +176,8 @@ included, stable.)
 
 Same trace, two destinations: the console renderer stays exactly as it was,
 and the `ILogger` record below it proves the tree lands in the sink you
-already have — swap `AddConsole()` for your real provider and nothing else
-changes. See the [Installation Guide](guides/installation.md) for
+already have — swap `AddSimpleConsole(...)` for your real provider and
+nothing else changes. See the [Installation Guide](guides/installation.md) for
 `NarrativeTrace.Logging`'s other entry points (`LoggingNarrativeContext` for
 live per-call logging, `AddNarrativeLogging()` for DI).
 
