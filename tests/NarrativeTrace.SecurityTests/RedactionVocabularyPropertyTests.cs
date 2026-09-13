@@ -46,8 +46,11 @@ public class RedactionVocabularyPropertyTests
     [MemberData(nameof(Corpus))]
     public void Every_corpus_row_goes_the_way_it_declares(RedactionCase corpusCase)
     {
-        var outputs = Oracles.WithinBudget(
-            "every output for " + corpusCase.Id, () => EveryOutput(corpusCase.Payload));
+        // Family release rule 3 (2026-09-07): wall-clock, GC and scheduler are never test inputs
+        // — this used to run through the removed Oracles.WithinBudget hang detector.
+        // Oracles.BoundedSize below, over every emitter's output, is the deterministic property
+        // that timing bound stood in for.
+        var outputs = EveryOutput(corpusCase.Payload);
 
         if (corpusCase.ExpectsRedaction)
         {

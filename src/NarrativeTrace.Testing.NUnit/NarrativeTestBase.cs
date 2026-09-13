@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Licensed under the Business Source License 1.1 (see LICENSE); Change Date: four years from publication; Change License: Apache-2.0
 // Copyright (c) 2026 Empower Agile
+using System.Collections.Concurrent;
 using NarrativeTrace.Core;
 using NarrativeTrace.Diagrams;
 using NarrativeTrace.Runtime;
@@ -17,11 +18,20 @@ namespace NarrativeTrace.TestingNUnit;
 public abstract class NarrativeTestBase
 {
     private static readonly TraceArtifactRenderers Renderers = new(
-        MermaidSequenceRenderer.Render,
-        PlantUmlSequenceRenderer.Render,
+        SequenceDiagramRenderers.Mermaid,
+        SequenceDiagramRenderers.PlantUml,
         JsonExporter.Export,
         CanonicalEntryArrayExporter.Canonical,
         CanonicalEntryArrayExporter.Structural);
+
+    /// <summary>
+    /// Per-(class, method) invocation counters — the engine's own execution
+    /// order stands in for the invocation ordinal NUnit exposes no public
+    /// accessor for. Shared across every subclass instance in the process,
+    /// which is what "the suite's own order" means for a run that does not
+    /// parallelize within a fixture.
+    /// </summary>
+    private static readonly ConcurrentDictionary<string, int> InvocationCounters = new(StringComparer.Ordinal);
 
     private SyncNarrativeContext _context = null!;
     private TestArtifactSettings _output = null!;
@@ -77,32 +87,121 @@ public abstract class NarrativeTestBase
     /// test's outcome from <c>TestContext</c>, which is what lets a failing test
     /// print the story of what the code actually did.
     /// </remarks>
+    /// <exception cref="NarrativeApprovalException">
+    /// Approval mode is on, the test otherwise passed, and the traced structure
+    /// has no approved trace yet or differs from one — NUnit reports this as a
+    /// tear-down failure, which is how a passing test's structure change surfaces.
+    /// </exception>
     [TearDown]
     public void TearDownTrace()
     {
         var tree = _context.CaptureTrace();
         var current = TestContext.CurrentContext;
         var failed = current.Result.Outcome.Status == TestStatus.Failed;
-        PrintFailure(current.Test.Name, failed, tree, TestContext.Out);
+        var identity = ResolveIdentity(current.Test);
+
+        // Output happens before the failure print so a failing test's report can
+        // speak in terms of the structural delta the write computed, localizing
+        // change instead of dumping the whole trace (see PrintFailure overload).
+        var rejection = ApprovalRejection(identity, current.Test.Name, tree, failed);
+        var delta = WriteArtifacts(identity, current.Test.Name, failed || rejection is not null, TestContext.Out);
+
+        PrintFailure(current.Test.Name, failed, tree, delta, TestContext.Out);
         PrintTemplateWarnings(tree, TestContext.Out);
-        WriteArtifacts(
-            current.Test.ClassName ?? string.Empty,
-            current.Test.MethodName ?? current.Test.Name, failed, TestContext.Out);
-        NarrativeSuiteScope.Current?.Record(current.Test.Name, tree);
+        RecordSuiteContribution(identity, current.Test.Name, tree, delta);
         OnTraceComplete(tree);
         _context.Reset();
+
+        if (rejection is not null)
+        {
+            throw rejection;
+        }
     }
 
-    internal void WriteArtifacts(
-        string testClass, string testMethod, bool failed, TextWriter console)
+    /// <summary>
+    /// Which artifact this invocation owns — auto-detected from
+    /// <see cref="TestContext.TestAdapter.Arguments"/>: a non-empty argument
+    /// array is NUnit's own signal that this is one case of a parameterized or
+    /// data-driven test, since an ordinary <c>[Test]</c> always reports none.
+    /// </summary>
+    private static ArtifactIdentity ResolveIdentity(TestContext.TestAdapter test)
     {
-        if (!_output.Enabled)
+        var className = test.ClassName ?? string.Empty;
+        var methodName = test.MethodName ?? test.Name;
+        if (test.Arguments is not { Length: > 0 })
+        {
+            return ArtifactIdentity.OfMethod(className, methodName);
+        }
+
+        var index = InvocationCounters.AddOrUpdate(
+            className + "." + methodName, 1, (_, count) => count + 1);
+        return ArtifactIdentity.OfInvocation(className, methodName, index, test.Name);
+    }
+
+    /// <summary>
+    /// Approval mode runs only on a run not already failed — a red test
+    /// already has the developer's attention, and its mid-flight structure
+    /// must not churn the received traces.
+    /// </summary>
+    private NarrativeApprovalException? ApprovalRejection(
+        ArtifactIdentity identity, string displayName, TraceTree tree, bool failed)
+    {
+        if (failed || !_output.ApprovalEnabled || tree.IsEmpty)
+        {
+            return null;
+        }
+
+        try
+        {
+            NarrativeApproval.Verify(
+                tree, identity.StructuralScenario(displayName),
+                NarrativeApproval.ApprovedFile(_output.ApprovedDir, identity));
+            return null;
+        }
+        catch (NarrativeApprovalException ex)
+        {
+            return ex;
+        }
+    }
+
+    private void RecordSuiteContribution(
+        ArtifactIdentity identity, string displayName, TraceTree tree, ScenarioDelta? delta)
+    {
+        var scope = NarrativeSuiteScope.Current;
+        if (scope is null)
         {
             return;
         }
 
-        TraceArtifactWriter.Write(
-            _context.CaptureTrace(), testClass, testMethod, testMethod, failed,
+        scope.Record(displayName, tree);
+        if (delta is not null)
+        {
+            scope.RecordDelta(delta);
+        }
+
+        if (_output.Enabled && !tree.IsEmpty)
+        {
+            scope.RecordManifestEntry(
+                ScenarioManifest.EntryFor(_output.Directory, identity, ScenarioFramer.Humanize(displayName)));
+        }
+    }
+
+    internal ScenarioDelta? WriteArtifacts(
+        string testClass, string testMethod, bool failed, TextWriter console)
+    {
+        return WriteArtifacts(ArtifactIdentity.OfMethod(testClass, testMethod), testMethod, failed, console);
+    }
+
+    private ScenarioDelta? WriteArtifacts(
+        ArtifactIdentity identity, string displayName, bool failed, TextWriter console)
+    {
+        if (!_output.Enabled)
+        {
+            return null;
+        }
+
+        return TraceArtifactWriter.Write(
+            _context.CaptureTrace(), identity, displayName, failed,
             _output.Directory, _output.Format, Renderers, console,
             _output.EntryArtifacts);
     }
@@ -121,12 +220,25 @@ public abstract class NarrativeTestBase
     internal static void PrintFailure(
         string testName, bool failed, TraceTree tree, TextWriter output)
     {
+        PrintFailure(testName, failed, tree, delta: null, output);
+    }
+
+    /// <summary>
+    /// The same failure print, localized to the scenario's structural delta
+    /// against last green when one was computed (the Markdown write path) —
+    /// see <see cref="NarrativeFailureReport.Build(string, TraceTree, ScenarioDelta)"/>.
+    /// </summary>
+    internal static void PrintFailure(
+        string testName, bool failed, TraceTree tree, ScenarioDelta? delta, TextWriter output)
+    {
         if (!failed)
         {
             return;
         }
 
-        var report = NarrativeFailureReport.Build(testName, tree);
+        var report = delta is null
+            ? NarrativeFailureReport.Build(testName, tree)
+            : NarrativeFailureReport.Build(testName, tree, delta);
         if (report.Length > 0)
         {
             output.Write(report);

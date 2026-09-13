@@ -1,0 +1,36 @@
+<!-- contract-probe: a small, STANDALONE .NET console project (docs-vs-published-gate §2/§5.1
+     ruling 2), never included by NarrativeTrace.sln. It restores ONLY from nuget.org (see
+     nuget.config beside this file) and depends on NarrativeTrace.* at a version given on the
+     command line via the ContractVersion MSBuild property, never a local project reference, never
+     a local feed. That is the whole point: a claim documentation/contract.yaml makes is proved or
+     disproved against what a real consumer would actually download, never against this checkout's
+     own build output. Run instructions and the runner's own command-line flags are documented in
+     documentation/contract-gate.md (an XML comment here cannot spell a double hyphen). -->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>NarrativeTrace.ContractProbe</RootNamespace>
+    <!-- Pinned to a real published version by default so a bare `dotnet build` (no -p:ContractVersion=)
+         still restores; ContractCheck / a manual run always overrides it with the version under test. -->
+    <ContractVersion Condition="'$(ContractVersion)' == ''">0.1.3</ContractVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The published artifacts contract-probe's own probe classes call into — exactly the
+         coordinates a consumer following the docs would add (installation-guide.md#packages). -->
+    <PackageReference Include="NarrativeTrace.Core" Version="$(ContractVersion)" />
+    <PackageReference Include="NarrativeTrace.Runtime" Version="$(ContractVersion)" />
+    <PackageReference Include="NarrativeTrace.Proxy" Version="$(ContractVersion)" />
+    <PackageReference Include="NarrativeTrace.Logging" Version="$(ContractVersion)" />
+    <!-- Reads documentation/contract.yaml — the same library build/ContractLintSupport.cs uses,
+         so the two never parse the schema two different ways (they cannot share code: this
+         project consumes only registry artifacts and never references the root build project). -->
+    <PackageReference Include="YamlDotNet" Version="18.1.0" />
+  </ItemGroup>
+
+</Project>

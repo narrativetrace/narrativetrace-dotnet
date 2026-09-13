@@ -1,4 +1,4 @@
-<!-- source: documentation/sixty-seconds.md blob ad3bb96f919c | translated: 2026-09-12 | reviewed: - -->
+<!-- source: documentation/sixty-seconds.md blob c6448407dedd | translated: 2026-09-13 | reviewed: - -->
 # Veja um trace em 60 segundos
 
 [English](../sixty-seconds.md) | [Español](../es/sesenta-segundos.md) | **Português** | [简体中文](../zh-CN/60秒.md)
@@ -64,7 +64,7 @@ dotnet run
 ```
 
 ```text
-└── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 9ms
+└── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 10ms
 ```
 
 (O tempo vai variar de uma execução para outra — o resto é estável.)

@@ -39,4 +39,21 @@ public sealed class NarrativeTraceOptions
     /// <see cref="Microsoft.AspNetCore.Http.PathString.StartsWithSegments(Microsoft.AspNetCore.Http.PathString, System.StringComparison)"/>.
     /// </summary>
     public IList<string> ExcludedPaths { get; } = new List<string>();
+
+    /// <summary>
+    /// The redaction policy every service this app auto-wraps with
+    /// <c>AddNarrativeTracing</c> renders parameters and return values
+    /// with, or <see langword="null"/> for the secure
+    /// <see cref="RedactionPolicy.Default"/> every other shipped
+    /// integration uses. Registered into the same service collection so a
+    /// policy configured once here — <c>services.AddNarrativeTrace(o =>
+    /// o.Redaction = …)</c> — reaches every proxy
+    /// <c>NarrativeTrace.DependencyInjection</c>'s auto-wrap constructs in
+    /// this app, without that package's own options needing to repeat it
+    /// *(since 0.1.4, unreleased)*. <c>NarrativeTracingDiOptions.Redaction</c>,
+    /// when also set, takes precedence for that call. Given explicitly, the
+    /// policy <em>replaces</em> the default name-based decision rather than
+    /// widening it; <c>[NotTraced]</c> always wins regardless.
+    /// </summary>
+    public RedactionPolicy? Redaction { get; set; }
 }

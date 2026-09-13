@@ -52,7 +52,7 @@ public class FireAndForgetGroupTests
         });
 
         await done.Task;
-        await Task.Delay(10);
+        await ChildRootBarrier.WaitForChildRoots(group);
 
         var roots = group.ChildRoots();
         Assert.Single(roots);
@@ -77,7 +77,7 @@ public class FireAndForgetGroupTests
         });
 
         await done.Task;
-        await Task.Delay(10);
+        await ChildRootBarrier.WaitForChildRoots(group);
 
         // GroupId is on the group itself
         Assert.StartsWith("fanf-", group.GroupId);
@@ -106,7 +106,7 @@ public class FireAndForgetGroupTests
         });
 
         await Task.WhenAll(done1.Task, done2.Task);
-        await Task.Delay(10);
+        await ChildRootBarrier.WaitForChildRoots(group, atLeast: 2);
 
         var roots = group.ChildRoots();
         Assert.Equal(2, roots.Count);
@@ -120,10 +120,20 @@ public class FireAndForgetGroupTests
         var h0 = ctx.EnterMethod("Parent", "Run", []);
 
         var group = FireAndForgetGroup.Create(ctx);
+        var settled = new TaskCompletionSource<bool>();
         group.Launch(_ =>
-            throw new InvalidOperationException());
+        {
+            try
+            {
+                throw new InvalidOperationException();
+            }
+            finally
+            {
+                settled.SetResult(true);
+            }
+        });
 
-        await Task.Delay(50);
+        await settled.Task;
         ctx.ExitMethodWithReturn(null, h0);
 
         var trace = ctx.CaptureTrace();
@@ -140,10 +150,20 @@ public class FireAndForgetGroupTests
         await cts.CancelAsync();
 
         var group = FireAndForgetGroup.Create(ctx);
+        var settled = new TaskCompletionSource<bool>();
         group.Launch(_ =>
-            cts.Token.ThrowIfCancellationRequested());
+        {
+            try
+            {
+                cts.Token.ThrowIfCancellationRequested();
+            }
+            finally
+            {
+                settled.SetResult(true);
+            }
+        });
 
-        await Task.Delay(50);
+        await settled.Task;
 
         var roots = group.ChildRoots();
         // Faulted tasks are excluded from ChildRoots

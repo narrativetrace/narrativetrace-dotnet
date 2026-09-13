@@ -42,8 +42,8 @@ namespace NarrativeTrace.TestingXunit;
 public sealed class NarrativeFixture : IDisposable
 {
     private static readonly TraceArtifactRenderers Renderers = new(
-        MermaidSequenceRenderer.Render,
-        PlantUmlSequenceRenderer.Render,
+        SequenceDiagramRenderers.Mermaid,
+        SequenceDiagramRenderers.PlantUml,
         JsonExporter.Export,
         CanonicalEntryArrayExporter.Canonical,
         CanonicalEntryArrayExporter.Structural);
@@ -106,24 +106,104 @@ public sealed class NarrativeFixture : IDisposable
     /// directory. On by default; a no-op only when
     /// <c>NARRATIVETRACE_OUTPUT=false</c> opts out.
     /// </summary>
-    public void WriteArtifacts(
+    /// <returns>
+    /// The scenario's structural delta against its last green <c>.nt</c>
+    /// artifact, when the Markdown path produced one; <see langword="null"/>
+    /// otherwise (including when output is disabled).
+    /// </returns>
+    public ScenarioDelta? WriteArtifacts(
         string testClass, string testMethod, bool failed)
     {
-        WriteArtifacts(testClass, testMethod, failed, Console.Out);
+        return WriteArtifacts(
+            ArtifactIdentity.OfMethod(testClass, testMethod), testMethod, failed, Console.Out);
     }
 
-    internal void WriteArtifacts(
+    /// <summary>
+    /// The same write, for one invocation of a test method that runs more
+    /// than once (a <c>[Theory]</c> case) — pass the case's own 1-based
+    /// index and a readable label so each invocation gets its own files
+    /// instead of overwriting the previous one's.
+    /// </summary>
+    /// <remarks>
+    /// xUnit exposes no invocation ordinal to a fixture the way a test
+    /// framework with its own extension point can auto-detect one (see the
+    /// NUnit integration) — the test body already has its own theory data in
+    /// scope, so it is the natural place to supply this explicitly.
+    /// </remarks>
+    /// <param name="invocationIndex">1-based, in whatever order the theory's own data enumerates.</param>
+    /// <param name="invocationLabel">A readable label for the case, e.g. the argument under test.</param>
+    public ScenarioDelta? WriteArtifacts(
+        string testClass, string testMethod, bool failed, int invocationIndex, string invocationLabel)
+    {
+        return WriteArtifacts(
+            ArtifactIdentity.OfInvocation(testClass, testMethod, invocationIndex, invocationLabel),
+            testMethod, failed, Console.Out);
+    }
+
+    internal ScenarioDelta? WriteArtifacts(
         string testClass, string testMethod, bool failed, TextWriter console)
+    {
+        return WriteArtifacts(ArtifactIdentity.OfMethod(testClass, testMethod), testMethod, failed, console);
+    }
+
+    /// <summary>
+    /// Writes the full artifact set for one invocation, keyed by its
+    /// <see cref="ArtifactIdentity"/>: verifies approval mode (when enabled)
+    /// before the last-green write, so a rejected structure never advances
+    /// the baseline, then rethrows the rejection so the caller's test fails
+    /// with the diff.
+    /// </summary>
+    /// <exception cref="NarrativeApprovalException">
+    /// Approval mode is on, <paramref name="failed"/> is <see langword="false"/>, and the traced
+    /// structure has no approved trace yet or differs from one.
+    /// </exception>
+    internal ScenarioDelta? WriteArtifacts(
+        ArtifactIdentity identity, string displayName, bool failed, TextWriter console)
     {
         if (!_output.Enabled)
         {
-            return;
+            return null;
         }
 
-        TraceArtifactWriter.Write(
-            _context.CaptureTrace(), testClass, testMethod, testMethod, failed,
+        var rejection = ApprovalRejection(identity, displayName, failed);
+        var delta = TraceArtifactWriter.Write(
+            _context.CaptureTrace(), identity, displayName, failed || rejection is not null,
             _output.Directory, _output.Format, Renderers, console,
             _output.EntryArtifacts);
+
+        if (rejection is not null)
+        {
+            throw rejection;
+        }
+
+        return delta;
+    }
+
+    /// <summary>
+    /// Approval mode runs only on a run not already failed — a red test
+    /// already has the developer's attention, and its mid-flight structure
+    /// must not churn the received traces.
+    /// </summary>
+    private NarrativeApprovalException? ApprovalRejection(
+        ArtifactIdentity identity, string displayName, bool failed)
+    {
+        var trace = _context.CaptureTrace();
+        if (failed || !_output.ApprovalEnabled || trace.IsEmpty)
+        {
+            return null;
+        }
+
+        try
+        {
+            NarrativeApproval.Verify(
+                trace, identity.StructuralScenario(displayName),
+                NarrativeApproval.ApprovedFile(_output.ApprovedDir, identity));
+            return null;
+        }
+        catch (NarrativeApprovalException ex)
+        {
+            return ex;
+        }
     }
 
     /// <summary>Captures the trace recorded so far, for asserting on it directly.</summary>

@@ -120,43 +120,75 @@ internal static class PublishedVersionSupport
         now - entry.FetchedAtUtc <= CacheMaxAge;
 
     /// <summary>
-    /// The visible banner line — exactly the three forms the design note
-    /// specifies. <paramref name="publishedVersion"/> is <see langword="null"/>
-    /// for the offline case: no cache hit and no network, never a guess and
-    /// never a stale cached value presented as current.
+    /// The visible banner line — the three repo-vs-published forms the design note specifies,
+    /// each with an optional trailing clause disclosing how many behaviours the English docs
+    /// currently mark <c>*(since X.Y.Z, unreleased)*</c> (design note item 8): appended only when
+    /// <paramref name="unreleasedCount"/> is positive, "behaviour" singular only at exactly one.
+    /// <paramref name="publishedVersion"/> is <see langword="null"/> for the offline case: no
+    /// cache hit and no network, never a guess and never a stale cached value presented as
+    /// current.
     /// </summary>
-    public static string BuildLine(string repoVersion, string? publishedVersion) =>
-        publishedVersion switch
+    public static string BuildLine(string repoVersion, string? publishedVersion, int unreleasedCount)
+    {
+        var line = publishedVersion switch
         {
             null => $"*(These docs describe {repoVersion}; published: unknown offline.)*",
             var p when p == repoVersion => $"*(Docs and published both at {repoVersion}.)*",
             var p => $"*(These docs describe {repoVersion}; published is {p}.)*",
         };
+        return AppendUnreleasedClause(line, unreleasedCount);
+    }
+
+    /// <summary>
+    /// Splices "<c>; N behaviour(s) marked unreleased</c>" in just before the line's closing
+    /// <c>.)*</c> — every one of <see cref="BuildLine"/>'s three forms ends that way, so this one
+    /// splice point covers all of them. A non-positive count leaves the line untouched (design
+    /// note item 8, "count 0: the line is unchanged from today").
+    /// </summary>
+    private static string AppendUnreleasedClause(string line, int unreleasedCount)
+    {
+        if (unreleasedCount <= 0)
+        {
+            return line;
+        }
+
+        var noun = unreleasedCount == 1 ? "behaviour" : "behaviours";
+        return $"{line[..^3]}; {unreleasedCount} {noun} marked unreleased.)*";
+    }
+
+    /// <summary>Matches the optional trailing clause <see cref="AppendUnreleasedClause"/> adds, captured so <see cref="TryParseLine"/> can read the count back off.</summary>
+    private const string UnreleasedClausePattern = @"(?:; (?<count>\d+) behaviours? marked unreleased)?";
 
     private static readonly Regex EqualLinePattern = new(
-        @"^\*\(Docs and published both at (?<repo>[^;)]+)\.\)\*$", RegexOptions.CultureInvariant);
+        @"^\*\(Docs and published both at (?<repo>[^;)]+?)" + UnreleasedClausePattern + @"\.\)\*$",
+        RegexOptions.CultureInvariant);
 
     private static readonly Regex DifferLinePattern = new(
-        @"^\*\(These docs describe (?<repo>[^;]+); published is (?<published>[^;)]+)\.\)\*$",
+        @"^\*\(These docs describe (?<repo>[^;]+); published is (?<published>[^;)]+?)"
+            + UnreleasedClausePattern + @"\.\)\*$",
         RegexOptions.CultureInvariant);
 
     private static readonly Regex OfflineLinePattern = new(
-        @"^\*\(These docs describe (?<repo>[^;]+); published: unknown offline\.\)\*$",
+        @"^\*\(These docs describe (?<repo>[^;]+); published: unknown offline"
+            + UnreleasedClausePattern + @"\.\)\*$",
         RegexOptions.CultureInvariant);
 
     /// <summary>
     /// The exact inverse of <see cref="BuildLine"/>: recognizes any of the three canonical forms
-    /// and extracts the version(s) each carries. Returns <see langword="false"/> for anything
-    /// else — a hand-edited line, an old wording, garbage — so a caller can tell "wrong content"
-    /// (this method returns values, caller compares them) from "not a banner line at all".
+    /// (with or without the trailing unreleased-count clause) and extracts the version(s) and
+    /// count each carries. Returns <see langword="false"/> for anything else — a hand-edited
+    /// line, an old wording, garbage — so a caller can tell "wrong content" (this method returns
+    /// values, caller compares them) from "not a banner line at all".
     /// </summary>
-    public static bool TryParseLine(string line, out string describedVersion, out string? publishedVersion)
+    public static bool TryParseLine(
+        string line, out string describedVersion, out string? publishedVersion, out int unreleasedCount)
     {
         var equal = EqualLinePattern.Match(line);
         if (equal.Success)
         {
             describedVersion = equal.Groups["repo"].Value;
             publishedVersion = describedVersion;
+            unreleasedCount = ParseCount(equal);
             return true;
         }
 
@@ -165,6 +197,7 @@ internal static class PublishedVersionSupport
         {
             describedVersion = differ.Groups["repo"].Value;
             publishedVersion = differ.Groups["published"].Value;
+            unreleasedCount = ParseCount(differ);
             return true;
         }
 
@@ -173,13 +206,20 @@ internal static class PublishedVersionSupport
         {
             describedVersion = offline.Groups["repo"].Value;
             publishedVersion = null;
+            unreleasedCount = ParseCount(offline);
             return true;
         }
 
         describedVersion = "";
         publishedVersion = null;
+        unreleasedCount = 0;
         return false;
     }
+
+    private static int ParseCount(Match match) =>
+        match.Groups["count"].Success
+            ? int.Parse(match.Groups["count"].Value, CultureInfo.InvariantCulture)
+            : 0;
 
     /// <summary>
     /// The comment line disclosing where the published-side figure came

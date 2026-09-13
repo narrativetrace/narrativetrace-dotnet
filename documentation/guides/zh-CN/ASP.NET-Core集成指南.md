@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/aspnetcore.md blob eeb515a9a378 | translated: 2026-09-09 | reviewed: 2026-09-03 -->
+<!-- source: documentation/guides/aspnetcore.md blob e100b8dfb896 | translated: 2026-09-12 | reviewed: - -->
 # ASP.NET Core 集成指南
 
 [English](../aspnetcore.md) | [Español](../es/guia-de-integracion-con-aspnet-core.md) | [Português](../pt-BR/guia-de-integracao-com-aspnet-core.md) | **简体中文**
@@ -68,6 +68,13 @@ app.MapPost("/orders", (OrderRequest request, HttpContext http) =>
 > 由你自己捕获的 DI scoped 上下文；中间件记录到 `HttpContext.Items` 并
 > 自动导出。每条请求路径只选其一 — 不要指望自动包装的服务出现在中间件
 > 导出的追踪里。
+
+**脱敏** *(since 0.1.4, unreleased)*：`AddNarrativeTrace` 上的
+`NarrativeTraceOptions.Redaction` 会把一个 `RedactionPolicy` 注册到服务
+集合里，`AddNarrativeTracing` 的自动包装会把它当作自己所包装的每个服务
+的回退策略 —— 所以在这里配置一次的策略，也能触达自动包装的服务，即便这
+两条追踪路径在其他方面仍然相互独立。参见
+[配置指南 §6](配置指南.md#6-脱敏)。
 
 ## 3. 导出
 

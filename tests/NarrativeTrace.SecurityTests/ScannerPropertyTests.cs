@@ -61,7 +61,12 @@ public class ScannerPropertyTests
     {
         var tree = TreeNamed(hostile.Value);
 
-        var result = Oracles.WithinBudget("clarity " + hostile.Id, () => ClarityAnalyzer.Analyze(tree));
+        // Family release rule 3 (2026-09-07): wall-clock, GC and scheduler are never test inputs
+        // — this used to run through the removed Oracles.WithinBudget hang detector. Dropped
+        // outright rather than replaced: the score-range and JSON-well-formedness assertions
+        // below are the real properties this call was ever guarding, with no output-size or
+        // hang risk of their own.
+        var result = ClarityAnalyzer.Analyze(tree);
 
         Assert.InRange(result.Overall, 0.0, 1.0);
         var json = ClarityJsonExporter.Export(result, "scenario");

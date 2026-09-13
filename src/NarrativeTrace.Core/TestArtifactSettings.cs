@@ -20,11 +20,21 @@ namespace NarrativeTrace.Core;
 /// Which machine-readable entry arrays to write beside the trace file. Both
 /// off by default, matching the Java runtime's opt-in switches.
 /// </param>
+/// <param name="ApprovalEnabled">
+/// Approval mode <i>(since 0.1.4, unreleased)</i>: when on, a passing test
+/// whose traced structure differs from its committed <c>*.approved.nt</c>
+/// baseline fails with a readable diff. Off by default.
+/// </param>
+/// <param name="ApprovedDir">
+/// Directory of committed approval baselines <i>(since 0.1.4, unreleased)</i>.
+/// </param>
 public sealed record TestArtifactSettings(
     bool Enabled,
     string Directory,
     TraceArtifactFormat Format,
-    EntryArtifacts EntryArtifacts = default)
+    EntryArtifacts EntryArtifacts = default,
+    bool ApprovalEnabled = false,
+    string ApprovedDir = TestArtifactSettings.DefaultApprovedDir)
 {
     /// <summary>
     /// The directory used when <see cref="ConfigResolver.OutputDirKey"/> isn't
@@ -37,6 +47,17 @@ public sealed record TestArtifactSettings(
     /// the test run's working directory.
     /// </summary>
     public const string DefaultDirectory = "TestResults/narrativetrace";
+
+    /// <summary>
+    /// The directory used when <see cref="ConfigResolver.ApprovedDirKey"/>
+    /// isn't set. Deliberately <b>not</b> under <see cref="DefaultDirectory"/>:
+    /// approved traces are committed, reviewed files, not ephemeral output, so
+    /// they must never share a root with something <c>.gitignore</c> excludes.
+    /// Mirrors the Java runtime's <c>src/test/narratives</c> default, adapted
+    /// to this port's flatter test-project layout (no <c>src/test</c>
+    /// segregation).
+    /// </summary>
+    public const string DefaultApprovedDir = "narratives";
 
     /// <summary>Resolves artifact settings from a configuration source.</summary>
     /// <param name="read">
@@ -58,6 +79,8 @@ public sealed record TestArtifactSettings(
             resolved.OutputDir ?? DefaultDirectory,
             TraceArtifactFormatExtensions.FromName(
                 read(ConfigResolver.FormatKey), TraceArtifactFormat.Markdown),
-            new EntryArtifacts(resolved.CanonicalJson, resolved.StructuralJson));
+            new EntryArtifacts(resolved.CanonicalJson, resolved.StructuralJson),
+            resolved.Approval,
+            resolved.ApprovedDir ?? DefaultApprovedDir);
     }
 }

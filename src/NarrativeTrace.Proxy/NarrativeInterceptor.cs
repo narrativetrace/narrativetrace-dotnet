@@ -190,7 +190,7 @@ public class NarrativeInterceptor : DispatchProxy
             meta, args, _context.CapturesParameterValues,
             _options?.Redaction, RenderOptionsFor);
         var options = new MethodOptions(
-            ResolveNarration(meta, args, method),
+            ResolveNarration(meta, args, method, _options?.Redaction),
             Namespace: meta.Namespace,
             ReturnType: meta.ReturnType,
             NarrationTemplate: meta.NarrationTemplate);
@@ -201,7 +201,7 @@ public class NarrativeInterceptor : DispatchProxy
 
     private static string? ResolveNarration(
         MethodMetadata meta, object?[] args,
-        MethodInfo method)
+        MethodInfo method, RedactionPolicy? redaction)
     {
         if (meta.NarrationTemplate is null)
         {
@@ -211,7 +211,8 @@ public class NarrativeInterceptor : DispatchProxy
         return NarrationResolver.Resolve(
             meta.NarrationTemplate,
             args,
-            method.GetParameters());
+            method.GetParameters(),
+            redaction);
     }
 
     // Resolved at exception time: only templates whose declared type
@@ -219,7 +220,7 @@ public class NarrativeInterceptor : DispatchProxy
     // wins. No match means no error context (JVM-edition parity).
     private static string? ResolveErrorContext(
         MethodMetadata meta, object?[] args,
-        MethodInfo method, Exception thrown)
+        MethodInfo method, Exception thrown, RedactionPolicy? redaction)
     {
         var match = meta.ErrorTemplates
             .Where(a => a.ExceptionType.IsInstanceOfType(thrown))
@@ -234,7 +235,8 @@ public class NarrativeInterceptor : DispatchProxy
         return NarrationResolver.Resolve(
             match.Template,
             args,
-            method.GetParameters());
+            method.GetParameters(),
+            redaction);
     }
 
     private static int GetInheritanceDepth(Type type)
@@ -272,11 +274,11 @@ public class NarrativeInterceptor : DispatchProxy
         }
     }
 
-    private static string? ErrorContextFor(
+    private string? ErrorContextFor(
         MethodInfo method, object?[] args, Exception thrown)
     {
         return ResolveErrorContext(
-            GetMetadata(method), args, method, thrown);
+            GetMetadata(method), args, method, thrown, _options?.Redaction);
     }
 
     private object? TraceResult(

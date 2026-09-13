@@ -14,7 +14,9 @@ produce, not assumed.
 | `<output-dir>/traces/<Class>/<slug>.md` | No | Regenerated every run; the human-readable trace for one test. |
 | `<output-dir>/traces/<Class>/<slug>.json` | No | The same trace as a JSON chapter document — regenerated every run. |
 | `<output-dir>/diagrams/<Class>/<slug>.mmd` | No | Mermaid sequence diagram companion — regenerated every run. |
-| `<output-dir>/structural/<Class>/<slug>.nt` | No, today | Value-free structural trace (names, hierarchy, outcome kind only). Deterministic and diffable by construction, but **nothing in this runtime reads it back yet** — there is no approval-mode or delta-comparison loop against a previous run, so there's no committed baseline for it to compare against. Regenerated every run like the rest. |
+| `<output-dir>/structural/<Class>/<slug>.nt` | No | Value-free structural trace (names, hierarchy, outcome kind only). The file on disk is the **last-green baseline** *(since 0.1.4, unreleased)*: a green run advances it, a non-green run compares against it (the "Since last green" suite line, the failure report's delta) but never overwrites it. Still not something to commit — see [Structural Trace Format](structural-trace-format.md) for the committed counterpart. |
+| `<approved-dir>/<Class>/<slug>.approved.nt` | **Yes**, if [approval mode](structural-trace-format.md) is on | *(since 0.1.4, unreleased)* The reviewed approval baseline — `NARRATIVETRACE_APPROVED_DIR` (default `narratives`), opt in with `NARRATIVETRACE_APPROVAL=true`. This is the one file in this table that is a deliberate decision, not output. |
+| `<approved-dir>/<Class>/<slug>.received.nt` | No | Written on an approval mismatch, or when no approved trace exists yet. Review it, run `./build.sh Approve` to promote it (or rename it by hand), then let the promotion remove it — never commit the received trace itself. |
 | `<output-dir>/traces/<Class>/<slug>.canonical.json` | No | Opt-in (`NARRATIVETRACE_CANONICAL_JSON=true`) conformance fixture, intended for testing NarrativeTrace itself against the canonical schema — not something an application project needs to keep. |
 | `<output-dir>/traces/<Class>/<slug>.structural.json` | No | Opt-in (`NARRATIVETRACE_STRUCTURAL_JSON=true`) value-free entry array — same reasoning as `.canonical.json`. |
 | `<output-dir>/clarity-results.json` | No | Generated suite-level clarity report (machine-readable). Appears whenever the suite fixture ran and accumulated at least one entry, independent of `NARRATIVETRACE_OUTPUT` — regenerate, don't commit. |
@@ -57,17 +59,39 @@ review the diff like any other hand-curated file. A malformed
 `glossary.json` throws rather than being silently skipped, which is
 deliberate: a typo in a committed, reviewed file should fail loudly.
 
-## What this runtime does not have yet
+## Approval mode, end to end
 
-Approval mode is not here yet: there are no `.approved.nt` / `.received.nt`
-files, no `approve` verb, and nothing that compares one run's structural
-trace against a previous one. The `.nt` structural artifact exists and is
-deterministic, but every artifact on this page is regenerate-only output
-today — there is no "committed baseline that fails a build on an
-unreviewed behavior change" workflow to opt into yet.
+```text
+test passes
+   |
+   v
+compare current structure to approved trace
+   |
+   +-- same      --> pass, nothing written
+   +-- different --> write .received.nt and fail
+                     |
+                     v
+                human reviews the diff
+                     |
+                     v
+                ./build.sh Approve
+                     |
+                     v
+              .approved.nt updated, commit it
+```
+
+The failing state is deliberate: a passing test whose *shape* changed —
+including a change an AI agent slipped into an otherwise-correct refactor —
+has to be looked at and explicitly approved, not merely compile. See
+[Structural Trace Format](structural-trace-format.md) for approval mode's
+full behaviour, and the [Configuration Guide](guides/configuration.md) for
+`NARRATIVETRACE_APPROVAL` / `NARRATIVETRACE_APPROVED_DIR`.
 
 ## See also
 
+- [Structural Trace Format](structural-trace-format.md) — the `.nt` format,
+  per-invocation artifact identity, the last-green baseline and approval
+  mode in full.
 - [Privacy and Redaction](privacy-and-redaction.md) — what's inside these
   files before you decide whether to archive them anywhere.
 - [Configuration Guide](guides/configuration.md) — the `NARRATIVETRACE_*`

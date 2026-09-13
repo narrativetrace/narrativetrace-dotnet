@@ -23,6 +23,14 @@
          graph; the DependencyAudit target fails the build if it regresses. -->
     <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.11" />
     <PackageReference Include="NuGet.Packaging" Version="6.14.3" />
+    <!-- DuplicationCheckSupport's glob matching (config/duplication/exemptions.txt) — already on
+         this build's graph transitively through Nuke.Common; pinned explicitly rather than left
+         implicit, matching this file's own convention for every other dependency here. -->
+    <PackageReference Include="Microsoft.Extensions.FileSystemGlobbing" Version="10.0.12" />
+    <!-- ContractLintSupport parses documentation/contract.yaml — the same library
+         contract-probe/ uses independently (the two projects cannot share code; see
+         ContractLintSupport's own remarks), so the schema is never parsed two different ways. -->
+    <PackageReference Include="YamlDotNet" Version="18.1.0" />
   </ItemGroup>
 
 </Project>

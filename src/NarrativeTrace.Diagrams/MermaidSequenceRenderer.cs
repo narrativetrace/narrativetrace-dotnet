@@ -23,7 +23,12 @@ namespace NarrativeTrace.Diagrams;
 /// values that produced no rendered text fall back to a check mark
 /// (<c>✔</c>). Rendered values are sanitized through
 /// <see cref="DiagramText.Message"/> so control characters cannot break the
-/// line-oriented Mermaid grammar.
+/// line-oriented Mermaid grammar. <see cref="Render"/> already has the shape
+/// of a <c>Func&lt;TraceTree, string&gt;</c> — this runtime's
+/// structurally-typed equivalent of a single-method renderer interface — so
+/// it needs no wrapper to be used as one; get an instance from
+/// <see cref="SequenceDiagramRenderers.Mermaid"/> when a caller wants the
+/// format without naming this class.
 /// </remarks>
 /// <example>
 /// For a single <c>Cart.Checkout()</c> call that returns, the output is:

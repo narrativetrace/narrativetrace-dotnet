@@ -14,10 +14,16 @@ internal static class NarrationResolver
     private static readonly Regex PlaceholderPattern =
         new(@"\{(\w+)(?:\.(\w+))?\}", RegexOptions.Compiled);
 
+    // redaction is the proxy's own effective policy (ProxyOptions.Redaction),
+    // or null for RedactionPolicy.Default — the same "replace, not widen"
+    // contract NarrativeInterceptor.NameRedacted applies to captured
+    // parameters, so a template resolved on a custom-policy proxy cannot
+    // disagree with what that proxy's own capture path just redacted.
     public static string? Resolve(
         string? template,
         object?[] args,
-        ParameterInfo[] parameters)
+        ParameterInfo[] parameters,
+        RedactionPolicy? redaction = null)
     {
         if (template is null)
         {
@@ -26,13 +32,14 @@ internal static class NarrationResolver
 
         return PlaceholderPattern.Replace(
             template, m => ReplacePlaceholder(
-                m, args, parameters));
+                m, args, parameters, redaction));
     }
 
     private static string ReplacePlaceholder(
         Match match,
         object?[] args,
-        ParameterInfo[] parameters)
+        ParameterInfo[] parameters,
+        RedactionPolicy? redaction)
     {
         var paramName = match.Groups[1].Value;
         var propName = match.Groups[2].Success
@@ -48,8 +55,10 @@ internal static class NarrationResolver
 
         var value = args[index];
         return propName is null
-            ? ResolveSimplePlaceholder(value, parameters[index], match.Value)
-            : ResolvePathPlaceholder(value, propName, parameters[index], match.Value);
+            ? ResolveSimplePlaceholder(
+                value, parameters[index], match.Value, redaction)
+            : ResolvePathPlaceholder(
+                value, propName, parameters[index], match.Value, redaction);
     }
 
     // A placeholder naming a value directly -- {password}, {token}, {card}
@@ -60,22 +69,27 @@ internal static class NarrationResolver
     // (still catches an authoring typo) rather than swallowing the
     // unresolved-placeholder warning.
     private static string ResolveSimplePlaceholder(
-        object? value, ParameterInfo parameter, string literal)
+        object? value, ParameterInfo parameter, string literal,
+        RedactionPolicy? redaction)
     {
         if (value is null)
         {
             return literal;
         }
 
-        return IsRedacted(parameter) ? RedactionPolicy.Marker : PlainValue(value);
+        return IsRedacted(parameter, redaction)
+            ? RedactionPolicy.Marker
+            : PlainValue(value, redaction);
     }
 
     private static string ResolvePathPlaceholder(
-        object? value, string propName, ParameterInfo parameter, string literal)
+        object? value, string propName, ParameterInfo parameter,
+        string literal, RedactionPolicy? redaction)
     {
-        return IsRedacted(parameter) || PathIsRedacted(value, propName)
+        return IsRedacted(parameter, redaction)
+            || PathIsRedacted(value, propName, redaction)
             ? RedactionPolicy.Marker
-            : ResolveValue(value, propName, literal);
+            : ResolveValue(value, propName, literal, redaction);
     }
 
     // Naming a path never weakens the rules that apply to the value directly:
@@ -86,7 +100,8 @@ internal static class NarrationResolver
     // unresolved-placeholder warning can still catch it. To narrate the
     // value, remove [NotTraced] from the property; that removal is the
     // deliberate, reviewable decision.
-    private static bool PathIsRedacted(object? root, string? propertyName)
+    private static bool PathIsRedacted(
+        object? root, string? propertyName, RedactionPolicy? redaction)
     {
         if (root is null || propertyName is null)
         {
@@ -102,7 +117,7 @@ internal static class NarrationResolver
 
         var annotated = prop.GetCustomAttribute<NotTracedAttribute>() is not null
             || IsNotTracedRecordComponent(prop);
-        return RedactionPolicy.Default.IsRedacted(prop.Name, annotated);
+        return EffectivePolicy(redaction).IsRedacted(prop.Name, annotated);
     }
 
     // Mirrors ValueRenderer's record-component fallback: a positional record
@@ -130,9 +145,10 @@ internal static class NarrationResolver
     // {key}) is handled entirely in ReplacePlaceholder, including its own
     // null-value literal-preservation — see the remark there.
     private static string ResolveValue(
-        object? value, string propName, string literal)
+        object? value, string propName, string literal,
+        RedactionPolicy? redaction)
     {
-        return GetPropertyValue(value, propName, literal);
+        return GetPropertyValue(value, propName, literal, redaction);
     }
 
     // Templates interpolate a SCALAR plainly (JVM String.valueOf parity): no
@@ -163,14 +179,26 @@ internal static class NarrationResolver
     // minus the quotation marks a narration must not carry. Numbers, bool,
     // char and enum keep the fast path; a non-string scalar's VALUE cannot
     // be a credential shape, only its (already name-checked) field could be.
-    private static string PlainValue(object value)
+    private static string PlainValue(object value, RedactionPolicy? redaction)
     {
         if (value is string text)
         {
-            return ValueRenderer.RenderNarrationText(text);
+            return ValueRenderer.RenderNarrationText(
+                text, RenderOptionsFor(redaction));
         }
 
-        return IsScalar(value) ? ScalarText(value) : ValueRenderer.Render(value);
+        return IsScalar(value)
+            ? ScalarText(value)
+            : ValueRenderer.Render(value, RenderOptionsFor(redaction));
+    }
+
+    // Null when no custom policy was given, matching
+    // NarrativeInterceptor.RenderOptionsFor's own contract — exactly the
+    // existing default behavior every ValueRenderer.Render(value) call this
+    // replaces.
+    private static RenderOptions? RenderOptionsFor(RedactionPolicy? redaction)
+    {
+        return redaction is null ? null : new RenderOptions(Redaction: redaction);
     }
 
     // No guard here, unlike the non-scalar path. Every type IsScalar matches
@@ -225,10 +253,23 @@ internal static class NarrationResolver
     // SimplePlaceholder.resolve asking RedactionPolicy.isRedacted — before
     // it, this only checked the [NotTraced] annotation, so a bare
     // {password} placeholder never asked the deny-list at all.
-    private static bool IsRedacted(ParameterInfo parameter)
+    //
+    // redaction is the proxy's own effective policy — null resolves to
+    // RedactionPolicy.Default, the same fallback NarrativeInterceptor's own
+    // NameRedacted applies, so a template and the capture path it narrates
+    // never disagree about which parameter name is redacted. [NotTraced]
+    // (the `annotated` argument to IsRedacted) always wins regardless of
+    // policy — RedactionPolicy.IsRedacted's own contract.
+    private static bool IsRedacted(
+        ParameterInfo parameter, RedactionPolicy? redaction)
     {
         var annotated = parameter.GetCustomAttribute<NotTracedAttribute>() is not null;
-        return RedactionPolicy.Default.IsRedacted(parameter.Name, annotated);
+        return EffectivePolicy(redaction).IsRedacted(parameter.Name, annotated);
+    }
+
+    private static RedactionPolicy EffectivePolicy(RedactionPolicy? redaction)
+    {
+        return redaction ?? RedactionPolicy.Default;
     }
 
     private static int FindParameterIndex(
@@ -251,14 +292,15 @@ internal static class NarrationResolver
     // ({obj.prop}) so template typos stay visible in output and warning
     // scans — matching the JVM TemplateParser's preservation semantics.
     private static string GetPropertyValue(
-        object? obj, string propertyName, string literal)
+        object? obj, string propertyName, string literal,
+        RedactionPolicy? redaction)
     {
         var prop = obj?.GetType().GetProperty(
             propertyName,
             BindingFlags.Public | BindingFlags.Instance);
         return prop is null
             ? literal
-            : ReadProperty(prop, obj!, literal);
+            : ReadProperty(prop, obj!, literal, redaction);
     }
 
     // Only the ACCESSOR is guarded here: a getter that throws leaves the
@@ -272,7 +314,8 @@ internal static class NarrationResolver
     // downgrade every rogue ToString() to the literal and break parity with
     // the JVM and TypeScript editions.
     private static string ReadProperty(
-        PropertyInfo prop, object obj, string literal)
+        PropertyInfo prop, object obj, string literal,
+        RedactionPolicy? redaction)
     {
         object? value;
         try
@@ -284,6 +327,6 @@ internal static class NarrationResolver
             return literal;
         }
 
-        return value is null ? "null" : PlainValue(value);
+        return value is null ? "null" : PlainValue(value, redaction);
     }
 }

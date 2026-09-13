@@ -45,6 +45,9 @@ class Build : NukeBuild
     AbsolutePath CoverageDirectory => ArtifactsDirectory / "coverage";
     AbsolutePath MutationDirectory => ArtifactsDirectory / "mutation";
     AbsolutePath MetricsDirectory => ArtifactsDirectory / "metrics";
+    AbsolutePath DuplicationDirectory => ArtifactsDirectory / "duplication";
+    AbsolutePath DuplicationBaselineFile => RootDirectory / "config" / "duplication" / "baseline.properties";
+    AbsolutePath DuplicationExemptionsFile => RootDirectory / "config" / "duplication" / "exemptions.txt";
     AbsolutePath BenchmarkArtifactsDir => ArtifactsDirectory / "benchmarks";
     AbsolutePath BenchmarkBaselineFile => RootDirectory / "benchmarks" / "benchmark-baseline.json";
     AbsolutePath SecurityDirectory => ArtifactsDirectory / "security";
@@ -96,6 +99,10 @@ class Build : NukeBuild
 
     [Parameter("VerifyPublication: overall polling deadline in seconds — nuget.org sync is minutes to hours (default: 7200)")]
     readonly int VerifyTimeoutSeconds = 7200;
+
+    [Parameter("BannerRefresh: repository root whose llms.txt unreleased-marker count clause gets recomputed — default: this checkout. "
+        + "the publish script's --tag step points this at the staged public snapshot, right after the marker rewrite.")]
+    readonly string? BannerRefreshRoot;
 
     [Parameter("VerifyPublication: steady-state wait between polling rounds once backoff has ramped up (default: 60)")]
     readonly int VerifyIntervalSeconds = 60;
@@ -303,6 +310,70 @@ class Build : NukeBuild
         });
 
     /// <summary>
+    /// Recomputes <c>documentation/guides/llms.txt</c>'s banner "; N behaviour(s) marked
+    /// unreleased" clause under <see cref="BannerRefreshRoot"/> (default: this checkout) and
+    /// rewrites it in place if it has drifted — the repo/published-version portions of the line
+    /// and its provenance comment are left byte-identical, only the trailing clause moves. Exists
+    /// so the publish script's <c>--tag</c> step can call the SAME
+    /// <see cref="PublishedVersionSupport"/>/<see cref="UnreleasedMarkerSupport"/> logic
+    /// <see cref="SyncLlmsPublishedVersionLine"/> uses — pointed at the staged snapshot, right
+    /// after the marker rewrite strips every marker citing the tagged version — instead of a
+    /// second, bash-only reimplementation of the same count that could drift from this one (the
+    /// gap the family's Java/Python publish scripts accepted and now carry as a "kept in lockstep
+    /// by hand" comment). No network: the published-side figure is never touched here, only the
+    /// deterministic marker count.
+    /// </summary>
+    Target BannerRefresh => _ => _
+        .Executes(() =>
+        {
+            var root = BannerRefreshRoot is null ? RootDirectory : (AbsolutePath)BannerRefreshRoot;
+            var message = RefreshBannerUnreleasedCount(root);
+            Console.WriteLine(message);
+        });
+
+    /// <summary>
+    /// <see cref="BannerRefresh"/>'s pure body: reads <paramref name="root"/>'s
+    /// <c>documentation/guides/llms.txt</c>, recomputes the unreleased-marker count under that
+    /// same root, and rewrites only the banner's trailing clause when the count has moved —
+    /// preserving the existing repo/published-version text and provenance comment verbatim.
+    /// </summary>
+    string RefreshBannerUnreleasedCount(AbsolutePath root)
+    {
+        var llmsFile = root / "documentation" / "guides" / "llms.txt";
+        if (!File.Exists(llmsFile))
+        {
+            return $"BannerRefresh: no {llmsFile} — nothing to refresh.";
+        }
+
+        var text = File.ReadAllText(llmsFile);
+        var body = PublishedVersionSupport.ExtractBlockBody(text);
+        var line = PublishedVersionSupport.ExtractLine(text);
+        if (body is null || line is null)
+        {
+            return "BannerRefresh: no published-version banner block found — nothing to refresh.";
+        }
+
+        if (!PublishedVersionSupport.TryParseLine(line, out var describedVersion, out var publishedVersion, out var oldCount))
+        {
+            throw new InvalidOperationException(
+                $"BannerRefresh: banner line is not one of the three canonical forms: {line}");
+        }
+
+        var newCount = UnreleasedMarkerSupport.CountAll(
+            EnglishDocFilesForUnreleasedCount(root).Select(file => File.ReadAllText(file)));
+        if (newCount == oldCount)
+        {
+            return $"BannerRefresh: unreleased-marker count unchanged ({oldCount}) — nothing to rewrite.";
+        }
+
+        var newLine = PublishedVersionSupport.BuildLine(describedVersion, publishedVersion, newCount);
+        var commentIndex = body.IndexOf(" <!--", StringComparison.Ordinal);
+        var comment = commentIndex < 0 ? "" : body[(commentIndex + 1)..];
+        File.WriteAllText(llmsFile, PublishedVersionSupport.UpsertBlock(text, newLine, comment));
+        return $"BannerRefresh: unreleased-marker count {oldCount} -> {newCount}; banner now: {newLine}";
+    }
+
+    /// <summary>
     /// Prints the full translation coverage and review-field matrix, one line
     /// per manifest language. A human dashboard, not a gate — deliberately
     /// not a <see cref="Verify"/> dependency, since publish-gating on review
@@ -318,7 +389,7 @@ class Build : NukeBuild
     /// <summary>
     /// Fails when a tracked source file carries a license header. Owner
     /// ruling 2026-09-01: in-tree license headers must not exist in this
-    /// private repository — <c>scripts/publish-public.sh</c> stamps them
+    /// private repository — the publish script stamps them
     /// only at publish time, over a throwaway snapshot, and never commits
     /// the result here. The inverse of that stamping step.
     /// </summary>
@@ -332,7 +403,7 @@ class Build : NukeBuild
             if (problems.Count > 0)
                 throw new InvalidOperationException(
                     $"Header absence check failed: {problems.Count} file(s) carry an in-tree license "
-                    + "header. Headers are stamped by scripts/publish-public.sh at publish time only — "
+                    + "header. Headers are stamped by the publish script at publish time only — "
                     + "remove the header from the source file.");
 
             Console.WriteLine("Header absence check passed: no tracked source file carries a license header");
@@ -347,7 +418,7 @@ class Build : NukeBuild
     /// checkout without the sibling, the common CI case, stays green. Set
     /// <c>LEGAL_CHECK_STRICT=1</c> to fail instead for a deliberate local or
     /// CI verification run; deliberately <b>not</b> wired into
-    /// <c>scripts/publish-public.sh</c> as a strict preflight, because
+    /// the publish script as a strict preflight, because
     /// <c>legal:trademark</c> wraps each repo's own paraphrase and is
     /// expected to differ from the golden copy — a strict preflight would
     /// fail every publish where the sibling happens to be checked out.
@@ -973,6 +1044,112 @@ class Build : NukeBuild
                 + "the rest test suites.");
         });
 
+    // ── Duplication (jscpd) ──────────────────────────────────────────────────────
+    //
+    // Mirrors the Java runtime's PMD-CPD duplicationReport/duplicationCheck pair (see
+    // documentation/duplication.md): a report every commit, a ratchet against a committed baseline,
+    // never a fixed percentage. jscpd is an external Node CLI rather than a JVM library on this
+    // build's own classpath, so — unlike Java's PMD-CPD, always present — a missing Node/npx follows
+    // ScannerGateSupport exactly like SecretsScan/Semgrep/OsvScan: WARN + a recorded `skipped` status
+    // locally, a hard failure under CI (or an explicit required flag) — release-retrospective rule 2,
+    // a graceful-skip tool must prove it has ever run.
+
+    /// <summary>Token floor (owner ruling 2026-09-12): below this, jscpd's matches are noise — a
+    /// handful of tokens two unrelated methods share by coincidence — rather than a genuine
+    /// structural copy. Identifiers and literals are always ignored (<see cref="DuplicationReportSupport.JscpdArguments"/>),
+    /// so what clears this floor is shape, not text.</summary>
+    const int DuplicationMinTokens = 60;
+
+    /// <summary>Pinned exact jscpd version (owner ruling 2026-09-12) — never a floating tag, so a
+    /// registry-side release cannot silently change what every commit's ratchet measures.</summary>
+    const string JscpdVersion = "5.2.0";
+
+    AbsolutePath DuplicationScanStatusDirectory => DuplicationDirectory / "scan-status";
+
+    /// <summary>
+    /// Runs jscpd over one tree (main or test) and returns this build's normalized
+    /// <see cref="DuplicationTreeResult"/>. Deliberately the only place that shells out to
+    /// <c>npx jscpd</c> — everything else in <see cref="DuplicationReportSupport"/> is pure and unit
+    /// tested; the real tool is proven by this target's own run, not a unit test that would just
+    /// re-run it (the <c>DuplicationReportSupport</c>/<c>PmdViolationSupport</c>/<c>JDependReportSupport</c>
+    /// convention).
+    /// </summary>
+    DuplicationTreeResult RunJscpd(string pattern, AbsolutePath outputDir)
+    {
+        if (Directory.Exists(outputDir))
+            Directory.Delete(outputDir, true);
+        Directory.CreateDirectory(outputDir);
+
+        var arguments = DuplicationReportSupport.JscpdArguments(pattern, DuplicationMinTokens, outputDir);
+        var commandLine = "--yes jscpd@" + JscpdVersion + " " + string.Join(' ', arguments.Select(a => $"\"{a}\""));
+        ProcessTasks.StartProcess("npx", commandLine, RootDirectory, logger: QuietProcessLogger)
+            .AssertZeroExitCode();
+
+        var reportFile = outputDir / "jscpd-report.json";
+        var (tokensTotal, clusters) = DuplicationReportSupport.ParseJscpdReport(File.ReadAllText(reportFile));
+        var tokensDuplicated = DuplicationReportSupport.UnionDuplicatedTokens(clusters);
+        return DuplicationReportSupport.Aggregate(tokensTotal, tokensDuplicated, clusters);
+    }
+
+    /// <summary>
+    /// Runs jscpd over <c>src/**</c> (main, gated by <see cref="DuplicationCheck"/>) and
+    /// <c>tests/**</c> + <c>benchmarks/**</c> (test, reported only — never gates), writes
+    /// <c>duplication.json</c> and prints the one-line summary, every commit. A missing Node/npx is a
+    /// WARN-and-skip locally, a hard failure in CI — see the section banner above.
+    /// </summary>
+    Target DuplicationReport => _ => _
+        .Executes(() =>
+        {
+            const string tool = "npx";
+            if (!IsOnPath(tool))
+            {
+                var decision = ScannerGateSupport.OnMissingBinary(
+                    "jscpd", SecurityScannersRequired, "install Node.js 18+ (https://nodejs.org/) — provisions npx");
+                ScannerGateSupport.RecordSkipped(DuplicationScanStatusDirectory, "jscpd", "npx not on PATH");
+                if (decision.Fail)
+                    throw new InvalidOperationException($"DuplicationReport: {decision.Message}");
+                Console.WriteLine($"DuplicationReport: {decision.Message}");
+                return;
+            }
+
+            Directory.CreateDirectory(DuplicationDirectory);
+            var main = RunJscpd("src/**/*.cs", DuplicationDirectory / "main");
+            var test = RunJscpd("{tests,benchmarks}/**/*.cs", DuplicationDirectory / "test");
+            var scan = new DuplicationScanResult(DuplicationMinTokens, main, test);
+            DuplicationReportSupport.WriteJson(scan, DuplicationDirectory / "duplication.json");
+            Console.WriteLine(DuplicationReportSupport.SummaryLine(scan));
+            ScannerGateSupport.RecordRanClean(DuplicationScanStatusDirectory, "jscpd");
+        });
+
+    /// <summary>
+    /// Ratchets <see cref="DuplicationReport"/>'s main-tree result against
+    /// <c>config/duplication/baseline.properties</c> (test tree is reported only, never gates) — see
+    /// documentation/duplication.md. When <see cref="DuplicationReport"/> itself skipped (no Node),
+    /// this fails loudly rather than reading a stale or absent report as a silent pass.
+    /// </summary>
+    Target DuplicationCheck => _ => _
+        .DependsOn(DuplicationReport)
+        .Executes(() =>
+        {
+            var jsonFile = DuplicationDirectory / "duplication.json";
+            if (!File.Exists(jsonFile))
+            {
+                var status = ScannerGateSupport.Status(DuplicationScanStatusDirectory, "jscpd");
+                throw new InvalidOperationException(
+                    $"DuplicationCheck: no {jsonFile} — DuplicationReport status is '{status}'. "
+                    + "Install Node.js/npx, or pass a required flag only where duplication tooling is "
+                    + "genuinely expected to be absent.");
+            }
+
+            var scan = DuplicationReportSupport.ReadJson(jsonFile);
+            var baseline = DuplicationCheckSupport.ReadBaseline(DuplicationBaselineFile);
+            var exemptions = DuplicationCheckSupport.ReadExemptions(DuplicationExemptionsFile);
+            var result = DuplicationCheckSupport.Decide(scan.Main, baseline, exemptions);
+            Console.WriteLine(result.Message);
+            if (!result.Passed)
+                throw new InvalidOperationException(result.Message);
+        });
+
     // ── Metrics ───────────────────────────────────────────────────────────────
 
     /// <remarks>
@@ -1088,7 +1265,7 @@ class Build : NukeBuild
     /// rather than assuming both: <c>sharpfuzz</c> (a .NET global/local tool, IL-rewrites the
     /// published <c>NarrativeTrace.Core.dll</c> to report coverage the way AFL expects — pure .NET,
     /// restored via <c>dotnet tool restore</c>, works in any container with NuGet access) and
-    /// <c>afl-fuzz</c>, provisioned in <c>.devcontainer/Dockerfile</c> (Ubuntu's <c>afl++</c>
+    /// <c>afl-fuzz</c>, provisioned in the local development container (Ubuntu's <c>afl++</c>
     /// package — earlier absence was a stale/never-updated apt cache, not an unpackaged platform;
     /// <c>apt-get update</c> as root surfaces it fine on this container's arm64 host). Confirmed on
     /// the container this runtime was built in: <c>sharpfuzz</c> instrumentation succeeds (the
@@ -1507,6 +1684,37 @@ class Build : NukeBuild
     }
 
     /// <summary>
+    /// Every file the unreleased-marker count (design note item 8) scans: every <c>.md</c>/<c>.txt</c>
+    /// file under <c>documentation/</c> (which already covers <c>llms.txt</c>/<c>llms-full.md</c>)
+    /// plus root <c>README.md</c>, minus every translated mirror — a mirror repeats its English
+    /// source's markers verbatim, so counting it too would double the true count. "Mirror" is
+    /// exactly <see cref="TranslationCheckSupport.TranslatedFiles"/>'s definition (a file under a
+    /// BCP-47 language directory, or a root <c>*.md</c> carrying a staleness header), so a root
+    /// translation like <c>LEAME.md</c> is excluded the same way as a nested one.
+    /// </summary>
+    IEnumerable<AbsolutePath> EnglishDocFilesForUnreleasedCount(AbsolutePath? root = null)
+    {
+        var effectiveRoot = root ?? RootDirectory;
+        var documentation = effectiveRoot / "documentation";
+        var candidates = Directory.Exists(documentation)
+            ? Directory.EnumerateFiles(documentation, "*.*", SearchOption.AllDirectories)
+                .Where(file => file.EndsWith(".md", StringComparison.OrdinalIgnoreCase)
+                    || file.EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
+                .Select(file => (AbsolutePath)file)
+            : Enumerable.Empty<AbsolutePath>();
+        var readme = effectiveRoot / "README.md";
+        var all = File.Exists(readme) ? candidates.Append(readme) : candidates;
+
+        var mirrors = new HashSet<string>(
+            TranslationCheckSupport.TranslatedFiles(effectiveRoot), StringComparer.Ordinal);
+        return all.Where(file => !mirrors.Contains(file));
+    }
+
+    /// <summary>The design note item 8 count: <see cref="UnreleasedMarkerSupport.CountAll"/> over every file <see cref="EnglishDocFilesForUnreleasedCount"/> selects.</summary>
+    int CountUnreleasedMarkers() =>
+        UnreleasedMarkerSupport.CountAll(EnglishDocFilesForUnreleasedCount().Select(file => File.ReadAllText(file)));
+
+    /// <summary>
     /// Regenerates the <c>llms.txt</c> banner and writes it back if it changed. Returns a
     /// change description for <see cref="SnippetSync"/>'s log, or <see langword="null"/> when the
     /// file already carried the current line.
@@ -1515,7 +1723,8 @@ class Build : NukeBuild
     {
         var repoVersion = ReadVersionPrefix();
         var (published, cacheAge) = ResolvePublishedVersionWithNetwork();
-        var line = PublishedVersionSupport.BuildLine(repoVersion, published);
+        var unreleasedCount = CountUnreleasedMarkers();
+        var line = PublishedVersionSupport.BuildLine(repoVersion, published, unreleasedCount);
         var comment = PublishedVersionSupport.BuildProvenanceComment(DateTimeOffset.UtcNow, cacheAge);
 
         var text = File.ReadAllText(LlmsTxtFile);
@@ -1534,11 +1743,14 @@ class Build : NukeBuild
 
     /// <summary>
     /// Offline-only check (no network, matching <see cref="SnippetCheck"/>'s own "no network"
-    /// contract): the banner block must exist, must be one of the three canonical forms, and must
+    /// contract): the banner block must exist, must be one of the three canonical forms, must
     /// cite today's repo version — catching the common regression of bumping
-    /// <c>VersionPrefix</c> without regenerating the banner. When a still-fresh cache happens to
-    /// be on disk, also checks the published-side figure against it (still zero network calls);
-    /// deeper drift against the live registry is the nightly job's concern, not a per-commit gate's.
+    /// <c>VersionPrefix</c> without regenerating the banner — and must cite today's unreleased-
+    /// marker count (design note item 8), verified unconditionally since that count is a pure,
+    /// deterministic file scan, unlike the published-side figure below. When a still-fresh cache
+    /// happens to be on disk, also checks the published-side figure against it (still zero
+    /// network calls); deeper drift against the live registry is the nightly job's concern, not a
+    /// per-commit gate's.
     /// </summary>
     List<string> CheckLlmsPublishedVersionLine()
     {
@@ -1551,7 +1763,7 @@ class Build : NukeBuild
                 + "— run ./build.sh SnippetSync"];
         }
 
-        if (!PublishedVersionSupport.TryParseLine(line, out var describedVersion, out var linePublished))
+        if (!PublishedVersionSupport.TryParseLine(line, out var describedVersion, out var linePublished, out var lineUnreleasedCount))
         {
             return [$"documentation/guides/llms.txt: published-version banner is not one of the "
                 + $"three canonical forms: {line}"];
@@ -1561,6 +1773,14 @@ class Build : NukeBuild
         {
             return ["documentation/guides/llms.txt: published-version banner cites a stale "
                 + $"repo version — expected '{repoVersion}', found: {line} — run ./build.sh SnippetSync"];
+        }
+
+        var actualUnreleasedCount = CountUnreleasedMarkers();
+        if (lineUnreleasedCount != actualUnreleasedCount)
+        {
+            return ["documentation/guides/llms.txt: published-version banner cites "
+                + $"{lineUnreleasedCount} unreleased behaviour(s), but {actualUnreleasedCount} are "
+                + $"marked today — run ./build.sh SnippetSync"];
         }
 
         // Deeper drift against the live registry needs a network call this offline check never
@@ -1576,6 +1796,94 @@ class Build : NukeBuild
         }
 
         return [];
+    }
+
+    // ── Docs-vs-published contract gate (design note docs-vs-published-gate-2026-09-12 §2) ──────
+
+    [Parameter("ContractCheck: package version to check — default: resolved from nuget.org the same way "
+        + "the llms.txt banner is (a fresh cache hit, else NarrativeTrace.Core's flat-container index).")]
+    readonly string? ContractCheckVersion;
+
+    AbsolutePath ContractYamlFile => RootDirectory / "documentation" / "contract.yaml";
+
+    /// <summary>
+    /// Fails when <c>documentation/contract.yaml</c>'s schema is malformed, a <c>since</c> is not a
+    /// real version string, two entries make the same claim, a probe file doesn't exist, a
+    /// <c>page#anchor</c> pointer doesn't resolve, or an unreleased since-marker anywhere in the
+    /// English docs has no covering entry (docs-vs-published-gate §2/§5.1 ruling 3). No network —
+    /// the registry-backed twin is <see cref="ContractCheck"/>, nightly only.
+    /// </summary>
+    Target ContractLint => _ => _
+        .Executes(() =>
+        {
+            var document = ContractLintSupport.Parse(ContractYamlFile);
+            var unreleasedVersions = UnreleasedMarkerSupport.DistinctVersions(
+                EnglishDocFilesForUnreleasedCount().Select(file => File.ReadAllText(file)));
+            var problems = ContractLintSupport.Lint(RootDirectory, document, unreleasedVersions);
+            if (problems.Count > 0)
+            {
+                throw new InvalidOperationException(
+                    $"ContractLint: {problems.Count} problem(s) in documentation/contract.yaml:\n"
+                        + string.Join("\n", problems.Select(p => $"  - {p}")));
+            }
+
+            Console.WriteLine($"ContractLint: {document.Entries.Count} entries, 0 problems");
+        });
+
+    /// <summary>
+    /// Nightly, registry-backed docs-vs-published contract gate (docs-vs-published-gate §2, ruling
+    /// 4): resolves the published version to check <see cref="ResolvePublishedVersionWithNetwork"/>'s
+    /// own way (a fresh cache hit, else nuget.org's flat-container index), installs it into a FRESH
+    /// temp NuGet cache — never this checkout's own, never a local feed — and runs
+    /// <c>contract-probe/</c> (a standalone project with its own nuget.org-only nuget.config, never
+    /// <c>project(...)</c>-referenced) against it. Never wired into <see cref="Verify"/>: it depends
+    /// on the network and a real restore/build of a second project, the same reason
+    /// Mutation/Fuzz/Benchmark are scheduled-only.
+    /// </summary>
+    Target ContractCheck => _ => _
+        .Executes(() =>
+        {
+            var version = ContractCheckVersion ?? ResolveContractCheckVersion();
+            Console.WriteLine($">> checking {ContractYamlFile} against nuget.org {version}");
+            RunContractProbe(version);
+        });
+
+    string ResolveContractCheckVersion()
+    {
+        var (published, _) = ResolvePublishedVersionWithNetwork();
+        return published ?? throw new InvalidOperationException(
+            "ContractCheck: could not resolve a published version (no fresh cache, no network) — "
+                + "pass --contract-check-version explicitly");
+    }
+
+    void RunContractProbe(string version)
+    {
+        var packagesDir = Directory.CreateTempSubdirectory("nt-contract-check-packages-").FullName;
+        try
+        {
+            Directory.CreateDirectory(ArtifactsDirectory);
+            var outFile = ArtifactsDirectory / "contract-check-result.json";
+            var env = OverrideEnvironment(
+                ("NUGET_PACKAGES", packagesDir),
+                ("DOTNET_NOLOGO", "1"),
+                ("DOTNET_CLI_TELEMETRY_OPTOUT", "1"));
+            var arguments = $"run -c Release -p:ContractVersion={version} --no-launch-profile -- "
+                + $"--version={version} --contract={ContractYamlFile} --out={outFile}";
+            var process = ProcessTasks.StartProcess(
+                "dotnet", arguments, workingDirectory: RootDirectory / "contract-probe", environmentVariables: env);
+            process.AssertWaitForExit();
+            if (File.Exists(outFile))
+                Console.WriteLine(File.ReadAllText(outFile));
+            if (process.ExitCode != 0)
+            {
+                throw new InvalidOperationException(
+                    $"ContractCheck: contract-probe exited {process.ExitCode} against {version}");
+            }
+        }
+        finally
+        {
+            Directory.Delete(packagesDir, recursive: true);
+        }
     }
 
     PublicationVerificationSupport.Presence LocalCheckOne(string packageId, string version)
@@ -2505,10 +2813,12 @@ class Build : NukeBuild
         .DependsOn(Analyze)
         .DependsOn(TranslationCheck)
         .DependsOn(SnippetCheck)
+        .DependsOn(ContractLint)
         .DependsOn(DemoWiringCheck)
         .DependsOn(HeaderAbsenceCheck)
         .DependsOn(CoverageAccountingCheck)
         .DependsOn(MutationAccountingCheck)
+        .DependsOn(DuplicationCheck)
         .DependsOn(LegalCheck)
         .DependsOn(SecretsScan)
         .DependsOn(Test)
@@ -2524,6 +2834,28 @@ class Build : NukeBuild
         {
             Git("config core.hooksPath .githooks");
             Console.WriteLine("Configured git hooks path to .githooks");
+        });
+
+    /// <summary>
+    /// Promotes every <c>*.received.nt</c> approval trace under the
+    /// repository to its <c>*.approved.nt</c> baseline — the whole of
+    /// "approving": reviewed received traces become the new contract. The
+    /// runtime's own idiom for the verb every NarrativeTrace port names
+    /// <c>approve</c> (Gradle's <c>approveNarratives</c> task, npm/poe
+    /// scripts elsewhere).
+    /// </summary>
+    Target Approve => _ => _
+        .Executes(() =>
+        {
+            var promoted = ApproveNarrativesSupport.PromoteReceived(RootDirectory);
+            if (promoted.Count == 0)
+            {
+                Console.WriteLine("Approve: nothing to promote (no *.received.nt found).");
+                return;
+            }
+
+            foreach (var file in promoted)
+                Console.WriteLine($"Approved: {file}");
         });
 
     // ── Helpers ───────────────────────────────────────────────────────────────

@@ -28,7 +28,7 @@ using NarrativeTrace.Core.Annotation;
 | `[NarrativeSummary]` | `NarrativeTrace.Core.Annotation` | Method or property | Preferred summary rendering for its declaring type. |
 | `[Narrated]` | `NarrativeTrace.Core.Annotation` | Method | Adds human-readable narration text to a traced method. |
 | `[OnError]` | `NarrativeTrace.Core.Annotation` | Method (repeatable) | Attaches contextual error text to a method. |
-| `[NotTraced]` | `NarrativeTrace.Core.Annotation` | Parameter, Property, Field | Redacts a value in trace output, including members of introspected objects. |
+| `[NotTraced]` | `NarrativeTrace.Core.Annotation` | Parameter, Property, Field (Method compiles but is rejected at proxy creation) | Redacts a value in trace output, including members of introspected objects. |
 | `[Traced]` | `NarrativeTrace.Proxy` | Method | Overrides captured parameter names positionally. |
 
 ## `[Narrated]`
@@ -128,6 +128,30 @@ public sealed class Payment
 
 - Typical uses: passwords, tokens, secrets, card data.
 
+**Not valid on a whole method.** `[NotTraced]` has no "the whole call is
+redacted" meaning — it always names a parameter, property, or record
+component, never the method itself, matching the JVM edition's `@NotTraced`
+(no `METHOD` target there either). Putting it on a method compiles, but a
+proxy created over an interface that does throws `InvalidOperationException`
+at proxy-creation time *(since 0.1.4, unreleased)*, naming the attribute, the
+offending method, and the fix:
+
+```csharp
+public interface IAccountService
+{
+    [NotTraced] // throws at NarrativeTraceProxy.Create/.Create<T> time
+    void Authenticate(string user, string password);
+}
+```
+
+```
+[NotTraced] is not supported on a method (found on IAccountService.Authenticate);
+it has no whole-call meaning here. Annotate each sensitive parameter, property,
+or record component individually instead.
+```
+
+Annotate the `password` parameter directly instead.
+
 **Redaction wins over a template that names it.** `[Narrated]` and
 `[OnError]` resolve `{param.Property}` paths against the raw arguments, and
 a path that reaches a redacted property resolves to `[REDACTED]` — never
@@ -135,6 +159,14 @@ its value, never the literal placeholder. Naming a path never weakens the
 rules that apply to the value directly. If you need the value in a
 narrative, remove `[NotTraced]` from the property — that removal is the
 deliberate, reviewable decision, and it shows up in the diff.
+
+**Templates honor the proxy's own redaction policy** *(since 0.1.4,
+unreleased)*: a `[Narrated]`/`[OnError]` template resolved on a proxy
+constructed with a custom `new ProxyOptions(Redaction: ...)` checks that
+same policy for both axes above — a bare `{password}` placeholder and a
+`{policy.HolderName}` path alike — rather than always falling back to
+`RedactionPolicy.Default`. `[NotTraced]` still wins regardless of policy.
+Leave `Redaction` unset and templates behave exactly as before.
 
 ## `[Traced]`
 

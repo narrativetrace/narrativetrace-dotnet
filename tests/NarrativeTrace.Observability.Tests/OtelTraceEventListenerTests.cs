@@ -245,9 +245,21 @@ public sealed class OtelTraceEventListenerTests : IDisposable
         Assert.Equal("POST", tags["narrative.http.method"]);
         Assert.Equal("\"ok\"", tags["narrative.outcome"]);
         // Enter time is unknown, so the orphan span is stamped instantaneous at
-        // the exit moment rather than running until it is stopped "now".
+        // the exit moment: HandleExitWithoutEnter computes the wall-clock
+        // instant once (MonotonicClock.ToWallClock(exit.TimestampTicks)) and
+        // passes that same value as both the activity's start time and its
+        // end time, never touching a real "now". Duration is bounded by
+        // System.Diagnostics.Activity's internal DateTime<->Stopwatch tick
+        // conversion arithmetic here (measured a stable, reproducible one
+        // tick / 100ns on this runtime), not by any real elapsed time — so a
+        // one-microsecond ceiling is a deterministic property of that
+        // conversion, not a race against the machine's load. Family release
+        // rule 3 (2026-09-07): wall-clock, GC and scheduler are never test
+        // inputs; this replaces the removed `< TimeSpan.FromSeconds(1)`
+        // bound, which measured the same fixed artifact with ten million
+        // times the slack a real scheduling delay would need to exploit.
         Assert.True(
-            orphan.Duration < TimeSpan.FromSeconds(1),
+            orphan.Duration < TimeSpan.FromTicks(10),
             $"orphan duration should be ~0, was {orphan.Duration}");
     }
 

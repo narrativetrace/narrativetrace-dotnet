@@ -1,0 +1,91 @@
+# Duplication exemptions — default-deny: an unclassified cluster over the 60-token floor is a
+# finding, not exempt. Every entry here is a `globA :: globB` pair (Microsoft.Extensions.
+# FileSystemGlobbing syntax, matched against the repo-root-relative path jscpd reports), with a `#`
+# reason directly above it — see documentation/duplication.md. A cluster is exempt only when every
+# one of its occurrences matches one of the pair's two globs. Note: this glob engine has no brace
+# alternation (`{a,b}`), unlike the Java runtime's exemptions file, so a category covering more than
+# two globs is written as separate pair lines with the same reason rather than one combined line.
+
+# Data tables, not logic (owner ruling 2026-09-12, mirroring the Java runtime): the clarity module's
+# word-list dictionaries are rows of structurally identical entries, so with literals ignored every
+# row matches every other row and the same shape recurs across the module's dictionaries. Exempt the
+# dictionaries against each other; a cluster that reaches outside them (e.g. into
+# GenericTokenDetector.cs, RedactionPolicy.cs or TraceNamer.cs, each covered by its own pair below)
+# stays a finding. Known gap (no *Data-file split convention exists in this runtime today, so this
+# glob still covers each dictionary's own logic alongside its table, not only the rows):
+# VerbDictionary's Classify/ClassifyAuthoritative, RoleSuffixDictionary's Classify,
+# AbbreviationDictionary's Classify/TierScore and CollocationDictionary's PreferredVerbs/IsPreferred
+# are each a first-match Contains()/switch chain of the same shape; none currently clusters above the
+# 60-token floor against another dictionary's logic (every dictionary-to-dictionary cluster measured
+# today is data rows), but nothing here stops one from doing so as the tables grow. Splitting each
+# file's table into a *Data type — the way GenericTokenDetector's and RedactionPolicy's word lists are
+# covered by content shape below instead of by filename — is the fix that would make this glob mean
+# only what it says.
+src/NarrativeTrace.Clarity/*Dictionary.cs :: src/NarrativeTrace.Clarity/*Dictionary.cs
+
+# Word tables, not logic (owner ruling 2026-09-12, mirroring the Java runtime): TraceNamer's
+# Adjectives/Nouns/Verbs string[] tables are rows of structurally identical literals once literals
+# are ignored, and the three tables in this file match each other (the baseline's recorded largest
+# cluster, 1558 tokens). Exempt them against themselves; the LOGIC in TraceNamer (Name(), Validate())
+# remains a finding whenever it clusters with anything that is not one of these tables or the clarity
+# dictionaries below — a cluster is exempt only when every occurrence matches the pair.
+src/NarrativeTrace.Core/TraceNamer.cs :: src/NarrativeTrace.Core/TraceNamer.cs
+
+# Word tables, not logic (owner ruling 2026-09-12, mirroring the Java runtime): the same TraceNamer
+# tables would recur against the clarity dictionaries' rows once literals are ignored — both are word
+# lists at heart. Exempt TraceNamer against the dictionaries specifically; the LOGIC in TraceNamer
+# remains a finding whenever it clusters with anything outside this pair and the self-pair above
+# (e.g. into GenericTokenDetector.cs) — a cluster is exempt only when every occurrence matches the
+# pair. No such cross-cluster is currently measured (the two modules' word lists differ enough in
+# length and shape to stay under the 60-token floor against each other today); this pair is recorded
+# for parity with the Java runtime's ruling and in case future word-list growth brings them into
+# range.
+src/NarrativeTrace.Core/TraceNamer.cs :: src/NarrativeTrace.Clarity/*Dictionary.cs
+
+# Data rows, not logic (owner ruling 2026-09-12, mirroring the Java runtime): GenericTokenDetector's
+# MeaninglessPlaceholders/VagueWords/TypedGenericWords are HashSet<string> word lists, the same
+# content shape as the clarity dictionaries' rows; GenericTokenDetector is exempt by content shape
+# here, not by the *Dictionary filename pattern.
+src/NarrativeTrace.Clarity/GenericTokenDetector.cs :: src/NarrativeTrace.Clarity/GenericTokenDetector.cs
+
+# Data rows, not logic (owner ruling 2026-09-12, mirroring the Java runtime): GenericTokenDetector's
+# word-list tiers recur against the clarity dictionaries' rows once literals are ignored — both are
+# word lists at heart. Known gap: this pair also covers GenericTokenDetector.Classify()'s
+# Contains()-chain, which clusters with VerbDictionary.Classify()/ClassifyAuthoritative() (202/148
+# tokens) and RoleSuffixDictionary.Classify() (177 tokens) — real logic duplication currently masked
+# by this exemption (the same gap the Java runtime's own GenericTokenDetector pair notes), left for a
+# later pass rather than widening scope here.
+src/NarrativeTrace.Clarity/GenericTokenDetector.cs :: src/NarrativeTrace.Clarity/*Dictionary.cs
+
+# Data rows, not logic (owner ruling 2026-09-12): RedactionPolicy's DefaultPatterns is a string[]
+# deny-list of sensitive field-name substrings — the same word-list shape as GenericTokenDetector's
+# tiers, so the two files' tables cluster once literals are ignored. Exempt by content shape, not by
+# file name or module (RedactionPolicy lives in NarrativeTrace.Core, GenericTokenDetector in
+# NarrativeTrace.Clarity); RedactionPolicy's own redaction logic (ShouldRedact and friends) is not
+# covered by this pair and stays a finding if it ever clusters with something else.
+src/NarrativeTrace.Core/RedactionPolicy.cs :: src/NarrativeTrace.Clarity/GenericTokenDetector.cs
+
+# Wide record, not logic (owner ruling 2026-09-12; the .NET equivalent of the Java runtime's
+# Builder-with-one-setter-per-component ruling, since this runtime models CanonicalEntry as a
+# positional record rather than a builder class): CanonicalEntry has 38 nullable/optional components,
+# one per schema field, so additive schema evolution never rewrites a call site; with identifiers
+# ignored, neighboring component declarations in the parameter list match each other and the record's
+# own declaration clusters against itself (currently 94 tokens). One component per field is the
+# public constructor surface — collapsing it would change the API, not remove duplication.
+src/NarrativeTrace.Core/CanonicalEntry.cs :: src/NarrativeTrace.Core/CanonicalEntry.cs
+
+# Wide record, not logic (owner ruling 2026-09-12): SpanContext is the same one-component-per-field
+# shape as CanonicalEntry's — a positional record plus `init` properties, each schema field its own
+# declaration line. It does not currently reach the 60-token floor against itself (17 components vs.
+# CanonicalEntry's 38), but is exempted for the same design reason so it is not later treated as a
+# target for collapsing components should the schema grow.
+src/NarrativeTrace.Core/SpanContext.cs :: src/NarrativeTrace.Core/SpanContext.cs
+
+# Wide record, not logic (owner ruling 2026-09-12): CanonicalEntry's and SpanContext's component
+# declarations are the same one-component-per-field shape once identifiers are ignored — both types
+# live in NarrativeTrace.Core (this runtime has no api/core module split for these types the way the
+# Java runtime does). One component per field is public API on both sides — collapsing it would
+# change the API, not remove duplication. No cross-cluster is currently measured (SpanContext's
+# shorter component list stays under the shared-shape floor against CanonicalEntry's), but this pair
+# mirrors the Java runtime's CanonicalEntry/SpanContext ruling and holds for future growth.
+src/NarrativeTrace.Core/CanonicalEntry.cs :: src/NarrativeTrace.Core/SpanContext.cs

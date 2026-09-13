@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/aspnetcore.md blob eeb515a9a378 | translated: 2026-09-09 | reviewed: 2026-09-03 -->
+<!-- source: documentation/guides/aspnetcore.md blob e100b8dfb896 | translated: 2026-09-12 | reviewed: - -->
 # Guia de integração com ASP.NET Core
 
 [English](../aspnetcore.md) | [Español](../es/guia-de-integracion-con-aspnet-core.md) | **Português** | [简体中文](../zh-CN/ASP.NET-Core集成指南.md)
@@ -77,6 +77,15 @@ seguro — ele simplesmente não registra nada quando não há um trace ativo.
 > exporta automaticamente. Escolha um por caminho de requisição — não
 > espere que serviços envolvidos automaticamente apareçam no trace
 > exportado pelo middleware.
+
+**Ocultação** *(since 0.1.4, unreleased)*: `NarrativeTraceOptions.Redaction`
+em `AddNarrativeTrace` registra uma `RedactionPolicy` na coleção de
+serviços, que o encapsulamento automático de `AddNarrativeTracing` pega
+como alternativa para cada serviço que encapsula — assim, uma política
+configurada uma única vez aqui também alcança os serviços
+auto-encapsulados, mesmo que os dois caminhos de trace continuem
+independentes quanto ao resto. Veja o
+[Guia de configuração §6](guia-de-configuracao.md#6-ocultação).
 
 ## 3. Exportar
 

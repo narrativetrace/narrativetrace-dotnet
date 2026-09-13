@@ -13,28 +13,23 @@ wire it in.
 
 Every shipped integration in this runtime renders parameter and return values
 through the same engine (`ValueRenderer`, `NarrativeInterceptor`). Most
-resolve to `RedactionPolicy.Default` with no way to change it; the
-`NarrativeTraceProxy` path is the one surface that accepts a different
-policy *(since 0.1.4, unreleased)*:
+resolve to `RedactionPolicy.Default` with no way to change it; the proxy path
+and its two auto-wrap entry points accept a different policy
+*(since 0.1.4, unreleased)*:
 
 | Surface | Can plug in a custom `RedactionPolicy`? | Why |
 |---|---|---|
 | `NarrativeTraceProxy.Create<T>` / `.Create` (raw `DispatchProxy` capture) | **Yes**, via `new ProxyOptions(Redaction: ...)` *(since 0.1.4, unreleased)* | Threads the policy into every `ValueRenderer.Render` call this interceptor makes (parameters, nested object walks, return values) and into the top-level parameter-name decision alike — see [Configuration Guide §6](guides/configuration.md#6-redaction). Given explicitly, it *replaces* the default decision rather than widening it, so `RedactionPolicy.Disabled` here really disables name-based redaction end to end. `0.1.3` (the current nuget.org release) has no `ProxyOptions.Redaction` at all. |
-| DI auto-wrap (`AddNarrativeTracing`) | No | Wraps with `NarrativeTraceProxy.Create` internally but does not pass a `ProxyOptions`; `NarrativeTracingDiOptions` has no redaction field yet. |
-| ASP.NET Core middleware | No | `NarrativeTraceOptions` has no redaction field; traces come from whatever proxy path produced them. |
+| DI auto-wrap (`AddNarrativeTracing`) | **Yes**, via `NarrativeTracingDiOptions.Redaction` *(since 0.1.4, unreleased)* | Threaded into the `ProxyOptions` each wrapped service is constructed with. Falls back to a `RedactionPolicy` registered by `AddNarrativeTrace` (below) in the same container when this call's own `Redaction` is left unset. |
+| ASP.NET Core integration (`AddNarrativeTrace`) | **Yes**, via `NarrativeTraceOptions.Redaction` *(since 0.1.4, unreleased)* | Registers the policy as a `RedactionPolicy` singleton in the same service collection, so `AddNarrativeTracing`'s auto-wrap — a separate package with no reference to this one — can resolve it as a fallback for every service it wraps in the same app. The middleware itself renders no values; this is what lets one policy, configured once, reach every proxy invoked over the course of a request. |
 | xUnit `NarrativeFixture` | No | No `RedactionPolicy`/`RenderOptions` parameter anywhere in the type. |
 | NUnit `NarrativeTestBase` | No | Same shape as the xUnit fixture. |
-| `[Narrated]` / `[OnError]` template placeholders (`NarrationResolver`) | No | Fully static class, hardcoded to `RedactionPolicy.Default` — see the narrower gap below. |
+| `[Narrated]` / `[OnError]` template placeholders (`NarrationResolver`) | **Yes**, via the same proxy's `ProxyOptions.Redaction` *(since 0.1.4, unreleased)* | Threaded through from `NarrativeInterceptor` into every `NarrationResolver.Resolve` call, both call sites (entry narration and exception-time error context). `0.1.3` and any proxy with `Redaction` left unset still resolve through `RedactionPolicy.Default`. |
 | Canonical JSON / structural JSON projection | N/A — nothing to turn off | Consumes already-rendered (already-redacted) strings; the structural projection additionally elides every value unconditionally. |
 | Structural `.nt` artifact | N/A — no values exist | `StructuralTraceRenderer` emits names, hierarchy and outcome kind only, never a value. |
 | `dotnet-narrativetrace clarity-scan` | N/A — never reads values | Reflection-only over a `MetadataLoadContext`: it never constructs an instance or invokes anything, so there is no value to redact. |
 | A custom `ValueRenderer.Render(value, options)` call in **your own code** | Yes | Pass `new RenderOptions(Redaction: ...)` yourself. `[NotTraced]` still redacts even then. |
 | Every surface above, additively | Yes, but only *widening* | `NARRATIVETRACE_REDACTION_ADDITIONALPATTERNS` (comma-separated field-name patterns) is unioned into `RedactionPolicy.Default` itself at process start, so it reaches every surface in this table that still says "No" too — including the ones with no per-call hook. It can only add patterns, never remove or replace, and — being read into a `static readonly` field — must be set before anything in the process first touches `RedactionPolicy`. |
-
-The DI and ASP.NET Core rows are the still-open gap: extending
-`NarrativeTracingDiOptions`/`NarrativeTraceOptions` with the same
-`Redaction` field and threading it into their internal `ProxyOptions`
-construction is a proposed follow-up, not yet built.
 
 ## What the deny-list catches, and what outranks it
 
@@ -76,14 +71,22 @@ the deny-list:
   sensitively-named key is redacted the same way a sensitively-named
   property would be, never rendered via a bare `ToString()`.
 
-The narrower, already-known gap: template placeholder resolution
-(`[Narrated]`/`[OnError]`) is a fully static code path and always uses
-`RedactionPolicy.Default`, **even on a proxy created with a custom
-`ProxyOptions.Redaction`**. A `[Narrated("issued {token}")]` template
-substitutes `token` through the default deny-list regardless of what
-policy the same proxy renders its captured parameters and return values
-with — the one place a custom policy given to `NarrativeTraceProxy` does
-not reach.
+`[NotTraced]` has no METHOD-level meaning — matching the JVM edition, whose
+`@NotTraced` has no `METHOD` target either — so it always names a parameter,
+property, or record component, never a whole call. Applying it to a method
+compiles, but `NarrativeTraceProxy.Create`/`.Create<T>` reject it at
+proxy-creation time with an `InvalidOperationException` naming the attribute,
+the offending method, and the fix *(since 0.1.4, unreleased)*, rather than
+leaving the misuse to a confusing failure the first time that method runs.
+
+Template placeholder resolution (`[Narrated]`/`[OnError]`) now honors the
+proxy's own effective policy too *(since 0.1.4, unreleased)*: a
+`[Narrated("issued {token}")]` template resolved on a proxy constructed
+with `new ProxyOptions(Redaction: ...)` checks that policy — the name axis
+on a bare `{token}` placeholder and on a `{obj.Property}` path alike — the
+same "replace, not widen" contract `ProxyOptions.Redaction` documents.
+`[NotTraced]` still wins regardless of policy. Leave `Redaction` unset and
+templates fall back to `RedactionPolicy.Default`, exactly as before.
 
 ## Bounds and escaping
 
@@ -170,17 +173,6 @@ Every rendered value is capped and sanitized, regardless of redaction:
 
 ## Non-guarantees
 
-- **DI auto-wrap and the ASP.NET Core middleware don't expose a redaction
-  hook yet.** `NarrativeTraceProxy.Create`/`.Create<T>` accept
-  `new ProxyOptions(Redaction: ...)`, but `AddNarrativeTracing` and
-  `AddNarrativeTrace` build their proxies without one — a deliberate act in
-  your own source (passing `ProxyOptions` to a direct `Create` call, or the
-  process-wide `NARRATIVETRACE_REDACTION_ADDITIONALPATTERNS` env var) is
-  still the only way to widen or replace redaction on those two paths.
-  `[NotTraced]` still redacts even under `RedactionPolicy.Disabled`.
-- **Template placeholders don't honor a custom `RedactionPolicy`.**
-  `[Narrated]`/`[OnError]` resolution always uses the default deny-list,
-  even on a proxy created with a custom `ProxyOptions.Redaction`.
 - **Detection is name- and shape-based, not statistical.** There is no
   entropy or "looks random" heuristic — a secret sitting in an innocuously
   named field with an unrecognized shape is not caught. This is a backstop,
@@ -200,10 +192,17 @@ Every rendered value is capped and sanitized, regardless of redaction:
   leak of whatever it would have shown. Annotate the *member* with
   `[NotTraced]` instead if a type's own summary can't be trusted with a
   field.
-- **No production baseline-comparison loop reads the structural artifact
-  back yet.** The `.nt` file is deterministic and value-free by
-  construction, but this runtime doesn't ship anything that diffs it against a
-  previous run (see [What to Commit](what-to-commit.md)).
+- **No redaction of test *names*.** A test's display name is
+  developer-authored text, and a `[Theory]`/data-driven test's name can
+  interpolate its arguments into it. That name reaches the artifact
+  *filename* (`equipment_can_be_found-002-find_tent.md` — the slugged
+  label is what tells two invocations apart on disk), the run's
+  `manifest.json`, and the heading of the value-carrying artifacts. No
+  deny-list is consulted for any of them: a name is an identifier here,
+  not a captured value. Keep secrets out of display-name templates — the
+  value-free `.nt` header is the one place this is handled for you, by not
+  using the display name at all (see
+  [Structural Trace Format](structural-trace-format.md)).
 
 ## What this page does not cover
 

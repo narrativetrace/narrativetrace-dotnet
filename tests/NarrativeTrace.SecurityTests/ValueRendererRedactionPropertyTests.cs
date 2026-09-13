@@ -49,14 +49,44 @@ public class ValueRendererRedactionPropertyTests
     public void Every_hostile_graph_keeps_a_redacted_value_out_of_every_output(GraphCase graphCase) =>
         AssertContained(graphCase);
 
+    /// <summary>
+    /// Replaces a removed wall-clock hang detector (family release rule 3, 2026-09-07: wall-clock,
+    /// GC and scheduler are never test inputs — <c>Oracles.WithinBudget</c> used to wrap both
+    /// render calls here) with the deterministic property the timing bound stood in for:
+    /// <see cref="RenderOptions"/>'s string/collection/field/depth caps bound every hostile
+    /// graph's rendered size to a small, generous ceiling regardless of the graph's own size
+    /// (<c>width-100000-list</c>, <c>depth-10000-chain</c> included) — exactly as sensitive to a
+    /// caps regression as the removed timing bound was, without depending on host load to hold.
+    /// </summary>
     [Theory]
     [MemberData(nameof(RenderableGraphCases))]
-    public void Every_hostile_graph_renders_without_throwing_and_in_bounded_time(GraphCase graphCase)
+    public void Every_hostile_graph_renders_without_throwing_and_with_bounded_output(GraphCase graphCase)
     {
         var graph = HostileGraphs.Build(graphCase, Oracles.FreshSentinel());
-        Oracles.WithinBudget("render " + graphCase.Id, () => ValueRenderer.Render(graph));
-        Oracles.WithinBudget("renderStructured " + graphCase.Id, () => ValueRenderer.RenderStructured(graph));
+
+        var flat = ValueRenderer.Render(graph);
+        var structured = Formats.Describe(ValueRenderer.RenderStructured(graph));
+
+        Assert.True(
+            flat.Length <= MaxSaneFlatLength,
+            $"{graphCase.Id} produced unbounded flat output ({flat.Length} chars) — a cap likely broke");
+        Assert.True(
+            structured.Length <= MaxSaneStructuredLength,
+            $"{graphCase.Id} produced unbounded structured output ({structured.Length} chars) — a cap likely broke");
     }
+
+    /// <summary>
+    /// A generous, deterministic ceiling for <see cref="ValueRenderer.Render"/> over any corpus
+    /// graph: comfortably above every legitimately-capped shape measured today (the deepest
+    /// chains and widest containers stay in the low hundreds of characters once
+    /// <see cref="RenderOptions"/>'s default depth/array/field caps apply), and orders of
+    /// magnitude below what a broken cap would let <c>width-100000-list</c> or
+    /// <c>depth-10000-chain</c> produce.
+    /// </summary>
+    private const int MaxSaneFlatLength = 4_000;
+
+    /// <summary>Same reasoning as <see cref="MaxSaneFlatLength"/>, sized for the structured channel's overhead.</summary>
+    private const int MaxSaneStructuredLength = 8_000;
 
     /// <summary>
     /// A graph the renderer cannot walk must still say so in a way a reader can act on. Silence
@@ -143,7 +173,7 @@ public class ValueRendererRedactionPropertyTests
     private static void AssertContained(GraphCase graphCase, string sentinel)
     {
         var graph = HostileGraphs.Build(graphCase, sentinel);
-        var outputs = Oracles.WithinBudget("every output for " + graphCase.Id, () => EveryOutput(graph));
+        var outputs = EveryOutput(graph);
 
         Oracles.ContainsNoSentinel(outputs, sentinel);
         Oracles.BoundedSize(outputs);

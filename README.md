@@ -503,6 +503,7 @@ Going deeper:
 - [Feature Guide](documentation/feature-guide.md) — canonical status table (Free/Pro/In development/Planned) for every feature, with the code behind each shipped row
 - [Security Tooling](documentation/security-tooling.md) — the scanner lineup and what gates the build vs. runs on a schedule
 - [Security Testing](documentation/security-testing.md) — the fuzz/property suite mirrored across every NarrativeTrace runtime
+- [The Contract Gate](documentation/contract-gate.md) — proving documented defaults and entry points against a published nuget.org install, not just the working tree
 
 For AI consumers: [`llms.txt`](documentation/guides/llms.txt) and
 [`llms-full.md`](documentation/guides/llms-full.md).

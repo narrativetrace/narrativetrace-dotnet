@@ -25,6 +25,8 @@ public sealed class NarrativeSuiteFixture : IDisposable
 {
     private readonly SuiteTraceAccumulator _accumulator = new();
     private readonly HashSet<ITraceLossSource> _lossSources = [];
+    private readonly List<ScenarioDelta> _deltas = [];
+    private readonly List<ScenarioManifest.Entry> _manifestEntries = [];
     private readonly string _outputDir;
     private readonly TextWriter _console;
     private readonly Func<string, string?> _readEnv;
@@ -80,6 +82,18 @@ public sealed class NarrativeSuiteFixture : IDisposable
         _lossSources.Add(source);
     }
 
+    /// <summary>Adds one scenario's structural delta for the suite's "Since last green" footer line.</summary>
+    public void RecordDelta(ScenarioDelta delta)
+    {
+        _deltas.Add(delta);
+    }
+
+    /// <summary>Adds one scenario's row for the run's <c>manifest.json</c>.</summary>
+    public void RecordManifestEntry(ScenarioManifest.Entry entry)
+    {
+        _manifestEntries.Add(entry);
+    }
+
     /// <summary>Every registered source's final reading, added up once each.</summary>
     private TraceLoss AccumulatedLoss()
     {
@@ -123,7 +137,8 @@ public sealed class NarrativeSuiteFixture : IDisposable
         _flushed = true;
         ClaritySuiteReporter.Write(
             _accumulator.Entries, _outputDir, _console, ProjectVocabulary(),
-            AccumulatedLoss());
+            AccumulatedLoss(), _deltas);
+        ScenarioManifest.Write(_manifestEntries, _outputDir);
         HarvestGlossary();
     }
 

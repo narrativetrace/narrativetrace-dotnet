@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/aspnetcore.md blob eeb515a9a378 | translated: 2026-09-09 | reviewed: 2026-09-03 -->
+<!-- source: documentation/guides/aspnetcore.md blob e100b8dfb896 | translated: 2026-09-12 | reviewed: - -->
 # Guía de integración con ASP.NET Core
 
 [English](../aspnetcore.md) | **Español** | [Português](../pt-BR/guia-de-integracao-com-aspnet-core.md) | [简体中文](../zh-CN/ASP.NET-Core集成指南.md)
@@ -74,6 +74,14 @@ seguro — simplemente no registra nada cuando no hay traza activa.
 > automáticamente. Elige una por ruta de petición — no esperes que los
 > servicios envueltos automáticamente aparezcan en la traza exportada por
 > el middleware.
+
+**Ocultación** *(since 0.1.4, unreleased)*: `NarrativeTraceOptions.Redaction`
+en `AddNarrativeTrace` registra una `RedactionPolicy` en la colección de
+servicios, que la auto-envoltura de `AddNarrativeTracing` recoge como
+respaldo para cada servicio que envuelve — así que una política configurada
+una sola vez aquí también alcanza a los servicios auto-envueltos, aunque
+las dos vías de trazado sigan siendo independientes por lo demás. Consulta
+[Guía de configuración §6](guia-de-configuracion.md#6-ocultación).
 
 ## 3. Exportar
 

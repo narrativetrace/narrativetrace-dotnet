@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Licensed under the Business Source License 1.1 (see LICENSE); Change Date: four years from publication; Change License: Apache-2.0
 // Copyright (c) 2026 Empower Agile
+using System.Linq;
 using System.Reflection;
 using NarrativeTrace.Core;
 using NarrativeTrace.Core.Annotation;
@@ -34,6 +35,7 @@ public static class NarrativeTraceProxy
         INarrativeContext context,
         ProxyOptions? options = null) where T : class
     {
+        RejectMethodLevelNotTraced(typeof(T));
         var proxy = DispatchProxy.Create<T, NarrativeInterceptor>();
         var interceptor = (NarrativeInterceptor)(object)proxy!;
         interceptor.Initialize(target, context, options);
@@ -56,6 +58,7 @@ public static class NarrativeTraceProxy
         INarrativeContext context,
         ProxyOptions? options = null)
     {
+        RejectMethodLevelNotTraced(interfaceType);
         // Reflect over the generic DispatchProxy.Create<T, TProxy>() —
         // the non-generic Create(Type, Type) overload does not exist on
         // netstandard2.0.
@@ -74,4 +77,32 @@ public static class NarrativeTraceProxy
             System.Reflection.BindingFlags.Public
             | System.Reflection.BindingFlags.Static,
             binder: null, Type.EmptyTypes, modifiers: null)!;
+
+    // [NotTraced] has no METHOD-level meaning (JVM-edition parity: its
+    // @NotTraced has no METHOD target either — see the attribute's own
+    // remarks), so a proxy created over an interface carrying it fails
+    // fast here, at creation, rather than silently ignoring the misplaced
+    // attribute or leaving the caller to a generic reflection error the
+    // first time that method is invoked. Checked against every method the
+    // interface declares AND inherits — GetInterfaces() returns the full
+    // transitive closure for an interface type — since DispatchProxy
+    // intercepts calls arriving through any of them.
+    private static void RejectMethodLevelNotTraced(Type interfaceType)
+    {
+        var offender = interfaceType.GetInterfaces()
+            .Append(interfaceType)
+            .SelectMany(candidate => candidate.GetMethods())
+            .FirstOrDefault(method =>
+                method.GetCustomAttribute<NotTracedAttribute>() is not null);
+        if (offender is null)
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            $"[NotTraced] is not supported on a method (found on " +
+            $"{offender.DeclaringType?.Name}.{offender.Name}); it has no " +
+            "whole-call meaning here. Annotate each sensitive parameter, " +
+            "property, or record component individually instead.");
+    }
 }

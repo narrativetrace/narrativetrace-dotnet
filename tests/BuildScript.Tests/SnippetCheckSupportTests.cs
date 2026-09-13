@@ -92,6 +92,41 @@ public sealed class SnippetCheckSupportTests : IDisposable
     }
 
     [Fact]
+    public void Mask_duration_ignores_a_run_that_omits_the_duration_suffix_entirely()
+    {
+        // IndentedTextRenderer's AppendDuration appends nothing at all — not "— 0ms" — when a
+        // call's measured duration rounds to zero ticks, so the page (captured on one run) can
+        // carry the suffix while a later run's source (captured with a zero-tick measurement)
+        // carries none at all. A digit-only placeholder mask can't normalize "present" against
+        // "absent"; the mask must erase the whole optional fragment on both sides.
+        Write("out/trace.txt", "PlaceOrder(...)\n");
+        Write("documentation/quickstart.md",
+            "<!-- snippet: out/trace.txt mask=duration -->\n"
+            + "```text\n"
+            + "PlaceOrder(...) — 13ms\n"
+            + "```\n"
+            + "<!-- /snippet -->\n");
+
+        Assert.Empty(SnippetCheckSupport.Check(_repo));
+    }
+
+    [Fact]
+    public void Mask_duration_does_not_hide_drift_unrelated_to_timing()
+    {
+        Write("out/trace.txt", "PlaceOrder(...) — 8ms\n");
+        Write("documentation/quickstart.md",
+            "<!-- snippet: out/trace.txt mask=duration -->\n"
+            + "```text\n"
+            + "GetOrder(...) — 13ms\n"
+            + "```\n"
+            + "<!-- /snippet -->\n");
+
+        var problem = Assert.Single(SnippetCheckSupport.Check(_repo));
+
+        Assert.Contains("drifted", problem, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Unknown_mask_is_reported_as_a_problem()
     {
         Write("out/trace.txt", "line\n");

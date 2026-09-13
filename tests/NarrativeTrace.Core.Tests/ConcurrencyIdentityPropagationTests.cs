@@ -48,7 +48,7 @@ public class ConcurrencyIdentityPropagationTests
             done.SetResult(true);
         });
         await done.Task;
-        await WaitForChildRoot(group);
+        await ChildRootBarrier.WaitForChildRoots(group);
         ctx.ExitMethodWithReturn(null, h0);
 
         var childRoot = group.ChildRoots()[0].Roots[0];
@@ -151,7 +151,7 @@ public class ConcurrencyIdentityPropagationTests
             done.SetResult(true);
         });
         await done.Task;
-        await WaitForChildRoot(group);
+        await ChildRootBarrier.WaitForChildRoots(group);
 
         var span = group.ChildRoots()[0].Roots[0].SpanContext!;
         AssertInheritedContext(span);
@@ -179,35 +179,6 @@ public class ConcurrencyIdentityPropagationTests
             launcher.Concurrency!.Kind);
         Assert.Equal(
             group.GroupId, launcher.Concurrency.GroupId);
-    }
-
-    /// <summary>
-    /// Polls until the group's launched background work is visible in
-    /// <see cref="FireAndForgetGroup.ChildRoots"/>, instead of a fixed sleep.
-    /// </summary>
-    /// <remarks>
-    /// Awaiting the launched work's own <c>TaskCompletionSource</c> only proves
-    /// the test body inside <c>Launch</c> ran to its last statement — it races
-    /// against <see cref="Task.Run(Action)"/>'s own bookkeeping marking that
-    /// task <c>Completed</c>, which is what <c>ChildRoots</c> actually checks. A
-    /// fixed <c>Task.Delay</c> here was found flaky under CPU contention (a
-    /// concurrent <c>Coverage</c> run starves the thread pool just long enough
-    /// to blow a 10ms budget); polling adapts to how loaded the host actually is
-    /// while still resolving in a couple of milliseconds on a quiet one.
-    /// </remarks>
-    private static async Task WaitForChildRoot(FireAndForgetGroup group)
-    {
-        var deadline = DateTime.UtcNow.AddSeconds(5);
-        while (group.ChildRoots().Count == 0)
-        {
-            if (DateTime.UtcNow > deadline)
-            {
-                throw new TimeoutException(
-                    "Fire-and-forget child root did not appear within 5s.");
-            }
-
-            await Task.Delay(5);
-        }
     }
 
     private static void AssertInheritedContext(SpanContext span)

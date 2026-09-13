@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Licensed under the Business Source License 1.1 (see LICENSE); Change Date: four years from publication; Change License: Apache-2.0
 // Copyright (c) 2026 Empower Agile
-using System.Text;
-
 namespace NarrativeTrace.Core;
 
 /// <summary>
@@ -97,7 +95,7 @@ public static class TraceArtifactWriter
     /// replace their previous output, which is what keeps an approval baseline
     /// diffable.
     /// </remarks>
-    public static void Write(
+    public static ScenarioDelta? Write(
         TraceTree tree,
         string testClassName,
         string testMethodName,
@@ -109,26 +107,69 @@ public static class TraceArtifactWriter
         TextWriter console,
         EntryArtifacts entryArtifacts = default)
     {
+        return Write(
+            tree, ArtifactIdentity.OfMethod(testClassName, testMethodName), displayName, failed,
+            outputDir, format, renderers, console, entryArtifacts);
+    }
+
+    /// <summary>
+    /// The same write, keyed by the full <see cref="ArtifactIdentity"/> — the
+    /// overload an integration whose test method may run more than once
+    /// (parameterized, repeated) must use, so each invocation gets its own
+    /// files instead of overwriting the previous one's.
+    /// </summary>
+    /// <param name="tree">The captured trace; an empty tree writes nothing and returns <see langword="null"/>.</param>
+    /// <param name="identity">Which test invocation this write belongs to.</param>
+    /// <param name="displayName">The human-readable scenario name recorded inside the artifact.</param>
+    /// <param name="failed">Whether the run is green — see the remarks below.</param>
+    /// <param name="outputDir">The root to write under. Created if missing.</param>
+    /// <param name="format">The primary artifact format.</param>
+    /// <param name="renderers">The out-of-Core renderers (diagrams, JSON).</param>
+    /// <param name="console">Where the "wrote artifact" line is echoed.</param>
+    /// <param name="entryArtifacts">The opt-in machine-readable entry arrays.</param>
+    /// <returns>
+    /// The scenario's structural delta against its last green <c>.nt</c>
+    /// artifact, when the Markdown path produced one; <see langword="null"/>
+    /// for every other format and for an empty trace.
+    /// </returns>
+    /// <remarks>
+    /// <paramref name="failed"/> is the run's whole verdict, not just its
+    /// assertions: a test that passed but whose structure an approval gate
+    /// rejected must be reported as failed here too, or the rejected
+    /// structure would advance the last-green baseline (see
+    /// <see cref="WriteStructuralArtifact"/>).
+    /// </remarks>
+    public static ScenarioDelta? Write(
+        TraceTree tree,
+        ArtifactIdentity identity,
+        string displayName,
+        bool failed,
+        string outputDir,
+        TraceArtifactFormat format,
+        TraceArtifactRenderers renderers,
+        TextWriter console,
+        EntryArtifacts entryArtifacts = default)
+    {
         if (tree.IsEmpty)
         {
-            return;
+            return null;
         }
 
         var resolver = new OutputDirectoryResolver(outputDir);
-        var slug = OutputDirectoryResolver.ToFileSlug(testMethodName);
+        var slug = identity.FileSlug();
         var file = Path.Combine(
-            resolver.TraceDirectory(testClassName), slug + Extension(format));
+            resolver.TraceDirectory(identity.TestClassName), slug + Extension(format));
         WriteFile(
             file,
             RenderForFormat(format, tree, displayName, failed, renderers));
         EchoToConsole(console, displayName, tree, file);
 
-        WriteMarkdownExtras(
-            tree, testClassName, displayName, failed, outputDir, slug,
-            resolver, renderers, format);
+        var delta = WriteMarkdownExtras(
+            tree, identity, displayName, failed, resolver, renderers, format);
         WriteEntryArtifacts(
-            tree, resolver.TraceDirectory(testClassName), slug, renderers,
+            tree, resolver.TraceDirectory(identity.TestClassName), slug, renderers,
             entryArtifacts);
+        return delta;
     }
 
     /// <summary>
@@ -182,33 +223,53 @@ public static class TraceArtifactWriter
     /// The companions only the Markdown view carries; a no-op for every other
     /// format, so the caller reads as one unconditional sequence of writes.
     /// </summary>
-    private static void WriteMarkdownExtras(
-        TraceTree tree, string testClassName, string displayName, bool failed,
-        string outputDir, string slug, OutputDirectoryResolver resolver,
-        TraceArtifactRenderers renderers, TraceArtifactFormat format)
+    private static ScenarioDelta? WriteMarkdownExtras(
+        TraceTree tree, ArtifactIdentity identity, string displayName, bool failed,
+        OutputDirectoryResolver resolver, TraceArtifactRenderers renderers,
+        TraceArtifactFormat format)
     {
         if (format != TraceArtifactFormat.Markdown)
         {
-            return;
+            return null;
         }
 
-        var simpleName = SimpleName(testClassName);
+        var simpleName = SimpleName(identity.TestClassName);
         var scenario = ScenarioFramer.Humanize(displayName);
-        WriteFile(
-            Path.Combine(outputDir, "diagrams", simpleName, slug + ".mmd"),
-            renderers.Mermaid(tree));
+        WriteFile(resolver.DiagramFile(identity), renderers.Mermaid(tree));
         var metadata = new TraceMetadata(
             scenario, ScenarioResultExtensions.Of(failed), TestClass: simpleName);
         WriteFile(
-            Path.Combine(resolver.TraceDirectory(testClassName), slug + ".json"),
-            renderers.Json(tree, metadata));
+            resolver.TraceArtifact(identity, ".json"), renderers.Json(tree, metadata));
 
-        // ADR-002: the AI-safe structural artifact — zero values, deterministic,
-        // diffable. Lives in its own tree so an agent can be handed the whole
-        // directory without ever meeting a runtime value.
-        WriteFile(
-            Path.Combine(outputDir, "structural", simpleName, slug + ".nt"),
-            StructuralTraceRenderer.RenderDocument(tree, scenario));
+        // Not `scenario`: the structural artifact is the value-free one, and a
+        // display name may have had an argument interpolated into it (see
+        // ArtifactIdentity.StructuralScenario).
+        return WriteStructuralArtifact(
+            tree, failed, resolver.StructuralFile(identity), identity.StructuralScenario(displayName));
+    }
+
+    /// <summary>
+    /// Writes the ADR-002 structural artifact (<c>.nt</c>) and classifies the
+    /// scenario against it.
+    /// </summary>
+    /// <remarks>
+    /// The file on disk is the LAST GREEN baseline: a green run advances it,
+    /// a non-green run compares against it but never overwrites it — so the
+    /// delta always reads "what changed since the last time this scenario
+    /// passed".
+    /// </remarks>
+    private static ScenarioDelta WriteStructuralArtifact(
+        TraceTree tree, bool failed, string ntFile, string scenario)
+    {
+        var current = StructuralTraceRenderer.RenderDocument(tree, scenario);
+        var baseline = File.Exists(ntFile) ? File.ReadAllText(ntFile) : null;
+        var delta = ScenarioDelta.Of(scenario, baseline, current);
+        if (!failed)
+        {
+            WriteFile(ntFile, current);
+        }
+
+        return delta;
     }
 
     private static void EchoToConsole(
@@ -230,28 +291,12 @@ public static class TraceArtifactWriter
         return OutputDirectoryResolver.ToDirectorySlug(simpleName);
     }
 
-    // Narration and exception-message text never pass through ControlEscape
-    // (that text is prose an author wrote, and the renderers are meant to
-    // show it), so an unpaired surrogate can still reach this last line
-    // before the filesystem. .NET's default UTF-8 encoder raises
-    // EncoderFallbackException on one — File.WriteAllText's implicit
-    // encoding refuses rather than substitutes — so a value the application
-    // merely returned could fail the run that traced it. This encoding
-    // substitutes the replacement character instead: an artifact with one
-    // U+FFFD in it is a readable artifact; a failed write is a failed build.
-    private static readonly Encoding SubstitutingUtf8 = Encoding.GetEncoding(
-        "utf-8",
-        new EncoderReplacementFallback("�"),
-        new DecoderReplacementFallback("�"));
-
+    // Encoding policy (substitute rather than throw on an unpaired surrogate)
+    // now lives in the shared TraceFileWriter, used by every writer that
+    // touches disk — this is a thin alias kept so the many WriteFile(...)
+    // call sites above did not all need renaming.
     private static void WriteFile(string path, string content)
     {
-        var dir = Path.GetDirectoryName(path);
-        if (!string.IsNullOrEmpty(dir))
-        {
-            Directory.CreateDirectory(dir!);
-        }
-
-        File.WriteAllBytes(path, SubstitutingUtf8.GetBytes(content));
+        TraceFileWriter.Write(path, content);
     }
 }

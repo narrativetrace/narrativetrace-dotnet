@@ -177,7 +177,7 @@ them under `afl-fuzz` for a budgeted duration each
   confirmed by byte comparison of the instrumented assembly (grows by
   roughly 60%; real coverage-tracking IL, not a no-op).
 - `afl-fuzz` is a native binary this repository does not ship in its own
-  image; it is provisioned by `.devcontainer/Dockerfile` (Ubuntu's `afl++`
+  image; it is provisioned by the local development container (Ubuntu's `afl++`
   package — genuinely packaged for this container's arm64 host, confirmed
   by installing and running it; an earlier read of this gap traced to a
   stale/never-refreshed apt cache, not an unpackaged platform). A CI job

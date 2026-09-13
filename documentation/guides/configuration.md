@@ -74,6 +74,8 @@ capture.
 | `NARRATIVETRACE_FORMAT` | `Markdown`, `Text`, `Prose`, `Json` | `Markdown` |
 | `NARRATIVETRACE_CANONICAL_JSON` | `true` / `false` (or `1`) | `false` |
 | `NARRATIVETRACE_STRUCTURAL_JSON` | `true` / `false` (or `1`) | `false` |
+| `NARRATIVETRACE_APPROVAL` | `true` / `false` (or `1`) | `false` |
+| `NARRATIVETRACE_APPROVED_DIR` | any writable path | `narratives` |
 
 Level and format parsing is lenient (case- and punctuation-insensitive:
 `detail`, `DETAIL`, and `Detail` all resolve).
@@ -109,6 +111,22 @@ the trace file, whatever the primary format is:
 
 Both are off by default; they are machine artifacts, not something you read
 next to the trace.
+
+`NARRATIVETRACE_APPROVAL` turns on approval mode *(since 0.1.4,
+unreleased)*: after a **passing** test, the scenario's value-free structure
+(the same render as the `.nt` artifact) is verified against the committed
+approved trace `<approvedDir>/<TestClassSimpleName>/<artifact_name>.approved.nt`
+— the same artifact identity as every other per-test file, so a method that
+runs more than once has one approved trace per invocation. A missing
+approved trace or a structural difference fails the test with a readable
+diff and writes the current structure beside it as `*.received.nt`; review
+it and accept it via the `Approve` build target (`./build.sh Approve`) or
+rename it manually. A failing test's structure is never verified — it is
+mid-flight and must not churn the received traces.
+`NARRATIVETRACE_APPROVED_DIR` names the directory those baselines live in
+(default `narratives`). See [Structural Trace Format](../structural-trace-format.md)
+for the full behaviour, and [What to Commit](../what-to-commit.md) for
+which of these files to commit.
 
 ## 3. Dependency injection
 
@@ -272,10 +290,18 @@ for both a proxy parameter's own name and a nested object's reflected
 property names — rather than adding to it, so `RedactionPolicy.Disabled`
 here really does turn name-based redaction off end to end (`[NotTraced]`
 still redacts regardless). Leave `Redaction` unset (the default) and a
-proxy behaves exactly as before. DI auto-wrap (`AddNarrativeTracing`) and
-the ASP.NET Core middleware do not expose this field yet — see
-[Privacy and Redaction](../privacy-and-redaction.md) for the full,
-surface-by-surface picture.
+proxy behaves exactly as before.
+
+DI auto-wrap and the ASP.NET Core integration expose the same hook
+*(since 0.1.4, unreleased)*: `NarrativeTracingDiOptions.Redaction` on
+[`AddNarrativeTracing`](dependency-injection.md) reaches every service that
+call wraps, and `NarrativeTraceOptions.Redaction` on
+[`AddNarrativeTrace`](aspnetcore.md) reaches auto-wrapped proxies too when
+both are registered in the same app — a policy configured on either side is
+visible to the other, since the two packages share one service collection.
+`AddNarrativeTracing`'s own `Redaction`, when set, takes precedence for the
+services it wraps. See [Privacy and Redaction](../privacy-and-redaction.md)
+for the full, surface-by-surface picture.
 
 **Widening every surface at once, without a code change.**
 `NARRATIVETRACE_REDACTION_ADDITIONALPATTERNS` is a comma-separated list of

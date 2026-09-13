@@ -313,6 +313,19 @@ public sealed class TraceArtifactWriterTests : IDisposable
     }
 
     [Fact]
+    public void PlantUml_format_renders_via_the_injected_plantuml_renderer()
+    {
+        TraceArtifactWriter.Write(
+            TreeWithNode(), "OrderTests", "PlacesOrder", "places order",
+            failed: false, _dir, TraceArtifactFormat.PlantUml, Stubs,
+            TextWriter.Null);
+
+        Assert.Equal(
+            "PLANTUML",
+            File.ReadAllText(Path.Combine(_dir, "traces", "OrderTests", "places_order.puml")));
+    }
+
+    [Fact]
     public void Non_markdown_format_writes_only_the_primary_file()
     {
         TraceArtifactWriter.Write(

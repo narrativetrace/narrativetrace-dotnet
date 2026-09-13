@@ -18,6 +18,8 @@
              Link="DemoWiringSupport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/TestProjectSelection.cs"
              Link="TestProjectSelection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/ApproveNarrativesSupport.cs"
+             Link="ApproveNarrativesSupport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/CoverageAccounting.cs"
              Link="CoverageAccounting.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/MutationAccounting.cs"
@@ -56,10 +58,20 @@
              Link="BenchmarkGate.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/PublishedVersionSupport.cs"
              Link="PublishedVersionSupport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/UnreleasedMarkerSupport.cs"
+             Link="UnreleasedMarkerSupport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/DuplicationReportSupport.cs"
+             Link="DuplicationReportSupport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/DuplicationCheckSupport.cs"
+             Link="DuplicationCheckSupport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/ContractLintSupport.cs"
+             Link="ContractLintSupport.cs" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="Microsoft.Extensions.FileSystemGlobbing" Version="10.0.12" />
+    <PackageReference Include="YamlDotNet" Version="18.1.0" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
       <PrivateAssets>all</PrivateAssets>

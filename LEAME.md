@@ -1,4 +1,4 @@
-<!-- source: README.md blob b8eda103f5c0 | translated: 2026-09-12 | reviewed: - -->
+<!-- source: README.md blob dba024db92a2 | translated: 2026-09-12 | reviewed: - -->
 # NarrativeTrace .NET
 
 [English](README.md) | **Español** | [Português](LEIAME.md) | [简体中文](自述文件.md)

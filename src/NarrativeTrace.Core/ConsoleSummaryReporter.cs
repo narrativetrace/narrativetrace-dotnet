@@ -126,6 +126,65 @@ public static class ConsoleSummaryReporter
             : footer;
     }
 
+    /// <summary>
+    /// One line summarizing every scenario's structural status against its
+    /// last green artifact, e.g. <c>4 scenarios unchanged · 1 changed:
+    /// "Weekend trip…" (+4 calls CurrencyConverter.ToBaseCurrency)</c>.
+    /// </summary>
+    /// <returns>The summary line, or the empty string when there are no deltas to report.</returns>
+    public static string FormatDeltaLine(IReadOnlyList<ScenarioDelta> deltas)
+    {
+        var unchanged = CountKind(deltas, ScenarioDeltaKind.Unchanged);
+        var fresh = CountKind(deltas, ScenarioDeltaKind.New);
+        var changed = deltas.Where(d => d.Kind == ScenarioDeltaKind.Changed).ToList();
+
+        var segments = new List<string>();
+        if (unchanged > 0)
+        {
+            segments.Add(WithNoun(segments, unchanged) + " unchanged");
+        }
+
+        if (fresh > 0)
+        {
+            segments.Add(WithNoun(segments, fresh) + " new");
+        }
+
+        if (changed.Count > 0)
+        {
+            segments.Add(WithNoun(segments, changed.Count) + " changed: " + DescribeChanged(changed));
+        }
+
+        return string.Join(" · ", segments);
+    }
+
+    private static int CountKind(IReadOnlyList<ScenarioDelta> deltas, ScenarioDeltaKind kind)
+    {
+        return deltas.Count(d => d.Kind == kind);
+    }
+
+    /// <summary>The word "scenario(s)" rides on the first segment only: <c>4 scenarios unchanged · 1 new</c>.</summary>
+    private static string WithNoun(List<string> segments, int count)
+    {
+        if (segments.Count > 0)
+        {
+            return count.ToString(CultureInfo.InvariantCulture);
+        }
+
+        return count + (count == 1 ? " scenario" : " scenarios");
+    }
+
+    private static string DescribeChanged(IReadOnlyList<ScenarioDelta> changed)
+    {
+        return string.Join(
+            ", ", changed.Select(delta => "\"" + Truncate(delta.Scenario) + "\" (" + delta.Summary + ")"));
+    }
+
+    /// <summary>Scenario names are capped so one changed scenario cannot flood the one-line summary.</summary>
+    private static string Truncate(string scenario)
+    {
+        return scenario.Length <= 32 ? scenario : scenario[..32].TrimEnd() + "…";
+    }
+
     private static (int High, int Moderate, int Low) Bucket(IReadOnlyList<double> scores)
     {
         int high = 0, moderate = 0, low = 0;

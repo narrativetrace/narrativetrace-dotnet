@@ -12,14 +12,14 @@ namespace NarrativeTrace.Build;
 
 /// <summary>
 /// Backs the <c>HeaderAbsenceCheck</c> target — the inverse of
-/// <c>scripts/publish-public.sh</c>'s stamping step. Per the owner ruling
+/// the publish script's stamping step. Per the owner ruling
 /// (2026-09-01), in-tree license headers must not exist in a private repo:
 /// stamping happens only at publish time, over a throwaway snapshot, and is
 /// never committed here. This check fails when a tracked source file
 /// carries one anyway.
 /// </summary>
 /// <remarks>
-/// Mirrors, rather than shares code with, <c>publish-public.sh</c>'s own
+/// Mirrors, rather than shares code with, the publish script's own
 /// header recognition (its <c>HEADER_SPDX</c>/<c>HEADER_NOTICE</c> constants
 /// and the superseded-Apache-boilerplate case <c>PublishScriptLicenseTests</c>
 /// exercises): one side is bash, the other C#, and the bash side already
@@ -38,7 +38,7 @@ internal static class HeaderAbsenceSupport
     private const int ScannedLines = 10;
 
     /// <summary>
-    /// Extensions <c>publish-public.sh</c> stamps — see its own <c>find</c>
+    /// Extensions the publish script stamps — see its own <c>find</c>
     /// invocation. A file of any other type cannot carry the header block
     /// this check looks for, so scanning it would only be noise.
     /// </summary>
@@ -79,7 +79,7 @@ internal static class HeaderAbsenceSupport
                 ? $"{RelativePath(root, file)}: missing its license header — every source file "
                     + "in a published snapshot is stamped; a bare file means the stamping step skipped it"
                 : $"{RelativePath(root, file)}: carries a license header — "
-                    + "headers are stamped at publish time only (scripts/publish-public.sh), never committed in-tree")
+                    + "headers are stamped at publish time only (by the publish script), never committed in-tree")
             .OrderBy(problem => problem, StringComparer.Ordinal)
             .ToList();
     }
@@ -90,7 +90,7 @@ internal static class HeaderAbsenceSupport
     /// <c>build.sh</c>, <c>build.ps1</c> and <c>build.cmd</c>. <c>demo.ps1</c>
     /// is this repo's own, so it is not listed here and is stamped like any
     /// other first-party <c>.ps1</c> file. Must mirror the stamper's own skip
-    /// in scripts/publish-public.sh.
+    /// in the publish script.
     /// </summary>
     private static bool IsVendored(string root, string file) =>
         RelativePath(root, file) is "build.sh" or "build.ps1" or "build.cmd";

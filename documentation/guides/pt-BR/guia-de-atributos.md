@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/annotations.md blob f0252fb2ac2b | translated: 2026-09-03 | reviewed: 2026-09-03 -->
+<!-- source: documentation/guides/annotations.md blob bba088bcb791 | translated: 2026-09-13 | reviewed: - -->
 # NarrativeTrace .NET — Guia de atributos
 
 [English](../annotations.md) | [Español](../es/guia-de-atributos.md) | **Português** | [简体中文](../zh-CN/特性指南.md)
@@ -30,7 +30,7 @@ using NarrativeTrace.Core.Annotation;
 | `[NarrativeSummary]` | `NarrativeTrace.Core.Annotation` | Método ou propriedade | Renderização de resumo preferencial para o tipo declarante. |
 | `[Narrated]` | `NarrativeTrace.Core.Annotation` | Método | Adiciona texto de narração legível a um método rastreado. |
 | `[OnError]` | `NarrativeTrace.Core.Annotation` | Método (repetível) | Anexa texto de erro contextual a um método. |
-| `[NotTraced]` | `NarrativeTrace.Core.Annotation` | Parâmetro, propriedade, campo | Oculta um valor na saída do trace, incluindo membros de objetos introspeccionados. |
+| `[NotTraced]` | `NarrativeTrace.Core.Annotation` | Parâmetro, propriedade, campo (em um método compila mas é rejeitado ao criar o proxy) | Oculta um valor na saída do trace, incluindo membros de objetos introspeccionados. |
 | `[Traced]` | `NarrativeTrace.Proxy` | Método | Sobrescreve posicionalmente os nomes de parâmetros capturados. |
 
 ## `[Narrated]`
@@ -136,6 +136,30 @@ public sealed class Payment
 
 - Usos típicos: senhas, tokens, segredos, dados de cartão.
 
+**Não é válido em um método inteiro.** `[NotTraced]` não tem o significado
+de "a chamada inteira fica oculta" — ele sempre nomeia um parâmetro, uma
+propriedade ou um componente de record, nunca o método em si, assim como o
+`@NotTraced` da edição JVM (que também não tem destino `METHOD`). Colocá-lo
+em um método compila, mas um proxy criado sobre uma interface que o faz
+lança `InvalidOperationException` no momento da criação do proxy *(desde
+0.1.4, não publicado)*, nomeando o atributo, o método afetado e a correção:
+
+```csharp
+public interface IAccountService
+{
+    [NotTraced] // lança em NarrativeTraceProxy.Create/.Create<T>
+    void Authenticate(string user, string password);
+}
+```
+
+```
+[NotTraced] is not supported on a method (found on IAccountService.Authenticate);
+it has no whole-call meaning here. Annotate each sensitive parameter, property,
+or record component individually instead.
+```
+
+Anote o parâmetro `password` diretamente em vez disso.
+
 **A ocultação vence sobre um template que a nomeia.** `[Narrated]` e
 `[OnError]` resolvem caminhos `{param.Property}` sobre os argumentos
 brutos, e um caminho que alcança uma propriedade oculta é resolvido como
@@ -144,6 +168,16 @@ caminho nunca enfraquece as regras que se aplicam diretamente ao valor. Se
 você precisar do valor em uma narrativa, remova `[NotTraced]` da
 propriedade — essa remoção é a decisão deliberada e revisável, e aparece
 no diff.
+
+**Os templates respeitam a própria política de ocultação do proxy**
+*(since 0.1.4, unreleased)*: um template `[Narrated]`/`[OnError]`
+resolvido em um proxy construído com um `new ProxyOptions(Redaction: ...)`
+personalizado consulta essa mesma política nos dois eixos acima — um
+placeholder simples como `{password}` e um caminho como
+`{policy.HolderName}` igualmente — em vez de sempre recorrer a
+`RedactionPolicy.Default`. `[NotTraced]` continua vencendo
+independentemente da política. Deixe `Redaction` sem definir e os
+templates se comportam exatamente como antes.
 
 ## `[Traced]`
 

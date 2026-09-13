@@ -68,6 +68,14 @@
       }
     },
     {
+      "source": "documentation/duplication.md",
+      "translations": {
+        "es": "es/deteccion-de-duplicacion.md",
+        "pt-BR": "pt-BR/deteccao-de-duplicacao.md",
+        "zh-CN": "zh-CN/重复代码检测.md"
+      }
+    },
+    {
       "source": "documentation/guides/installation.md",
       "translations": {
         "es": "guides/es/guia-de-instalacion.md",

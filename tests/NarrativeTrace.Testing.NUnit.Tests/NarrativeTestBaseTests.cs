@@ -59,6 +59,29 @@ public class NarrativeTestBaseTests
         Assert.Equal(string.Empty, writer.ToString());
     }
 
+    /// <summary>The delta-aware overload localizes a failing test's report to what changed since last green.</summary>
+    [Fact]
+    public void PrintFailure_with_a_changed_delta_localizes_to_the_delta()
+    {
+        var writer = new StringWriter();
+        var delta = new ScenarioDelta("Places_an_order", ScenarioDeltaKind.Changed, "+1 call X.y", "diff-text");
+
+        NarrativeTestBase.PrintFailure("Places_an_order", failed: true, TreeWithNode(), delta, writer);
+
+        Assert.Contains("Changed since last green (+1 call X.y):", writer.ToString(), StringComparison.Ordinal);
+        Assert.Contains("diff-text", writer.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PrintFailure_with_a_null_delta_falls_back_to_the_whole_trace_dump()
+    {
+        var writer = new StringWriter();
+
+        NarrativeTestBase.PrintFailure("Places_an_order", failed: true, TreeWithNode(), delta: null, writer);
+
+        Assert.Contains("OrderService", writer.ToString(), StringComparison.Ordinal);
+    }
+
     [Fact]
     public void PrintTemplateWarnings_reports_unresolved_placeholders()
     {
@@ -259,6 +282,129 @@ public class NarrativeTestBaseTests
             {
                 ConfigResolver.OutputKey => "false",
                 ConfigResolver.OutputDirKey => _dir,
+                _ => null,
+            };
+        }
+    }
+
+    [Fact]
+    public void TearDownTrace_passes_when_the_structure_matches_the_approved_trace()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "nt-nunit-" + Guid.NewGuid().ToString("N"));
+        var approvedDir = Path.Combine(Path.GetTempPath(), "nt-nunit-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(approvedDir, AdhocClassDir));
+            File.WriteAllText(
+                Path.Combine(approvedDir, AdhocClassDir, "adhoc_test_method.approved.nt"),
+                "scenario: Adhoc test method\n\n- Svc.run()\n");
+            var test = new ApprovalSubject(dir, approvedDir);
+            test.SetUpTrace();
+            test.Context.EnterMethod("Svc", "run", []);
+            test.Context.ExitMethodWithReturn(null);
+
+            var exception = Record.Exception(() => test.TearDownTrace());
+
+            Assert.Null(exception);
+        }
+        finally
+        {
+            DeleteDirIfExists(dir);
+            DeleteDirIfExists(approvedDir);
+        }
+    }
+
+    [Fact]
+    public void TearDownTrace_fails_and_does_not_advance_the_baseline_when_the_structure_differs()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "nt-nunit-" + Guid.NewGuid().ToString("N"));
+        var approvedDir = Path.Combine(Path.GetTempPath(), "nt-nunit-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(approvedDir, AdhocClassDir));
+            File.WriteAllText(
+                Path.Combine(approvedDir, AdhocClassDir, "adhoc_test_method.approved.nt"),
+                "scenario: Adhoc test method\n\n- Svc.OtherCall()\n");
+            var test = new ApprovalSubject(dir, approvedDir);
+            test.SetUpTrace();
+            test.Context.EnterMethod("Svc", "run", []);
+            test.Context.ExitMethodWithReturn(null);
+
+            Assert.Throws<NarrativeApprovalException>(() => test.TearDownTrace());
+
+            var ntFile = Path.Combine(dir, "structural", AdhocClassDir, "adhoc_test_method.nt");
+            Assert.False(File.Exists(ntFile));
+        }
+        finally
+        {
+            DeleteDirIfExists(dir);
+            DeleteDirIfExists(approvedDir);
+        }
+    }
+
+    [Fact]
+    public void Suite_scope_receives_the_manifest_entry_and_delta_from_teardown()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "nt-nunit-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var report = new NarrativeSuiteReport(
+                dir, key => key == NarrativeTrace.Glossary.GlossarySettings.EnvKey
+                    ? NarrativeTrace.Glossary.GlossarySettings.OffValue
+                    : null);
+            NarrativeSuiteScope.Begin(report);
+            var test = new OutputSubject(dir);
+            test.SetUpTrace();
+            test.Context.EnterMethod("Svc", "run", []);
+            test.Context.ExitMethodWithReturn(null);
+
+            test.TearDownTrace();
+            NarrativeSuiteScope.End(TextWriter.Null);
+
+            Assert.True(File.Exists(Path.Combine(dir, "manifest.json")));
+            Assert.Contains(
+                "narrativetrace/scenario-manifest/1", File.ReadAllText(Path.Combine(dir, "manifest.json")),
+                StringComparison.Ordinal);
+        }
+        finally
+        {
+            DeleteDirIfExists(dir);
+        }
+    }
+
+    /// <summary>
+    /// Outside real NUnit execution <c>TestContext.CurrentContext.Test</c> reports the engine's own
+    /// placeholder identity — fixed and known, which is what lets these tests assert on exact paths.
+    /// </summary>
+    private const string AdhocClassDir = "TestExecutionContext+AdhocContext";
+
+    private static void DeleteDirIfExists(string dir)
+    {
+        if (Directory.Exists(dir))
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    private sealed class ApprovalSubject : NarrativeTestBase
+    {
+        private readonly string _dir;
+        private readonly string _approvedDir;
+
+        public ApprovalSubject(string dir, string approvedDir)
+        {
+            _dir = dir;
+            _approvedDir = approvedDir;
+        }
+
+        protected override string? ReadEnvironment(string key)
+        {
+            return key switch
+            {
+                ConfigResolver.OutputKey => "true",
+                ConfigResolver.OutputDirKey => _dir,
+                ConfigResolver.ApprovalKey => "true",
+                ConfigResolver.ApprovedDirKey => _approvedDir,
                 _ => null,
             };
         }

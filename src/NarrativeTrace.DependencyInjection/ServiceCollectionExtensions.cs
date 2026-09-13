@@ -85,17 +85,20 @@ public static class ServiceCollectionExtensions
 
         var matcher = new NamespaceMatcher(options.BaseNamespaces);
         var exclusions = new NamespaceMatcher(options.ExcludedNamespaces);
-        DecorateMatchingServices(services, matcher, exclusions);
+        DecorateMatchingServices(
+            services, matcher, exclusions, options.Redaction);
         return services;
     }
 
     private static void DecorateMatchingServices(
         IServiceCollection services,
-        NamespaceMatcher matcher, NamespaceMatcher exclusions)
+        NamespaceMatcher matcher, NamespaceMatcher exclusions,
+        RedactionPolicy? redaction)
     {
         for (var i = 0; i < services.Count; i++)
         {
-            if (TryBuildWrappedDescriptor(services[i], matcher, exclusions)
+            if (TryBuildWrappedDescriptor(
+                    services[i], matcher, exclusions, redaction)
                 is { } wrapped)
             {
                 services[i] = wrapped;
@@ -105,7 +108,8 @@ public static class ServiceCollectionExtensions
 
     private static ServiceDescriptor? TryBuildWrappedDescriptor(
         ServiceDescriptor descriptor,
-        NamespaceMatcher matcher, NamespaceMatcher exclusions)
+        NamespaceMatcher matcher, NamespaceMatcher exclusions,
+        RedactionPolicy? redaction)
     {
         if (!ShouldWrap(descriptor, matcher, exclusions))
         {
@@ -117,7 +121,7 @@ public static class ServiceCollectionExtensions
             serviceType,
             sp => WrapInstance(
                 sp, serviceType,
-                ResolveOriginal(sp, descriptor)),
+                ResolveOriginal(sp, descriptor), redaction),
             descriptor.Lifetime);
     }
 
@@ -166,10 +170,27 @@ public static class ServiceCollectionExtensions
     }
 
     private static object WrapInstance(
-        IServiceProvider sp, Type serviceType, object original)
+        IServiceProvider sp, Type serviceType, object original,
+        RedactionPolicy? redaction)
     {
         return NarrativeTraceProxy.Create(
             serviceType, original,
-            sp.GetRequiredService<INarrativeContext>());
+            sp.GetRequiredService<INarrativeContext>(),
+            new ProxyOptions(Redaction: EffectiveRedaction(sp, redaction)));
+    }
+
+    // This call's own o.Redaction wins when set; otherwise fall back to
+    // whatever RedactionPolicy the ASP.NET Core integration's own
+    // AddNarrativeTrace(o => o.Redaction = …) registered in the same
+    // container — the two options types live in separate packages with no
+    // reference between them, so the container is the one place a policy
+    // configured on either side can reach a proxy the other side
+    // constructs. Optional: a plain service lookup, never required, so a
+    // solo AddNarrativeTracing (no ASP.NET Core integration at all) is
+    // unaffected.
+    private static RedactionPolicy? EffectiveRedaction(
+        IServiceProvider sp, RedactionPolicy? redaction)
+    {
+        return redaction ?? sp.GetService<RedactionPolicy>();
     }
 }

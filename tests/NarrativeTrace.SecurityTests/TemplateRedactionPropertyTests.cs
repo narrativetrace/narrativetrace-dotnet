@@ -44,8 +44,12 @@ public class TemplateRedactionPropertyTests
     {
         var sentinel = Oracles.FreshSentinel();
 
-        var resolved = Oracles.WithinBudget(
-            "template " + templateCase.Id, () => TemplateResolution.Resolve(templateCase.Template, templateCase.Values, sentinel));
+        // Family release rule 3 (2026-09-07): wall-clock, GC and scheduler are never test inputs
+        // — this used to run through the removed Oracles.WithinBudget hang detector. Dropped
+        // outright rather than replaced: a resolved template's size is already bounded by
+        // ValueRenderer's own caps (asserted directly against hostile graphs in
+        // ValueRendererRedactionPropertyTests), so there is no additional property to pin here.
+        var resolved = TemplateResolution.Resolve(templateCase.Template, templateCase.Values, sentinel);
 
         Assert.NotNull(resolved);
         Assert.DoesNotContain(sentinel, resolved, StringComparison.Ordinal);

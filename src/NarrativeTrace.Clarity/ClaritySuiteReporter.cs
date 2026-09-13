@@ -36,12 +36,17 @@ public static class ClaritySuiteReporter
     /// What the run lost, if the integration tracked it. Adds one
     /// <c>Incomplete: …</c> line to the footer, omitted entirely at zero loss.
     /// </param>
+    /// <param name="deltas">
+    /// Every scenario's structural delta against its last green artifact, if
+    /// the integration tracked them. Adds the "Since last green" line.
+    /// </param>
     public static void Write(
         IReadOnlyList<KeyValuePair<string, TraceTree>> entries,
         string outputDir,
         TextWriter console,
         DomainVocabulary? vocabulary = null,
-        TraceLoss? loss = null)
+        TraceLoss? loss = null,
+        IReadOnlyList<ScenarioDelta>? deltas = null)
     {
         SuiteReportWriter.Write(
             entries,
@@ -50,7 +55,8 @@ public static class ClaritySuiteReporter
             tree => Score(tree, vocabulary),
             scored => RenderJson(scored, vocabulary),
             scored => RenderMarkdown(scored, vocabulary),
-            loss);
+            loss,
+            deltas);
     }
 
     private static double Score(TraceTree tree, DomainVocabulary? vocabulary)

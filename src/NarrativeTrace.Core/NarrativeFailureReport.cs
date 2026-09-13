@@ -26,4 +26,39 @@ public static class NarrativeFailureReport
         var rendered = IndentedTextRenderer.Render(trace);
         return $"Narrative for failed test — {scenario}{Environment.NewLine}{rendered}";
     }
+
+    /// <summary>
+    /// Builds a failure report that localizes change instead of dumping the
+    /// trace: when the failing scenario's structure changed since last
+    /// green, the report is the delta — summary plus readable diff —
+    /// because assertion output already covers detection and the trace's
+    /// job here is saying <em>where</em> behavior moved.
+    /// </summary>
+    /// <returns>
+    /// The delta-aware report for <see cref="ScenarioDeltaKind.Changed"/> or
+    /// <see cref="ScenarioDeltaKind.Unchanged"/>; falls back to
+    /// <see cref="Build(string, TraceTree)"/> for
+    /// <see cref="ScenarioDeltaKind.New"/> (nothing to localize against yet)
+    /// and for an empty trace.
+    /// </returns>
+    public static string Build(string testName, TraceTree trace, ScenarioDelta delta)
+    {
+        if (trace.IsEmpty)
+        {
+            return string.Empty;
+        }
+
+        var scenario = ScenarioFramer.Frame(testName);
+        return delta.Kind switch
+        {
+            ScenarioDeltaKind.Changed =>
+                $"Narrative for failed test — {scenario}{Environment.NewLine}"
+                + $"Changed since last green ({delta.Summary}):{Environment.NewLine}{delta.Diff}",
+            ScenarioDeltaKind.Unchanged =>
+                $"Narrative for failed test — {scenario}{Environment.NewLine}"
+                + "Structure unchanged since last green — the flow held; check values and assertions."
+                + $"{Environment.NewLine}{Environment.NewLine}{IndentedTextRenderer.Render(trace)}",
+            _ => Build(testName, trace),
+        };
+    }
 }

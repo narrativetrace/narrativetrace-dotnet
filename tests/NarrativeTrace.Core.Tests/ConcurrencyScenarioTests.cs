@@ -103,7 +103,7 @@ public class ConcurrencyScenarioTests
             done.SetResult(true);
         });
         await done.Task;
-        await Task.Delay(10);
+        await ChildRootBarrier.WaitForChildRoots(group);
 
         ctx.ExitMethodWithReturn(null, h0);
         var trace = ctx.CaptureTrace();
@@ -125,7 +125,7 @@ public class ConcurrencyScenarioTests
             done.SetResult(true);
         });
         await done.Task;
-        await Task.Delay(10);
+        await ChildRootBarrier.WaitForChildRoots(group);
 
         var roots = group.ChildRoots();
         Assert.Single(roots);

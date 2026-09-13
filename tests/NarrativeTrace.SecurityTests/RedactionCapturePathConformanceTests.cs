@@ -80,8 +80,11 @@ public class RedactionCapturePathConformanceTests
         }
 
         var (parameter, tree) = Capture(built, argument);
-        var outputs = Oracles.WithinBudget(
-            "capture-path outputs for " + corpusCase.Id, () => Emitters.EveryOutput(tree));
+        // Family release rule 3 (2026-09-07): wall-clock, GC and scheduler are never test inputs
+        // — this used to run through the removed Oracles.WithinBudget hang detector.
+        // Oracles.BoundedSize below, over every emitter's output, is the deterministic property
+        // that timing bound stood in for.
+        var outputs = Emitters.EveryOutput(tree);
 
         if (corpusCase.ExpectsRedaction)
         {

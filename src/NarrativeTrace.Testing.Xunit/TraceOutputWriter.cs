@@ -70,10 +70,10 @@ public static class TraceOutputWriter
             TraceFormat.Markdown =>
                 (MarkdownRenderer.Render(tree), ".md"),
             TraceFormat.Mermaid =>
-                (MermaidSequenceRenderer.Render(tree),
+                (SequenceDiagramRenderers.Mermaid(tree),
                     ".mmd"),
             TraceFormat.PlantUml =>
-                (PlantUmlSequenceRenderer.Render(tree),
+                (SequenceDiagramRenderers.PlantUml(tree),
                     ".puml"),
             TraceFormat.Json =>
                 (RenderJson(tree, name), ".json"),

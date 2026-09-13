@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/configuration.md blob 82efb7918666 | translated: 2026-09-12 | reviewed: - -->
+<!-- source: documentation/guides/configuration.md blob b1a0d174b356 | translated: 2026-09-12 | reviewed: - -->
 # NarrativeTrace .NET — Guia de configuração
 
 [English](../configuration.md) | [Español](../es/guia-de-configuracion.md) | **Português** | [简体中文](../zh-CN/配置指南.md)
@@ -75,6 +75,8 @@ configuração incorreta nunca derruba a captura.
 | `NARRATIVETRACE_FORMAT` | `Markdown`, `Text`, `Prose`, `Json` | `Markdown` |
 | `NARRATIVETRACE_CANONICAL_JSON` | `true` / `false` (ou `1`) | `false` |
 | `NARRATIVETRACE_STRUCTURAL_JSON` | `true` / `false` (ou `1`) | `false` |
+| `NARRATIVETRACE_APPROVAL` | `true` / `false` (ou `1`) | `false` |
+| `NARRATIVETRACE_APPROVED_DIR` | qualquer caminho com permissão de escrita | `narratives` |
 
 O parsing de nível e formato é tolerante (insensível a maiúsculas/minúsculas
 e pontuação: `detail`, `DETAIL` e `Detail` resolvem igualmente).
@@ -112,6 +114,24 @@ principal:
 
 Ambos ficam desativados por padrão; são artefatos de máquina, não algo que
 você lê ao lado do trace.
+
+`NARRATIVETRACE_APPROVAL` ativa o modo de aprovação *(since 0.1.4,
+unreleased)*: depois de um teste que **passa**, a estrutura sem valores
+do cenário (o mesmo render do artefato `.nt`) é verificada contra a trace
+aprovada commitada
+`<approvedDir>/<TestClassSimpleName>/<artifact_name>.approved.nt` — a
+mesma identidade de artefato de qualquer outro arquivo por teste, então
+um método que roda mais de uma vez tem uma trace aprovada por invocação.
+Uma trace aprovada ausente ou uma diferença estrutural falha o teste com
+um diff legível e escreve a estrutura atual ao lado dela como
+`*.received.nt`; revise-a e aceite-a via o build target `Approve`
+(`./build.sh Approve`) ou renomeie-a manualmente. A estrutura de um teste
+que falhou nunca é verificada — ela está no meio do caminho e não deve
+agitar as traces recebidas. `NARRATIVETRACE_APPROVED_DIR` nomeia o
+diretório onde essas linhas de base vivem (padrão `narratives`). Veja
+[Formato de trace estrutural](../../structural-trace-format.md) para o
+comportamento completo, e [O que incluir no commit](../../pt-BR/o-que-incluir-no-commit.md)
+para saber quais desses arquivos commitar.
 
 ## 3. Injeção de dependências
 
@@ -285,10 +305,20 @@ nomes de propriedade refletidos de um objeto aninhado — em vez de
 ampliá-la, então `RedactionPolicy.Disabled` aqui realmente desativa a
 ocultação baseada em nome de ponta a ponta (`[NotTraced]` ainda oculta de
 qualquer forma). Deixe `Redaction` sem definir (o padrão) e um proxy se
-comporta exatamente como antes. O encapsulamento automático de DI
-(`AddNarrativeTracing`) e o middleware do ASP.NET Core ainda não expõem
-esse campo — veja [Privacidade e ocultação](../../pt-BR/privacidade-e-ocultacao.md)
-para o quadro completo, superfície por superfície.
+comporta exatamente como antes.
+
+O encapsulamento automático de DI e a integração ASP.NET Core expõem o
+mesmo gancho *(since 0.1.4, unreleased)*: `NarrativeTracingDiOptions.Redaction`
+em [`AddNarrativeTracing`](guia-de-injecao-de-dependencias.md) alcança
+cada serviço que essa chamada encapsula, e `NarrativeTraceOptions.Redaction`
+em [`AddNarrativeTrace`](guia-de-integracao-com-aspnet-core.md) também
+alcança os proxies auto-encapsulados quando os dois estão registrados no
+mesmo app — uma política configurada de um dos lados fica visível para o
+outro, já que os dois pacotes compartilham uma única coleção de serviços.
+O próprio `Redaction` de `AddNarrativeTracing`, quando definido, tem
+prioridade para os serviços que encapsula. Veja
+[Privacidade e ocultação](../../pt-BR/privacidade-e-ocultacao.md) para o
+quadro completo, superfície por superfície.
 
 **Ampliando todas as superfícies de uma vez, sem mudar código.**
 `NARRATIVETRACE_REDACTION_ADDITIONALPATTERNS` é uma lista de padrões de

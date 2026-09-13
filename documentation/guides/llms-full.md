@@ -246,6 +246,22 @@ sorted by signature, and partitions roots the same way as children — work that
 outlived its caller is a root, and its capture order is the scheduler's choice
 rather than the code's, so a committed baseline must not pin it.
 
+**Test-loop feedback** *(since 0.1.4, unreleased)* — the `.nt` file on disk is
+the **last-green baseline**: `TraceArtifactWriter.Write` advances it only on a
+green write (`failed: false`), otherwise it returns the scenario's
+`ScenarioDelta` (`New`/`Unchanged`/`Changed`, with a per-signature call-count
+`Summary` and a unified `Diff`) without touching the file. `ArtifactIdentity`
+gives a parameterized invocation its own files (`-<index>-<label>` suffix,
+never overwriting a sibling case) and its structural title
+(`<humanized method> #<index>`, never the display name a name template may
+have interpolated arguments into). `ScenarioManifest.Write` emits
+`manifest.json`: one row per scenario naming its files. `NarrativeApproval`
+backs approval mode (`NARRATIVETRACE_APPROVAL=true` /
+`NARRATIVETRACE_APPROVED_DIR`): a passing test's structure is verified against
+its committed `*.approved.nt`, a mismatch writes `*.received.nt` and throws
+`NarrativeApprovalException`, and `./build.sh Approve` promotes every received
+trace. See [Structural Trace Format](../structural-trace-format.md).
+
 ## Proxy (`NarrativeTrace.Proxy`) and attributes (`NarrativeTrace.Core.Annotation`)
 
 ```csharp

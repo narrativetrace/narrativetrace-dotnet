@@ -84,7 +84,23 @@ public static class ServiceCollectionExtensions
                 sp.GetRequiredService<NarrativeTraceConfig>()));
         services.TryAddSingleton<ITraceExporter, LoggerTraceExporter>();
         services.AddTransient<NarrativeTraceMiddleware>();
+        RegisterRedaction(services, options.Redaction);
         return services;
+    }
+
+    // Registered as its own singleton (rather than left to live only on
+    // NarrativeTraceOptions) so NarrativeTrace.DependencyInjection's own
+    // auto-wrap — a separate package with no reference to this one — can
+    // resolve it as a fallback for services it wraps in the same
+    // container. TryAdd: an explicit registration already present (e.g. a
+    // caller wiring one directly) wins over this one.
+    private static void RegisterRedaction(
+        IServiceCollection services, RedactionPolicy? redaction)
+    {
+        if (redaction is not null)
+        {
+            services.TryAddSingleton(redaction);
+        }
     }
 
     private static void BindFromConfiguration(

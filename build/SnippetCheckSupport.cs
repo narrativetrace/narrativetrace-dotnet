@@ -39,11 +39,20 @@ namespace NarrativeTrace.Build;
 /// comment syntax — the region markers are matched by substring, not by a
 /// specific <c>//</c> or <c>#</c> prefix) rather than the whole file, and a
 /// shared leading indentation is stripped so an embedded method body starts
-/// flush left. <c>mask=duration</c> replaces <c>&#8212; \d+(\.\d+)?ms</c> with
-/// <c>&#8212; Nms</c> on both sides before <see cref="Check"/> compares them, so a
-/// re-run's different timing never fails the gate — <see cref="Sync"/> never
-/// masks: it writes the real captured duration, which is what "timing
-/// varies" already tells the reader to expect.
+/// flush left. <c>mask=duration</c> strips <c> &#8212; \d+(\.\d+)?ms</c> (leading
+/// space included) from both sides before <see cref="Check"/> compares them —
+/// deleted rather than replaced with a placeholder, because the renderers in
+/// this family omit the whole suffix, not just the digits, when a call's
+/// measured duration rounds to zero ticks (<c>IndentedTextRenderer</c>'s
+/// <c>AppendDuration</c>: <c>DurationTicks &lt;= 0</c> appends nothing at
+/// all). A placeholder substitution only normalizes the *digits*, so a page
+/// capturing one run with a nonzero duration and a later run landing exactly
+/// on zero ticks would still read as drifted — the reader-visible "timing
+/// varies" is defined as varying between *some* number of milliseconds and
+/// *none rendered*, not just between numbers, so the mask has to erase the
+/// whole optional fragment on both sides. <see cref="Sync"/> never masks: it
+/// writes the real captured duration (present or absent), which is what
+/// "timing varies" already tells the reader to expect.
 /// </para>
 /// <para>
 /// Translated mirrors (<see cref="TranslationCheckSupport.TranslatedFiles"/>)
@@ -63,10 +72,14 @@ internal static class SnippetCheckSupport
     private const string SnippetMarkerToken = "<!-- snippet:";
 
     // U+2014 EM DASH, matching the duration suffix every renderer in this
-    // family emits ("... -- 8ms"); — spelled out so the literal
-    // character survives any editor that isn't UTF-8-safe.
+    // family emits (" -- 8ms"); — spelled out so the literal character
+    // survives any editor that isn't UTF-8-safe. The leading space is part
+    // of the match (and gets erased with it, see ApplyMask) so a run whose
+    // renderer omits the whole suffix — DurationTicks rounding to zero — masks
+    // identically to a run that renders it: nothing left behind to still
+    // read as drift.
     private static readonly Regex DurationMask = new(
-        "— \\d+(\\.\\d+)?ms", RegexOptions.CultureInvariant);
+        " — \\d+(\\.\\d+)?ms", RegexOptions.CultureInvariant);
 
     /// <summary>
     /// Every problem found: a malformed marker, a missing source or region,
@@ -373,7 +386,7 @@ internal static class SnippetCheckSupport
     /// Deliberately narrow: only an initial run of <c>//</c> lines, or one leading
     /// <c>/* ... */</c> block, whose own text contains <c>SPDX-License-Identifier</c> or
     /// <c>Licensed under</c> is stripped — matching the two phrases the publish script's own
-    /// header actually carries (<c>scripts/publish-public.sh</c>'s <c>HEADER_SPDX</c> /
+    /// header actually carries (the publish script's <c>HEADER_SPDX</c> /
     /// <c>HEADER_NOTICE</c>), so a copyright line alone still counts once either phrase is
     /// present anywhere in the same leading block. Any other leading comment — a file banner, an
     /// unrelated copyright notice, a doc comment — is left exactly as it was; this is not a
@@ -464,7 +477,7 @@ internal static class SnippetCheckSupport
     }
 
     private static string ApplyMask(string content, bool maskDuration) =>
-        maskDuration ? DurationMask.Replace(content, "— Nms") : content;
+        maskDuration ? DurationMask.Replace(content, "") : content;
 
     private static string[] ToLines(string text) => text.Replace("\r\n", "\n").Split('\n');
 

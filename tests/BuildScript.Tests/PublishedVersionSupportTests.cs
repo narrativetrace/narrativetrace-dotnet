@@ -73,7 +73,7 @@ public sealed class PublishedVersionSupportTests
     {
         Assert.Equal(
             "*(Docs and published both at 0.1.3.)*",
-            PublishedVersionSupport.BuildLine("0.1.3", "0.1.3"));
+            PublishedVersionSupport.BuildLine("0.1.3", "0.1.3", unreleasedCount: 0));
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public sealed class PublishedVersionSupportTests
     {
         Assert.Equal(
             "*(These docs describe 0.1.4; published is 0.1.3.)*",
-            PublishedVersionSupport.BuildLine("0.1.4", "0.1.3"));
+            PublishedVersionSupport.BuildLine("0.1.4", "0.1.3", unreleasedCount: 0));
     }
 
     [Fact]
@@ -89,7 +89,42 @@ public sealed class PublishedVersionSupportTests
     {
         Assert.Equal(
             "*(These docs describe 0.1.4; published: unknown offline.)*",
-            PublishedVersionSupport.BuildLine("0.1.4", null));
+            PublishedVersionSupport.BuildLine("0.1.4", null, unreleasedCount: 0));
+    }
+
+    // ---------------------------------------------------------------- BuildLine (unreleased-count clause, design note item 8)
+    // Count 0 (no clause) is already covered by the three cases above.
+
+    [Fact]
+    public void BuildLine_uses_the_singular_noun_at_exactly_one()
+    {
+        Assert.Equal(
+            "*(Docs and published both at 0.1.3; 1 behaviour marked unreleased.)*",
+            PublishedVersionSupport.BuildLine("0.1.3", "0.1.3", unreleasedCount: 1));
+    }
+
+    [Fact]
+    public void BuildLine_uses_the_plural_noun_above_one()
+    {
+        Assert.Equal(
+            "*(Docs and published both at 0.1.3; 4 behaviours marked unreleased.)*",
+            PublishedVersionSupport.BuildLine("0.1.3", "0.1.3", unreleasedCount: 4));
+    }
+
+    [Fact]
+    public void BuildLine_appends_the_clause_to_the_differ_form()
+    {
+        Assert.Equal(
+            "*(These docs describe 0.1.4; published is 0.1.3; 4 behaviours marked unreleased.)*",
+            PublishedVersionSupport.BuildLine("0.1.4", "0.1.3", unreleasedCount: 4));
+    }
+
+    [Fact]
+    public void BuildLine_appends_the_clause_to_the_offline_form()
+    {
+        Assert.Equal(
+            "*(These docs describe 0.1.4; published: unknown offline; 4 behaviours marked unreleased.)*",
+            PublishedVersionSupport.BuildLine("0.1.4", null, unreleasedCount: 4));
     }
 
     // ---------------------------------------------------------------- TryParseLine (the inverse)
@@ -99,33 +134,96 @@ public sealed class PublishedVersionSupportTests
     [InlineData("0.1.4", "0.1.3")]
     public void TryParseLine_round_trips_through_BuildLine(string repo, string? published)
     {
-        var line = PublishedVersionSupport.BuildLine(repo, published);
+        var line = PublishedVersionSupport.BuildLine(repo, published, unreleasedCount: 0);
 
-        var ok = PublishedVersionSupport.TryParseLine(line, out var describedVersion, out var publishedVersion);
+        var ok = PublishedVersionSupport.TryParseLine(
+            line, out var describedVersion, out var publishedVersion, out var unreleasedCount);
 
         Assert.True(ok);
         Assert.Equal(repo, describedVersion);
         Assert.Equal(published, publishedVersion);
+        Assert.Equal(0, unreleasedCount);
     }
 
     [Fact]
     public void TryParseLine_round_trips_the_offline_form()
     {
-        var line = PublishedVersionSupport.BuildLine("0.1.4", null);
+        var line = PublishedVersionSupport.BuildLine("0.1.4", null, unreleasedCount: 0);
 
-        var ok = PublishedVersionSupport.TryParseLine(line, out var describedVersion, out var publishedVersion);
+        var ok = PublishedVersionSupport.TryParseLine(
+            line, out var describedVersion, out var publishedVersion, out var unreleasedCount);
 
         Assert.True(ok);
         Assert.Equal("0.1.4", describedVersion);
         Assert.Null(publishedVersion);
+        Assert.Equal(0, unreleasedCount);
     }
 
     [Fact]
     public void TryParseLine_rejects_a_line_that_is_not_one_of_the_three_forms()
     {
-        var ok = PublishedVersionSupport.TryParseLine("Docs are current.", out _, out _);
+        var ok = PublishedVersionSupport.TryParseLine("Docs are current.", out _, out _, out _);
 
         Assert.False(ok);
+    }
+
+    // ---------------------------------------------------------------- TryParseLine (unreleased-count clause)
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(4)]
+    public void TryParseLine_round_trips_the_unreleased_count_through_the_equal_form(int count)
+    {
+        var line = PublishedVersionSupport.BuildLine("0.1.3", "0.1.3", count);
+
+        var ok = PublishedVersionSupport.TryParseLine(line, out _, out _, out var parsedCount);
+
+        Assert.True(ok);
+        Assert.Equal(count, parsedCount);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(4)]
+    public void TryParseLine_round_trips_the_unreleased_count_through_the_differ_form(int count)
+    {
+        var line = PublishedVersionSupport.BuildLine("0.1.4", "0.1.3", count);
+
+        var ok = PublishedVersionSupport.TryParseLine(line, out _, out _, out var parsedCount);
+
+        Assert.True(ok);
+        Assert.Equal(count, parsedCount);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(4)]
+    public void TryParseLine_round_trips_the_unreleased_count_through_the_offline_form(int count)
+    {
+        var line = PublishedVersionSupport.BuildLine("0.1.4", null, count);
+
+        var ok = PublishedVersionSupport.TryParseLine(line, out _, out _, out var parsedCount);
+
+        Assert.True(ok);
+        Assert.Equal(count, parsedCount);
+    }
+
+    [Fact]
+    public void TryParseLine_detects_a_stale_committed_count_against_a_freshly_scanned_one()
+    {
+        // What CheckLlmsPublishedVersionLine does every commit (design note item 8): parse the
+        // committed banner's count, and compare it to a freshly recomputed one — this proves the
+        // two are ordinary comparable integers a caller can catch drift with, not just accepted.
+        var committedLine = PublishedVersionSupport.BuildLine("0.1.3", "0.1.3", unreleasedCount: 4);
+
+        var ok = PublishedVersionSupport.TryParseLine(committedLine, out _, out _, out var committedCount);
+        var freshlyScannedCount = 5; // a doc gained a fifth "*(since ..., unreleased)*" marker
+
+        Assert.True(ok);
+        Assert.NotEqual(freshlyScannedCount, committedCount);
     }
 
     // ---------------------------------------------------------------- cache freshness

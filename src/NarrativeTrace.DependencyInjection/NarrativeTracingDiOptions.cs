@@ -16,6 +16,24 @@ public sealed class NarrativeTracingDiOptions
     /// <summary>The tracing level for the shared context.</summary>
     public TracingLevel Level { get; set; } = TracingLevel.Detail;
 
+    /// <summary>
+    /// The redaction policy every auto-wrapped proxy renders parameters and
+    /// return values with, or <see langword="null"/> for the secure
+    /// <see cref="RedactionPolicy.Default"/> every other shipped integration
+    /// uses — the same <see cref="NarrativeTrace.Proxy.ProxyOptions.Redaction"/>
+    /// hook a directly-constructed proxy accepts, threaded through
+    /// <see cref="ServiceCollectionExtensions.AddNarrativeTracing"/> so a
+    /// policy set once here reaches every service this call wraps. Given
+    /// explicitly, it <em>replaces</em> the default name-based decision
+    /// rather than widening it, so <see cref="RedactionPolicy.Disabled"/>
+    /// here really does disable name-based redaction end to end;
+    /// <c>[NotTraced]</c> always wins regardless. Left unset, a
+    /// <see cref="RedactionPolicy"/> registered by the ASP.NET Core
+    /// integration's own <c>AddNarrativeTrace(o => o.Redaction = …)</c> is
+    /// used instead, when present *(since 0.1.4, unreleased)*.
+    /// </summary>
+    public RedactionPolicy? Redaction { get; set; }
+
     internal IReadOnlyList<string> BaseNamespaces => _namespaces;
 
     internal IReadOnlyList<string> ExcludedNamespaces => _excludedNamespaces;

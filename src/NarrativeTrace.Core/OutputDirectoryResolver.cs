@@ -38,10 +38,36 @@ public sealed class OutputDirectoryResolver
     /// </remarks>
     private const int SuffixReserveBytes = 16;
 
+    /// <summary>
+    /// Bytes an invocation label may occupy inside an artifact name.
+    /// </summary>
+    /// <remarks>
+    /// A display name is prose — a parameterized test's name template can
+    /// interpolate arguments into it — so it is bounded before the method
+    /// slug is, and the index it follows is never the part that gets
+    /// truncated. 60 leaves a long name readable while keeping the whole
+    /// element far below the component limit. Mirrors the Java runtime's
+    /// <c>MAX_LABEL_BYTES</c>.
+    /// </remarks>
+    private const int MaxLabelBytes = 60;
+
+    /// <summary>
+    /// Separates a method slug from its invocation discriminator.
+    /// </summary>
+    /// <remarks>
+    /// The slug alphabet is <c>[a-z0-9_]</c>, so a hyphen can never appear
+    /// inside either part: an ordinary method's artifact can never collide
+    /// with an invocation's, and a reader (or a manifest consumer) can split
+    /// the name back into method, index and label.
+    /// </remarks>
+    private const string InvocationSeparator = "-";
+
     private static readonly Regex CamelBoundary =
         new(@"([a-z])([A-Z])", RegexOptions.Compiled);
     private static readonly Regex NonSlugChar =
         new(@"[^a-z0-9_]", RegexOptions.Compiled);
+    private static readonly Regex RunsOfUnderscore =
+        new(@"_+", RegexOptions.Compiled);
 
     private readonly string _baseDir;
 
@@ -65,11 +91,7 @@ public sealed class OutputDirectoryResolver
     /// </summary>
     public string TraceDirectory(string testClassName)
     {
-        var dot = testClassName.LastIndexOf('.');
-        var simpleName = dot >= 0
-            ? testClassName.Substring(dot + 1)
-            : testClassName;
-        return Path.Combine(_baseDir, "traces", ToDirectorySlug(simpleName));
+        return ClassDirectory(Path.Combine(_baseDir, "traces"), testClassName);
     }
 
     /// <summary>
@@ -82,14 +104,116 @@ public sealed class OutputDirectoryResolver
     }
 
     /// <summary>
+    /// A per-test artifact in the <c>traces</c> tree, keyed by the full
+    /// invocation identity: the rendered narrative in whichever format was
+    /// chosen, and the JSON siblings written beside it.
+    /// </summary>
+    /// <param name="identity">Which test invocation the artifact belongs to.</param>
+    /// <param name="suffix">The whole suffix including its dot, e.g. <c>.txt</c>, <c>.canonical.json</c>.</param>
+    public string TraceArtifact(ArtifactIdentity identity, string suffix)
+    {
+        return Path.Combine(TraceDirectory(identity.TestClassName), identity.FileSlug() + suffix);
+    }
+
+    /// <summary>The Mermaid diagram of one invocation, in the <c>diagrams</c> tree.</summary>
+    public string DiagramFile(ArtifactIdentity identity)
+    {
+        return Path.Combine(
+            ClassDirectory(Path.Combine(_baseDir, "diagrams"), identity.TestClassName),
+            identity.FileSlug() + ".mmd");
+    }
+
+    /// <summary>The last-green structural artifact of one invocation, in the <c>structural</c> tree.</summary>
+    public string StructuralFile(ArtifactIdentity identity)
+    {
+        return Path.Combine(
+            ClassDirectory(Path.Combine(_baseDir, "structural"), identity.TestClassName),
+            identity.FileSlug() + ".nt");
+    }
+
+    /// <summary>
+    /// The per-class directory of any artifact tree, under one sanitizing rule.
+    /// </summary>
+    /// <remarks>
+    /// INTENT: <c>traces</c>, <c>diagrams</c>, <c>structural</c> and the
+    /// committed-approval tree all key by test class, and each of them used
+    /// to slice the simple name out itself. One rule, in one place, is what
+    /// keeps the artifact trees from drifting apart. Mirrors the Java
+    /// runtime's <c>classDirectory</c>.
+    /// </remarks>
+    /// <param name="root">The tree the artifact belongs to.</param>
+    /// <param name="testClassName">Qualified or simple; never trusted to be either.</param>
+    public static string ClassDirectory(string root, string testClassName)
+    {
+        var dot = testClassName.LastIndexOf('.');
+        var simpleName = dot >= 0 ? testClassName[(dot + 1)..] : testClassName;
+        return Path.Combine(root, ToDirectorySlug(simpleName));
+    }
+
+    /// <summary>
     /// Slugs a method name the same way Java does: split camelCase with an
     /// underscore, lower-case, then replace every remaining non-slug character
     /// with an underscore.
     /// </summary>
     public static string ToFileSlug(string methodName)
     {
-        var split = CamelBoundary.Replace(methodName, "$1_$2").ToLowerInvariant();
-        return Capped(NonSlugChar.Replace(split, "_"), MaxComponentBytes - SuffixReserveBytes);
+        return Capped(RawFileSlug(methodName), MaxComponentBytes - SuffixReserveBytes);
+    }
+
+    /// <summary>
+    /// The artifact base name for one invocation of a test method — the
+    /// scheme <see cref="ArtifactIdentity"/> documents in full, and the one
+    /// place it is computed.
+    /// </summary>
+    /// <remarks>
+    /// An index of zero means "this method runs once", which is every
+    /// ordinary test, and returns exactly what <see cref="ToFileSlug(string)"/>
+    /// always returned: no existing artifact — or approved baseline beside it
+    /// — moves. Otherwise the discriminator is appended and the
+    /// <em>method</em> half absorbs any shortening, so the index a reader
+    /// navigates by is never the part truncated away.
+    /// </remarks>
+    /// <param name="methodName">The test method's own name.</param>
+    /// <param name="invocationIndex">1-based invocation number, or <c>0</c> for a method that runs once.</param>
+    /// <param name="invocationLabel">The invocation's display name; may be blank.</param>
+    internal static string ToFileSlug(string methodName, int invocationIndex, string invocationLabel)
+    {
+        if (invocationIndex <= 0)
+        {
+            return ToFileSlug(methodName);
+        }
+
+        var tail = InvocationTail(invocationIndex, invocationLabel);
+        var budget = MaxComponentBytes - SuffixReserveBytes - Utf8Length(tail);
+        return Capped(RawFileSlug(methodName), budget) + tail;
+    }
+
+    /// <summary><c>-002-find_tent</c>: the index a reader navigates by, then the label they recognize.</summary>
+    private static string InvocationTail(int invocationIndex, string invocationLabel)
+    {
+        var index = InvocationSeparator + invocationIndex.ToString("D3", CultureInfo.InvariantCulture);
+        var label = LabelSlug(invocationLabel);
+        return label.Length == 0 ? index : index + InvocationSeparator + label;
+    }
+
+    /// <summary>
+    /// A display name reduced to a readable name fragment: the shared slug
+    /// rule, then runs of <c>_</c> collapsed and the ends trimmed. A label
+    /// that slugs to nothing is dropped entirely — the index alone still
+    /// names the invocation.
+    /// </summary>
+    private static string LabelSlug(string invocationLabel)
+    {
+        var collapsed = RunsOfUnderscore.Replace(RawFileSlug(invocationLabel), "_");
+        var trimmed = collapsed.Trim('_');
+        return Capped(trimmed, MaxLabelBytes);
+    }
+
+    /// <summary>The uncapped slug: camel-case split, lowercased, everything outside the alphabet replaced.</summary>
+    private static string RawFileSlug(string name)
+    {
+        var split = CamelBoundary.Replace(name, "$1_$2").ToLowerInvariant();
+        return NonSlugChar.Replace(split, "_");
     }
 
     /// <summary>
@@ -99,7 +223,7 @@ public sealed class OutputDirectoryResolver
     /// <see cref="Path.Combine(string, string)"/> can round-trip safely on
     /// every platform). Nothing else — a class name keeps its own spelling,
     /// Unicode letters included. Deliberately narrower than
-    /// <see cref="ToFileSlug"/>: this only removes what a path cannot carry,
+    /// <see cref="ToFileSlug(string)"/>: this only removes what a path cannot carry,
     /// so <c>OrderServiceTests</c> still resolves to <c>OrderServiceTests</c>
     /// and no existing artifact — or approved baseline beside it — moves.
     /// </summary>

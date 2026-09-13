@@ -1,4 +1,4 @@
-<!-- source: documentation/what-to-commit.md blob 4477b106b539 | translated: 2026-09-12 | reviewed: - -->
+<!-- source: documentation/what-to-commit.md blob 53d5f82d382c | translated: 2026-09-12 | reviewed: - -->
 # Qué incluir en el commit
 
 [English](../what-to-commit.md) | **Español** | [Português](../pt-BR/o-que-incluir-no-commit.md) | [简体中文](../zh-CN/应提交的内容.md)
@@ -15,7 +15,9 @@ writers de esta implementación realmente producen, no asumido.
 | `<output-dir>/traces/<Class>/<slug>.md` | No | Se regenera en cada ejecución; la traza legible por humanos de una prueba. |
 | `<output-dir>/traces/<Class>/<slug>.json` | No | La misma traza como documento de capítulo JSON — se regenera en cada ejecución. |
 | `<output-dir>/diagrams/<Class>/<slug>.mmd` | No | Diagrama de secuencia Mermaid que la acompaña — se regenera en cada ejecución. |
-| `<output-dir>/structural/<Class>/<slug>.nt` | No, por ahora | Traza estructural sin valores (nombres, jerarquía, tipo de resultado únicamente). Determinista y diffable por construcción, pero **nada en esta implementación la vuelve a leer todavía** — no hay modo de aprobación ni bucle de comparación por delta contra una ejecución anterior, así que no hay línea base con commit contra la que compararla. Se regenera en cada ejecución como el resto. |
+| `<output-dir>/structural/<Class>/<slug>.nt` | No | Traza estructural sin valores (nombres, jerarquía, tipo de resultado únicamente). El archivo en disco es la **última línea base correcta (last green)** *(since 0.1.4, unreleased)*: una ejecución en verde la hace avanzar, una que no está en verde se compara contra ella (la línea "Since last green" del resumen de la suite, el delta del informe de fallo) pero nunca la sobrescribe. Sigue sin ser algo para hacer commit — consulta [Formato de traza estructural](../structural-trace-format.md) para la contraparte con commit. |
+| `<approved-dir>/<Class>/<slug>.approved.nt` | **Sí**, si el [modo de aprobación](../structural-trace-format.md) está activado | *(since 0.1.4, unreleased)* La traza de aprobación revisada — `NARRATIVETRACE_APPROVED_DIR` (por defecto `narratives`), actívalo con `NARRATIVETRACE_APPROVAL=true`. Este es el único archivo de esta tabla que es una decisión deliberada, no una salida. |
+| `<approved-dir>/<Class>/<slug>.received.nt` | No | Se escribe cuando la aprobación no coincide, o cuando aún no existe una traza aprobada. Revísalo, ejecuta `./build.sh Approve` para promoverlo (o renómbralo a mano), y deja que la promoción lo elimine — nunca hagas commit de la traza recibida en sí. |
 | `<output-dir>/traces/<Class>/<slug>.canonical.json` | No | Fixture de conformidad opcional (`NARRATIVETRACE_CANONICAL_JSON=true`), pensado para probar el propio NarrativeTrace contra el esquema canónico — no algo que un proyecto de aplicación necesite conservar. |
 | `<output-dir>/traces/<Class>/<slug>.structural.json` | No | Array de entradas sin valores, opcional (`NARRATIVETRACE_STRUCTURAL_JSON=true`) — mismo razonamiento que `.canonical.json`. |
 | `<output-dir>/clarity-results.json` | No | Informe de claridad a nivel de suite generado (legible por máquina). Aparece siempre que el fixture de la suite se ejecutó y acumuló al menos una entrada, independientemente de `NARRATIVETRACE_OUTPUT` — regenera, no hagas commit. |
@@ -61,18 +63,41 @@ a mano. Un `glossary.json` malformado lanza una excepción en lugar de
 saltarse silenciosamente, lo cual es deliberado: un typo en un archivo
 revisado y con commit debería fallar ruidosamente.
 
-## Lo que esta implementación todavía no tiene
+## El modo de aprobación, de principio a fin
 
-El modo de aprobación aún no está aquí: esta implementación no tiene archivos
-`.approved.nt` / `.received.nt`, ni verbo `approve`, ni nada que compare la
-traza estructural de una ejecución contra una anterior. El artefacto
-estructural `.nt` existe y es determinista, pero todo artefacto de esta
-página es solo salida de regeneración hoy — todavía no hay un flujo de
-trabajo de "línea base con commit que falla un build ante un cambio de
-comportamiento sin revisar" al que apuntarse.
+```text
+la prueba pasa
+   |
+   v
+compara la estructura actual con la traza aprobada
+   |
+   +-- igual      --> pasa, no se escribe nada
+   +-- diferente  --> escribe .received.nt y falla
+                     |
+                     v
+                una persona revisa el diff
+                     |
+                     v
+                ./build.sh Approve
+                     |
+                     v
+              .approved.nt actualizado, haz commit
+```
+
+El estado de fallo es deliberado: una prueba que pasa pero cuya *forma*
+cambió — incluido un cambio que un agente de IA deslizó dentro de un
+refactor por lo demás correcto — tiene que ser revisada y aprobada
+explícitamente, no simplemente compilar. Consulta
+[Formato de traza estructural](../structural-trace-format.md) para el
+comportamiento completo del modo de aprobación, y la
+[Guía de configuración](../guides/es/guia-de-configuracion.md) para
+`NARRATIVETRACE_APPROVAL` / `NARRATIVETRACE_APPROVED_DIR`.
 
 ## Véase también
 
+- [Formato de traza estructural](../structural-trace-format.md) — el
+  formato `.nt`, la identidad de artefacto por invocación, la última línea
+  base correcta y el modo de aprobación completo.
 - [Privacidad y ocultación](privacidad-y-ocultacion.md) — qué hay dentro de
   estos archivos antes de decidir si archivarlos en algún sitio.
 - [Guía de configuración](../guides/es/guia-de-configuracion.md) — las

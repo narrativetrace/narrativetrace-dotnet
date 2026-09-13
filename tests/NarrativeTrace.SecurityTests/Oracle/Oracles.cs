@@ -21,15 +21,22 @@ namespace NarrativeTrace.SecurityTests.Oracle;
 /// *test* that passes because some earlier case cleared the same string out. It also checks a
 /// prefix of the token, because a partial leak through a truncating emitter is still a leak.
 /// </para>
+/// <para>
+/// Used to carry a sixth oracle, <c>WithinBudget</c> — a wall-clock hang detector
+/// (<c>elapsed &lt; Budget</c>, <c>Budget</c> a generous 10-second <see cref="TimeSpan"/>).
+/// Removed 2026-09-13 (family release rule 3: wall-clock, GC and scheduler are never test
+/// inputs): every call site wrapped a property test already covered, elsewhere in the same test,
+/// by <see cref="BoundedSize"/> — the deterministic property the timing bound stood in for — or
+/// (<c>TemplateRedactionPropertyTests</c>, <c>ScannerPropertyTests</c>) by an assertion on the
+/// result itself with no output-size or hang risk once the corpus's caps applied. No call site
+/// needed a new bounded-output test of its own: <c>ValueRendererRedactionPropertyTests</c>'s
+/// hostile-graph theory and <c>OutputFormatPropertyTests.Every_corpus_string_keeps_every_format_bounded</c>
+/// already assert <see cref="BoundedSize"/> for every corpus shape, including the worst cases
+/// (<c>width-100000-list</c>, <c>long-1mib</c>).
+/// </para>
 /// </remarks>
 public static class Oracles
 {
-    /// <summary>
-    /// Wall-clock budget for one input through one emitter. Generous on purpose: this is a hang
-    /// detector, not a benchmark.
-    /// </summary>
-    public static readonly TimeSpan Budget = TimeSpan.FromSeconds(10);
-
     /// <summary>
     /// Ceiling on one emitter's output. The renderer truncates strings at 200 characters and
     /// collections at 5 elements, so a 1 MiB input must not produce a 1 MiB output — but diagrams
@@ -52,16 +59,6 @@ public static class Oracles
     /// random tail makes a false positive impossible.
     /// </returns>
     public static string FreshSentinel() => "sentinel" + Convert.ToHexString(RandomNumberGenerator.GetBytes(7)).ToLowerInvariant();
-
-    /// <summary>Runs <paramref name="work"/>, failing when it takes longer than <see cref="Budget"/>.</summary>
-    public static T WithinBudget<T>(string label, Func<T> work)
-    {
-        var start = DateTime.UtcNow;
-        var result = work();
-        var elapsed = DateTime.UtcNow - start;
-        Assert.True(elapsed < Budget, $"{label} must cost bounded time in the size of its input (took {elapsed})");
-        return result;
-    }
 
     /// <summary>Every emitter's output stays under <see cref="MaxOutputBytes"/>.</summary>
     public static void BoundedSize(IReadOnlyDictionary<string, string> outputs)

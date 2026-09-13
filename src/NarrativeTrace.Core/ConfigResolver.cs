@@ -29,6 +29,15 @@ namespace NarrativeTrace.Core;
 /// veto exists so a deployment can silence the narrative bridges without
 /// unwiring them.
 /// </param>
+/// <param name="Approval">
+/// Approval mode <i>(since 0.1.4, unreleased)</i>: when on, a passing test
+/// whose traced structure differs from its committed <c>*.approved.nt</c>
+/// baseline fails with a readable diff. Off by default — opt in per project.
+/// </param>
+/// <param name="ApprovedDir">
+/// Directory of committed baselines, <c>&lt;dir&gt;/&lt;TestClass&gt;/&lt;scenario&gt;.approved.nt</c>
+/// <i>(since 0.1.4, unreleased)</i>. Null uses the caller's own default.
+/// </param>
 public sealed record ResolvedConfig(
     TracingLevel Level,
     bool Output,
@@ -36,7 +45,9 @@ public sealed record ResolvedConfig(
     OutputFormat Format,
     bool CanonicalJson = false,
     bool StructuralJson = false,
-    bool Narration = true);
+    bool Narration = true,
+    bool Approval = false,
+    string? ApprovedDir = null);
 
 /// <summary>
 /// Resolves configuration from <c>NARRATIVETRACE_*</c> environment
@@ -105,6 +116,22 @@ public static class ConfigResolver
     public const string NarrationKey = "NARRATIVETRACE_NARRATION";
 
     /// <summary>
+    /// Environment variable enabling approval mode <i>(since 0.1.4, unreleased)</i>: a passing test
+    /// whose traced structure differs from its committed <c>*.approved.nt</c> baseline fails with a
+    /// readable diff. Parsed like <see cref="OutputKey"/>. The Java runtime spells the same switch
+    /// <c>narrativetrace.approval</c>.
+    /// </summary>
+    public const string ApprovalKey = "NARRATIVETRACE_APPROVAL";
+
+    /// <summary>
+    /// Environment variable naming the directory of committed approval baselines
+    /// <i>(since 0.1.4, unreleased)</i>. A blank value is treated as unset, like
+    /// <see cref="OutputDirKey"/>. The Java runtime spells the same switch
+    /// <c>narrativetrace.approvedDir</c>.
+    /// </summary>
+    public const string ApprovedDirKey = "NARRATIVETRACE_APPROVED_DIR";
+
+    /// <summary>
     /// Resolves configuration from process environment variables.
     /// </summary>
     public static ResolvedConfig Resolve(
@@ -131,7 +158,9 @@ public static class ConfigResolver
                 read(FormatKey), OutputFormat.Markdown),
             ParseBool(read(CanonicalJsonKey)),
             ParseBool(read(StructuralJsonKey)),
-            !IsOff(read(NarrationKey)));
+            !IsOff(read(NarrationKey)),
+            ParseBool(read(ApprovalKey)),
+            NullIfBlank(read(ApprovedDirKey)));
     }
 
     private static bool ParseBool(string? value)

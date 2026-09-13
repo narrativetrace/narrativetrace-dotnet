@@ -23,6 +23,8 @@ public sealed class NarrativeSuiteReport
 {
     private readonly SuiteTraceAccumulator _accumulator = new();
     private readonly HashSet<ITraceLossSource> _lossSources = [];
+    private readonly List<ScenarioDelta> _deltas = [];
+    private readonly List<ScenarioManifest.Entry> _manifestEntries = [];
     private readonly string _outputDir;
     private readonly Func<string, string?> _readEnv;
 
@@ -71,6 +73,18 @@ public sealed class NarrativeSuiteReport
         _lossSources.Add(source);
     }
 
+    /// <summary>Adds one scenario's structural delta for the suite's "Since last green" footer line.</summary>
+    public void RecordDelta(ScenarioDelta delta)
+    {
+        _deltas.Add(delta);
+    }
+
+    /// <summary>Adds one scenario's row for the run's <c>manifest.json</c>.</summary>
+    public void RecordManifestEntry(ScenarioManifest.Entry entry)
+    {
+        _manifestEntries.Add(entry);
+    }
+
     /// <summary>Every registered source's final reading, added up once each.</summary>
     private TraceLoss AccumulatedLoss()
     {
@@ -99,7 +113,8 @@ public sealed class NarrativeSuiteReport
     {
         ClaritySuiteReporter.Write(
             _accumulator.Entries, _outputDir, console, ProjectVocabulary(console),
-            AccumulatedLoss());
+            AccumulatedLoss(), _deltas);
+        ScenarioManifest.Write(_manifestEntries, _outputDir);
         HarvestGlossary(console);
     }
 

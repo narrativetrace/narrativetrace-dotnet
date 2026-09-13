@@ -33,6 +33,11 @@ public static class SuiteReportWriter
     /// What the run lost, if the caller tracked it. A lossless run — and a
     /// caller that passes <see langword="null"/> — prints no loss line.
     /// </param>
+    /// <param name="deltas">
+    /// Every scenario's structural delta against its last green artifact, if
+    /// the caller tracked them. Prints a trailing "Since last green" line;
+    /// omitted entirely when null, empty, or every delta line renders empty.
+    /// </param>
     public static void Write(
         IReadOnlyList<KeyValuePair<string, TraceTree>> entries,
         string outputDir,
@@ -40,7 +45,8 @@ public static class SuiteReportWriter
         Func<TraceTree, double> clarityScorer,
         Func<IReadOnlyList<KeyValuePair<string, TraceTree>>, string> jsonRenderer,
         Func<IReadOnlyList<KeyValuePair<string, TraceTree>>, string> markdownRenderer,
-        TraceLoss? loss = null)
+        TraceLoss? loss = null,
+        IReadOnlyList<ScenarioDelta>? deltas = null)
     {
         if (entries.Count == 0)
         {
@@ -56,6 +62,17 @@ public static class SuiteReportWriter
         File.WriteAllText(
             Path.Combine(outputDir, ReportFileName), markdownRenderer(entries)); // nosemgrep: csharp.lang.security.filesystem.unsafe-path-combine.unsafe-path-combine
 
+        PrintFooter(entries, outputDir, console, clarityScorer, loss, deltas);
+    }
+
+    private static void PrintFooter(
+        IReadOnlyList<KeyValuePair<string, TraceTree>> entries,
+        string outputDir,
+        TextWriter console,
+        Func<TraceTree, double> clarityScorer,
+        TraceLoss? loss,
+        IReadOnlyList<ScenarioDelta>? deltas)
+    {
         var scores = new List<double>(entries.Count);
         for (var i = 0; i < entries.Count; i++)
         {
@@ -65,5 +82,11 @@ public static class SuiteReportWriter
         console.WriteLine(
             ConsoleSummaryReporter.FormatSuiteFooter(
                 entries.Count, outputDir, scores, loss ?? TraceLoss.None));
+
+        var deltaLine = ConsoleSummaryReporter.FormatDeltaLine(deltas ?? []);
+        if (deltaLine.Length > 0)
+        {
+            console.WriteLine("  Since last green: " + deltaLine);
+        }
     }
 }

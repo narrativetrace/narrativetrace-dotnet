@@ -212,4 +212,34 @@ public class ServiceCollectionExtensionsTests
             TracingLevel.Off,
             provider.GetRequiredService<NarrativeTraceConfig>().Level);
     }
+
+    // The cross-package bridge (see NarrativeTrace.DependencyInjection's
+    // RedactionThreadingTests for the other side): a RedactionPolicy
+    // configured through this package's own options is registered into the
+    // container so NarrativeTrace.DependencyInjection's auto-wrap — a
+    // separate package with no reference to this one — can resolve it as a
+    // fallback for services it wraps in the same app.
+    [Fact]
+    public void Redaction_option_registers_a_RedactionPolicy_singleton()
+    {
+        var policy = RedactionPolicy.OfPatterns(["holdername"]);
+        var services = new ServiceCollection();
+
+        services.AddNarrativeTrace(o => o.Redaction = policy);
+
+        Assert.Same(
+            policy,
+            services.BuildServiceProvider().GetService<RedactionPolicy>());
+    }
+
+    [Fact]
+    public void Leaving_Redaction_unset_registers_no_RedactionPolicy()
+    {
+        var services = new ServiceCollection();
+
+        services.AddNarrativeTrace();
+
+        Assert.Null(
+            services.BuildServiceProvider().GetService<RedactionPolicy>());
+    }
 }

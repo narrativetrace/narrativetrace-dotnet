@@ -73,6 +73,13 @@ records nothing when there is no active trace.
 > request path — don't expect auto-wrapped services to appear in the
 > middleware's exported trace.
 
+**Redaction** *(since 0.1.4, unreleased)*: `NarrativeTraceOptions.Redaction`
+on `AddNarrativeTrace` registers a `RedactionPolicy` in the service
+collection, which `AddNarrativeTracing`'s auto-wrap picks up as a fallback
+for every service it wraps — so a policy configured once here reaches
+auto-wrapped services too, even though the two tracing paths otherwise stay
+independent. See [Configuration Guide §6](configuration.md#6-redaction).
+
 ## 3. Export
 
 By default `AddNarrativeTrace` registers `LoggerTraceExporter`, which logs

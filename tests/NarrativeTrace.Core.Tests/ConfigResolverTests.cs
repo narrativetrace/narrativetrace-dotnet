@@ -97,4 +97,39 @@ public class ConfigResolverTests
 
         Assert.Equal(expected, config.Format);
     }
+
+    [Fact]
+    public void Approval_defaults_to_off()
+    {
+        var config = ConfigResolver.Resolve(Env(), TracingLevel.Detail);
+
+        Assert.False(config.Approval);
+        Assert.Null(config.ApprovedDir);
+    }
+
+    [Theory]
+    [InlineData("true", true)]
+    [InlineData("TRUE", true)]
+    [InlineData("1", true)]
+    [InlineData("false", false)]
+    [InlineData("garbage", false)]
+    public void Resolves_the_approval_flag(string value, bool expected)
+    {
+        var config = ConfigResolver.Resolve(
+            Env((ConfigResolver.ApprovalKey, value)), TracingLevel.Detail);
+
+        Assert.Equal(expected, config.Approval);
+    }
+
+    [Fact]
+    public void Resolves_approved_dir_and_trims_blank_to_null()
+    {
+        var withValue = ConfigResolver.Resolve(
+            Env((ConfigResolver.ApprovedDirKey, " narratives ")), TracingLevel.Detail);
+        var blank = ConfigResolver.Resolve(
+            Env((ConfigResolver.ApprovedDirKey, "   ")), TracingLevel.Detail);
+
+        Assert.Equal("narratives", withValue.ApprovedDir);
+        Assert.Null(blank.ApprovedDir);
+    }
 }

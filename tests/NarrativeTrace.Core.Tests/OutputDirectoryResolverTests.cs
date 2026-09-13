@@ -10,6 +10,15 @@ namespace NarrativeTrace.Core.Tests;
 public sealed class OutputDirectoryResolverTests
 {
     private const int MaxComponentBytes = 255;
+
+    [Fact]
+    public void BaseDir_returns_exactly_what_the_constructor_was_given()
+    {
+        var resolver = new OutputDirectoryResolver("some/relative/dir");
+
+        Assert.Equal("some/relative/dir", resolver.BaseDir);
+    }
+
     [Fact]
     public void Trace_directory_uses_the_simple_class_name_under_traces()
     {

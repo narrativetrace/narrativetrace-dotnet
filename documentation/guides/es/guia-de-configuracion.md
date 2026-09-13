@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/configuration.md blob 82efb7918666 | translated: 2026-09-12 | reviewed: - -->
+<!-- source: documentation/guides/configuration.md blob b1a0d174b356 | translated: 2026-09-12 | reviewed: - -->
 # NarrativeTrace .NET — Guía de configuración
 
 [English](../configuration.md) | **Español** | [Português](../pt-BR/guia-de-configuracao.md) | [简体中文](../zh-CN/配置指南.md)
@@ -75,6 +75,8 @@ una configuración incorrecta nunca rompe la captura.
 | `NARRATIVETRACE_FORMAT` | `Markdown`, `Text`, `Prose`, `Json` | `Markdown` |
 | `NARRATIVETRACE_CANONICAL_JSON` | `true` / `false` (o `1`) | `false` |
 | `NARRATIVETRACE_STRUCTURAL_JSON` | `true` / `false` (o `1`) | `false` |
+| `NARRATIVETRACE_APPROVAL` | `true` / `false` (o `1`) | `false` |
+| `NARRATIVETRACE_APPROVED_DIR` | cualquier ruta con permiso de escritura | `narratives` |
 
 El parseo del nivel y del formato es tolerante (insensible a mayúsculas y
 puntuación: `detail`, `DETAIL` y `Detail` resuelven todos).
@@ -111,6 +113,24 @@ junto al fichero de traza, sea cual sea el formato principal:
 
 Ambos están desactivados por defecto: son artefactos de máquina, no algo que se
 lea junto a la traza.
+
+`NARRATIVETRACE_APPROVAL` activa el modo de aprobación *(since 0.1.4,
+unreleased)*: después de una prueba que **pasa**, la estructura sin
+valores del escenario (el mismo render que el artefacto `.nt`) se verifica
+contra la traza aprobada con commit
+`<approvedDir>/<TestClassSimpleName>/<artifact_name>.approved.nt` — la
+misma identidad de artefacto que cualquier otro archivo por prueba, así
+que un método que se ejecuta más de una vez tiene una traza aprobada por
+invocación. Una traza aprobada ausente o una diferencia estructural hace
+fallar la prueba con un diff legible y escribe la estructura actual junto
+a ella como `*.received.nt`; revísala y acéptala mediante el build target
+`Approve` (`./build.sh Approve`) o renómbrala a mano. La estructura de una
+prueba que falla nunca se verifica — está a mitad de camino y no debe
+agitar las trazas recibidas. `NARRATIVETRACE_APPROVED_DIR` nombra el
+directorio donde viven esas líneas base (por defecto `narratives`).
+Consulta [Formato de traza estructural](../../structural-trace-format.md)
+para el comportamiento completo, y [Qué incluir en el commit](../../es/que-incluir-en-el-commit.md)
+para saber cuáles de estos archivos hacer commit.
 
 ## 3. Inyección de dependencias
 
@@ -283,11 +303,20 @@ como para los nombres de propiedad reflejados de un objeto anidado — en
 lugar de ampliarla, así que `RedactionPolicy.Disabled` aquí realmente
 desactiva la ocultación basada en nombre de principio a fin (`[NotTraced]`
 sigue ocultando de todos modos). Deja `Redaction` sin definir (el valor
-por defecto) y un proxy se comporta exactamente como antes. La
-auto-envoltura de DI (`AddNarrativeTracing`) y el middleware de ASP.NET
-Core todavía no exponen este campo — consulta
-[Privacidad y ocultación](../../es/privacidad-y-ocultacion.md) para el cuadro
-completo, superficie por superficie.
+por defecto) y un proxy se comporta exactamente como antes.
+
+La auto-envoltura de DI y la integración de ASP.NET Core exponen el mismo
+gancho *(since 0.1.4, unreleased)*: `NarrativeTracingDiOptions.Redaction`
+en [`AddNarrativeTracing`](guia-de-inyeccion-de-dependencias.md) alcanza
+cada servicio que esa llamada envuelve, y `NarrativeTraceOptions.Redaction`
+en [`AddNarrativeTrace`](guia-de-integracion-con-aspnet-core.md) también
+alcanza los proxies auto-envueltos cuando ambos están registrados en la
+misma aplicación — una política configurada en cualquiera de los dos lados
+es visible para el otro, ya que los dos paquetes comparten una única
+colección de servicios. El propio `Redaction` de `AddNarrativeTracing`,
+cuando está definido, tiene prioridad para los servicios que envuelve.
+Consulta [Privacidad y ocultación](../../es/privacidad-y-ocultacion.md)
+para el cuadro completo, superficie por superficie.
 
 **Ampliar todas las superficies a la vez, sin tocar el código.**
 `NARRATIVETRACE_REDACTION_ADDITIONALPATTERNS` es una lista de patrones de
