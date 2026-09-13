@@ -105,11 +105,12 @@ public static class TraceArtifactWriter
         TraceArtifactFormat format,
         TraceArtifactRenderers renderers,
         TextWriter console,
-        EntryArtifacts entryArtifacts = default)
+        EntryArtifacts entryArtifacts = default,
+        string? runName = null)
     {
         return Write(
             tree, ArtifactIdentity.OfMethod(testClassName, testMethodName), displayName, failed,
-            outputDir, format, renderers, console, entryArtifacts);
+            outputDir, format, renderers, console, entryArtifacts, runName);
     }
 
     /// <summary>
@@ -139,6 +140,13 @@ public static class TraceArtifactWriter
     /// structure would advance the last-green baseline (see
     /// <see cref="WriteStructuralArtifact"/>).
     /// </remarks>
+    /// <param name="runName">
+    /// The enclosing test-suite run's three-word phrase, reaching only the
+    /// Markdown document's frontmatter (<c>run:</c>) — never the structural
+    /// artifact, never the delta, never any other format (2026-09-13 ruling,
+    /// items 2–3) *(since 0.1.4, unreleased)*. <see langword="null"/> outside a
+    /// tracked run.
+    /// </param>
     public static ScenarioDelta? Write(
         TraceTree tree,
         ArtifactIdentity identity,
@@ -148,7 +156,8 @@ public static class TraceArtifactWriter
         TraceArtifactFormat format,
         TraceArtifactRenderers renderers,
         TextWriter console,
-        EntryArtifacts entryArtifacts = default)
+        EntryArtifacts entryArtifacts = default,
+        string? runName = null)
     {
         if (tree.IsEmpty)
         {
@@ -161,11 +170,11 @@ public static class TraceArtifactWriter
             resolver.TraceDirectory(identity.TestClassName), slug + Extension(format));
         WriteFile(
             file,
-            RenderForFormat(format, tree, displayName, failed, renderers));
+            RenderForFormat(format, tree, displayName, failed, renderers, runName));
         EchoToConsole(console, displayName, tree, file);
 
         var delta = WriteMarkdownExtras(
-            tree, identity, displayName, failed, resolver, renderers, format);
+            tree, identity, displayName, failed, resolver, renderers, format, runName);
         WriteEntryArtifacts(
             tree, resolver.TraceDirectory(identity.TestClassName), slug, renderers,
             entryArtifacts);
@@ -200,7 +209,7 @@ public static class TraceArtifactWriter
 
     private static string RenderForFormat(
         TraceArtifactFormat format, TraceTree tree, string displayName,
-        bool failed, TraceArtifactRenderers renderers)
+        bool failed, TraceArtifactRenderers renderers, string? runName)
     {
         return format switch
         {
@@ -215,7 +224,8 @@ public static class TraceArtifactWriter
                 tree,
                 new TraceMetadata(
                     ScenarioFramer.Humanize(displayName),
-                    ScenarioResultExtensions.Of(failed))),
+                    ScenarioResultExtensions.Of(failed),
+                    RunName: runName)),
         };
     }
 
@@ -226,7 +236,7 @@ public static class TraceArtifactWriter
     private static ScenarioDelta? WriteMarkdownExtras(
         TraceTree tree, ArtifactIdentity identity, string displayName, bool failed,
         OutputDirectoryResolver resolver, TraceArtifactRenderers renderers,
-        TraceArtifactFormat format)
+        TraceArtifactFormat format, string? runName)
     {
         if (format != TraceArtifactFormat.Markdown)
         {

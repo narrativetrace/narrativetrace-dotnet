@@ -299,6 +299,63 @@ public sealed class NarrativeSuiteReportTests
         Assert.Throws<ArgumentNullException>(() => report.ReportLoss(null!));
     }
 
+    /// <summary>Ruling item 2 (2026-09-13): the footer names this report's own run.</summary>
+    [Fact]
+    public void Flush_writes_the_run_name_in_the_console_footer()
+    {
+        var dir = Path.Combine(
+            Path.GetTempPath(), "nt-nunit-suite-" + Guid.NewGuid().ToString("N"));
+        var console = new StringWriter();
+        try
+        {
+            var report = Report(dir);
+            report.Record("first", Tree());
+
+            report.Flush(console);
+
+            Assert.Contains($"run: {report.RunIdentity.Name}", console.ToString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    /// <summary>Ruling item 2: <c>manifest.json</c> carries the same run identity as the footer.</summary>
+    [Fact]
+    public void Flush_writes_the_run_identity_into_the_manifest()
+    {
+        var dir = Path.Combine(
+            Path.GetTempPath(), "nt-nunit-suite-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var report = Report(dir);
+            report.Record("first", Tree());
+            report.RecordManifestEntry(
+                ScenarioManifest.EntryFor(dir, ArtifactIdentity.OfMethod("Test", "first"), "first"));
+
+            report.Flush(TextWriter.Null);
+
+            var manifest = File.ReadAllText(Path.Combine(dir, "manifest.json"));
+            Assert.Contains($"\"id\": \"{report.RunIdentity.Id.Value}\"", manifest, StringComparison.Ordinal);
+            Assert.Contains($"\"name\": \"{report.RunIdentity.Name}\"", manifest, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    /// <summary>Ruling item 3: two different reports name different runs.</summary>
+    [Fact]
+    public void Two_reports_generate_different_run_names()
+    {
+        var one = Report(Path.GetTempPath());
+        var two = Report(Path.GetTempPath());
+
+        Assert.NotEqual(one.RunIdentity.Name, two.RunIdentity.Name);
+    }
+
     private sealed class StubLossSource(TraceLoss loss) : ITraceLossSource
     {
         public TraceLoss TraceLoss { get; } = loss;

@@ -24,7 +24,13 @@ public abstract class NarrativeSuiteSetup
     {
         var directory = TestArtifactSettings
             .Resolve(Environment.GetEnvironmentVariable).Directory;
-        NarrativeSuiteScope.Begin(new NarrativeSuiteReport(directory));
+        var report = new NarrativeSuiteReport(directory);
+        NarrativeSuiteScope.Begin(report);
+        // Published for the whole run's lifetime so NarrativeTestBase's
+        // per-test write — a separate object, with no reference back to this
+        // report — can still name its Markdown frontmatter's run: field with
+        // the same identity (2026-09-13 ruling, item 2).
+        RunScope.Begin(report.RunIdentity);
     }
 
     /// <summary>
@@ -38,6 +44,13 @@ public abstract class NarrativeSuiteSetup
     [OneTimeTearDown]
     public void EndNarrativeSuite()
     {
-        NarrativeSuiteScope.End(TestContext.Progress);
+        try
+        {
+            NarrativeSuiteScope.End(TestContext.Progress);
+        }
+        finally
+        {
+            RunScope.End();
+        }
     }
 }

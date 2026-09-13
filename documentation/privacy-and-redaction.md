@@ -170,6 +170,12 @@ Every rendered value is capped and sanitized, regardless of redaction:
   `NARRATIVETRACE_OUTPUT_DIR` to redirect it; see
   [What to Commit](what-to-commit.md) for what's inside and whether any of
   it belongs in your own repository.
+- **A trace's name and a run's name carry no data.** Both are a
+  deterministic three-word phrase derived from a random id (see
+  [Configuration Guide §7](guides/configuration.md#7-logging-bridge-microsoftextensionslogging)
+  *(since 0.1.4, unreleased)*) — never from anything captured — so neither
+  can leak a runtime value, and both stay out of the structural `.nt`
+  artifact for the same reason everything else in it does.
 
 ## Non-guarantees
 

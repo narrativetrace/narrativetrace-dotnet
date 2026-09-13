@@ -123,6 +123,50 @@ public sealed class ScenarioManifestTests : IDisposable
         Assert.Equal(1, doc.RootElement.GetProperty("scenarios").GetArrayLength());
     }
 
+    /// <summary>Ruling item 2 (2026-09-13): a named run adds a top-level "run" object.</summary>
+    [Fact]
+    public void Render_carries_the_run_object_when_one_is_given()
+    {
+        var entry = new ScenarioManifest.Entry(
+            "Places an order", ArtifactIdentity.OfMethod("OrderTests", "PlacesOrder"),
+            [new KeyValuePair<string, string>("trace", "traces/OrderTests/places_order.md")]);
+        var run = RunIdentity.Generate();
+
+        var rendered = ScenarioManifest.Render([entry], run);
+
+        using var doc = System.Text.Json.JsonDocument.Parse(rendered);
+        var runElement = doc.RootElement.GetProperty("run");
+        Assert.Equal(run.Id.Value, runElement.GetProperty("id").GetString());
+        Assert.Equal(run.Name, runElement.GetProperty("name").GetString());
+    }
+
+    [Fact]
+    public void Render_omits_the_run_object_when_none_is_given()
+    {
+        var entry = new ScenarioManifest.Entry(
+            "Places an order", ArtifactIdentity.OfMethod("OrderTests", "PlacesOrder"), []);
+
+        var rendered = ScenarioManifest.Render([entry]);
+
+        using var doc = System.Text.Json.JsonDocument.Parse(rendered);
+        Assert.False(doc.RootElement.TryGetProperty("run", out _));
+    }
+
+    /// <summary>Ruling item 3: the run never enters a scenario's own per-row keys.</summary>
+    [Fact]
+    public void The_run_object_never_reaches_a_scenario_row()
+    {
+        var entry = new ScenarioManifest.Entry(
+            "Places an order", ArtifactIdentity.OfMethod("OrderTests", "PlacesOrder"), []);
+        var run = RunIdentity.Generate();
+
+        var rendered = ScenarioManifest.Render([entry], run);
+
+        using var doc = System.Text.Json.JsonDocument.Parse(rendered);
+        var row = doc.RootElement.GetProperty("scenarios")[0];
+        Assert.False(row.TryGetProperty("run", out _));
+    }
+
     private static int CountOccurrences(string text, string token)
     {
         var count = 0;

@@ -120,16 +120,33 @@ public static class ScenarioManifest
     /// <summary>Writes <c>manifest.json</c>; writes nothing at all when the run traced no scenario.</summary>
     public static void Write(IReadOnlyList<Entry> entries, string outputDir)
     {
+        Write(entries, outputDir, run: null);
+    }
+
+    /// <summary>
+    /// The same write, naming the test-suite run that produced it: a top-level
+    /// <c>run</c> object (<c>id</c>, <c>name</c>) beside <c>scenarios</c>
+    /// (2026-09-13 ruling, item 2) *(since 0.1.4, unreleased)*.
+    /// </summary>
+    /// <param name="run"><see langword="null"/> to omit the <c>run</c> object entirely — a caller that has not adopted <see cref="RunIdentity"/>.</param>
+    public static void Write(IReadOnlyList<Entry> entries, string outputDir, RunIdentity? run)
+    {
         if (entries.Count == 0)
         {
             return;
         }
 
-        TraceFileWriter.Write(Path.Combine(outputDir, FileName), Render(entries));
+        TraceFileWriter.Write(Path.Combine(outputDir, FileName), Render(entries, run));
     }
 
-    /// <summary>The manifest document, rendered.</summary>
+    /// <summary>The manifest document, rendered, with no run identity.</summary>
     public static string Render(IReadOnlyList<Entry> entries)
+    {
+        return Render(entries, run: null);
+    }
+
+    /// <summary>The manifest document, rendered, naming <paramref name="run"/> when it is not <see langword="null"/>.</summary>
+    public static string Render(IReadOnlyList<Entry> entries, RunIdentity? run)
     {
         var rows = new List<string>(entries.Count);
         foreach (var entry in entries)
@@ -137,8 +154,22 @@ public static class ScenarioManifest
             rows.Add(RenderEntry(entry));
         }
 
-        return "{\n  \"schema\": \"" + Schema + "\",\n  \"scenarios\": [\n"
+        return "{\n  \"schema\": \"" + Schema + "\",\n" + RenderRun(run) + "  \"scenarios\": [\n"
             + string.Join(",\n", rows) + "\n  ]\n}\n";
+    }
+
+    /// <summary>The <c>"run": {...},\n</c> object, or empty text when <paramref name="run"/> is <see langword="null"/>.</summary>
+    private static string RenderRun(RunIdentity? run)
+    {
+        if (run is null)
+        {
+            return string.Empty;
+        }
+
+        return "  \"run\": {\n"
+            + "    \"id\": \"" + JsonEscape.Escape(run.Id.Value) + "\",\n"
+            + "    \"name\": \"" + JsonEscape.Escape(run.Name) + "\"\n"
+            + "  },\n";
     }
 
     private static string RenderEntry(Entry entry)

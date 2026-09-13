@@ -28,6 +28,18 @@ public sealed class NarrativeSuiteReport
     private readonly string _outputDir;
     private readonly Func<string, string?> _readEnv;
 
+    /// <summary>
+    /// This report's own test-suite execution identity — generated once, at
+    /// construction, which is once per <see cref="NarrativeSuiteSetup"/>
+    /// <c>[OneTimeSetUp]</c> (2026-09-13 ruling, item 2) *(since 0.1.4,
+    /// unreleased)*. Threaded explicitly into this suite's own footer and
+    /// manifest; <see cref="NarrativeSuiteSetup"/> additionally publishes it
+    /// via <see cref="RunScope"/> so <see cref="NarrativeTestBase"/>'s
+    /// per-test write can name its Markdown frontmatter's <c>run:</c> field
+    /// with the same identity.
+    /// </summary>
+    public RunIdentity RunIdentity { get; } = RunIdentity.Generate();
+
     /// <summary>Creates a suite report writing into the given directory.</summary>
     /// <param name="outputDir">Where <c>clarity-results.json</c> and the report are written. Created if missing.</param>
     public NarrativeSuiteReport(string outputDir)
@@ -113,8 +125,8 @@ public sealed class NarrativeSuiteReport
     {
         ClaritySuiteReporter.Write(
             _accumulator.Entries, _outputDir, console, ProjectVocabulary(console),
-            AccumulatedLoss(), _deltas);
-        ScenarioManifest.Write(_manifestEntries, _outputDir);
+            AccumulatedLoss(), _deltas, RunIdentity);
+        ScenarioManifest.Write(_manifestEntries, _outputDir, RunIdentity);
         HarvestGlossary(console);
     }
 

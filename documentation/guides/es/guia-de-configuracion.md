@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/configuration.md blob b1a0d174b356 | translated: 2026-09-12 | reviewed: - -->
+<!-- source: documentation/guides/configuration.md blob 679e070102fd | translated: 2026-09-13 | reviewed: - -->
 # NarrativeTrace .NET — Guía de configuración
 
 [English](../configuration.md) | **Español** | [Português](../pt-BR/guia-de-configuracao.md) | [简体中文](../zh-CN/配置指南.md)
@@ -378,6 +378,20 @@ llamadas manuales de log; NarrativeTrace captura la historia a partir de
 las firmas y los valores de retorno. Mezcla llamadas a `ILogger` solo para
 decisiones que no afloran en las fronteras de los métodos, y elimínalas a
 medida que refactorizas.
+
+**Una ejecución de la suite de pruebas también tiene nombre**
+*(desde 0.1.4, sin publicar)*: mientras `NarrativeTrace.Testing.Xunit` o
+`NarrativeTrace.Testing.NUnit` tenga una ejecución de suite activa, ambos
+puentes anteriores añaden además `nt.runName` al scope — la frase de tres
+palabras propia de la ejecución, junto a `nt.traceId`/`nt.traceName`, de
+modo que un solo grep encuentra las líneas de log de una ejecución. Está
+ausente por completo fuera de una ejecución rastreada. La misma identidad
+también nombra el pie de página de consola de la suite (`run: bold elk
+soars`) y el objeto `run` de nivel superior de `manifest.json`, y precede
+al frontmatter del documento Markdown de la traza (`run:`) y a la línea de
+apertura de los renderizadores de texto/prosa — nunca al artefacto
+estructural `.nt`, sin valores (ver
+[Formato de Traza Estructural](../../structural-trace-format.md)).
 
 ## 8. TracingLevel frente al nivel de logging
 

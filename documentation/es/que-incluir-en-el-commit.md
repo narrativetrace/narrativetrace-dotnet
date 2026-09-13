@@ -1,4 +1,4 @@
-<!-- source: documentation/what-to-commit.md blob 53d5f82d382c | translated: 2026-09-12 | reviewed: - -->
+<!-- source: documentation/what-to-commit.md blob e4249e7cb168 | translated: 2026-09-13 | reviewed: - -->
 # Qué incluir en el commit
 
 [English](../what-to-commit.md) | **Español** | [Português](../pt-BR/o-que-incluir-no-commit.md) | [简体中文](../zh-CN/应提交的内容.md)
@@ -15,6 +15,7 @@ writers de esta implementación realmente producen, no asumido.
 | `<output-dir>/traces/<Class>/<slug>.md` | No | Se regenera en cada ejecución; la traza legible por humanos de una prueba. |
 | `<output-dir>/traces/<Class>/<slug>.json` | No | La misma traza como documento de capítulo JSON — se regenera en cada ejecución. |
 | `<output-dir>/diagrams/<Class>/<slug>.mmd` | No | Diagrama de secuencia Mermaid que la acompaña — se regenera en cada ejecución. |
+| `<output-dir>/manifest.json` | No | Se regenera en cada ejecución; su objeto `run` de nivel superior (`id`, `name` — la frase de tres palabras propia de la ejecución) nombra *esta ejecución*, no un escenario, así que cambia en cada ejecución aunque nada más cambie *(since 0.1.4, unreleased)*. |
 | `<output-dir>/structural/<Class>/<slug>.nt` | No | Traza estructural sin valores (nombres, jerarquía, tipo de resultado únicamente). El archivo en disco es la **última línea base correcta (last green)** *(since 0.1.4, unreleased)*: una ejecución en verde la hace avanzar, una que no está en verde se compara contra ella (la línea "Since last green" del resumen de la suite, el delta del informe de fallo) pero nunca la sobrescribe. Sigue sin ser algo para hacer commit — consulta [Formato de traza estructural](../structural-trace-format.md) para la contraparte con commit. |
 | `<approved-dir>/<Class>/<slug>.approved.nt` | **Sí**, si el [modo de aprobación](../structural-trace-format.md) está activado | *(since 0.1.4, unreleased)* La traza de aprobación revisada — `NARRATIVETRACE_APPROVED_DIR` (por defecto `narratives`), actívalo con `NARRATIVETRACE_APPROVAL=true`. Este es el único archivo de esta tabla que es una decisión deliberada, no una salida. |
 | `<approved-dir>/<Class>/<slug>.received.nt` | No | Se escribe cuando la aprobación no coincide, o cuando aún no existe una traza aprobada. Revísalo, ejecuta `./build.sh Approve` para promoverlo (o renómbralo a mano), y deja que la promoción lo elimine — nunca hagas commit de la traza recibida en sí. |

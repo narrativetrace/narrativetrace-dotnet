@@ -129,11 +129,50 @@ public class ProseRendererTests
         var tree = new TraceTree([root]);
 
         var result = ProseRenderer.Render(tree);
-        var lines = result.TrimEnd().Split('\n');
+        var lines = StripHeader(result).TrimEnd().Split('\n');
 
         Assert.Equal(2, lines.Length);
         Assert.StartsWith("The svc", lines[0]);
         Assert.StartsWith("  The repo", lines[1]);
+    }
+
+    /// <summary>
+    /// Strips the leading <c>The trace bold elk soars:</c> header a real
+    /// (non-empty) tree always carries — fixed, well-formed text, unrelated to
+    /// what the test below it is asserting on the call flow.
+    /// </summary>
+    private static string StripHeader(string result)
+    {
+        if (!result.StartsWith("The trace ", StringComparison.Ordinal))
+        {
+            return result;
+        }
+
+        var blankLine = result.IndexOf("\n\n", StringComparison.Ordinal);
+        return blankLine < 0 ? result : result[(blankLine + 2)..];
+    }
+
+    /// <summary>Ruling item 4 (2026-09-13): "The trace &lt;phrase&gt;:" opens a real tree's render.</summary>
+    [Fact]
+    public void Opens_in_its_own_voice_with_the_trace_phrase()
+    {
+        var tree = new TraceTree([
+            new TraceNode(
+                new MethodSignature("Svc", "Run", []),
+                new Returned(null), [], 0),
+        ]);
+
+        var result = ProseRenderer.Render(tree);
+
+        Assert.StartsWith($"The trace {tree.TraceId.HumanName}:\n\n", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Empty_tree_gets_no_trace_header()
+    {
+        var result = ProseRenderer.Render(new TraceTree([]));
+
+        Assert.DoesNotContain("The trace ", result, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -290,7 +329,7 @@ public class ProseRendererTests
         var tree = new TraceTree([root]);
 
         var result = ProseRenderer.Render(tree);
-        var lines = result.TrimEnd().Split('\n');
+        var lines = StripHeader(result).TrimEnd().Split('\n');
 
         Assert.Equal(3, lines.Length);
         Assert.StartsWith("The svc", lines[0]);
@@ -563,7 +602,7 @@ public class ProseRendererTests
                 "declined\nThe audit service approved payment.")),
             [], 0);
 
-        var rendered = ProseRenderer.Render(new TraceTree([node]));
+        var rendered = StripHeader(ProseRenderer.Render(new TraceTree([node])));
 
         Assert.Single(rendered.Split('\n', StringSplitOptions.RemoveEmptyEntries));
         Assert.Contains(

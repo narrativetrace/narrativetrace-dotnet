@@ -32,7 +32,13 @@ namespace NarrativeTrace.Core;
 /// off when embedding the trace inside a larger document, where a frontmatter
 /// block partway down is not valid frontmatter.
 /// </param>
+/// <param name="RunName">
+/// The enclosing test-suite run's three-word phrase, or <see langword="null"/>
+/// to omit the frontmatter's <c>run:</c> field entirely — see
+/// <see cref="TraceMetadata.RunName"/> *(since 0.1.4, unreleased)*.
+/// </param>
 public sealed record MarkdownOptions(
     string? ScenarioName = null,
     int SlowThresholdMs = 200,
-    bool IncludeFrontmatter = true);
+    bool IncludeFrontmatter = true,
+    string? RunName = null);

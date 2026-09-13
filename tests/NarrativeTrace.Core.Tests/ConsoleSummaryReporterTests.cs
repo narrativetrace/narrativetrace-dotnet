@@ -88,4 +88,35 @@ public sealed class ConsoleSummaryReporterTests
         Assert.Contains("33% moderate", footer, StringComparison.Ordinal);
         Assert.Contains("33% low", footer, StringComparison.Ordinal);
     }
+
+    /// <summary>Ruling item 2 (2026-09-13): a named run adds a "run: &lt;phrase&gt;" line.</summary>
+    [Fact]
+    public void Plain_footer_names_the_run_when_one_is_given()
+    {
+        var run = RunIdentity.Generate();
+
+        var footer = ConsoleSummaryReporter.FormatSuiteFooter(2, "out/dir", run);
+
+        Assert.Contains($"run: {run.Name}", footer, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Plain_footer_omits_the_run_line_when_none_is_given()
+    {
+        var footer = ConsoleSummaryReporter.FormatSuiteFooter(2, "out/dir");
+
+        Assert.DoesNotContain("run:", footer, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Clarity_footer_names_the_run_before_the_scenario_count()
+    {
+        var run = RunIdentity.Generate();
+
+        var footer = ConsoleSummaryReporter.FormatSuiteFooter(2, "o", [0.9], TraceLoss.None, run);
+
+        var runLine = footer.IndexOf("run: " + run.Name, StringComparison.Ordinal);
+        var countLine = footer.IndexOf("2 scenarios recorded", StringComparison.Ordinal);
+        Assert.True(runLine >= 0 && runLine < countLine);
+    }
 }

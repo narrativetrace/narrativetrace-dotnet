@@ -38,6 +38,11 @@ public static class SuiteReportWriter
     /// the caller tracked them. Prints a trailing "Since last green" line;
     /// omitted entirely when null, empty, or every delta line renders empty.
     /// </param>
+    /// <param name="run">
+    /// The test-suite run this suite executed as, named in the footer's
+    /// leading <c>run:</c> line; <see langword="null"/> when the caller has
+    /// not adopted <see cref="RunIdentity"/> *(since 0.1.4, unreleased)*.
+    /// </param>
     public static void Write(
         IReadOnlyList<KeyValuePair<string, TraceTree>> entries,
         string outputDir,
@@ -46,7 +51,8 @@ public static class SuiteReportWriter
         Func<IReadOnlyList<KeyValuePair<string, TraceTree>>, string> jsonRenderer,
         Func<IReadOnlyList<KeyValuePair<string, TraceTree>>, string> markdownRenderer,
         TraceLoss? loss = null,
-        IReadOnlyList<ScenarioDelta>? deltas = null)
+        IReadOnlyList<ScenarioDelta>? deltas = null,
+        RunIdentity? run = null)
     {
         if (entries.Count == 0)
         {
@@ -62,7 +68,7 @@ public static class SuiteReportWriter
         File.WriteAllText(
             Path.Combine(outputDir, ReportFileName), markdownRenderer(entries)); // nosemgrep: csharp.lang.security.filesystem.unsafe-path-combine.unsafe-path-combine
 
-        PrintFooter(entries, outputDir, console, clarityScorer, loss, deltas);
+        PrintFooter(entries, outputDir, console, clarityScorer, loss, deltas, run);
     }
 
     private static void PrintFooter(
@@ -71,7 +77,8 @@ public static class SuiteReportWriter
         TextWriter console,
         Func<TraceTree, double> clarityScorer,
         TraceLoss? loss,
-        IReadOnlyList<ScenarioDelta>? deltas)
+        IReadOnlyList<ScenarioDelta>? deltas,
+        RunIdentity? run)
     {
         var scores = new List<double>(entries.Count);
         for (var i = 0; i < entries.Count; i++)
@@ -81,7 +88,7 @@ public static class SuiteReportWriter
 
         console.WriteLine(
             ConsoleSummaryReporter.FormatSuiteFooter(
-                entries.Count, outputDir, scores, loss ?? TraceLoss.None));
+                entries.Count, outputDir, scores, loss ?? TraceLoss.None, run));
 
         var deltaLine = ConsoleSummaryReporter.FormatDeltaLine(deltas ?? []);
         if (deltaLine.Length > 0)

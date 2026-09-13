@@ -76,6 +76,8 @@ string Observe(ContractEntry entry, Args opts) => entry.Id switch
     "probed-platform-type-carveout" => PlatformTypeCarveoutProbe.Observe(),
     "config-shape-one-package-install" => OnePackageInstallProbe.Observe(opts.RegistryBase, opts.Version),
     "config-shape-tracelogexporter-export-to-logger" => TraceLogExporterProbe.Observe(),
+    "probed-run-name-console-footer" => RunNameConsoleFooterProbe.Observe(),
+    "probed-run-name-manifest-field" => RunNameManifestFieldProbe.Observe(),
     _ => throw new InvalidOperationException(
         $"no probe dispatch registered for entry \"{entry.Id}\" — add one in Program.cs's Observe"),
 };

@@ -40,13 +40,19 @@ public static class ClaritySuiteReporter
     /// Every scenario's structural delta against its last green artifact, if
     /// the integration tracked them. Adds the "Since last green" line.
     /// </param>
+    /// <param name="run">
+    /// The test-suite run this suite executed as, named in the footer's
+    /// leading <c>run:</c> line; <see langword="null"/> when the integration
+    /// has not adopted <see cref="RunIdentity"/> *(since 0.1.4, unreleased)*.
+    /// </param>
     public static void Write(
         IReadOnlyList<KeyValuePair<string, TraceTree>> entries,
         string outputDir,
         TextWriter console,
         DomainVocabulary? vocabulary = null,
         TraceLoss? loss = null,
-        IReadOnlyList<ScenarioDelta>? deltas = null)
+        IReadOnlyList<ScenarioDelta>? deltas = null,
+        RunIdentity? run = null)
     {
         SuiteReportWriter.Write(
             entries,
@@ -56,7 +62,8 @@ public static class ClaritySuiteReporter
             scored => RenderJson(scored, vocabulary),
             scored => RenderMarkdown(scored, vocabulary),
             loss,
-            deltas);
+            deltas,
+            run);
     }
 
     private static double Score(TraceTree tree, DomainVocabulary? vocabulary)

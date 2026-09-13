@@ -359,6 +359,17 @@ NarrativeTrace captures the story from signatures and return values. Mix
 in `ILogger` calls only for decisions that don't surface at method
 boundaries, then remove them as you refactor.
 
+**A test-suite run has a name too** *(since 0.1.4, unreleased)*: while
+`NarrativeTrace.Testing.Xunit` or `NarrativeTrace.Testing.NUnit` has an
+active suite run, both bridges above additionally add `nt.runName` to the
+scope — the run's own three-word phrase, alongside `nt.traceId`/
+`nt.traceName`, so one grep finds one run's log lines. Absent entirely
+outside a tracked run. The same identity also names the console suite
+footer (`run: bold elk soars`) and `manifest.json`'s top-level `run`
+object, and prefixes the Markdown trace document's frontmatter (`run:`)
+and the text/prose renderers' opening line — never the value-free `.nt`
+structural artifact (see [Structural Trace Format](../structural-trace-format.md)).
+
 ## 8. TracingLevel vs. logging level
 
 These are two independent filters. **TracingLevel** controls what is

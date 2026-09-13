@@ -33,6 +33,20 @@ public sealed class NarrativeSuiteFixture : IDisposable
     private bool _flushed;
 
     /// <summary>
+    /// This fixture's own test-suite execution identity — generated once, at
+    /// construction, which is exactly once per collection this fixture is
+    /// registered against (2026-09-13 ruling, item 2; the xUnit "assembly
+    /// fixture" the convention names when one collection covers the whole
+    /// assembly) *(since 0.1.4, unreleased)*. Threaded explicitly into this
+    /// suite's own footer and manifest, and published via
+    /// <see cref="RunScope"/> for the whole fixture's lifetime so a per-test
+    /// <see cref="NarrativeFixture"/> — a separate object, with no reference
+    /// back to this one — can still name its Markdown frontmatter's <c>run:</c>
+    /// field with the same identity.
+    /// </summary>
+    public RunIdentity RunIdentity { get; } = RunIdentity.Generate();
+
+    /// <summary>
     /// Creates a suite fixture writing to the configured output directory and the console.
     /// </summary>
     /// <remarks>The constructor xUnit calls for a <c>[CollectionDefinition]</c> fixture.</remarks>
@@ -47,6 +61,7 @@ public sealed class NarrativeSuiteFixture : IDisposable
         _outputDir = TestArtifactSettings.Resolve(readEnv).Directory;
         _console = console;
         _readEnv = readEnv;
+        RunScope.Begin(RunIdentity);
     }
 
     /// <summary>
@@ -135,11 +150,18 @@ public sealed class NarrativeSuiteFixture : IDisposable
         }
 
         _flushed = true;
-        ClaritySuiteReporter.Write(
-            _accumulator.Entries, _outputDir, _console, ProjectVocabulary(),
-            AccumulatedLoss(), _deltas);
-        ScenarioManifest.Write(_manifestEntries, _outputDir);
-        HarvestGlossary();
+        try
+        {
+            ClaritySuiteReporter.Write(
+                _accumulator.Entries, _outputDir, _console, ProjectVocabulary(),
+                AccumulatedLoss(), _deltas, RunIdentity);
+            ScenarioManifest.Write(_manifestEntries, _outputDir, RunIdentity);
+            HarvestGlossary();
+        }
+        finally
+        {
+            RunScope.End();
+        }
     }
 
     /// <summary>

@@ -80,7 +80,7 @@ public static class MarkdownRenderer
         var safe = Bounded(tree);
         var sb = new StringBuilder();
         RenderFrontmatter(
-            sb, safe, WithScenario(options, metadata.Scenario));
+            sb, safe, WithMetadata(options, metadata));
         RenderDocumentHeader(sb, safe, metadata);
         RenderCallFlow(sb, safe, options);
         return sb.ToString();
@@ -98,12 +98,12 @@ public static class MarkdownRenderer
         return tree with { Roots = TreeWalk.Bound(tree.Roots) };
     }
 
-    private static MarkdownOptions WithScenario(
-        MarkdownOptions? options, string scenario)
+    private static MarkdownOptions WithMetadata(
+        MarkdownOptions? options, TraceMetadata metadata)
     {
         return (options ?? new MarkdownOptions())
             with
-        { ScenarioName = scenario };
+        { ScenarioName = metadata.Scenario, RunName = metadata.RunName };
     }
 
     private static void RenderCallFlow(
@@ -126,13 +126,26 @@ public static class MarkdownRenderer
         }
 
         var sig = tree.Roots[0].Signature;
-        sb.Append("## Trace: ").Append(sig.ClassName)
+        sb.Append("## Trace: ").Append(TracePhrasePrefix(tree)).Append(sig.ClassName)
             .Append('.').AppendLine(sig.MethodName);
         sb.AppendLine();
         AppendHeaderSummary(sb, tree, metadata);
         sb.AppendLine();
         sb.AppendLine("### Call Flow");
         sb.AppendLine();
+    }
+
+    /// <summary>
+    /// The trace's own three-word phrase plus a trailing separator
+    /// (<c>"bold elk soars — "</c>), or empty when <see cref="TraceTree.TraceId"/>
+    /// is <see cref="TraceId.Empty"/> — the frontmatter already carries the
+    /// phrase (and the raw id) as <c>trace_name:</c>/<c>trace_id:</c>; this is
+    /// the same phrase in the document's own title line (2026-09-13 ruling,
+    /// item 4) *(since 0.1.4, unreleased)*.
+    /// </summary>
+    private static string TracePhrasePrefix(TraceTree tree)
+    {
+        return tree.TraceId.IsEmpty ? string.Empty : tree.TraceId.HumanName + " — ";
     }
 
     // The frontmatter already escapes the scenario (via YamlEscape.Scalar); this header must
@@ -158,6 +171,7 @@ public static class MarkdownRenderer
     {
         sb.AppendLine("---");
         sb.AppendLine("type: trace");
+        AppendRunName(sb, options);
         AppendScenario(sb, options);
         AppendEntryPoint(sb, tree);
         AppendTraceIdentity(sb, tree);
@@ -174,6 +188,25 @@ public static class MarkdownRenderer
         {
             sb.Append("scenario: ");
             sb.AppendLine(YamlEscape.Scalar(options.ScenarioName));
+        }
+    }
+
+    /// <summary>
+    /// The enclosing test-suite run's phrase (<c>run:</c>), or nothing when the
+    /// document was not rendered inside a run an integration tracks
+    /// (2026-09-13 ruling, item 2) *(since 0.1.4, unreleased)*. The ONLY
+    /// frontmatter field <see cref="RunIdentity"/> ever reaches — never folded
+    /// into <c>scenario</c>, never read back by <c>entry_point</c>/<c>trace_id</c>/
+    /// <c>trace_name</c>, and never present on the structural <c>.nt</c>
+    /// artifact at all (item 3).
+    /// </summary>
+    private static void AppendRunName(
+        StringBuilder sb, MarkdownOptions? options)
+    {
+        if (options?.RunName is not null)
+        {
+            sb.Append("run: ");
+            sb.AppendLine(YamlEscape.Scalar(options.RunName));
         }
     }
 

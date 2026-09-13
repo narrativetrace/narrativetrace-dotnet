@@ -1,4 +1,4 @@
-<!-- source: documentation/what-to-commit.md blob 53d5f82d382c | translated: 2026-09-12 | reviewed: - -->
+<!-- source: documentation/what-to-commit.md blob e4249e7cb168 | translated: 2026-09-13 | reviewed: - -->
 # O que incluir no commit
 
 [English](../what-to-commit.md) | [Español](../es/que-incluir-en-el-commit.md) | **Português** | [简体中文](../zh-CN/应提交的内容.md)
@@ -15,6 +15,7 @@ desta implementação realmente produzem, não presumido.
 | `<output-dir>/traces/<Class>/<slug>.md` | Não | Regenerado a cada execução; a trace legível por humanos de um teste. |
 | `<output-dir>/traces/<Class>/<slug>.json` | Não | A mesma trace como documento de capítulo JSON — regenerado a cada execução. |
 | `<output-dir>/diagrams/<Class>/<slug>.mmd` | Não | Diagrama de sequência Mermaid que a acompanha — regenerado a cada execução. |
+| `<output-dir>/manifest.json` | Não | Regenerado a cada execução; seu objeto `run` de nível superior (`id`, `name` — a frase de três palavras própria da execução) nomeia *esta execução*, não um cenário, então muda a cada execução mesmo quando mais nada muda *(since 0.1.4, unreleased)*. |
 | `<output-dir>/structural/<Class>/<slug>.nt` | Não | Trace estrutural sem valores (apenas nomes, hierarquia e tipo de resultado). O arquivo em disco é a **última linha de base correta (last green)** *(since 0.1.4, unreleased)*: uma execução verde a avança, uma execução não verde é comparada com ela (a linha "Since last green" do resumo da suíte, o delta do relatório de falha) mas nunca a sobrescreve. Ainda não é algo para commitar — veja [Formato de trace estrutural](../structural-trace-format.md) para a contraparte commitada. |
 | `<approved-dir>/<Class>/<slug>.approved.nt` | **Sim**, se o [modo de aprovação](../structural-trace-format.md) estiver ativado | *(since 0.1.4, unreleased)* A trace de aprovação revisada — `NARRATIVETRACE_APPROVED_DIR` (padrão `narratives`), ative com `NARRATIVETRACE_APPROVAL=true`. Este é o único arquivo desta tabela que é uma decisão deliberada, não uma saída. |
 | `<approved-dir>/<Class>/<slug>.received.nt` | Não | Escrito quando a aprovação não bate, ou quando ainda não existe uma trace aprovada. Revise-o, rode `./build.sh Approve` para promovê-lo (ou renomeie-o manualmente), e deixe a promoção removê-lo — nunca commite a trace recebida em si. |

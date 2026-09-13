@@ -27,6 +27,14 @@ namespace NarrativeTrace.Core;
 /// producer's decision and is not re-done here. <b>Only a timestamp</b> — the
 /// scenario outcome belongs in <paramref name="Result"/>.
 /// </param>
+/// <param name="RunName">
+/// The enclosing test-suite run's three-word phrase
+/// (<see cref="RunIdentity.Name"/>), or <see langword="null"/> when this
+/// document is not rendered inside a run an integration tracks (2026-09-13
+/// ruling, item 2) *(since 0.1.4, unreleased)*. Reaches only the Markdown
+/// frontmatter's <c>run:</c> field — never the structural <c>.nt</c> artifact
+/// or a delta computation.
+/// </param>
 /// <param name="Result">
 /// The scenario's overall outcome, as the producer knows it — typically the test
 /// framework's verdict. Required, and written verbatim: exporters do not
@@ -47,4 +55,5 @@ public sealed record TraceMetadata(
     string? TestClass = null,
     string? TestMethod = null,
     string? Framework = null,
-    string? Timestamp = null);
+    string? Timestamp = null,
+    string? RunName = null);

@@ -1,4 +1,4 @@
-<!-- source: documentation/privacy-and-redaction.md blob 1e49fdd2b47d | translated: 2026-09-13 | reviewed: - -->
+<!-- source: documentation/privacy-and-redaction.md blob 2ae627fd5931 | translated: 2026-09-13 | reviewed: - -->
 # Privacidad y ocultación
 
 [English](../privacy-and-redaction.md) | **Español** | [Português](../pt-BR/privacidade-e-ocultacao.md) | [简体中文](../zh-CN/隐私与脱敏.md)
@@ -192,6 +192,13 @@ ocultación:
   todo, o `NARRATIVETRACE_OUTPUT_DIR` para redirigirla; consulta
   [Qué incluir en el commit](que-incluir-en-el-commit.md) para saber qué
   hay dentro y si algo de eso pertenece a tu propio repositorio.
+- **El nombre de una traza y el nombre de una ejecución no llevan datos.**
+  Ambos son una frase determinista de tres palabras derivada de un id
+  aleatorio (ver
+  [Guía de configuración §7](../guides/es/guia-de-configuracion.md#7-puente-de-logging-microsoftextensionslogging)
+  *(since 0.1.4, unreleased)*) — nunca de nada capturado — así que ninguno
+  puede filtrar un valor en tiempo de ejecución, y ambos quedan fuera del
+  artefacto estructural `.nt` por la misma razón que todo lo demás en él.
 
 ## No garantías
 

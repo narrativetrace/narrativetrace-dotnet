@@ -23,6 +23,7 @@ public static class ProseRenderer
     public static string Render(TraceTree tree)
     {
         var sb = new StringBuilder();
+        AppendTraceHeader(tree, sb);
         // TraceNode.Children is a type, not a guarantee of acyclicity - bound
         // once, here, so the recursive walk below can never overflow the
         // stack or loop forever on a hand-built or replayed cycle. Cheap on
@@ -30,6 +31,28 @@ public static class ProseRenderer
         // confirms there is nothing to bound.
         RenderNodes(sb, TreeWalk.Bound(tree.Roots), 0);
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Opens in this renderer's own voice — <c>"The trace bold elk soars: "</c>
+    /// — before the first sentence (2026-09-13 ruling, item 4) *(since 0.1.4,
+    /// unreleased)*. Silent when <see cref="TraceTree.TraceId"/> is
+    /// <see cref="TraceId.Empty"/>: an empty tree gets no invented name.
+    /// </summary>
+    /// <remarks>
+    /// This is the trace's OWN name, unrelated to the test-suite run name a
+    /// test-framework integration threads through the console footer and
+    /// manifest — see <see cref="RunIdentity"/>. Neither ever reaches the
+    /// structural <c>.nt</c> text.
+    /// </remarks>
+    private static void AppendTraceHeader(TraceTree tree, StringBuilder sb)
+    {
+        if (tree.TraceId.IsEmpty)
+        {
+            return;
+        }
+
+        sb.Append("The trace ").Append(tree.TraceId.HumanName).Append(":\n\n");
     }
 
     private static void RenderNodes(

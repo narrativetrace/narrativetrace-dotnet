@@ -1,4 +1,4 @@
-<!-- source: documentation/sixty-seconds.md blob c6448407dedd | translated: 2026-09-13 | reviewed: - -->
+<!-- source: documentation/sixty-seconds.md blob 70ce88821a34 | translated: 2026-09-13 | reviewed: - -->
 # Veja um trace em 60 segundos
 
 [English](../sixty-seconds.md) | [Español](../es/sesenta-segundos.md) | **Português** | [简体中文](../zh-CN/60秒.md)
@@ -64,10 +64,13 @@ dotnet run
 ```
 
 ```text
-└── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 10ms
+trace: tidy font heats (79af2f4)
+
+└── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 16ms
 ```
 
-(O tempo vai variar de uma execução para outra — o resto é estável.)
+(O tempo e a frase própria de três palavras do trace vão variar de uma
+execução para outra — o resto é estável.)
 
 Você não escreveu uma única instrução de log. Essa narrativa veio inteira
 do nome do seu método, dos nomes dos seus parâmetros e do valor que você
@@ -122,13 +125,16 @@ dotnet run
 ```
 
 ```text
+trace: huge lark nests (3719407)
+
 └── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 0ms
 
 info: NarrativeTrace[1]
       IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) -> "confirmed:cust-1:book-123:2"
 ```
 
-(O tempo vai variar de uma execução para outra — o resto é estável.)
+(O tempo e a frase própria de três palavras do trace vão variar de uma
+execução para outra — o resto é estável.)
 
 O mesmo trace, dois destinos: o renderizador de console continua exatamente
 igual, e o registro de `ILogger` abaixo prova que a árvore chega ao destino

@@ -77,10 +77,15 @@ public sealed class DemoRunTests : IDisposable
         TracedGreeter().Greet("Ada");
         _output.GetStringBuilder().Clear();
 
-        _run.TraceTree(_run.Context.CaptureTrace());
+        var tree = _run.Context.CaptureTrace();
+        _run.TraceTree(tree);
 
         Assert.Equal(["", "--- Trace tree ---", "", ""], Lines()[..4]);
-        Assert.StartsWith("└── IGreeter.Greet(name: \"Ada\") → \"hello Ada\"", Lines()[4], StringComparison.Ordinal);
+        // The rendering itself now opens with the trace's own three-word phrase (2026-09-13
+        // ruling, item 4) followed by a blank line, before the indented call flow.
+        Assert.Equal($"trace: {tree.TraceId.HumanName} ({tree.TraceId.Value[..7]})", Lines()[4]);
+        Assert.Equal("", Lines()[5]);
+        Assert.StartsWith("└── IGreeter.Greet(name: \"Ada\") → \"hello Ada\"", Lines()[6], StringComparison.Ordinal);
     }
 
     [Fact]

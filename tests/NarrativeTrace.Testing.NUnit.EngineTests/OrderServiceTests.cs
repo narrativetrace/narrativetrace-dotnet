@@ -94,4 +94,25 @@ public sealed class OrderServiceTests : NarrativeTestBase
     {
         Assert.That(_tracesCompleted, Is.EqualTo(2));
     }
+
+    /// <summary>
+    /// Ruling item 2 (2026-09-13), proved under the real
+    /// <c>[SetUpFixture]</c>/<c>[SetUp]</c>/<c>[TearDown]</c> wiring rather than
+    /// a hand-invoked accumulator: <see cref="NarrativeTestBase"/>'s per-test
+    /// write — a separate object from <see cref="SuiteSetup"/>'s
+    /// <see cref="NarrativeSuiteReport"/>, with no reference back to it — still
+    /// names its Markdown frontmatter's <c>run:</c> field with the enclosing
+    /// suite's own identity, via the ambient <see cref="RunScope"/> both share.
+    /// </summary>
+    [Test]
+    [Order(4)]
+    public void The_per_test_frontmatter_names_the_same_run_as_the_active_suite()
+    {
+        var output = TestArtifactSettings.Resolve(Environment.GetEnvironmentVariable);
+        var frontmatter = File.ReadAllText(
+            Path.Combine(output.Directory, "traces", nameof(OrderServiceTests), "places_an_order.md"));
+        var runName = NarrativeSuiteScope.Current!.RunIdentity.Name;
+
+        Assert.That(frontmatter, Does.Contain($"run: {runName}\n"));
+    }
 }

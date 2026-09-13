@@ -692,7 +692,10 @@ public class MarkdownRendererTests
             tree,
             new TraceMetadata("Place order", ScenarioResult.Success));
 
-        Assert.Contains("## Trace: Svc.Run", result);
+        // The phrase prefix is derived from the tree's own randomly generated
+        // trace id (2026-09-13 ruling, item 4) — compute the expected header
+        // from it rather than asserting a bare "## Trace: Svc.Run".
+        Assert.Contains($"## Trace: {tree.TraceId.HumanName} — Svc.Run", result);
         Assert.Contains("**Scenario:** Place order", result);
         Assert.Contains(
             "**Duration:** 150ms | **Result:** PASSED", result);
@@ -705,6 +708,55 @@ public class MarkdownRendererTests
         Assert.True(
             headerIdx > 0 && headerIdx < bulletIdx,
             "document header must precede the node bullets");
+    }
+
+    /// <summary>Ruling item 2 (2026-09-13): the frontmatter's "run:" field, right after "type: trace".</summary>
+    [Fact]
+    public void Frontmatter_carries_the_run_name_when_the_metadata_supplies_one()
+    {
+        var tree = new TraceTree([
+            new TraceNode(
+                new MethodSignature("Svc", "Run", []),
+                new Returned(null), [], 0),
+        ]);
+
+        var result = MarkdownRenderer.RenderDocument(
+            tree,
+            new TraceMetadata("Place order", ScenarioResult.Success, RunName: "bold elk soars"));
+
+        Assert.Contains("type: trace\nrun: bold elk soars\n", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Frontmatter_omits_the_run_field_when_the_metadata_has_none()
+    {
+        var tree = new TraceTree([
+            new TraceNode(
+                new MethodSignature("Svc", "Run", []),
+                new Returned(null), [], 0),
+        ]);
+
+        var result = MarkdownRenderer.RenderDocument(
+            tree, new TraceMetadata("Place order", ScenarioResult.Success));
+
+        Assert.DoesNotContain("run:", result, StringComparison.Ordinal);
+    }
+
+    /// <summary>Ruling item 4: the title line's phrase is the trace's own name, not the run's.</summary>
+    [Fact]
+    public void Title_phrase_is_the_trace_id_not_the_run_name()
+    {
+        var tree = new TraceTree([
+            new TraceNode(
+                new MethodSignature("Svc", "Run", []),
+                new Returned(null), [], 0),
+        ]);
+
+        var result = MarkdownRenderer.RenderDocument(
+            tree,
+            new TraceMetadata("Place order", ScenarioResult.Success, RunName: "bold elk soars"));
+
+        Assert.Contains($"## Trace: {tree.TraceId.HumanName} — Svc.Run", result, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -63,13 +63,16 @@ public sealed class OrderService : IOrderService
 dotnet run
 ```
 
-<!-- snippet: artifacts/sixty-seconds/see-a-trace.txt mask=duration -->
+<!-- snippet: artifacts/sixty-seconds/see-a-trace.txt mask=duration,traceName -->
 ```text
-└── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 9ms
+trace: tidy font heats (79af2f4)
+
+└── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 16ms
 ```
 <!-- /snippet -->
 
-(The timing will vary run to run — everything else is stable.)
+(The timing and the trace's own three-word phrase will vary run to run —
+everything else is stable.)
 
 You didn't write a single log statement. That narrative came entirely from
 your method name, your parameter names, and the value you returned.
@@ -121,8 +124,10 @@ dotnet add package Microsoft.Extensions.Logging.Console
 dotnet run
 ```
 
-<!-- snippet: artifacts/sixty-seconds/see-a-trace-with-logger.txt mask=duration -->
+<!-- snippet: artifacts/sixty-seconds/see-a-trace-with-logger.txt mask=duration,traceName -->
 ```text
+trace: huge lark nests (3719407)
+
 └── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 0ms
 
 info: NarrativeTrace[1]
@@ -130,7 +135,8 @@ info: NarrativeTrace[1]
 ```
 <!-- /snippet -->
 
-(The timing will vary run to run — everything else is stable.)
+(The timing and the trace's own three-word phrase will vary run to run —
+everything else is stable.)
 
 Same trace, two destinations: the console renderer stays exactly as it was,
 and the `ILogger` record below it proves the tree lands in the sink you

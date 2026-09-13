@@ -136,6 +136,7 @@ public sealed class LoggingTraceEventListener
             ["nt.traceName"] = sc.TraceId.HumanName,
             ["nt.depth"] = depth,
         };
+        LoggingNarrativeContext.AddRunName(scope);
         LoggingNarrativeContext.AddServiceKeys(scope, ServiceOf(sc));
         return scope;
     }

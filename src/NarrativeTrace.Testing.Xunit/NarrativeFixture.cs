@@ -169,7 +169,7 @@ public sealed class NarrativeFixture : IDisposable
         var delta = TraceArtifactWriter.Write(
             _context.CaptureTrace(), identity, displayName, failed || rejection is not null,
             _output.Directory, _output.Format, Renderers, console,
-            _output.EntryArtifacts);
+            _output.EntryArtifacts, RunScope.Current?.Name);
 
         if (rejection is not null)
         {

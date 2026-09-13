@@ -30,7 +30,7 @@ public class RendererMetadataEscapingTests
                 new Returned("\"ok\""), [], 0),
         ]);
 
-        var result = IndentedTextRenderer.Render(tree);
+        var result = StripHeader(IndentedTextRenderer.Render(tree), "trace: ");
 
         Assert.Single(
             result.Split('\n', StringSplitOptions.RemoveEmptyEntries));
@@ -46,7 +46,7 @@ public class RendererMetadataEscapingTests
                 new Returned(null), [], 0),
         ]);
 
-        var result = IndentedTextRenderer.Render(tree);
+        var result = StripHeader(IndentedTextRenderer.Render(tree), "trace: ");
 
         Assert.DoesNotContain('\n', result.TrimEnd('\n'));
     }
@@ -127,7 +127,7 @@ public class RendererMetadataEscapingTests
                 new Returned("\"ok\""), [], 0),
         ]);
 
-        var result = ProseRenderer.Render(tree);
+        var result = StripHeader(ProseRenderer.Render(tree), "The trace ");
 
         Assert.Single(
             result.Split('\n', StringSplitOptions.RemoveEmptyEntries));
@@ -143,7 +143,7 @@ public class RendererMetadataEscapingTests
                 new Returned(null), [], 0),
         ]);
 
-        var result = ProseRenderer.Render(tree);
+        var result = StripHeader(ProseRenderer.Render(tree), "The trace ");
 
         Assert.DoesNotContain('\n', result.TrimEnd('\n'));
     }
@@ -161,5 +161,22 @@ public class RendererMetadataEscapingTests
         var result = ProseRenderer.Render(tree);
 
         Assert.Contains("InvalidOperationException: boom", result);
+    }
+
+    /// <summary>
+    /// Strips the leading trace-header line (2026-09-13 ruling, item 4) a real
+    /// (non-empty) tree always carries in <see cref="IndentedTextRenderer"/>
+    /// and <see cref="ProseRenderer"/> output — fixed, well-formed text,
+    /// unrelated to the hostile metadata these tests exercise.
+    /// </summary>
+    private static string StripHeader(string result, string headerPrefix)
+    {
+        if (!result.StartsWith(headerPrefix, StringComparison.Ordinal))
+        {
+            return result;
+        }
+
+        var blankLine = result.IndexOf("\n\n", StringComparison.Ordinal);
+        return blankLine < 0 ? result : result[(blankLine + 2)..];
     }
 }

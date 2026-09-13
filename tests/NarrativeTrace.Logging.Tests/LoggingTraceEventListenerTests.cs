@@ -8,6 +8,7 @@ using Xunit;
 
 namespace NarrativeTrace.Logging.Tests;
 
+[Collection("RunScope")]
 public class LoggingTraceEventListenerTests
 {
     private const string Span1 = "00000000000000a1";
@@ -63,6 +64,39 @@ public class LoggingTraceEventListenerTests
         Assert.Equal("checkout", scopes["service.name"]);
         Assert.Equal("1.2.3", scopes["service.version"]);
         Assert.Equal("prod", scopes["service.environment"]);
+    }
+
+    /// <summary>Ruling item 2 (2026-09-13): the enclosing test-suite run's phrase, via <see cref="RunScope"/>.</summary>
+    [Fact]
+    public void OnEvent_enter_logs_nt_runName_when_a_run_is_active()
+    {
+        var run = RunIdentity.Generate();
+        RunScope.Begin(run);
+        try
+        {
+            var logger = new CapturingLogger();
+            var listener = new LoggingTraceEventListener(logger);
+
+            listener.OnEvent(Enter(SpanCtx(Span1), "Svc", "Run"));
+
+            Assert.Equal(run.Name, logger.Entries[0].Scopes["nt.runName"]);
+        }
+        finally
+        {
+            RunScope.End();
+        }
+    }
+
+    [Fact]
+    public void OnEvent_enter_omits_nt_runName_outside_a_tracked_run()
+    {
+        RunScope.End();
+        var logger = new CapturingLogger();
+        var listener = new LoggingTraceEventListener(logger);
+
+        listener.OnEvent(Enter(SpanCtx(Span1), "Svc", "Run"));
+
+        Assert.False(logger.Entries[0].Scopes.ContainsKey("nt.runName"));
     }
 
     [Fact]

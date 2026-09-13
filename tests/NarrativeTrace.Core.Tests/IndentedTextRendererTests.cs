@@ -119,11 +119,51 @@ public class IndentedTextRendererTests
         var tree = new TraceTree([root]);
 
         var result = IndentedTextRenderer.Render(tree);
-        var lines = result.TrimEnd().Split('\n');
+        var lines = StripHeader(result).TrimEnd().Split('\n');
 
         Assert.Equal(2, lines.Length);
         Assert.StartsWith("\u2514\u2500\u2500 Service.Run()", lines[0]);
         Assert.Contains("\u2514\u2500\u2500 Repo.Save()", lines[1]);
+    }
+
+    /// <summary>
+    /// Strips the leading <c>trace: bold elk soars (a1b2c3d)</c> header a real
+    /// (non-empty) tree always carries \u2014 fixed, well-formed text, unrelated to
+    /// what the test below it is asserting on the call flow.
+    /// </summary>
+    private static string StripHeader(string result)
+    {
+        if (!result.StartsWith("trace: ", StringComparison.Ordinal))
+        {
+            return result;
+        }
+
+        var blankLine = result.IndexOf("\n\n", StringComparison.Ordinal);
+        return blankLine < 0 ? result : result[(blankLine + 2)..];
+    }
+
+    /// <summary>Ruling item 4 (2026-09-13): "trace: &lt;phrase&gt; (&lt;7 hex&gt;)" opens a real tree's render.</summary>
+    [Fact]
+    public void Opens_with_the_trace_phrase_and_first_seven_hex_chars()
+    {
+        var tree = new TraceTree([
+            new TraceNode(
+                new MethodSignature("Svc", "Run", []),
+                new Returned(null), [], 0),
+        ]);
+
+        var result = IndentedTextRenderer.Render(tree);
+
+        Assert.StartsWith(
+            $"trace: {tree.TraceId.HumanName} ({tree.TraceId.Value[..7]})\n\n", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Empty_tree_gets_no_trace_header()
+    {
+        var result = IndentedTextRenderer.Render(new TraceTree([]));
+
+        Assert.DoesNotContain("trace: ", result, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -202,6 +202,40 @@ public sealed class NarrativeSuiteReportEngineTests
         }
     }
 
+    /// <summary>Ruling item 2 (2026-09-13): the footer names this report's own run.</summary>
+    [Test]
+    public void Flush_writes_the_run_name_in_the_console_footer()
+    {
+        var dir = TempDir();
+        using var console = new StringWriter();
+        try
+        {
+            var report = Report(dir);
+            report.Record("first", Tree());
+
+            report.Flush(console);
+
+            Assert.That(console.ToString(), Does.Contain($"run: {report.RunIdentity.Name}"));
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>Ruling item 3: two different reports name different runs.</summary>
+    [Test]
+    public void Two_reports_generate_different_run_names()
+    {
+        var one = Report(TempDir());
+        var two = Report(TempDir());
+
+        Assert.That(one.RunIdentity.Name, Is.Not.EqualTo(two.RunIdentity.Name));
+    }
+
     private sealed class StubLossSource(TraceLoss loss) : ITraceLossSource
     {
         public TraceLoss TraceLoss { get; } = loss;

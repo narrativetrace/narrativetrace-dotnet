@@ -9,6 +9,7 @@ using Xunit;
 
 namespace NarrativeTrace.Logging.Tests;
 
+[Collection("RunScope")]
 public class LoggingNarrativeContextTests
 {
     [Fact]
@@ -47,6 +48,41 @@ public class LoggingNarrativeContextTests
         Assert.Equal(
             TraceNamer.Name(traceId),
             entry.Scopes["nt.traceName"]);
+    }
+
+    /// <summary>Ruling item 2 (2026-09-13): the enclosing test-suite run's phrase, via <see cref="RunScope"/>.</summary>
+    [Fact]
+    public void EnterMethod_logs_nt_runName_when_a_run_is_active()
+    {
+        var run = RunIdentity.Generate();
+        RunScope.Begin(run);
+        try
+        {
+            var logger = new CapturingLogger();
+            var ctx = new LoggingNarrativeContext(
+                new SyncNarrativeContext(new NarrativeTraceConfig()), logger);
+
+            ctx.EnterMethod("Svc", "Run", []);
+
+            Assert.Equal(run.Name, logger.Entries[0].Scopes["nt.runName"]);
+        }
+        finally
+        {
+            RunScope.End();
+        }
+    }
+
+    [Fact]
+    public void EnterMethod_omits_nt_runName_outside_a_tracked_run()
+    {
+        RunScope.End();
+        var logger = new CapturingLogger();
+        var ctx = new LoggingNarrativeContext(
+            new SyncNarrativeContext(new NarrativeTraceConfig()), logger);
+
+        ctx.EnterMethod("Svc", "Run", []);
+
+        Assert.False(logger.Entries[0].Scopes.ContainsKey("nt.runName"));
     }
 
     [Fact]

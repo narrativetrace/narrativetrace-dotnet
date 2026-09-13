@@ -7,6 +7,7 @@ using Xunit;
 
 namespace NarrativeTrace.Testing.Xunit.Tests;
 
+[Collection("RunScope")]
 public sealed class NarrativeSuiteFixtureTests
 {
     private static TraceTree Tree()
@@ -322,6 +323,75 @@ public sealed class NarrativeSuiteFixtureTests
         finally
         {
             Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    /// <summary>Ruling item 2 (2026-09-13): the footer names this fixture's own run.</summary>
+    [Fact]
+    public void Flush_writes_the_run_name_in_the_console_footer()
+    {
+        var dir = TempDir();
+        var console = new StringWriter();
+        try
+        {
+            var fixture = new NarrativeSuiteFixture(Dir(dir), console);
+            fixture.Record("first", Tree());
+
+            fixture.Dispose();
+
+            Assert.Contains($"run: {fixture.RunIdentity.Name}", console.ToString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    /// <summary>Ruling item 2: <c>manifest.json</c> carries the same run identity as the footer.</summary>
+    [Fact]
+    public void Flush_writes_the_run_identity_into_the_manifest()
+    {
+        var dir = TempDir();
+        try
+        {
+            var fixture = new NarrativeSuiteFixture(Dir(dir), TextWriter.Null);
+            fixture.Record("first", Tree());
+            fixture.RecordManifestEntry(
+                ScenarioManifest.EntryFor(dir, ArtifactIdentity.OfMethod("Test", "first"), "first"));
+
+            fixture.Dispose();
+
+            var manifest = File.ReadAllText(Path.Combine(dir, "manifest.json"));
+            Assert.Contains($"\"id\": \"{fixture.RunIdentity.Id.Value}\"", manifest, StringComparison.Ordinal);
+            Assert.Contains($"\"name\": \"{fixture.RunIdentity.Name}\"", manifest, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    /// <summary>Ruling item 3: two different runs of the identical scenario name different runs.</summary>
+    [Fact]
+    public void Two_fixtures_generate_different_run_names()
+    {
+        var dirOne = TempDir();
+        var dirTwo = TempDir();
+        try
+        {
+            var one = new NarrativeSuiteFixture(Dir(dirOne), TextWriter.Null);
+            var two = new NarrativeSuiteFixture(Dir(dirTwo), TextWriter.Null);
+
+            Assert.NotEqual(one.RunIdentity.Name, two.RunIdentity.Name);
+            Assert.NotEqual(one.RunIdentity.Id, two.RunIdentity.Id);
+
+            one.Dispose();
+            two.Dispose();
+        }
+        finally
+        {
+            Directory.Delete(dirOne, recursive: true);
+            Directory.Delete(dirTwo, recursive: true);
         }
     }
 }

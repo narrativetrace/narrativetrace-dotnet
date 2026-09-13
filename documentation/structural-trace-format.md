@@ -57,9 +57,12 @@ is found under the same name by another:
   approved trace it touched.
 
 Because artifact names are derived rather than announced, a run also writes
-`<outputDir>/manifest.json`: one row per traced scenario naming its test,
-its invocation number and every file it owns. Read that when you know the
-scenario and want the file.
+`<outputDir>/manifest.json`: a top-level `run` object (`id`, `name` — the
+run's own three-word phrase *(since 0.1.4, unreleased)*, see
+[Configuration Guide §7](guides/configuration.md#7-logging-bridge-microsoftextensionslogging))
+followed by one row per traced scenario naming its test, its invocation
+number and every file it owns. Read that when you know the scenario and
+want the file.
 
 > An invocation's `scenario:` header is **not** its display name *(since
 > 0.1.4, unreleased)*. A `[Theory]`/data-driven test's display name can
@@ -104,7 +107,10 @@ scenario: Weekend trip settles with three transfers
   `~ fire-and-forget` + children. Thread names/ids never appear.
 - **Excluded by design:** all argument/return values, exception messages,
   durations, timestamps, thread identity, trace/span ids, trace names, run
-  results, and narration.
+  ids, run names *(since 0.1.4, unreleased — a test-suite run has a name
+  too, see [Configuration Guide §7](guides/configuration.md#7-logging-bridge-microsoftextensionslogging);
+  it never enters this format, an approved or received trace, an artifact
+  filename, or a manifest per-scenario key)*, run results, and narration.
 - **Encoding:** UTF-8 without a BOM, LF, trailing newline. Identifiers pass
   through control-character sanitization.
 

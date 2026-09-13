@@ -243,15 +243,18 @@ public sealed class TraceArtifactWriterTests : IDisposable
         // Java's TraceTestSupport renders via renderDocument, so the per-test
         // .md carries a document header. This runtime emitted frontmatter without
         // one until 2026-08-28.
+        var tree = TreeWithNode();
         TraceArtifactWriter.Write(
-            TreeWithNode(), "Foo.OrderTests", "PlacesOrder", "PlacesOrder",
+            tree, "Foo.OrderTests", "PlacesOrder", "PlacesOrder",
             failed, _dir, TraceArtifactFormat.Markdown, Stubs,
             TextWriter.Null);
 
         var md = File.ReadAllText(
             Path.Combine(_dir, "traces", "OrderTests", "places_order.md"));
 
-        Assert.Contains("## Trace: Svc.PlacesOrder", md);
+        // The phrase prefix is derived from the tree's own randomly generated
+        // trace id (2026-09-13 ruling, item 4).
+        Assert.Contains($"## Trace: {tree.TraceId.HumanName} — Svc.PlacesOrder", md);
         Assert.Contains("**Scenario:** Places order", md);
         Assert.Contains($"**Result:** {expectedResult}", md);
         Assert.Contains("### Call Flow", md);

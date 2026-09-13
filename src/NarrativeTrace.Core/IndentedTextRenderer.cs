@@ -23,6 +23,7 @@ public static class IndentedTextRenderer
     public static string Render(TraceTree tree)
     {
         var sb = new StringBuilder();
+        AppendTraceHeader(tree, sb);
         // TraceNode.Children is a type, not a guarantee of acyclicity - bound
         // once, here, so the recursive walk below can never overflow the
         // stack or loop forever on a hand-built or replayed cycle. Cheap on
@@ -30,6 +31,32 @@ public static class IndentedTextRenderer
         // confirms there is nothing to bound.
         RenderNodes(sb, TreeWalk.Bound(tree.Roots), "");
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Opens with <c>trace: bold elk soars (a1b2c3d)</c> — the trace's own
+    /// three-word phrase plus the first 7 hex characters of its id — so a
+    /// console reader can name and locate the trace without cross-referencing
+    /// a separate identifier line (2026-09-13 ruling, item 4) *(since 0.1.4,
+    /// unreleased)*. Silent when <see cref="TraceTree.TraceId"/> is
+    /// <see cref="TraceId.Empty"/> (an empty tree): nothing here is invented.
+    /// </summary>
+    /// <remarks>
+    /// This is the trace's OWN name, unrelated to the test-suite run name a
+    /// test-framework integration threads through the console footer and
+    /// manifest — see <see cref="RunIdentity"/>. Neither ever reaches the
+    /// structural <c>.nt</c> text.
+    /// </remarks>
+    private static void AppendTraceHeader(TraceTree tree, StringBuilder sb)
+    {
+        var traceId = tree.TraceId;
+        if (traceId.IsEmpty)
+        {
+            return;
+        }
+
+        sb.Append("trace: ").Append(traceId.HumanName)
+            .Append(" (").Append(traceId.Value, 0, 7).Append(")\n\n");
     }
 
     private static void RenderNodes(

@@ -41,11 +41,16 @@ public sealed class NarrativeFailureReportDeltaTests
     [Fact]
     public void New_delta_falls_back_to_the_whole_trace_dump()
     {
+        // The same tree instance on both sides: each TraceTree mints its own real (random) trace
+        // id, so two independently-built trees now render two different header lines even when
+        // their call flow is identical — this compares the New-delta fallback against the no-delta
+        // render of the very same trace, not a structurally-equal but differently-identified one.
+        var tree = TreeWithNode();
         var delta = new ScenarioDelta("Run", ScenarioDeltaKind.New, string.Empty, string.Empty);
 
-        var report = NarrativeFailureReport.Build("Run", TreeWithNode(), delta);
+        var report = NarrativeFailureReport.Build("Run", tree, delta);
 
-        Assert.Equal(NarrativeFailureReport.Build("Run", TreeWithNode()), report);
+        Assert.Equal(NarrativeFailureReport.Build("Run", tree), report);
     }
 
     [Fact]

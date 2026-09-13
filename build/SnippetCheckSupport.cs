@@ -39,20 +39,34 @@ namespace NarrativeTrace.Build;
 /// comment syntax — the region markers are matched by substring, not by a
 /// specific <c>//</c> or <c>#</c> prefix) rather than the whole file, and a
 /// shared leading indentation is stripped so an embedded method body starts
-/// flush left. <c>mask=duration</c> strips <c> &#8212; \d+(\.\d+)?ms</c> (leading
-/// space included) from both sides before <see cref="Check"/> compares them —
-/// deleted rather than replaced with a placeholder, because the renderers in
-/// this family omit the whole suffix, not just the digits, when a call's
-/// measured duration rounds to zero ticks (<c>IndentedTextRenderer</c>'s
-/// <c>AppendDuration</c>: <c>DurationTicks &lt;= 0</c> appends nothing at
-/// all). A placeholder substitution only normalizes the *digits*, so a page
-/// capturing one run with a nonzero duration and a later run landing exactly
-/// on zero ticks would still read as drifted — the reader-visible "timing
-/// varies" is defined as varying between *some* number of milliseconds and
-/// *none rendered*, not just between numbers, so the mask has to erase the
-/// whole optional fragment on both sides. <see cref="Sync"/> never masks: it
-/// writes the real captured duration (present or absent), which is what
-/// "timing varies" already tells the reader to expect.
+/// flush left. <c>mask</c> takes a comma-separated list of names, each
+/// applied in turn to both sides before <see cref="Check"/> compares them:
+/// </para>
+/// <list type="bullet">
+/// <item><c>duration</c> strips <c> &#8212; \d+(\.\d+)?ms</c> (leading space
+/// included) — deleted rather than replaced with a placeholder, because the
+/// renderers in this family omit the whole suffix, not just the digits, when
+/// a call's measured duration rounds to zero ticks
+/// (<c>IndentedTextRenderer</c>'s <c>AppendDuration</c>:
+/// <c>DurationTicks &lt;= 0</c> appends nothing at all). A placeholder
+/// substitution only normalizes the *digits*, so a page capturing one run
+/// with a nonzero duration and a later run landing exactly on zero ticks
+/// would still read as drifted — the reader-visible "timing varies" is
+/// defined as varying between *some* number of milliseconds and *none
+/// rendered*, not just between numbers, so the mask has to erase the whole
+/// optional fragment on both sides.</item>
+/// <item><c>traceName</c> *(since 0.1.4, unreleased)* replaces the
+/// trace/run three-word phrase — and, where adjacent, the 7-hex trace-id
+/// fragment — wherever a <c>trace:</c>/<c>run:</c>/<c>trace_name:</c>/
+/// <c>runName:</c> label, a <c>The trace ...:</c> prose lead-in, or a
+/// <c>## Trace: ... —</c> Markdown title carries one, since every one of
+/// those is derived from a randomly generated id and would otherwise make
+/// embedded live output fail this check on every regeneration.</item>
+/// </list>
+/// <para>
+/// <see cref="Sync"/> never masks: it writes the real captured value
+/// (present or absent), which is what the reader-visible caveat already
+/// tells the reader to expect.
 /// </para>
 /// <para>
 /// Translated mirrors (<see cref="TranslationCheckSupport.TranslatedFiles"/>)
@@ -80,6 +94,18 @@ internal static class SnippetCheckSupport
     // read as drift.
     private static readonly Regex DurationMask = new(
         " — \\d+(\\.\\d+)?ms", RegexOptions.CultureInvariant);
+
+    // A label immediately followed by "adjective noun verb", optionally the
+    // "(1234567)" trace-id fragment — the exact shapes TraceNamer-derived
+    // text appears in across every renderer and frontmatter field this
+    // repository writes *(since 0.1.4, unreleased)*.
+    private static readonly Regex TraceLabelMask = new(
+        @"(?i)\b(trace_name|traceName|runName|run|trace):(\s*)[a-z]+ [a-z]+ [a-z]+(\s*\([0-9a-f]{7}\))?",
+        RegexOptions.CultureInvariant);
+    private static readonly Regex TraceProseMask = new(
+        @"The trace [a-z]+ [a-z]+ [a-z]+:", RegexOptions.CultureInvariant);
+    private static readonly Regex TraceTitleMask = new(
+        @"## Trace: [a-z]+ [a-z]+ [a-z]+ — ", RegexOptions.CultureInvariant);
 
     /// <summary>
     /// Every problem found: a malformed marker, a missing source or region,
@@ -188,7 +214,7 @@ internal static class SnippetCheckSupport
             }
 
             var lineNumber = i + 1;
-            if (!TryParseMarker(marker, out var sourcePath, out var region, out var maskDuration, out var markerError))
+            if (!TryParseMarker(marker, out var sourcePath, out var region, out var masks, out var markerError))
             {
                 yield return $"{relative}:{lineNumber}: {markerError}";
                 i++;
@@ -211,8 +237,8 @@ internal static class SnippetCheckSupport
                 continue;
             }
 
-            var maskedPage = ApplyMask(pageContent, maskDuration);
-            var maskedSource = ApplyMask(sourceContent, maskDuration);
+            var maskedPage = ApplyMask(pageContent, masks);
+            var maskedSource = ApplyMask(sourceContent, masks);
             if (!string.Equals(maskedPage, maskedSource, StringComparison.Ordinal))
             {
                 var regionSuffix = region is null ? "" : $" region={region}";
@@ -277,20 +303,46 @@ internal static class SnippetCheckSupport
     }
 
     private static bool TryParseMarker(
-        Match marker, out string sourcePath, out string? region, out bool maskDuration, out string? error)
+        Match marker, out string sourcePath, out string? region, out SnippetMasks masks, out string? error)
     {
         sourcePath = marker.Groups["path"].Value;
         region = marker.Groups["region"].Success ? marker.Groups["region"].Value : null;
         var mask = marker.Groups["mask"].Success ? marker.Groups["mask"].Value : null;
-        maskDuration = mask == "duration";
-        if (mask is not null && !maskDuration)
+        masks = SnippetMasks.None;
+        if (mask is null)
         {
-            error = $"unknown mask '{mask}' — only mask=duration is supported";
-            return false;
+            error = null;
+            return true;
+        }
+
+        foreach (var name in mask.Split(','))
+        {
+            switch (name)
+            {
+                case "duration":
+                    masks = masks with { Duration = true };
+                    break;
+                case "traceName":
+                    masks = masks with { TraceName = true };
+                    break;
+                default:
+                    error = $"unknown mask '{name}' — only duration and traceName are supported";
+                    return false;
+            }
         }
 
         error = null;
         return true;
+    }
+
+    /// <summary>
+    /// The <c>mask=</c> names parsed from one snippet marker, each an
+    /// independent normalization applied to both sides before comparison —
+    /// see the type's own remarks *(since 0.1.4, unreleased)*.
+    /// </summary>
+    private readonly record struct SnippetMasks(bool Duration, bool TraceName)
+    {
+        public static readonly SnippetMasks None = new(false, false);
     }
 
     /// <summary>
@@ -476,8 +528,29 @@ internal static class SnippetCheckSupport
             : lines.Select(l => l.Length >= shared ? l[shared..] : l).ToList();
     }
 
-    private static string ApplyMask(string content, bool maskDuration) =>
-        maskDuration ? DurationMask.Replace(content, "") : content;
+    private static string ApplyMask(string content, SnippetMasks masks)
+    {
+        var result = content;
+        if (masks.Duration)
+        {
+            result = DurationMask.Replace(result, "");
+        }
+
+        if (masks.TraceName)
+        {
+            result = MaskTraceName(result);
+        }
+
+        return result;
+    }
+
+    private static string MaskTraceName(string content)
+    {
+        var masked = TraceLabelMask.Replace(
+            content, m => $"{m.Groups[1].Value}:{m.Groups[2].Value}NAME NAME NAME");
+        masked = TraceProseMask.Replace(masked, "The trace NAME NAME NAME:");
+        return TraceTitleMask.Replace(masked, "## Trace: NAME NAME NAME — ");
+    }
 
     private static string[] ToLines(string text) => text.Replace("\r\n", "\n").Split('\n');
 

@@ -203,7 +203,7 @@ public abstract class NarrativeTestBase
         return TraceArtifactWriter.Write(
             _context.CaptureTrace(), identity, displayName, failed,
             _output.Directory, _output.Format, Renderers, console,
-            _output.EntryArtifacts);
+            _output.EntryArtifacts, RunScope.Current?.Name);
     }
 
     internal static void PrintTemplateWarnings(

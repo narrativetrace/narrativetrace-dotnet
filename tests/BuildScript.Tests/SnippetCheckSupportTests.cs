@@ -126,6 +126,66 @@ public sealed class SnippetCheckSupportTests : IDisposable
         Assert.Contains("drifted", problem, StringComparison.Ordinal);
     }
 
+    /// <summary>Ruling item 5 (2026-09-13), *(since 0.1.4, unreleased)*: the trace/run phrase varies run to run.</summary>
+    [Fact]
+    public void Mask_traceName_ignores_a_changed_trace_header_line()
+    {
+        Write("out/trace.txt", "trace: bold elk soars (a1b2c3d)\n\nPlaceOrder(...)\n");
+        Write("documentation/quickstart.md",
+            "<!-- snippet: out/trace.txt mask=traceName -->\n"
+            + "```text\n"
+            + "trace: cool duo heats (9f8e7d6)\n\nPlaceOrder(...)\n"
+            + "```\n"
+            + "<!-- /snippet -->\n");
+
+        Assert.Empty(SnippetCheckSupport.Check(_repo));
+    }
+
+    [Fact]
+    public void Mask_traceName_ignores_the_prose_lead_in_and_the_markdown_title()
+    {
+        Write("out/trace.txt",
+            "The trace bold elk soars:\n\nrun: cool duo heats\n\n## Trace: bold elk soars — Svc.Run\n");
+        Write("documentation/quickstart.md",
+            "<!-- snippet: out/trace.txt mask=traceName -->\n"
+            + "```text\n"
+            + "The trace fizzy owl dips:\n\nrun: tawny newt jumps\n\n## Trace: fizzy owl dips — Svc.Run\n"
+            + "```\n"
+            + "<!-- /snippet -->\n");
+
+        Assert.Empty(SnippetCheckSupport.Check(_repo));
+    }
+
+    [Fact]
+    public void Mask_traceName_does_not_hide_drift_unrelated_to_the_phrase()
+    {
+        Write("out/trace.txt", "trace: bold elk soars (a1b2c3d)\n\nPlaceOrder(...)\n");
+        Write("documentation/quickstart.md",
+            "<!-- snippet: out/trace.txt mask=traceName -->\n"
+            + "```text\n"
+            + "trace: cool duo heats (9f8e7d6)\n\nGetOrder(...)\n"
+            + "```\n"
+            + "<!-- /snippet -->\n");
+
+        var problem = Assert.Single(SnippetCheckSupport.Check(_repo));
+
+        Assert.Contains("drifted", problem, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Mask_duration_and_traceName_combine_via_a_comma_separated_list()
+    {
+        Write("out/trace.txt", "trace: bold elk soars (a1b2c3d)\n\nPlaceOrder(...) — 8ms\n");
+        Write("documentation/quickstart.md",
+            "<!-- snippet: out/trace.txt mask=duration,traceName -->\n"
+            + "```text\n"
+            + "trace: cool duo heats (9f8e7d6)\n\nPlaceOrder(...) — 13ms\n"
+            + "```\n"
+            + "<!-- /snippet -->\n");
+
+        Assert.Empty(SnippetCheckSupport.Check(_repo));
+    }
+
     [Fact]
     public void Unknown_mask_is_reported_as_a_problem()
     {

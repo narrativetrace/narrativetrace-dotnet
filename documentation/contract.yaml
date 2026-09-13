@@ -154,3 +154,19 @@ entries:
     since: "0.1.0"
     expected_effect: "true"
     probe: "contract-probe/Probes/TraceLogExporterProbe.cs"
+
+  - id: probed-run-name-console-footer
+    kind: probed-default
+    page: "documentation/guides/configuration.md#7-logging-bridge-microsoftextensionslogging"
+    claim: "the console suite footer names the run: a \"run: <phrase>\" line"
+    since: "0.1.4"
+    documented_default: "true"
+    probe: "contract-probe/Probes/RunNameConsoleFooterProbe.cs"
+
+  - id: probed-run-name-manifest-field
+    kind: probed-default
+    page: "documentation/guides/configuration.md#7-logging-bridge-microsoftextensionslogging"
+    claim: "manifest.json carries a top-level run object (id, name) naming the run it belongs to"
+    since: "0.1.4"
+    documented_default: "true"
+    probe: "contract-probe/Probes/RunNameManifestFieldProbe.cs"
