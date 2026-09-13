@@ -209,6 +209,22 @@ Every rendered value is capped and sanitized, regardless of redaction:
   value-free `.nt` header is the one place this is handled for you, by not
   using the display name at all (see
   [Structural Trace Format](structural-trace-format.md)).
+- **Adopting an inbound `traceparent` trusts the caller** *(since 0.1.4,
+  unreleased)*. `NarrativeTraceMiddleware` and `NarrativeTraceConfig`'s
+  seeding path both take the trace id and parent span id from a
+  `traceparent` header or value at face value — there is no signature, no
+  allow-list of trusted upstreams, and nothing here confirms the caller
+  actually owns the trace it names. Neither field is confidential (a trace
+  or span id carries no data of its own), so this is a trace-identity
+  concern, not a leak: a hostile or misconfigured caller can make your
+  service's spans appear under a trace id and parent it did not choose, at
+  worst confusing correlation across services, never exposing a value this
+  page redacts. `Traceparent.Parse` degrades a malformed or forbidden
+  header to "start a fresh trace" rather than throwing, so a stranger's bad
+  header cannot fail the request either way — see the [Configuration
+  Guide, §1](guides/configuration.md#traceparent-seeding-since-014-unreleased)
+  for the seeding path and [§4](guides/configuration.md#4-aspnet-core) for
+  the middleware.
 
 ## What this page does not cover
 

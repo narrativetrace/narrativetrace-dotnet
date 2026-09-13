@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <RootNamespace>NarrativeTrace.Skills</RootNamespace>
+    <!-- Authoring tooling, not a product surface: the typed skill catalogue and its renderers
+         generate .claude/skills/**/SKILL.md and the AGENTS.md managed section as build output
+         (see NarrativeTrace.Cli's "skills" verb). Never published as its own NuGet package —
+         mirrors the golden TypeScript source's packages/skills, an unpublished workspace package. -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- The one dependency this package carries, and deliberately so: SnippetResolver needs the
+         exact same license-header-stripping logic build/SnippetCheckSupport.cs needs for the
+         documentation snippets (a rendered SKILL.md page embeds a real source file verbatim too,
+         and hits the identical publish-time-header drift) — NarrativeTrace.Core is the shared,
+         dependency-free home for it, never a second implementation on either side. -->
+    <ProjectReference Include="../NarrativeTrace.Core/NarrativeTrace.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="NarrativeTrace.Skills.Tests" />
+  </ItemGroup>
+</Project>

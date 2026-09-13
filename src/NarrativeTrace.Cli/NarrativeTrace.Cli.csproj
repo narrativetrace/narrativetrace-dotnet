@@ -10,7 +10,22 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>dotnet-narrativetrace</ToolCommandName>
     <PackageId>NarrativeTrace.Cli</PackageId>
+    <!-- The CLI/doctor surface ships permissively, like the free/API surface does everywhere
+         else in this product family (see the Java port's licensing.properties "open" category
+         for narrativetrace-cli/-api/-skills). Apache-2.0 is OSI-approved, so unlike BSL 1.1 it
+         is a valid PackageLicenseExpression on its own — no bundled license FILE is required for
+         NuGet to recognize it, which is why this clears the inherited PackageLicenseFile rather
+         than pointing it at a second file. -->
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageLicenseFile></PackageLicenseFile>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- Overrides Directory.Build.props' repo-wide BSL LICENSE item: this package's license is
+         Apache-2.0 above, expressed via metadata, not a bundled BSL file. -->
+    <None Remove="$(MSBuildThisFileDirectory)../../LICENSE" />
+    <None Include="$(MSBuildThisFileDirectory)../../LICENSE-APACHE" Pack="true" PackagePath=""
+          Visible="false" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="System.Reflection.MetadataLoadContext" Version="9.0.0" />
   </ItemGroup>
@@ -18,6 +33,7 @@
     <ProjectReference Include="../NarrativeTrace.Core/NarrativeTrace.Core.csproj" />
     <ProjectReference Include="../NarrativeTrace.Clarity/NarrativeTrace.Clarity.csproj" />
     <ProjectReference Include="../NarrativeTrace.Glossary/NarrativeTrace.Glossary.csproj" />
+    <ProjectReference Include="../NarrativeTrace.Skills/NarrativeTrace.Skills.csproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="NarrativeTrace.Cli.Tests" />

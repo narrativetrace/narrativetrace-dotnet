@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/installation.md blob d5dc94e2e332 | translated: 2026-09-12 | reviewed: - -->
+<!-- source: documentation/guides/installation.md blob a79e09ae331d | translated: 2026-09-13 | reviewed: - -->
 # NarrativeTrace .NET — Guía de instalación
 
 [English](../installation.md) | **Español** | [Português](../pt-BR/guia-de-instalacao.md) | [简体中文](../zh-CN/安装指南.md)
@@ -258,6 +258,17 @@ Console.WriteLine(IndentedTextRenderer.Render(context.CaptureTrace()));
 
 Deberías ver una narrativa anidada con el nombre del método, los valores
 de los parámetros y el valor de retorno.
+
+O deja que la CLI diagnostique la instalación por ti *(since 0.1.4,
+unreleased)* — de solo lectura, sin red, sin mutación:
+
+```bash
+dotnet tool install --global NarrativeTrace.Cli
+dotnet-narrativetrace doctor
+```
+
+Cada hallazgo lleva un id estable, una solución y un enlace a esta
+documentación; añade `--json` para obtener salida legible por máquina.
 
 ## Véase también
 

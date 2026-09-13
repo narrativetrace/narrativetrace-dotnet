@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: BUSL-1.1
+# Licensed under the Business Source License 1.1 (see LICENSE); Change Date: four years from publication; Change License: Apache-2.0
+# Copyright (c) 2026 Empower Agile
+# Mined trigger phrasings for narrativetrace-doctor — never invented.
+# Gate: >=90% of positive phrasings fire the skill; none of the negative ones do.
+positive:
+  - "why isn't NarrativeTrace working"
+  - "is my NarrativeTrace install broken"
+  - "run narrativetrace doctor"
+  - "check my NarrativeTrace setup"
+  - "diagnose narrative trace"
+  - "no traces are showing up, what's wrong"
+  - "a value that should be redacted is showing up in the trace"
+  - "the trace looks wrong even though the test passed"
+negative:
+  - "add narrative tracing to this project"
+  - "set up NarrativeTrace for the first time"
+  - "explain what a trace is"
+  - "how do I install NarrativeTrace"

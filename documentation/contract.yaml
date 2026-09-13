@@ -64,6 +64,22 @@ entries:
     documented_default: "PRESENT"
     probe: "contract-probe/Probes/EntryPointProbe.cs"
 
+  # doctor verb: a full behavioral probe would need a contract-probe capable of exercising a
+  # packed dotnet tool, not just a restored library — out of scope here (the commit that added the
+  # verb noted this at the time). This is the honest, expressible slice of the same claim: the
+  # package the verb ships in actually resolves at the release version. Naturally
+  # not-applicable-before-since today (installed max is 0.1.3; the doctor verb itself is
+  # unreleased) — that is the correct, not a degraded, verdict until 0.1.4 actually publishes.
+  - id: entry-point-cli
+    kind: entry-point
+    registry: nuget-org
+    coordinate: "NarrativeTrace.Cli"
+    page: "documentation/guides/installation.md#validate-installation"
+    claim: "NarrativeTrace.Cli (carrying the doctor verb) resolves on nuget.org at the installed version"
+    since: "0.1.4"
+    documented_default: "PRESENT"
+    probe: "contract-probe/Probes/EntryPointProbe.cs"
+
   # ---- reflectable defaults: read straight off the published public API, nothing executed -----
   - id: reflectable-output-default
     kind: reflectable-default
@@ -170,3 +186,22 @@ entries:
     since: "0.1.4"
     documented_default: "true"
     probe: "contract-probe/Probes/RunNameManifestFieldProbe.cs"
+
+  # The commit that added traceparent adoption deliberately shipped without these: "a properly
+  # verified probe against the published package belongs with 0.1.4 release prep rather than this
+  # change." This is that release prep.
+  - id: probed-initial-traceparent-seeds-context
+    kind: probed-default
+    page: "documentation/guides/configuration.md#traceparent-seeding-since-014-unreleased"
+    claim: "new NarrativeTraceConfig(initialTraceparent: Traceparent.Parse(...)) seeds a context's CurrentTraceId with the parsed trace id"
+    since: "0.1.4"
+    documented_default: "true"
+    probe: "contract-probe/Probes/InitialTraceparentSeedsContextProbe.cs"
+
+  - id: probed-middleware-adopts-traceparent
+    kind: probed-default
+    page: "documentation/guides/configuration.md#4-aspnet-core"
+    claim: "NarrativeTraceMiddleware adopts an inbound traceparent request header automatically, continuing the caller's trace"
+    since: "0.1.4"
+    documented_default: "true"
+    probe: "contract-probe/Probes/MiddlewareAdoptsTraceparentProbe.cs"

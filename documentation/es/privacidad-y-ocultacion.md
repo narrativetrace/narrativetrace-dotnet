@@ -1,4 +1,4 @@
-<!-- source: documentation/privacy-and-redaction.md blob 2ae627fd5931 | translated: 2026-09-13 | reviewed: - -->
+<!-- source: documentation/privacy-and-redaction.md blob 7ad6098968b3 | translated: 2026-09-13 | reviewed: - -->
 # Privacidad y ocultación
 
 [English](../privacy-and-redaction.md) | **Español** | [Português](../pt-BR/privacidade-e-ocultacao.md) | [简体中文](../zh-CN/隐私与脱敏.md)
@@ -234,6 +234,25 @@ ocultación:
   encabezado del `.nt` sin valores es el único lugar donde esto ya está
   resuelto por ti, al no usar el nombre visible en absoluto (consulta
   [Formato de traza estructural](../structural-trace-format.md)).
+- **Adoptar un `traceparent` entrante confía en quien llama** *(since
+  0.1.4, unreleased)*. Tanto `NarrativeTraceMiddleware` como la vía de
+  siembra de `NarrativeTraceConfig` toman el id de traza y el id del span
+  padre de una cabecera o valor `traceparent` tal cual — no hay firma, ni
+  lista de orígenes confiables, y nada aquí confirma que quien llama
+  realmente sea dueño de la traza que nombra. Ninguno de los dos campos es
+  confidencial (un id de traza o de span no lleva ningún dato propio), así
+  que esto es una cuestión de identidad de traza, no una fuga: quien
+  llama, hostil o mal configurado, puede hacer que los spans de tu
+  servicio aparezcan bajo un id de traza y un padre que no eligió, en el
+  peor caso confundiendo la correlación entre servicios, nunca exponiendo
+  un valor que esta página oculta. `Traceparent.Parse` degrada una
+  cabecera malformada o prohibida a "iniciar una traza nueva" en lugar de
+  lanzar excepción, así que una cabecera mal formada de un desconocido
+  tampoco puede hacer fallar la petición — consulta la [Guía de
+  configuración, §1](../guides/es/guia-de-configuracion.md#siembra-de-traceparent-since-014-unreleased)
+  para la vía de siembra y el
+  [§4](../guides/es/guia-de-configuracion.md#4-aspnet-core) para el
+  middleware.
 
 ## Lo que esta página no cubre
 

@@ -38,8 +38,9 @@ reader and the object-graph builder are written per language.
 
 A crash is not the only defect, and "it did not throw" is not an oracle.
 Every target asserts from this list; this runtime implements the same seven
-Java's does, minus the one target (traceparent parsing) this runtime does not
-have at all.
+Java's does — target 1 (`traceparent` parsing) landed *(since 0.1.4,
+unreleased)*, so the "N/A" note below now applies only to `tracestate`,
+which remains an explicit non-goal.
 
 1. **No uncaught exception.** A hostile input degrades — it never
    propagates. This is the pipeline contract in one line: an observability
@@ -93,7 +94,7 @@ read across repositories.
 
 | # | Target | The oracle that matters most | This runtime |
 |---|---|---|---|
-| 1 | `Traceparent` and any other wire reader | never throws; round-trips what it accepts | **N/A** — no header parser exists anywhere in this runtime; W3C header parsing is an explicit non-goal here (and in the Java runtime). `TraceparentParsingPropertyTests` is a single evidence-bearing test that fails loudly if this ever changes without the target being ported for real. |
+| 1 | `Traceparent` and any other wire reader | never throws; round-trips what it accepts | `TraceparentParsingPropertyTests` replays the corpus's `traceparent` array against `Traceparent.Parse` — never throws, matches each case's declared `accepted`, and an accepted header round-trips through `Format()` *(since 0.1.4, unreleased)*. `tracestate` remains **N/A** — an explicit non-goal here (and in the Java runtime); the same test file carries a single evidence-bearing canary that fails loudly if a `Tracestate`-shaped type is ever added without the target being ported for real. |
 | 2 | `ValueRenderer` over hostile object graphs | redaction, at any depth, through any container | `ValueRendererRedactionPropertyTests` |
 | 3 | Every output format | well-formedness, bounded size | `OutputFormatPropertyTests` |
 | 4 | Template parsing and rendering | a redacted path or object renders the marker | `TemplateRedactionPropertyTests` |
@@ -105,11 +106,12 @@ read across repositories.
 
 Recorded with evidence, not silently dropped:
 
-- **No W3C `traceparent`/`tracestate` header parser** (target 1). Confirmed
-  absent by repository-wide grep.
+- **No W3C `tracestate` header parser** (the other half of target 1). Confirmed
+  absent by repository-wide grep — `traceparent` parsing landed *(since 0.1.4,
+  unreleased)* as `NarrativeTrace.Core.Traceparent`.
   The corpus's `headers.json` (30 traceparent + 9 tracestate cases) is still
-  copied verbatim, so a future parser lands with its fuzz cases already in
-  place.
+  copied verbatim; the 9 tracestate cases wait for a future parser to land
+  with their fuzz cases already in place.
 - **Multi-level template paths** (`{a.b.c}`) do not resolve — this runtime's
   placeholder grammar is one level only (`{root}` or `{root.prop}`), a
   pre-existing, already-documented gap (see the repository backlog). The
@@ -141,7 +143,7 @@ commit.
 | File | What it holds |
 |---|---|
 | `strings.json` | hostile scalar values: control characters, bidi and zero-width, combining sequences, unpaired surrogates, template lookalikes, JSON/Mermaid/Markdown/YAML metacharacters, values up to 1 MiB |
-| `headers.json` | `traceparent` and `tracestate` values (corpus only — no parser to drive them against in this runtime; see above) |
+| `headers.json` | `traceparent` values, driven against `Traceparent.Parse`; `tracestate` values (corpus only — no parser to drive them against in this runtime; see above) |
 | `templates.json` | `[Narrated]`/`[OnError]` templates: nesting, unterminated braces, paths into redacted members at every depth, unicode identifiers, a whole-object placeholder (added by this runtime), a whole-object placeholder whose redacted component sits past the renderer's field/depth cap |
 | `graphs.json` | declarative object-graph *shapes*: depth, width, cycles, self-reference, wrapper chains, throwing/blocking/recursive `ToString`, huge collections |
 | `tree-shapes.json` | declarative `TraceNode` **call-tree** shapes (added by this runtime, 2026-09-04 tree-walk mirror): a legitimate deep chain and cyclic rings — the shape `TraceNode.Children` itself can carry, kept separate from `graphs.json` since that file is documented as feeding specifically the value renderer, not the tree walk |

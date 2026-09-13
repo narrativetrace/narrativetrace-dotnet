@@ -21,6 +21,15 @@ namespace NarrativeTrace.Examples.SixtySeconds.Tests;
 /// </summary>
 public sealed class SixtySecondsTests : IClassFixture<NarrativeFixture>
 {
+    // Mirrors Program.cs's own fixed demo traceparent constant (see that
+    // file's "fixedTraceparent" snippet region): NarrativeFixture's context is
+    // shared across the whole test suite, so it cannot be seeded through
+    // NarrativeTraceConfig the way Program.cs seeds its own — adopting it here
+    // instead gets the identical observable effect (a deterministic trace id,
+    // hence a deterministic trace name in the captured output below) without
+    // touching the shared fixture's defaults.
+    private const string DemoTraceparent = "00-a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4-a1b2c3d4a1b2c3d4-01";
+
     private readonly NarrativeFixture _trace;
 
     public SixtySecondsTests(NarrativeFixture trace)
@@ -38,6 +47,7 @@ public sealed class SixtySecondsTests : IClassFixture<NarrativeFixture>
     [Fact]
     public void Places_an_order_through_the_real_traced_proxy()
     {
+        _trace.Context.AdoptTraceparent(Traceparent.Parse(DemoTraceparent));
         var orders = NarrativeTraceProxy.Create<IOrderService>(new OrderService(), _trace.Context);
 
         var confirmation = orders.PlaceOrder("cust-1", "book-123", 2);

@@ -2,6 +2,7 @@
 // Licensed under the Business Source License 1.1 (see LICENSE); Change Date: four years from publication; Change License: Apache-2.0
 // Copyright (c) 2026 Empower Agile
 using System.Globalization;
+using NarrativeTrace.Cli.Doctor;
 
 namespace NarrativeTrace.Cli;
 
@@ -26,14 +27,42 @@ public static class CliRunner
             "clarity-aggregate" => RunClarityAggregate(args, output, error),
             "clarity-check" => RunClarityCheck(args, output, error),
             "glossary" => RunGlossary(args, output, error),
+            "doctor" => RunDoctor(args, output, error),
+            "skills" => RunSkills(args, output, error),
             _ => UnknownVerb(args[0], error),
         };
+    }
+
+    private static int RunSkills(string[] args, TextWriter output, TextWriter error)
+    {
+        var dir = GetOption(args, "--dir") ?? Directory.GetCurrentDirectory();
+        var sub = args.Length > 1 ? args[1] : null;
+        return sub switch
+        {
+            "render" => SkillsRenderCommand.Run(dir, output, error),
+            "lint" => SkillsLintCommand.Run(dir, output, error),
+            "replay" => SkillsReplayCommand.Run(dir, output, error),
+            _ => SkillsUsage(error),
+        };
+    }
+
+    private static int SkillsUsage(TextWriter error)
+    {
+        error.WriteLine("error: skills requires a sub-command: render | lint | replay");
+        return 2;
     }
 
     private static int RunGlossary(string[] args, TextWriter output, TextWriter error)
     {
         var file = GetOption(args, "--file") ?? "glossary.json";
         return GlossaryCommand.Run(file, output, error);
+    }
+
+    private static int RunDoctor(string[] args, TextWriter output, TextWriter error)
+    {
+        var json = HasFlag(args, "--json");
+        var dir = GetOption(args, "--dir") ?? Directory.GetCurrentDirectory();
+        return DoctorCommand.Run(dir, Environment.GetEnvironmentVariable, json, output, error);
     }
 
     private static int RunClarityCheck(string[] args, TextWriter output, TextWriter error)
@@ -128,7 +157,9 @@ public static class CliRunner
             "  clarity-aggregate --input-dir <dir> [--output-dir <dir>]" + Environment.NewLine +
             "  clarity-check     --results <path> [--min-score <x>] " +
             "[--max-high-issues <n>] [--warn-only]" + Environment.NewLine +
-            "  glossary          [--file <glossary.json>]");
+            "  glossary          [--file <glossary.json>]" + Environment.NewLine +
+            "  doctor            [--json] [--dir <path>]" + Environment.NewLine +
+            "  skills            render|lint|replay [--dir <path>]");
         return 2;
     }
 }

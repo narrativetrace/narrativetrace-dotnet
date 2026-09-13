@@ -246,6 +246,17 @@ Console.WriteLine(IndentedTextRenderer.Render(context.CaptureTrace()));
 You should see a nested narrative with the method name, parameter values,
 and return value.
 
+Or let the CLI diagnose the install for you *(since 0.1.4, unreleased)* —
+read-only, no network, no mutation:
+
+```bash
+dotnet tool install --global NarrativeTrace.Cli
+dotnet-narrativetrace doctor
+```
+
+Each finding carries a stable id, a fix, and a link into these docs; add
+`--json` for machine-readable output.
+
 ## See also
 
 - [Configuration Guide](configuration.md) — tracing levels, env vars, DI, ASP.NET Core, MSBuild

@@ -24,4 +24,22 @@ public class NarrativeTraceConfigTests
 
         Assert.Equal(TracingLevel.Off, config.Level);
     }
+
+    [Fact]
+    public void Initial_traceparent_defaults_to_null()
+    {
+        var config = new NarrativeTraceConfig();
+
+        Assert.Null(config.InitialTraceparent);
+    }
+
+    [Fact]
+    public void Initial_traceparent_can_be_seeded_at_construction()
+    {
+        var seed = new Traceparent(SpanIdGenerator.GenerateTraceId(), SpanIdGenerator.GenerateSpanId(), 1);
+
+        var config = new NarrativeTraceConfig(initialTraceparent: seed);
+
+        Assert.Equal(seed, config.InitialTraceparent);
+    }
 }

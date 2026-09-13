@@ -27,6 +27,10 @@
     <PackageReference Include="NarrativeTrace.Runtime" Version="$(ContractVersion)" />
     <PackageReference Include="NarrativeTrace.Proxy" Version="$(ContractVersion)" />
     <PackageReference Include="NarrativeTrace.Logging" Version="$(ContractVersion)" />
+    <!-- MiddlewareAdoptsTraceparentProbe's dependency — needs the ASP.NET Core shared framework
+         for DefaultHttpContext/HttpContext, same as NarrativeTrace.AspNetCore itself. -->
+    <PackageReference Include="NarrativeTrace.AspNetCore" Version="$(ContractVersion)" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <!-- Reads documentation/contract.yaml — the same library build/ContractLintSupport.cs uses,
          so the two never parse the schema two different ways (they cannot share code: this
          project consumes only registry artifacts and never references the root build project). -->

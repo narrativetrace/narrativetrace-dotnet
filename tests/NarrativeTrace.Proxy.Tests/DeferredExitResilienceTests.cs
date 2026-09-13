@@ -217,5 +217,8 @@ public class DeferredExitResilienceTests
         public void SetUserContext(
             EnduserId? enduserId, SessionId? sessionId, TenantId? tenantId) =>
             _inner.SetUserContext(enduserId, sessionId, tenantId);
+
+        public void AdoptTraceparent(Traceparent? traceparent) =>
+            _inner.AdoptTraceparent(traceparent);
     }
 }

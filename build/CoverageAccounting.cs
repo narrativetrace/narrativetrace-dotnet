@@ -69,6 +69,9 @@ internal static class CoverageAccounting
         ["NarrativeTrace.Logging.Tests"] = new(93, "[NarrativeTrace.Logging]*"),
         ["NarrativeTrace.Observability.Tests"] = new(96, "[NarrativeTrace.Observability]*"),
         ["NarrativeTrace.Proxy.Tests"] = new(94, "[NarrativeTrace.Proxy]*"),
+        // Measured 97.59% line 2026-09-13 (the doctor/add-narrative-tracing skill catalogue +
+        // renderers), rounded down.
+        ["NarrativeTrace.Skills.Tests"] = new(95, "[NarrativeTrace.Skills]*"),
         ["NarrativeTrace.Testing.NUnit.Tests"] = new(86, "[NarrativeTrace.Testing.NUnit]*"),
         ["NarrativeTrace.Testing.Xunit.Tests"] = new(88, "[NarrativeTrace.Testing.Xunit]*"),
 

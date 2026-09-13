@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: BUSL-1.1
+# Licensed under the Business Source License 1.1 (see LICENSE); Change Date: four years from publication; Change License: Apache-2.0
+# Copyright (c) 2026 Empower Agile
+# Mined trigger phrasings for add-narrative-tracing — never invented.
+# Gate: >=90% of positive phrasings fire the skill; none of the negative ones do.
+positive:
+  - "add narrative tracing to this project"
+  - "set up NarrativeTrace"
+  - "wire up tracing for this service"
+  - "instrument this .NET app with NarrativeTrace"
+  - "get a trace out of this code"
+  - "I want to see what my service is doing, can you add tracing"
+negative:
+  - "why isn't NarrativeTrace working"
+  - "diagnose narrative trace"
+  - "check my NarrativeTrace setup"
+  - "add OpenTelemetry to this project"

@@ -91,6 +91,7 @@ public sealed class SyncNarrativeContext
         _sink = sink;
         _adoptionCeiling = adoptionCeiling;
         _state = NewState();
+        AdoptTraceparent(config.InitialTraceparent);
     }
 
     /// <summary>
@@ -424,6 +425,30 @@ public sealed class SyncNarrativeContext
     }
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// A <see langword="null"/> <paramref name="traceparent"/> is a no-op, so a
+    /// middleware can call this unconditionally with whatever
+    /// <see cref="Traceparent.Parse"/> returned. Called more than once, the
+    /// last call wins; spans already emitted keep the trace id and parent they
+    /// were created with — this only changes what the <em>next</em> root-level
+    /// <see cref="EnterMethod"/> sees.
+    /// </remarks>
+    public void AdoptTraceparent(Traceparent? traceparent)
+    {
+        if (traceparent is null)
+        {
+            return;
+        }
+
+        lock (_lock)
+        {
+            var state = Current;
+            state.TraceId = traceparent.TraceId;
+            state.RemoteParentSpanId = traceparent.ParentSpanId;
+        }
+    }
+
+    /// <inheritdoc/>
     public SpanId? ParentOf(SpanId handle)
     {
         lock (_lock)
@@ -593,7 +618,13 @@ public sealed class SyncNarrativeContext
             return state.ActiveStack[state.ActiveStack.Count - 1];
         }
 
-        return state.SnapshotParentSpanId;
+        if (state.SnapshotParentSpanId is { } snapshotParent)
+        {
+            return snapshotParent;
+        }
+
+        // Last rung: an inbound traceparent parents this flow's root span, and nothing deeper.
+        return state.RemoteParentSpanId;
     }
 
     private SpanId? ResolveHandle(SpanId? handle)
@@ -644,6 +675,13 @@ public sealed class SyncNarrativeContext
             = new();
         public TraceId? TraceId { get; set; }
         public SpanId? SnapshotParentSpanId { get; set; }
+
+        /// <summary>
+        /// Parent span from an inbound <see cref="Traceparent"/>; parents this
+        /// flow's root span only — the parent resolver only reaches it once the
+        /// active stack and any snapshot parent are both empty.
+        /// </summary>
+        public SpanId? RemoteParentSpanId { get; set; }
 
         /// <summary>Whether this capture was opened by activating a snapshot.</summary>
         public bool FromSnapshot { get; set; }

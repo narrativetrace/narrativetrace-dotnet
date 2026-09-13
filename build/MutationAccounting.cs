@@ -129,6 +129,10 @@ internal static class MutationAccounting
             "no stryker-config of its own — Stryker's `project` field mutates only the assembly it "
             + "names, and Runtime carries no dedicated test project of its own (Core.Tests exercises "
             + "it instead, see CoverageAccounting's own note); DEFERRED"),
+        ["NarrativeTrace.Skills"] = new(
+            "authoring tooling for the skill catalogue and its SKILL.md/AGENTS.md renderers, own "
+            + "Skills.Tests already coverage-gated at 95% (CoverageAccounting) — DEFERRED, no "
+            + "stryker-config targets it yet"),
         ["NarrativeTrace.Testing.NUnit"] = new(
             "NUnit test-framework integration adapter (378 lines) — DEFERRED, no stryker-config "
             + "targets it yet"),

@@ -26,6 +26,34 @@ public class NarrativeTraceProxyTests
     }
 
     [Fact]
+    public void Create_generic_rejects_a_concrete_class_with_a_pointer_to_the_doctor_skill()
+    {
+        var ctx = new SyncNarrativeContext(new NarrativeTraceConfig());
+
+        var ex = Assert.Throws<ArgumentException>(
+            () => NarrativeTraceProxy.Create<ConcreteCalculator>(
+                new ConcreteCalculator(), ctx));
+
+        Assert.Contains("ConcreteCalculator", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("interface", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("narrativetrace-doctor skill", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Create_non_generic_rejects_a_concrete_class_with_a_pointer_to_the_doctor_skill()
+    {
+        var ctx = new SyncNarrativeContext(new NarrativeTraceConfig());
+
+#pragma warning disable CA2263 // deliberately exercising the non-generic (runtime-type) overload
+        var ex = Assert.Throws<ArgumentException>(
+            () => NarrativeTraceProxy.Create(
+                typeof(ConcreteCalculator), new ConcreteCalculator(), ctx));
+#pragma warning restore CA2263
+
+        Assert.Contains("narrativetrace-doctor skill", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Proxy_captures_parameter_names_via_reflection()
     {
         var ctx = new SyncNarrativeContext(new NarrativeTraceConfig());
@@ -655,6 +683,11 @@ public class NarrativeTraceProxyTests
         int Add(int a, int b);
     }
 
+    public class ConcreteCalculator
+    {
+        public virtual int Add(int a, int b) => a + b;
+    }
+
     public interface IAuth
     {
         void Login(string user, [NotTraced] string password);
@@ -960,6 +993,8 @@ public class NarrativeTraceProxyTests
             EnduserId? enduserId, SessionId? sessionId,
             TenantId? tenantId)
         { }
+
+        public void AdoptTraceparent(Traceparent? traceparent) { }
     }
 
     private sealed class NarratedService : INarrated

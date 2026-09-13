@@ -35,6 +35,7 @@ public static class NarrativeTraceProxy
         INarrativeContext context,
         ProxyOptions? options = null) where T : class
     {
+        RejectNonInterface(typeof(T));
         RejectMethodLevelNotTraced(typeof(T));
         var proxy = DispatchProxy.Create<T, NarrativeInterceptor>();
         var interceptor = (NarrativeInterceptor)(object)proxy!;
@@ -58,6 +59,7 @@ public static class NarrativeTraceProxy
         INarrativeContext context,
         ProxyOptions? options = null)
     {
+        RejectNonInterface(interfaceType);
         RejectMethodLevelNotTraced(interfaceType);
         // Reflect over the generic DispatchProxy.Create<T, TProxy>() —
         // the non-generic Create(Type, Type) overload does not exist on
@@ -77,6 +79,23 @@ public static class NarrativeTraceProxy
             System.Reflection.BindingFlags.Public
             | System.Reflection.BindingFlags.Static,
             binder: null, Type.EmptyTypes, modifiers: null)!;
+
+    // The BCL's own DispatchProxy.Create<T, TProxy>() already rejects a concrete class for T —
+    // "The type 'X' must be an interface, not a class." — but that message never mentions
+    // NarrativeTrace at all, let alone that the doctor skill diagnoses exactly this trap. Checked
+    // here, ahead of the BCL call, purely so the thrown message can say more.
+    private static void RejectNonInterface(Type candidateType)
+    {
+        if (candidateType.IsInterface)
+        {
+            return;
+        }
+
+        throw new ArgumentException(
+            $"NarrativeTraceProxy.Create<T> requires an interface; '{candidateType.Name}' is a " +
+            "class. Extract an interface for it and proxy that instead. " +
+            "→ narrativetrace-doctor skill");
+    }
 
     // [NotTraced] has no METHOD-level meaning (JVM-edition parity: its
     // @NotTraced has no METHOD target either — see the attribute's own

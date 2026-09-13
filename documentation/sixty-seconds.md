@@ -31,13 +31,28 @@ dotnet add package NarrativeTrace.Proxy
 
 ## 2. Replace Program.cs
 
+`Program.cs` seeds one fixed `Traceparent` through `NarrativeTraceConfig` — the
+same wire format `NarrativeTraceMiddleware` adopts from an inbound
+`traceparent` request header — purely so this page's output always names the
+same trace. Your own code never does this: leave `initialTraceparent` unset
+and a real run generates a random trace id every time, and the three-word
+name below is derived from it, never from a name you choose.
+
 <!-- snippet: examples/NarrativeTrace.Examples.SixtySeconds/Program.cs -->
 ```csharp
 using NarrativeTrace.Core;
 using NarrativeTrace.Proxy;
 using NarrativeTrace.Runtime;
 
-var context = new SyncNarrativeContext(new NarrativeTraceConfig());
+// snippet:begin fixedTraceparent
+// A fixed W3C traceparent, seeded through NarrativeTraceConfig so this page's embedded output
+// always names the same trace. A real run adopts nothing here (or a real inbound request header,
+// via NarrativeTraceMiddleware) and gets a fresh, randomly generated trace id every time.
+const string DemoTraceparent = "00-a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4-a1b2c3d4a1b2c3d4-01";
+// snippet:end fixedTraceparent
+
+var context = new SyncNarrativeContext(
+    new NarrativeTraceConfig(initialTraceparent: Traceparent.Parse(DemoTraceparent)));
 var orders = NarrativeTraceProxy.Create<IOrderService>(new OrderService(), context);
 
 orders.PlaceOrder("cust-1", "book-123", 2);
@@ -63,16 +78,17 @@ public sealed class OrderService : IOrderService
 dotnet run
 ```
 
-<!-- snippet: artifacts/sixty-seconds/see-a-trace.txt mask=duration,traceName -->
+<!-- snippet: artifacts/sixty-seconds/see-a-trace.txt mask=duration -->
 ```text
-trace: tidy font heats (79af2f4)
+trace: loose hook parks (a1b2c3d)
 
-└── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 16ms
+└── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 12ms
 ```
 <!-- /snippet -->
 
-(The timing and the trace's own three-word phrase will vary run to run —
-everything else is stable.)
+(The timing is the one thing that will vary on your machine and between
+runs — the fixed traceparent above keeps everything else, trace name
+included, stable.)
 
 You didn't write a single log statement. That narrative came entirely from
 your method name, your parameter names, and the value you returned.
@@ -107,7 +123,8 @@ dotnet add package Microsoft.Extensions.Logging.Console
  using NarrativeTrace.Proxy;
  using NarrativeTrace.Runtime;
 
- var context = new SyncNarrativeContext(new NarrativeTraceConfig());
+ var context = new SyncNarrativeContext(
+     new NarrativeTraceConfig(initialTraceparent: Traceparent.Parse(DemoTraceparent)));
  var orders = NarrativeTraceProxy.Create<IOrderService>(new OrderService(), context);
 
  orders.PlaceOrder("cust-1", "book-123", 2);
@@ -124,9 +141,9 @@ dotnet add package Microsoft.Extensions.Logging.Console
 dotnet run
 ```
 
-<!-- snippet: artifacts/sixty-seconds/see-a-trace-with-logger.txt mask=duration,traceName -->
+<!-- snippet: artifacts/sixty-seconds/see-a-trace-with-logger.txt mask=duration -->
 ```text
-trace: huge lark nests (3719407)
+trace: loose hook parks (a1b2c3d)
 
 └── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 0ms
 
@@ -135,8 +152,9 @@ info: NarrativeTrace[1]
 ```
 <!-- /snippet -->
 
-(The timing and the trace's own three-word phrase will vary run to run —
-everything else is stable.)
+(The timing is the one thing that will vary on your machine and between
+runs — the fixed traceparent above keeps everything else, trace name
+included, stable.)
 
 Same trace, two destinations: the console renderer stays exactly as it was,
 and the `ILogger` record below it proves the tree lands in the sink you

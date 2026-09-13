@@ -324,6 +324,13 @@ public sealed class AsyncNarrativeContext
     }
 
     /// <inheritdoc/>
+    /// <exception cref="InvalidOperationException">Called outside a <see cref="Run(Action)"/> / <see cref="RunAsync(Func{Task})"/> scope.</exception>
+    public void AdoptTraceparent(Traceparent? traceparent)
+    {
+        RequireCurrent().AdoptTraceparent(traceparent);
+    }
+
+    /// <inheritdoc/>
     /// <remarks>
     /// Reads the active scope, else the most recently completed one, else
     /// returns an empty tree. Never throws for want of a scope — but see the

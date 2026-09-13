@@ -28,12 +28,19 @@ public sealed class NarrativeTraceConfig
     /// Service metadata stamped onto every span, or <see langword="null"/> for a
     /// single-service trace that needs no attribution.
     /// </param>
+    /// <param name="initialTraceparent">
+    /// A W3C trace context to adopt at construction time, or
+    /// <see langword="null"/> for a fresh trace. See
+    /// <see cref="InitialTraceparent"/>.
+    /// </param>
     public NarrativeTraceConfig(
         TracingLevel level = TracingLevel.Detail,
-        ServiceIdentity? serviceIdentity = null)
+        ServiceIdentity? serviceIdentity = null,
+        Traceparent? initialTraceparent = null)
     {
         _level = level;
         ServiceIdentity = serviceIdentity;
+        InitialTraceparent = initialTraceparent;
     }
 
     /// <summary>
@@ -55,4 +62,25 @@ public sealed class NarrativeTraceConfig
     /// Optional service metadata stamped onto every span context.
     /// </summary>
     public ServiceIdentity? ServiceIdentity { get; }
+
+    /// <summary>
+    /// A W3C trace context to adopt without an inbound HTTP header — the
+    /// no-header equivalent of what <c>NarrativeTraceMiddleware</c> adopts from
+    /// a <c>traceparent</c> request header. <see langword="null"/> by default,
+    /// meaning every context built from this configuration starts a fresh,
+    /// randomly generated trace.
+    /// </summary>
+    /// <remarks>
+    /// Fixed at construction, like <see cref="ServiceIdentity"/> — there is no
+    /// setter, so a context already running cannot be re-seeded through it;
+    /// call <see cref="INarrativeContext.AdoptTraceparent"/> directly for that.
+    /// Intended for seeding a demo or a documentation snippet with a
+    /// deterministic trace id, never for production traffic: every context
+    /// built from one shared <see cref="NarrativeTraceConfig"/> adopts the same
+    /// fixed value, which is correct for a single top-level
+    /// <c>SyncNarrativeContext</c> but defeats <c>AsyncNarrativeContext</c>'s
+    /// whole purpose of giving each scope its own distinct trace — do not pair
+    /// the two.
+    /// </remarks>
+    public Traceparent? InitialTraceparent { get; }
 }

@@ -59,6 +59,31 @@ These surface as `service.name` / `service.version` /
 `service.environment` in JSON export, logging scopes, and OpenTelemetry
 spans.
 
+### Traceparent seeding *(since 0.1.4, unreleased)*
+
+Seed a starting [W3C `traceparent`](https://www.w3.org/TR/trace-context/#traceparent-header)
+so every context built from a configuration continues a caller's trace
+instead of starting its own — the no-HTTP-header equivalent of what
+`NarrativeTraceMiddleware` adopts from an inbound request (§4 below):
+
+```csharp
+var config = new NarrativeTraceConfig(
+    initialTraceparent: Traceparent.Parse("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"));
+var context = new SyncNarrativeContext(config);
+```
+
+`Traceparent.Parse` never throws — a malformed or absent value returns
+`null`, which `NarrativeTraceConfig` treats as "no seed", so a context
+built from it falls back to a fresh, randomly generated trace id. Fixed at
+construction like `ServiceIdentity`: there is no setter, and re-seeding a
+running context needs `context.AdoptTraceparent(...)` directly instead.
+
+Leave it unset for production traffic — every context built from one
+shared `NarrativeTraceConfig` adopts the same fixed value, which is
+correct for a single top-level context (a demo, a one-shot script) but
+defeats `AsyncNarrativeContext`'s whole purpose of giving each scope its
+own distinct trace. Do not pair the two.
+
 ## 2. Environment variables (`ConfigResolver`)
 
 `ConfigResolver` reads six variables — the `.NET`-native override
@@ -188,6 +213,12 @@ builder.Services.AddNarrativeTrace(builder.Configuration, options =>
 |---|---|---|
 | `Level` | `TracingLevel` | Capture level for the request context. |
 | `ExcludedPaths` | `string[]` | Path prefixes skipped entirely (matched by segment). |
+
+`NarrativeTraceMiddleware` adopts an inbound `traceparent` request header
+automatically *(since 0.1.4, unreleased)* — no option to flip; an absent,
+malformed, or forbidden-version header is ignored and the request gets a
+freshly generated trace id, exactly like the config-seeded path above but
+driven by the caller's header instead of a fixed value.
 
 See the [ASP.NET Core Integration Guide](aspnetcore.md) for the middleware
 and exporter wiring.

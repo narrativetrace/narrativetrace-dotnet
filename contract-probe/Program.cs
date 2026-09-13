@@ -63,7 +63,8 @@ string FailureMessage(ContractEntry entry, string installedVersion, string obser
 
 string Observe(ContractEntry entry, Args opts) => entry.Id switch
 {
-    "entry-point-core" or "entry-point-runtime" or "entry-point-proxy" or "entry-point-logging" =>
+    "entry-point-core" or "entry-point-runtime" or "entry-point-proxy" or "entry-point-logging"
+        or "entry-point-cli" =>
         EntryPointProbe.Observe(entry.Coordinate!, opts.RegistryBase, opts.Version),
     "reflectable-output-default" => OutputDefaultProbe.Observe(),
     "reflectable-approval-default" => ApprovalDefaultProbe.Observe(),
@@ -76,8 +77,17 @@ string Observe(ContractEntry entry, Args opts) => entry.Id switch
     "probed-platform-type-carveout" => PlatformTypeCarveoutProbe.Observe(),
     "config-shape-one-package-install" => OnePackageInstallProbe.Observe(opts.RegistryBase, opts.Version),
     "config-shape-tracelogexporter-export-to-logger" => TraceLogExporterProbe.Observe(),
+    _ => ObserveNewer(entry),
+};
+
+// Split from Observe purely to stay under the line-count gate — the two together are one closed
+// registry, not two; an id unmatched by either falls through to this one's own "no dispatch" throw.
+string ObserveNewer(ContractEntry entry) => entry.Id switch
+{
     "probed-run-name-console-footer" => RunNameConsoleFooterProbe.Observe(),
     "probed-run-name-manifest-field" => RunNameManifestFieldProbe.Observe(),
+    "probed-initial-traceparent-seeds-context" => InitialTraceparentSeedsContextProbe.Observe(),
+    "probed-middleware-adopts-traceparent" => MiddlewareAdoptsTraceparentProbe.Observe(),
     _ => throw new InvalidOperationException(
         $"no probe dispatch registered for entry \"{entry.Id}\" — add one in Program.cs's Observe"),
 };

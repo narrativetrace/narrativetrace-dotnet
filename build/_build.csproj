@@ -33,4 +33,13 @@
     <PackageReference Include="YamlDotNet" Version="18.1.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The one reference to a product project this build script carries, and deliberately so:
+         SnippetCheckSupport needs the exact same license-header-stripping logic
+         NarrativeTrace.Skills's SnippetResolver needs (both embed a real source file verbatim and
+         must agree on what a publish-time header stamp does to it) — NarrativeTrace.Core is the
+         shared, dependency-free home for it, never a second implementation on either side. -->
+    <ProjectReference Include="../src/NarrativeTrace.Core/NarrativeTrace.Core.csproj" />
+  </ItemGroup>
+
 </Project>

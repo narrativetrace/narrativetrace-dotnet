@@ -1,4 +1,4 @@
-<!-- source: documentation/sixty-seconds.md blob 70ce88821a34 | translated: 2026-09-13 | reviewed: - -->
+<!-- source: documentation/sixty-seconds.md blob 318fcdf13e69 | translated: 2026-09-13 | reviewed: - -->
 # Ve una traza en 60 segundos
 
 [English](../sixty-seconds.md) | **Español** | [Português](../pt-BR/sessenta-segundos.md) | [简体中文](../zh-CN/60秒.md)
@@ -32,12 +32,29 @@ dotnet add package NarrativeTrace.Proxy
 
 ## 2. Reemplaza Program.cs
 
+`Program.cs` siembra un `Traceparent` fijo a través de `NarrativeTraceConfig`
+— el mismo formato de cable que `NarrativeTraceMiddleware` adopta de una
+cabecera de petición `traceparent` entrante — únicamente para que la salida
+de esta página siempre nombre la misma traza. Tu propio código nunca hace
+esto: deja `initialTraceparent` sin establecer y una ejecución real genera
+un id de traza aleatorio cada vez, y el nombre de tres palabras de abajo se
+deriva de él, nunca de un nombre que tú elijas.
+
 ```csharp
 using NarrativeTrace.Core;
 using NarrativeTrace.Proxy;
 using NarrativeTrace.Runtime;
 
-var context = new SyncNarrativeContext(new NarrativeTraceConfig());
+// snippet:begin fixedTraceparent
+// Un traceparent W3C fijo, sembrado a través de NarrativeTraceConfig para que la salida
+// incrustada de esta página siempre nombre la misma traza. Una ejecución real no adopta nada
+// aquí (o una cabecera de petición entrante real, vía NarrativeTraceMiddleware) y obtiene un id
+// de traza aleatorio y nuevo cada vez.
+const string DemoTraceparent = "00-a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4-a1b2c3d4a1b2c3d4-01";
+// snippet:end fixedTraceparent
+
+var context = new SyncNarrativeContext(
+    new NarrativeTraceConfig(initialTraceparent: Traceparent.Parse(DemoTraceparent)));
 var orders = NarrativeTraceProxy.Create<IOrderService>(new OrderService(), context);
 
 orders.PlaceOrder("cust-1", "book-123", 2);
@@ -63,13 +80,14 @@ dotnet run
 ```
 
 ```text
-trace: tidy font heats (79af2f4)
+trace: loose hook parks (a1b2c3d)
 
-└── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 16ms
+└── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 12ms
 ```
 
-(El tiempo y la frase propia de tres palabras de la traza variarán de una
-ejecución a otra — todo lo demás es estable.)
+(El tiempo es lo único que variará en tu máquina y entre ejecuciones — el
+traceparent fijo de arriba mantiene todo lo demás, incluido el nombre de la
+traza, estable.)
 
 No escribiste ni una sola sentencia de log. Esa narrativa salió por completo
 del nombre de tu método, los nombres de tus parámetros y el valor que
@@ -106,7 +124,8 @@ dotnet add package Microsoft.Extensions.Logging.Console
  using NarrativeTrace.Proxy;
  using NarrativeTrace.Runtime;
 
- var context = new SyncNarrativeContext(new NarrativeTraceConfig());
+ var context = new SyncNarrativeContext(
+     new NarrativeTraceConfig(initialTraceparent: Traceparent.Parse(DemoTraceparent)));
  var orders = NarrativeTraceProxy.Create<IOrderService>(new OrderService(), context);
 
  orders.PlaceOrder("cust-1", "book-123", 2);
@@ -124,7 +143,7 @@ dotnet run
 ```
 
 ```text
-trace: huge lark nests (3719407)
+trace: loose hook parks (a1b2c3d)
 
 └── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 0ms
 
@@ -132,8 +151,9 @@ info: NarrativeTrace[1]
       IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) -> "confirmed:cust-1:book-123:2"
 ```
 
-(El tiempo y la frase propia de tres palabras de la traza variarán de una
-ejecución a otra — todo lo demás es estable.)
+(El tiempo es lo único que variará en tu máquina y entre ejecuciones — el
+traceparent fijo de arriba mantiene todo lo demás, incluido el nombre de la
+traza, estable.)
 
 La misma traza, dos destinos: el renderizador de consola queda exactamente
 igual, y el registro de `ILogger` de abajo demuestra que el árbol llega al

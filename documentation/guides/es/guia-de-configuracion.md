@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/configuration.md blob 679e070102fd | translated: 2026-09-13 | reviewed: - -->
+<!-- source: documentation/guides/configuration.md blob 70f09b65a472 | translated: 2026-09-13 | reviewed: - -->
 # NarrativeTrace .NET — Guía de configuración
 
 [English](../configuration.md) | **Español** | [Português](../pt-BR/guia-de-configuracao.md) | [简体中文](../zh-CN/配置指南.md)
@@ -59,6 +59,35 @@ var config = new NarrativeTraceConfig(TracingLevel.Detail, identity);
 
 Aparecen como `service.name` / `service.version` / `service.environment` en
 la exportación JSON, los scopes de logging y los spans de OpenTelemetry.
+
+### Siembra de traceparent *(since 0.1.4, unreleased)*
+
+Siembra un [`traceparent`](https://www.w3.org/TR/trace-context/#traceparent-header)
+W3C inicial para que cada contexto construido a partir de una configuración
+continúe la traza de quien llama en lugar de iniciar la suya propia — el
+equivalente sin cabecera HTTP de lo que `NarrativeTraceMiddleware` adopta de
+una petición entrante (§4 más abajo):
+
+```csharp
+var config = new NarrativeTraceConfig(
+    initialTraceparent: Traceparent.Parse("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"));
+var context = new SyncNarrativeContext(config);
+```
+
+`Traceparent.Parse` nunca lanza excepción — un valor malformado o ausente
+devuelve `null`, que `NarrativeTraceConfig` trata como "sin semilla", así
+que un contexto construido a partir de él recae en una traza fresca,
+generada aleatoriamente. Fijo en el momento de construcción como
+`ServiceIdentity`: no hay setter, y volver a sembrar un contexto en
+ejecución necesita `context.AdoptTraceparent(...)` directamente en su
+lugar.
+
+Déjalo sin establecer para tráfico de producción — cada contexto
+construido a partir de una `NarrativeTraceConfig` compartida adopta el
+mismo valor fijo, lo cual es correcto para un único contexto de nivel
+superior (una demo, un script de un solo uso) pero anula todo el propósito
+de `AsyncNarrativeContext` de dar a cada scope su propia traza distinta.
+No combines ambos.
 
 ## 2. Variables de entorno (`ConfigResolver`)
 
@@ -194,6 +223,13 @@ builder.Services.AddNarrativeTrace(builder.Configuration, options =>
 |---|---|---|
 | `Level` | `TracingLevel` | Nivel de captura del contexto de la petición. |
 | `ExcludedPaths` | `string[]` | Prefijos de ruta omitidos por completo (coincidencia por segmento). |
+
+`NarrativeTraceMiddleware` adopta automáticamente una cabecera de petición
+`traceparent` entrante *(since 0.1.4, unreleased)* — sin opción para
+desactivarlo; una cabecera ausente, malformada o con versión prohibida se
+ignora y la petición obtiene una traza recién generada, igual que la vía
+sembrada por configuración de arriba pero impulsada por la cabecera de
+quien llama en lugar de un valor fijo.
 
 Consulta la
 [Guía de integración con ASP.NET Core](guia-de-integracion-con-aspnet-core.md)

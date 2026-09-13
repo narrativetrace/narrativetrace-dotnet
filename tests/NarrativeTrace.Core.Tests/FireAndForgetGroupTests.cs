@@ -263,6 +263,9 @@ public class FireAndForgetGroupTests
             TenantId? tenantId) =>
             _inner.SetUserContext(enduserId, sessionId, tenantId);
 
+        public void AdoptTraceparent(Traceparent? traceparent) =>
+            _inner.AdoptTraceparent(traceparent);
+
         public void OnForkCreated(string groupId) { }
 
         public void OnJoinComplete(

@@ -1,4 +1,4 @@
-<!-- source: documentation/privacy-and-redaction.md blob 2ae627fd5931 | translated: 2026-09-13 | reviewed: - -->
+<!-- source: documentation/privacy-and-redaction.md blob 7ad6098968b3 | translated: 2026-09-13 | reviewed: - -->
 # Privacidade e ocultação
 
 [English](../privacy-and-redaction.md) | [Español](../es/privacidad-y-ocultacion.md) | **Português** | [简体中文](../zh-CN/隐私与脱敏.md)
@@ -235,6 +235,25 @@ ocultação:
   está resolvido para você, por não usar o nome de exibição de jeito
   nenhum (veja
   [Formato de trace estrutural](../structural-trace-format.md)).
+- **Adotar um `traceparent` recebido confia em quem chamou** *(since
+  0.1.4, unreleased)*. Tanto `NarrativeTraceMiddleware` quanto a via de
+  semeadura de `NarrativeTraceConfig` pegam o id do trace e o id do span
+  pai de um cabeçalho ou valor `traceparent` ao pé da letra — não há
+  assinatura, nem lista de origens confiáveis, e nada aqui confirma que
+  quem chamou realmente é dono do trace que ele nomeia. Nenhum dos dois
+  campos é confidencial (um id de trace ou de span não carrega nenhum
+  dado próprio), então isso é uma questão de identidade de trace, não um
+  vazamento: um chamador hostil ou mal configurado pode fazer os spans do
+  seu serviço aparecerem sob um id de trace e um pai que ele não
+  escolheu, no pior caso confundindo a correlação entre serviços, nunca
+  expondo um valor que esta página oculta. `Traceparent.Parse` degrada um
+  cabeçalho malformado ou proibido para "iniciar um trace novo" em vez de
+  lançar exceção, então um cabeçalho ruim de um desconhecido também não
+  pode falhar a requisição — veja o [Guia de configuração,
+  §1](../guides/pt-BR/guia-de-configuracao.md#semeadura-de-traceparent-since-014-unreleased)
+  para a via de semeadura e o
+  [§4](../guides/pt-BR/guia-de-configuracao.md#4-aspnet-core) para o
+  middleware.
 
 ## O que esta página não cobre
 

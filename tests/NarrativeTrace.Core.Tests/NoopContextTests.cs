@@ -147,6 +147,19 @@ public class NoopContextTests
     }
 
     [Fact]
+    public void AdoptTraceparent_is_a_safe_noop()
+    {
+        var ctx = NoopContext.Instance;
+        var traceparent = new Traceparent(
+            SpanIdGenerator.GenerateTraceId(), SpanIdGenerator.GenerateSpanId(), 1);
+
+        ctx.AdoptTraceparent(traceparent);
+        ctx.AdoptTraceparent(null);
+
+        Assert.Null(ctx.CurrentTraceId);
+    }
+
+    [Fact]
     public void GraftChild_does_nothing()
     {
         var node = new TraceNode(

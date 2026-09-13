@@ -51,11 +51,19 @@ public static class WithLogger
         }
     }
 
+    // Mirrors Program.cs's own fixed demo traceparent constant (see that file's
+    // "fixedTraceparent" snippet region) — kept a separate literal for the same
+    // reason the rest of this file duplicates Program.cs's call rather than
+    // sharing it: Program.cs's own embedded snippet must never depend on this
+    // test-only helper.
+    private const string DemoTraceparent = "00-a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4-a1b2c3d4a1b2c3d4-01";
+
     // Console.Out is already redirected by Run() above by the time this
     // executes — split out only to keep Run() under the line-count gate.
     private static void RunTutorial()
     {
-        var context = new SyncNarrativeContext(new NarrativeTraceConfig());
+        var context = new SyncNarrativeContext(
+            new NarrativeTraceConfig(initialTraceparent: Traceparent.Parse(DemoTraceparent)));
         var orders = NarrativeTraceProxy.Create<IOrderService>(new OrderService(), context);
 
         orders.PlaceOrder("cust-1", "book-123", 2);

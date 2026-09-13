@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using NarrativeTrace.Core;
 
 namespace NarrativeTrace.Build;
 
@@ -185,7 +186,14 @@ internal static class SnippetCheckSupport
     /// the agent-facing index is a <c>.txt</c> file so it falls outside the
     /// Markdown glob, but its own "copy this" block is exactly the kind of
     /// quickstart code+output pairing rule 8 exists to keep honest, so it
-    /// gets the same marker treatment as every other quickstart page.
+    /// gets the same marker treatment as every other quickstart page —
+    /// and every <c>.claude/skills/&lt;segment&gt;/SKILL.md</c>: a skill page's
+    /// snippet steps embed the identical example sources through the identical
+    /// <c>&lt;!-- snippet: PATH --&gt;</c> convention (see
+    /// <c>NarrativeTrace.Skills.Render.ClaudeSkillRenderer</c>), so this
+    /// check's drift coverage extends there too rather than leaving it to
+    /// <c>SkillsLint</c>'s independent (and differently-shaped) fresh-render
+    /// comparison alone.
     /// </summary>
     private static IEnumerable<string> MarkdownFiles(string root)
     {
@@ -197,7 +205,12 @@ internal static class SnippetCheckSupport
         var llmsTxt = Directory.Exists(documentation)
             ? Directory.EnumerateFiles(documentation, "llms.txt", SearchOption.AllDirectories)
             : Enumerable.Empty<string>();
-        return underDocs.Concat(atRoot).Concat(llmsTxt).OrderBy(f => f, StringComparer.Ordinal);
+        var claudeSkills = Path.Combine(root, ".claude", "skills");
+        var skillPages = Directory.Exists(claudeSkills)
+            ? Directory.EnumerateFiles(claudeSkills, "SKILL.md", SearchOption.AllDirectories)
+            : Enumerable.Empty<string>();
+        return underDocs.Concat(atRoot).Concat(llmsTxt).Concat(skillPages)
+            .OrderBy(f => f, StringComparer.Ordinal);
     }
 
     private static IEnumerable<string> CheckFile(string root, string relative, string text)
@@ -414,7 +427,7 @@ internal static class SnippetCheckSupport
             return "";
         }
 
-        var text = StripLicenseHeader(File.ReadAllText(full).Replace("\r\n", "\n"));
+        var text = LicenseHeaderStripper.Strip(File.ReadAllText(full).Replace("\r\n", "\n"));
         if (region is null)
         {
             error = null;
@@ -424,81 +437,12 @@ internal static class SnippetCheckSupport
         return ExtractRegion(text, relativePath, region, out error);
     }
 
-    /// <summary>
-    /// Strips a leading license-header comment block from the SOURCE side only — never the
-    /// page's fenced block, and <see cref="Sync"/> never writes one back to either side. The
-    /// header is stamped into a shipped file only by the publish script, at publish time, never
-    /// in-tree (see the license-stamping-public-only convention), so an example project like
-    /// <c>examples/NarrativeTrace.Examples.SixtySeconds/Program.cs</c> matches the page it is
-    /// embedded into while developed here, then would silently drift the moment the cold public
-    /// snapshot's copy of the same file gained three comment lines the page never shows — this
-    /// keeps the comparison (and any resync) blind to a header that exists on one side only.
-    /// </summary>
-    /// <remarks>
-    /// Deliberately narrow: only an initial run of <c>//</c> lines, or one leading
-    /// <c>/* ... */</c> block, whose own text contains <c>SPDX-License-Identifier</c> or
-    /// <c>Licensed under</c> is stripped — matching the two phrases the publish script's own
-    /// header actually carries (the publish script's <c>HEADER_SPDX</c> /
-    /// <c>HEADER_NOTICE</c>), so a copyright line alone still counts once either phrase is
-    /// present anywhere in the same leading block. Any other leading comment — a file banner, an
-    /// unrelated copyright notice, a doc comment — is left exactly as it was; this is not a
-    /// general "skip the top comment" heuristic. A single blank line immediately after the
-    /// stripped block is stripped too, so a header that happens to be followed by one leaves no
-    /// gap the page's fenced block would then have to match.
-    /// </remarks>
-    private static string StripLicenseHeader(string text)
-    {
-        var lines = text.Split('\n');
-        var end = LeadingCommentBlockEnd(lines);
-        if (end == 0)
-        {
-            return text;
-        }
-
-        var header = string.Join("\n", lines[..end]);
-        if (!header.Contains("SPDX-License-Identifier", StringComparison.Ordinal)
-            && !header.Contains("Licensed under", StringComparison.Ordinal))
-        {
-            return text;
-        }
-
-        var start = end < lines.Length && lines[end].Length == 0 ? end + 1 : end;
-        return string.Join("\n", lines[start..]);
-    }
-
-    /// <summary>
-    /// The exclusive end index of the file's leading comment — one <c>/* ... */</c> block, or a
-    /// contiguous run of <c>//</c> lines — or <c>0</c> when the file does not open with a
-    /// comment at all (including an unterminated <c>/*</c>, which is left alone rather than
-    /// guessed at).
-    /// </summary>
-    private static int LeadingCommentBlockEnd(string[] lines)
-    {
-        if (lines.Length == 0)
-        {
-            return 0;
-        }
-
-        var first = lines[0].TrimStart();
-        if (first.StartsWith("/*", StringComparison.Ordinal))
-        {
-            var close = Array.FindIndex(lines, l => l.TrimEnd().EndsWith("*/", StringComparison.Ordinal));
-            return close < 0 ? 0 : close + 1;
-        }
-
-        if (!first.StartsWith("//", StringComparison.Ordinal))
-        {
-            return 0;
-        }
-
-        var i = 0;
-        while (i < lines.Length && lines[i].TrimStart().StartsWith("//", StringComparison.Ordinal))
-        {
-            i++;
-        }
-
-        return i;
-    }
+    // StripLicenseHeader/LeadingCommentBlockEnd moved to NarrativeTrace.Core.LicenseHeaderStripper
+    // (2026-09-13): NarrativeTrace.Skills's own SnippetResolver needs the identical stripping
+    // logic (a rendered SKILL.md page embeds a real source file verbatim too, and hits the exact
+    // same publish-time-header drift), so this is now the one shared implementation both call —
+    // never a second copy of the same algorithm. See that class's own remarks for the full
+    // rationale (unchanged from here).
 
     private static string ExtractRegion(string text, string relativePath, string region, out string? error)
     {

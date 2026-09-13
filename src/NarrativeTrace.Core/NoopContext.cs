@@ -185,6 +185,10 @@ public sealed class NoopContext
         EnduserId? enduserId, SessionId? sessionId, TenantId? tenantId)
     { }
 
+    /// <inheritdoc/>
+    /// <remarks>No-op — a disabled context has no trace to continue.</remarks>
+    public void AdoptTraceparent(Traceparent? traceparent) { }
+
     private sealed class NoopSnapshot : IContextSnapshot
     {
         public static readonly IContextSnapshot Shared = new NoopSnapshot();

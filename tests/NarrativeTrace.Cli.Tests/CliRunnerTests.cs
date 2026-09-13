@@ -137,4 +137,74 @@ public sealed class CliRunnerTests : IDisposable
         Assert.NotEqual(0, exit);
         Assert.Contains("frobnicate", _err.ToString(), StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Doctor_verb_dispatches_to_the_doctor_command()
+    {
+        // An explicit --dir keeps this deterministic — it never touches whatever
+        // directory the test host happens to run from.
+        Directory.CreateDirectory(_outputDir);
+
+        var exit = CliRunner.Run(["doctor", "--dir", _outputDir], _out, _err);
+
+        Assert.Equal(2, exit);
+        Assert.Contains(".csproj", _err.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Doctor_verb_accepts_the_json_flag()
+    {
+        Directory.CreateDirectory(_outputDir);
+        File.WriteAllText(Path.Combine(_outputDir, "app.csproj"), "<Project />");
+
+        var exit = CliRunner.Run(["doctor", "--json", "--dir", _outputDir], _out, _err);
+
+        Assert.Equal(1, exit);
+        Assert.Contains("\"findings\"", _out.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Skills_verb_without_a_sub_command_reports_usage()
+    {
+        var exit = CliRunner.Run(["skills"], _out, _err);
+
+        Assert.Equal(2, exit);
+        Assert.Contains("render", _err.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Skills_render_verb_dispatches_to_the_render_command()
+    {
+        Directory.CreateDirectory(_outputDir);
+        var fixtureDir = Path.Combine(_outputDir, "examples", "NarrativeTrace.Examples.SixtySeconds");
+        Directory.CreateDirectory(fixtureDir);
+        File.WriteAllText(Path.Combine(fixtureDir, "Program.cs"), "// program\n");
+        File.WriteAllText(Path.Combine(fixtureDir, "WithLogger.cs"), "// with logger\n");
+
+        var exit = CliRunner.Run(["skills", "render", "--dir", _outputDir], _out, _err);
+
+        Assert.Equal(0, exit);
+        Assert.True(File.Exists(Path.Combine(_outputDir, ".claude", "skills", "doctor", "SKILL.md")));
+    }
+
+    [Fact]
+    public void Skills_lint_verb_dispatches_to_the_lint_command()
+    {
+        Directory.CreateDirectory(_outputDir);
+
+        var exit = CliRunner.Run(["skills", "lint", "--dir", _outputDir], _out, _err);
+
+        Assert.Equal(1, exit);
+    }
+
+    [Fact]
+    public void Skills_replay_verb_dispatches_to_the_replay_command()
+    {
+        Directory.CreateDirectory(_outputDir);
+
+        var exit = CliRunner.Run(["skills", "replay", "--dir", _outputDir], _out, _err);
+
+        Assert.Equal(1, exit);
+        Assert.Contains("problem", _out.ToString(), StringComparison.Ordinal);
+    }
 }

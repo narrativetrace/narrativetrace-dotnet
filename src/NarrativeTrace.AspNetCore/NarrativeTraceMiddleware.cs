@@ -10,9 +10,10 @@ using NarrativeTrace.Runtime;
 namespace NarrativeTrace.AspNetCore;
 
 /// <summary>
-/// Per-request tracing lifecycle: creates a scoped context, stamps request
-/// and user tiers, runs the pipeline, then captures and exports the trace —
-/// exceptions still produce a trace with the response status.
+/// Per-request tracing lifecycle: creates a scoped context, adopts an inbound
+/// <c>traceparent</c> header, stamps request and user tiers, runs the
+/// pipeline, then captures and exports the trace — exceptions still produce a
+/// trace with the response status.
 /// </summary>
 public sealed class NarrativeTraceMiddleware : IMiddleware
 {
@@ -245,18 +246,28 @@ public sealed class NarrativeTraceMiddleware : IMiddleware
     }
 
     /// <summary>
-    /// Stamps the request tier onto the trace and resolves the user tier.
+    /// Adopts an inbound <c>traceparent</c> header, stamps the request tier
+    /// onto the trace, and resolves the user tier.
     /// </summary>
     /// <returns>
     /// The resolved identity for the caller to correlate logs with, or null
     /// when no provider is registered, none was resolved, or resolution threw.
     /// </returns>
+    /// <remarks>
+    /// An absent, malformed, or forbidden-version <c>traceparent</c> header is
+    /// ignored — <see cref="Traceparent.Parse"/> returns <see langword="null"/>
+    /// rather than throwing, and <see cref="INarrativeContext.AdoptTraceparent"/>
+    /// treats <see langword="null"/> as a no-op — so the request always gets a
+    /// trace, adopted from the caller or freshly generated.
+    /// </remarks>
     private UserContext? StampRequestContext(
         HttpContext context, INarrativeContext traceContext)
     {
         // Observability failure must never become a request failure.
         try
         {
+            traceContext.AdoptTraceparent(
+                Traceparent.Parse(context.Request.Headers[Traceparent.HeaderName]));
             traceContext.SetRequestContext(
                 context.Request.Method,
                 new HttpRoute(context.Request.Path.ToString()),

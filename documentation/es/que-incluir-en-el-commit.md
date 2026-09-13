@@ -1,4 +1,4 @@
-<!-- source: documentation/what-to-commit.md blob e4249e7cb168 | translated: 2026-09-13 | reviewed: - -->
+<!-- source: documentation/what-to-commit.md blob c2da93a7bc65 | translated: 2026-09-13 | reviewed: - -->
 # Qué incluir en el commit
 
 [English](../what-to-commit.md) | **Español** | [Português](../pt-BR/o-que-incluir-no-commit.md) | [简体中文](../zh-CN/应提交的内容.md)
@@ -27,6 +27,8 @@ writers de esta implementación realmente producen, no asumido.
 | `glossary.json` | **Sí**, si usas la recolección del glosario | Consulta abajo — este es el único artefacto que esta implementación trata como un archivo revisado y curado a mano. |
 | `glossary.md` | **Sí**, junto a `glossary.json` | Renderizado legible por humanos del mismo archivo, reescrito solo cuando cambian los bytes del JSON (anti-churn). |
 | `<output-dir>/glossary-usage.json` | No | Estadísticas de uso volátiles por ejecución — se regenera, no se cura. |
+| `.claude/skills/<segmento>/SKILL.md` | **Sí** | Regenerado por `dotnet run --project src/NarrativeTrace.Cli -- skills render` a partir del catálogo tipado de skills, pero se commitea igualmente: debe publicarse exactamente en la ruta donde Claude Code lo descubre. `skills lint` falla el build si difiere de una renderización reciente. |
+| La sección `<!-- narrativetrace:skills:start -->` … `<!-- narrativetrace:skills:end -->` de `AGENTS.md` | **Sí** | Mismo renderizador, insertado en el archivo en el mismo lugar — commitea el archivo completo, no solo la sección. |
 
 La escritura de trazas está **activada por defecto** *(since 0.1.4, unreleased)* (define
 `NARRATIVETRACE_OUTPUT=false` para desactivarla); `<output-dir>` por

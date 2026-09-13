@@ -243,6 +243,16 @@ public sealed class LoggingNarrativeContext
         _inner.SetUserContext(enduserId, sessionId, tenantId);
     }
 
+    /// <summary>
+    /// Adopts an inbound traceparent on the wrapped context. No log record is
+    /// emitted — the effect surfaces on the next <see cref="EnterMethod"/>'s
+    /// own enter record.
+    /// </summary>
+    public void AdoptTraceparent(Traceparent? traceparent)
+    {
+        _inner.AdoptTraceparent(traceparent);
+    }
+
     private void LogEnter(
         string className, string methodName,
         SpanId handle, SpanId? parent,

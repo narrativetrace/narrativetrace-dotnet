@@ -1,42 +1,86 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Licensed under the Business Source License 1.1 (see LICENSE); Change Date: four years from publication; Change License: Apache-2.0
 // Copyright (c) 2026 Empower Agile
-using System.Reflection;
+using NarrativeTrace.Core;
+using NarrativeTrace.SecurityTests.Corpus;
 using Xunit;
 
 namespace NarrativeTrace.SecurityTests;
 
 /// <summary>
-/// Target 1 of the shared fuzzing list — <b>N/A for this runtime</b>.
+/// Target 1 of the shared fuzzing list: the W3C <c>traceparent</c> header parser.
 /// </summary>
 /// <remarks>
 /// <para>
-/// INTENT: the Java runtime's target parses the W3C <c>traceparent</c>/<c>tracestate</c> wire
-/// headers (<c>ai.narrativetrace.api.event.Traceparent#parse</c>). This runtime has never
-/// implemented header parsing — it is an explicit non-goal here, and <c>SpanContext.TraceState</c> is a plain settable string, never parsed by
-/// anything in this codebase. The hostile corpus's <c>headers.json</c> (30 traceparent + 9
-/// tracestate cases) is still copied verbatim — see <c>HostileCorpus.Traceparents</c>/<c>Tracestates</c>
-/// and <c>HostileCorpusTest</c> — so a future parser lands with its fuzz cases already in place.
+/// INTENT: <see cref="Traceparent.Parse"/> is a request-path entry point — a stranger's header
+/// reaches it verbatim — so it must be total (never throw) and must accept or reject exactly the
+/// cases the shared corpus (<c>HostileCorpus/headers.json</c>, <c>traceparent</c> array) says it
+/// should, the same corpus every NarrativeTrace runtime's Target 1 replays.
 /// </para>
 /// <para>
-/// @llmNote This is a single evidence-bearing test rather than a silent gap: if a
-/// <c>Traceparent</c>-shaped parsing type is ever added to <c>NarrativeTrace.Core</c>, this test
-/// fails and says so, rather than this whole target staying quietly unported forever.
+/// @edgeCase <c>tracestate</c> parsing (the sibling array in the same fixture) is still an
+/// explicit non-goal here, same as before this type existed:
+/// <see cref="SpanContext.TraceState"/> remains a plain settable string, never parsed by anything
+/// in this codebase. <see cref="Tracestate_parser_still_does_not_exist_in_this_port"/> is the
+/// canary for that half — it fails, and says so, the day a <c>Tracestate</c>-shaped type appears.
 /// </para>
 /// </remarks>
 public class TraceparentParsingPropertyTests
 {
-    [Fact]
-    public void No_traceparent_parser_exists_in_this_port_yet()
+    public static IEnumerable<object[]> Traceparents() =>
+        HostileCorpus.Traceparents().Select(c => new object[] { c });
+
+    [Theory]
+    [MemberData(nameof(Traceparents))]
+    public void Every_corpus_header_parses_without_throwing(HeaderCase hostile)
     {
-        var coreAssembly = typeof(NarrativeTrace.Core.SpanContext).Assembly;
+        var exception = Record.Exception(() => Traceparent.Parse(hostile.Value));
+
+        Assert.True(
+            exception is null,
+            $"{hostile.Id} ({hostile.Description}): Parse must never throw, threw {exception}");
+    }
+
+    [Theory]
+    [MemberData(nameof(Traceparents))]
+    public void Every_corpus_header_matches_its_declared_acceptance(HeaderCase hostile)
+    {
+        var parsed = Traceparent.Parse(hostile.Value);
+
+        Assert.True(
+            hostile.Accepted == (parsed is not null),
+            $"{hostile.Id} ({hostile.Description}): expected accepted={hostile.Accepted}, got {parsed?.Format() ?? "null"}");
+    }
+
+    /// <summary>
+    /// The totality property from <c>TraceparentPropertyTests</c>, over the real hostile corpus
+    /// rather than random input: an accepted header re-emits to a value that parses back to the
+    /// same trace and parent span.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Traceparents))]
+    public void An_accepted_corpus_header_reformats_to_an_equivalent_value(HeaderCase hostile)
+    {
+        var parsed = Traceparent.Parse(hostile.Value);
+        if (parsed is null)
+        {
+            return;
+        }
+
+        Assert.Equal(parsed, Traceparent.Parse(parsed.Format()));
+    }
+
+    [Fact]
+    public void Tracestate_parser_still_does_not_exist_in_this_port()
+    {
+        var coreAssembly = typeof(SpanContext).Assembly;
 
         var candidate = coreAssembly.GetTypes()
-            .FirstOrDefault(t => t.Name.Contains("Traceparent", StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(t => t.Name.Contains("Tracestate", StringComparison.OrdinalIgnoreCase));
 
         Assert.True(
             candidate is null,
-            $"a traceparent-shaped type ({candidate?.FullName}) now exists — implement Target 1 " +
-            "(traceparent parsing) for real instead of leaving this stub.");
+            $"a tracestate-shaped type ({candidate?.FullName}) now exists — implement the " +
+            "tracestate half of Target 1 for real instead of leaving this stub.");
     }
 }

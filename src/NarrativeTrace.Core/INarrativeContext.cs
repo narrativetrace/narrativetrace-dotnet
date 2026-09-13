@@ -329,4 +329,24 @@ public interface INarrativeContext
     /// </remarks>
     void SetUserContext(
         EnduserId? enduserId, SessionId? sessionId, TenantId? tenantId);
+
+    /// <summary>
+    /// Adopts a W3C trace context that arrived on an inbound request, so this
+    /// service continues the caller's trace instead of starting its own.
+    /// </summary>
+    /// <param name="traceparent">
+    /// Parsed inbound header, or <see langword="null"/> to adopt nothing — a
+    /// filter or middleware can call
+    /// <c>AdoptTraceparent(Traceparent.Parse(header))</c> unconditionally and a
+    /// stranger's malformed header degrades to a fresh local trace.
+    /// </param>
+    /// <remarks>
+    /// Replaces the current trace's id and root-level parent span for the
+    /// calling flow. Existing spans keep the values they were created with.
+    /// Only the root-level span takes the adopted span as its parent; nested
+    /// calls keep their local caller. See <see cref="Traceparent"/> for the
+    /// wire format and <c>NarrativeTraceMiddleware</c> for where an inbound
+    /// header is actually read.
+    /// </remarks>
+    void AdoptTraceparent(Traceparent? traceparent);
 }
