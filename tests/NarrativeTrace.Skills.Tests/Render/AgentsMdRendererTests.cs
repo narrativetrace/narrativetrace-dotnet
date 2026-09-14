@@ -9,7 +9,7 @@ namespace NarrativeTrace.Skills.Tests.Render;
 public sealed class AgentsMdRendererTests
 {
     private static readonly Skill Skill = new(
-        "narrativetrace-example", "example", SkillClass.Mechanical, "Does a thing.", null,
+        "narrativetrace-example", SkillClass.Mechanical, "Does a thing.", null,
         "examples/NarrativeTrace.Examples.SixtySeconds",
         [new SkillStep("Run it", new CommandStep(["dotnet run"]))],
         [new ReasonedRule("Always", "reason")], [new ReasonedRule("Never", "reason")]);

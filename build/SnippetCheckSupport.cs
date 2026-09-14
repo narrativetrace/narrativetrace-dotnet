@@ -187,10 +187,12 @@ internal static class SnippetCheckSupport
     /// Markdown glob, but its own "copy this" block is exactly the kind of
     /// quickstart code+output pairing rule 8 exists to keep honest, so it
     /// gets the same marker treatment as every other quickstart page —
-    /// and every <c>.claude/skills/&lt;segment&gt;/SKILL.md</c>: a skill page's
-    /// snippet steps embed the identical example sources through the identical
-    /// <c>&lt;!-- snippet: PATH --&gt;</c> convention (see
-    /// <c>NarrativeTrace.Skills.Render.ClaudeSkillRenderer</c>), so this
+    /// and every <c>.claude/skills/&lt;canonicalName&gt;/SKILL.md</c> and
+    /// <c>.agents/skills/&lt;canonicalName&gt;/SKILL.md</c> (Codex CLI's repository-level
+    /// layout): a skill page's snippet steps embed the identical example sources through the
+    /// identical <c>&lt;!-- snippet: PATH --&gt;</c> convention (see
+    /// <c>NarrativeTrace.Skills.Render.ClaudeSkillRenderer</c> and
+    /// <c>NarrativeTrace.Skills.Render.CodexSkillRenderer</c>), so this
     /// check's drift coverage extends there too rather than leaving it to
     /// <c>SkillsLint</c>'s independent (and differently-shaped) fresh-render
     /// comparison alone.
@@ -205,12 +207,17 @@ internal static class SnippetCheckSupport
         var llmsTxt = Directory.Exists(documentation)
             ? Directory.EnumerateFiles(documentation, "llms.txt", SearchOption.AllDirectories)
             : Enumerable.Empty<string>();
-        var claudeSkills = Path.Combine(root, ".claude", "skills");
-        var skillPages = Directory.Exists(claudeSkills)
-            ? Directory.EnumerateFiles(claudeSkills, "SKILL.md", SearchOption.AllDirectories)
-            : Enumerable.Empty<string>();
+        var skillPages = SkillPages(root, ".claude").Concat(SkillPages(root, ".agents"));
         return underDocs.Concat(atRoot).Concat(llmsTxt).Concat(skillPages)
             .OrderBy(f => f, StringComparer.Ordinal);
+    }
+
+    private static IEnumerable<string> SkillPages(string root, string platformDir)
+    {
+        var skills = Path.Combine(root, platformDir, "skills");
+        return Directory.Exists(skills)
+            ? Directory.EnumerateFiles(skills, "SKILL.md", SearchOption.AllDirectories)
+            : Enumerable.Empty<string>();
     }
 
     private static IEnumerable<string> CheckFile(string root, string relative, string text)

@@ -9,8 +9,10 @@ namespace NarrativeTrace.Cli;
 
 /// <summary>
 /// The <c>skills lint</c> verb (Tier A, skill-harness design §4.1): fast, offline, deterministic
-/// checks over the catalogue plus a drift check — the rendered <c>.claude/skills/**/SKILL.md</c>
-/// and AGENTS.md section on disk must match a fresh render exactly.
+/// checks over the catalogue plus a drift check — the rendered <c>.claude/skills/**/SKILL.md</c>,
+/// <c>.agents/skills/**/SKILL.md</c> (Codex CLI's repository-level layout — see
+/// <see cref="CodexSkillRenderer"/>) and AGENTS.md section on disk must match a fresh render
+/// exactly.
 /// </summary>
 public static class SkillsLintCommand
 {
@@ -75,21 +77,30 @@ public static class SkillsLintCommand
 
     private static List<string> SkillDriftProblems(string repoRoot, Skill skill)
     {
+        return PlatformDriftProblems(repoRoot, skill, ".claude", () => ClaudeSkillRenderer.Render(skill, repoRoot))
+            .Concat(PlatformDriftProblems(repoRoot, skill, ".agents", () => CodexSkillRenderer.Render(skill, repoRoot)))
+            .ToList();
+    }
+
+    private static List<string> PlatformDriftProblems(
+        string repoRoot, Skill skill, string platformDir, Func<string> render)
+    {
         string fresh;
         try
         {
-            fresh = ClaudeSkillRenderer.Render(skill, repoRoot);
+            fresh = render();
         }
         catch (IOException ex)
         {
             return [$"{skill.CanonicalName}: could not render for comparison — {ex.Message}"];
         }
 
-        var path = Path.Combine(repoRoot, ".claude", "skills", skill.ClaudeSegment, "SKILL.md");
+        var relativePath = $"{platformDir}/skills/{skill.CanonicalName}/SKILL.md";
+        var path = Path.Combine(repoRoot, platformDir, "skills", skill.CanonicalName, "SKILL.md");
         var onDisk = File.Exists(path) ? File.ReadAllText(path) : null;
         return onDisk == fresh
             ? []
-            : [$"{skill.CanonicalName}: .claude/skills/{skill.ClaudeSegment}/SKILL.md is stale — run " +
+            : [$"{skill.CanonicalName}: {relativePath} is stale — run " +
                 "`dotnet run --project src/NarrativeTrace.Cli -- skills render`"];
     }
 

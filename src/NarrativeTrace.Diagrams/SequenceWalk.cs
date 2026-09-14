@@ -82,7 +82,7 @@ internal static class SequenceWalk
             var name = participants[i];
             var aliasLabel = DiagramLabel.Alias(aliases[name]);
             var displayLabel = DiagramLabel.QuotedIdentifier(name);
-            sb.Append(grammar.Participant(aliasLabel.AliasedAs(displayLabel)));
+            sb.Append(grammar.Participant(aliasLabel, displayLabel));
         }
     }
 

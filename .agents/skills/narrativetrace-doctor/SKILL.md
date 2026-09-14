@@ -1,5 +1,5 @@
 ---
-name: doctor
+name: narrativetrace-doctor
 description: "Diagnoses a NarrativeTrace .NET install without changing anything: runs the doctor CLI and explains every failing check and its fix, proves redaction with a real test, opens the newest rendered trace before trusting any assertion against it, and — flagged unstudied — walks an approval-trace diff. Use when traces aren't appearing, output looks wrong, a value that should be redacted shows up in a trace, tests pass but the trace looks off, or someone asks \"why isn't NarrativeTrace working\", \"is my NarrativeTrace install broken\", \"run narrativetrace doctor\", \"check my NarrativeTrace setup\", or \"diagnose narrative trace\"."
 when_to_use: "A NarrativeTrace install already exists in the project and something needs diagnosing — no traces are appearing, a check is failing, or a value that should be redacted appears in output."
 allowed-tools: dotnet, git

@@ -18,7 +18,6 @@ public sealed class SkillReplayEngineTests
 {
     private static readonly Skill Base = new(
         CanonicalName: "fake-skill",
-        ClaudeSegment: "fake",
         SkillClass: SkillClass.Mechanical,
         Description: "d",
         WhenToUse: null,

@@ -150,7 +150,8 @@ public class SequenceWalkContractTest
 
         public string Footer => inner.Footer;
 
-        public string Participant(DiagramLabel label) => inner.Participant(label);
+        public string Participant(DiagramLabel alias, DiagramLabel displayName) =>
+            inner.Participant(alias, displayName);
 
         public string CallArrow(DiagramLabel caller, DiagramLabel target, DiagramLabel signature)
         {

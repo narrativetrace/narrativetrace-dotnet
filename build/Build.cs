@@ -491,9 +491,10 @@ class Build : NukeBuild
     /// Tier A skill-catalogue lints (skill-harness design §4.1): description budget, the closed
     /// dotnet/git command vocabulary, no private citations, Pro-listing agreement with
     /// <c>documentation/feature-guide.md</c>, and drift — the committed
-    /// <c>.claude/skills/**/SKILL.md</c> and AGENTS.md managed section must match a fresh render
-    /// exactly (<c>dotnet run --project src/NarrativeTrace.Cli -- skills render</c>). Offline,
-    /// seconds; rides <see cref="Verify"/> every commit.
+    /// <c>.claude/skills/**/SKILL.md</c>, <c>.agents/skills/**/SKILL.md</c> (Codex CLI's
+    /// repository-level layout) and AGENTS.md managed section must match a fresh render exactly
+    /// (<c>dotnet run --project src/NarrativeTrace.Cli -- skills render</c>). Offline, seconds;
+    /// rides <see cref="Verify"/> every commit.
     /// </summary>
     Target SkillsLint => _ => _
         .DependsOn(Compile)

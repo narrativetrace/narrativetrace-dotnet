@@ -67,8 +67,15 @@ public sealed record SkillStep(
 }
 
 /// <summary>One catalogue entry — a full agent-playbook skill.</summary>
-/// <param name="CanonicalName">The stable, platform-neutral name (e.g. <c>narrativetrace-doctor</c>).</param>
-/// <param name="ClaudeSegment">The directory segment under <c>.claude/skills/</c> (e.g. <c>doctor</c>).</param>
+/// <param name="CanonicalName">
+/// The stable, platform-neutral name (e.g. <c>narrativetrace-doctor</c>) — the single source for
+/// both the frontmatter <c>name:</c> and the directory a skill renders under on every platform
+/// (<c>.claude/skills/&lt;CanonicalName&gt;/</c>, <c>.agents/skills/&lt;CanonicalName&gt;/</c>).
+/// Skill names must be globally self-identifying: Codex and Gemini have flat namespaces with no
+/// qualified fallback, and a repo-level <c>.claude/skills/</c> directory is a flat namespace too —
+/// it is not a plugin, so a shortened segment like <c>doctor</c> would collide with every other
+/// vendor's <c>doctor</c> skill (skills-design ruling, 2026-09-04, reaffirmed 2026-09-13).
+/// </param>
 /// <param name="SkillClass">How mechanically replayable this skill's steps are.</param>
 /// <param name="Description">
 /// Frontmatter <c>description</c>: third person, states WHAT and WHEN with the user's literal
@@ -81,7 +88,6 @@ public sealed record SkillStep(
 /// <param name="Never">Reasoned rules the skill never violates.</param>
 public sealed record Skill(
     string CanonicalName,
-    string ClaudeSegment,
     SkillClass SkillClass,
     string Description,
     string? WhenToUse,

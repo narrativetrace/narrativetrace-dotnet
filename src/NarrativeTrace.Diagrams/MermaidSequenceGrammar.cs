@@ -21,8 +21,8 @@ internal sealed class MermaidSequenceGrammar : ISequenceGrammar
     public string Header => "sequenceDiagram" + Environment.NewLine;
 
     /// <inheritdoc/>
-    public string Participant(DiagramLabel label) =>
-        "    participant " + label.Text + Environment.NewLine;
+    public string Participant(DiagramLabel alias, DiagramLabel displayName) =>
+        "    participant " + alias.Text + " as " + displayName.Text + Environment.NewLine;
 
     /// <inheritdoc/>
     public string CallArrow(DiagramLabel caller, DiagramLabel target, DiagramLabel signature) =>

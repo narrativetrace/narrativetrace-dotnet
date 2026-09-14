@@ -17,14 +17,14 @@ public sealed class SkillCatalogueTests
     }
 
     [Fact]
-    public void Every_skill_has_a_unique_canonical_name_and_claude_segment()
+    public void Every_skill_has_a_unique_canonical_name()
     {
+        // The canonical name is the single source for both the rendered directory (on every
+        // platform) and the frontmatter name — no separate "claude segment" to keep unique
+        // alongside it (skills-design ruling, 2026-09-04, reaffirmed 2026-09-13).
         Assert.Equal(
             SkillCatalogue.Skills.Count,
             SkillCatalogue.Skills.Select(s => s.CanonicalName).Distinct().Count());
-        Assert.Equal(
-            SkillCatalogue.Skills.Count,
-            SkillCatalogue.Skills.Select(s => s.ClaudeSegment).Distinct().Count());
     }
 
     [Fact]

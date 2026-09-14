@@ -1,5 +1,5 @@
 ---
-name: add
+name: add-narrative-tracing
 description: "Adds NarrativeTrace to a .NET project end to end: installs the real toolchain with a frozen restore, wraps a service and renders its first trace, sends the trace to a logger with one call, and finishes by running the doctor CLI to confirm the install. Use when asked to \"add narrative tracing\", \"set up NarrativeTrace\", \"wire up tracing for this service\", \"instrument this .NET app with NarrativeTrace\", or \"get a trace out of this code\"."
 when_to_use: "A .NET project has no NarrativeTrace install yet and needs one wired up from scratch."
 allowed-tools: dotnet, git

@@ -9,8 +9,9 @@ namespace NarrativeTrace.Skills.Render;
 
 /// <summary>
 /// Renders a <see cref="Skill"/> to the <c>SKILL.md</c> body Claude Code discovers under
-/// <c>.claude/skills/&lt;claudeSegment&gt;/</c>. Build output, never hand-edited — regenerated
-/// from the catalogue.
+/// <c>.claude/skills/&lt;canonicalName&gt;/</c>. Build output, never hand-edited — regenerated
+/// from the catalogue. The identical body also renders Codex CLI's repository-level
+/// <c>.agents/skills/&lt;canonicalName&gt;/SKILL.md</c> — see <see cref="CodexSkillRenderer"/>.
 /// </summary>
 public static class ClaudeSkillRenderer
 {
@@ -34,7 +35,7 @@ public static class ClaudeSkillRenderer
     private static void AppendFrontmatter(StringBuilder builder, Skill skill)
     {
         builder.Append("---\n");
-        builder.Append("name: ").Append(skill.ClaudeSegment).Append('\n');
+        builder.Append("name: ").Append(skill.CanonicalName).Append('\n');
         builder.Append("description: ").Append(FrontmatterString(skill.Description)).Append('\n');
         if (skill.WhenToUse is not null)
         {

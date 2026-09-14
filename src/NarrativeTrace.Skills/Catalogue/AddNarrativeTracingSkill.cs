@@ -15,7 +15,6 @@ public static class AddNarrativeTracingSkill
     /// <summary>The full skill definition.</summary>
     public static readonly Skill Definition = new(
         CanonicalName: "add-narrative-tracing",
-        ClaudeSegment: "add",
         SkillClass: SkillClass.Guided,
         Description:
             "Adds NarrativeTrace to a .NET project end to end: installs the real toolchain with a " +

@@ -1,4 +1,4 @@
-<!-- source: README.md blob efd643923f53 | translated: 2026-09-13 | reviewed: - -->
+<!-- source: README.md blob 234a3b5d6205 | translated: 2026-09-13 | reviewed: - -->
 # NarrativeTrace .NET
 
 [English](README.md) | [Español](LEAME.md) | **Português** | [简体中文](自述文件.md)
@@ -524,7 +524,7 @@ Indo mais fundo:
 - [Guia de funcionalidades](documentation/feature-guide.md) (em inglês) — tabela de status oficial (Free/Pro/In development/Planned) para cada funcionalidade, com o código por trás de cada linha já publicada
 - [Ferramental de segurança](documentation/security-tooling.md) (em inglês) — o conjunto de scanners e o que faz gate do build vs. o que roda por agendamento
 - [Testes de segurança](documentation/security-testing.md) (em inglês) — a suíte de fuzzing/propriedades espelhada em toda implementação do NarrativeTrace
-- [Skills de agente](documentation/agent-skills.md) (em inglês) — as skills `narrativetrace-doctor` e `add-narrative-tracing` para o Claude Code, geradas a partir de um catálogo tipado
+- [Skills de agente](documentation/agent-skills.md) (em inglês) — as skills `narrativetrace-doctor` e `add-narrative-tracing` para o Claude Code e o Codex CLI *(Codex since 0.1.4, unreleased)*, geradas a partir de um catálogo tipado
 
 Para consumidores de IA: [`llms.txt`](documentation/guides/llms.txt) e
 [`llms-full.md`](documentation/guides/llms-full.md).

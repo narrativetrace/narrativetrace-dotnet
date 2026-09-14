@@ -36,7 +36,7 @@ namespace NarrativeTrace.Diagrams;
 /// For a single <c>Cart.Checkout()</c> call that returns, the output is:
 /// <code>
 /// @startuml
-/// participant C as Cart
+/// participant Cart as C
 /// C -&gt; C : Checkout()
 /// C --&gt; C : ok
 /// @enduml

@@ -30,8 +30,13 @@ internal interface ISequenceGrammar
     /// <summary>The opening line(s) of the diagram, before any participant declaration.</summary>
     string Header { get; }
 
-    /// <summary>One participant declaration line, already composed (alias plus display name).</summary>
-    string Participant(DiagramLabel label);
+    /// <summary>
+    /// One participant declaration line for <paramref name="alias"/>/<paramref name="displayName"/>
+    /// pair — the order of the two in the emitted line is a genuine format difference (PlantUML
+    /// names the display text first, then the alias after <c>as</c>; Mermaid is the reverse), so
+    /// each grammar composes its own line rather than receiving one pre-composed.
+    /// </summary>
+    string Participant(DiagramLabel alias, DiagramLabel displayName);
 
     /// <summary>One call arrow, caller to target, naming the call signature.</summary>
     string CallArrow(DiagramLabel caller, DiagramLabel target, DiagramLabel signature);

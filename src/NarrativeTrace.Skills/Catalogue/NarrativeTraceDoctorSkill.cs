@@ -17,7 +17,6 @@ public static class NarrativeTraceDoctorSkill
     /// <summary>The full skill definition.</summary>
     public static readonly Skill Definition = new(
         CanonicalName: "narrativetrace-doctor",
-        ClaudeSegment: "doctor",
         SkillClass: SkillClass.Guided,
         Description:
             "Diagnoses a NarrativeTrace .NET install without changing anything: runs the doctor " +

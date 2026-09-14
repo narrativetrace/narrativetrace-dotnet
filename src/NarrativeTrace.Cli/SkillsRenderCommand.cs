@@ -8,9 +8,10 @@ using NarrativeTrace.Skills.Render;
 namespace NarrativeTrace.Cli;
 
 /// <summary>
-/// The <c>skills render</c> verb: regenerates <c>.claude/skills/&lt;segment&gt;/SKILL.md</c> for
-/// every catalogue skill and splices the managed section into <c>AGENTS.md</c>. Build output,
-/// never hand-edited; anti-churn — a byte-identical file is left untouched.
+/// The <c>skills render</c> verb: regenerates <c>.claude/skills/&lt;canonicalName&gt;/SKILL.md</c>
+/// and Codex CLI's repository-level <c>.agents/skills/&lt;canonicalName&gt;/SKILL.md</c> for every
+/// catalogue skill, and splices the managed section into <c>AGENTS.md</c>. Build output, never
+/// hand-edited; anti-churn — a byte-identical file is left untouched.
 /// </summary>
 public static class SkillsRenderCommand
 {
@@ -19,18 +20,18 @@ public static class SkillsRenderCommand
     {
         foreach (var skill in SkillCatalogue.Skills)
         {
-            RenderSkillPage(repoRoot, skill);
+            RenderSkillPage(repoRoot, ".claude", skill, ClaudeSkillRenderer.Render(skill, repoRoot));
+            RenderSkillPage(repoRoot, ".agents", skill, CodexSkillRenderer.Render(skill, repoRoot));
         }
 
         SpliceAgentsMd(repoRoot);
-        output.WriteLine($"Rendered {SkillCatalogue.Skills.Count} skill page(s) and the AGENTS.md section.");
+        output.WriteLine($"Rendered {SkillCatalogue.Skills.Count} skill page(s) (Claude + Codex) and the AGENTS.md section.");
         return 0;
     }
 
-    private static void RenderSkillPage(string repoRoot, Skill skill)
+    private static void RenderSkillPage(string repoRoot, string platformDir, Skill skill, string content)
     {
-        var content = ClaudeSkillRenderer.Render(skill, repoRoot);
-        var path = Path.Combine(repoRoot, ".claude", "skills", skill.ClaudeSegment, "SKILL.md");
+        var path = Path.Combine(repoRoot, platformDir, "skills", skill.CanonicalName, "SKILL.md");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         WriteIfChanged(path, content);
     }

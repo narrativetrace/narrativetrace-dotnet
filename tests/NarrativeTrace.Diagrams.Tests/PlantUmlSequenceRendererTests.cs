@@ -163,7 +163,42 @@ public class PlantUmlSequenceRendererTests
 
         var result = PlantUmlSequenceRenderer.Render(tree);
 
-        Assert.Contains("as \"Order Service\"", result);
+        Assert.Contains("participant \"Order Service\" as OS", result);
+    }
+
+    // PlantUML's own "Declaring participant" section of https://plantuml.com/sequence-diagram puts
+    // the display name first and the alias after the as keyword. The identifier after as is the
+    // one every arrow must address, so declaring it the other way around leaves the display name
+    // as the real reference (never used by any arrow) and turns the short alias arrows do use into
+    // an identifier PlantUML has never seen, which it silently renders as a second, disconnected
+    // participant box. Verified against the live PlantUML server: the old order rendered three
+    // boxes for this scenario (a stray display-name box, the caller, and a stray alias box); this
+    // order renders exactly two, connected.
+    [Fact]
+    public void Participant_declares_display_name_before_alias()
+    {
+        var root = new TraceNode(
+            new MethodSignature("OrderService", "Run", []),
+            new Returned(null), [], 0);
+        var tree = new TraceTree([root]);
+
+        var result = PlantUmlSequenceRenderer.Render(tree);
+
+        Assert.Contains("participant OrderService as OS", result);
+    }
+
+    [Fact]
+    public void Arrow_addresses_the_alias_declared_after_as()
+    {
+        var root = new TraceNode(
+            new MethodSignature("OrderService", "Run", []),
+            new Returned(null), [], 0);
+        var tree = new TraceTree([root]);
+
+        var result = PlantUmlSequenceRenderer.Render(tree);
+
+        Assert.Contains("participant OrderService as OS", result);
+        Assert.Contains("OS -> OS : Run()", result);
     }
 
     [Fact]

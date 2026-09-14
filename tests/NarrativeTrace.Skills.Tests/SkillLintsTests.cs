@@ -10,7 +10,6 @@ public sealed class SkillLintsTests
 {
     private static readonly Skill CleanSkill = new(
         CanonicalName: "narrativetrace-example",
-        ClaudeSegment: "example",
         SkillClass: SkillClass.Mechanical,
         Description: "Does a thing.",
         WhenToUse: null,

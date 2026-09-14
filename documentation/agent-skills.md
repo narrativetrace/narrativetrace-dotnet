@@ -1,19 +1,29 @@
 # Agent Skills
 
-Two packaged agent playbooks ship with this repository for Claude Code:
-`narrativetrace-doctor` (read-only diagnosis) and `add-narrative-tracing`
-(setup, end to end). Both are generated — never hand-edited — from a typed
-catalogue in [`NarrativeTrace.Skills`](../src/NarrativeTrace.Skills), the same
-way `glossary.md` is generated from `glossary.json`.
+Two packaged agent playbooks ship with this repository for Claude Code and
+Codex CLI: `narrativetrace-doctor` (read-only diagnosis) and
+`add-narrative-tracing` (setup, end to end). Both are generated — never
+hand-edited — from a typed catalogue in
+[`NarrativeTrace.Skills`](../src/NarrativeTrace.Skills), the same way
+`glossary.md` is generated from `glossary.json`.
 
 ## Where they live
 
 - **Source of truth**: `src/NarrativeTrace.Skills/Catalogue/*.cs` — typed
   records (`Skill`, `SkillStep`, `ProListing`), not YAML or hand-written
   Markdown.
-- **Rendered pages**: `.claude/skills/doctor/SKILL.md` and
-  `.claude/skills/add/SKILL.md` — the exact files Claude Code discovers.
-  Committed build output; see [What to Commit](what-to-commit.md).
+- **Rendered pages**: `.claude/skills/narrativetrace-doctor/SKILL.md` and
+  `.claude/skills/add-narrative-tracing/SKILL.md` — the exact files Claude Code discovers. The
+  same catalogue also renders Codex CLI's repository-level layout at
+  `.agents/skills/narrativetrace-doctor/SKILL.md` and
+  `.agents/skills/add-narrative-tracing/SKILL.md` *(since 0.1.4, unreleased)* — Codex scans
+  `.agents/skills` from the working directory up to the repository root
+  (developers.openai.com/codex/skills, redirects to learn.chatgpt.com/docs/build-skills; fetched
+  2026-09-13). Every rendered page's directory name — on every platform — is the skill's own
+  `CanonicalName`: skill names must be globally self-identifying, since Codex and Gemini have flat
+  namespaces with no qualified fallback and a repo-level `.claude/skills/` directory is a flat
+  namespace too, not a plugin (skills-design ruling, 2026-09-04, reaffirmed 2026-09-13). Committed
+  build output; see [What to Commit](what-to-commit.md).
 - **Regenerate**: `dotnet run --project src/NarrativeTrace.Cli -- skills render`.
 - **Lint**: `dotnet run --project src/NarrativeTrace.Cli -- skills lint` — part
   of `./build.sh Verify`, every commit. Fails if a rendered page drifts from
@@ -49,7 +59,7 @@ The first two code steps embed the real, tested
 repo's `<!-- snippet: PATH -->` convention — the same one
 `documentation/sixty-seconds.md` and `llms.txt` use for the identical
 file, so `SnippetCheck`'s drift coverage extends to `.claude/skills/**/SKILL.md`
-too, never a second, hand-copied literal — and including its fixed demo
+and `.agents/skills/**/SKILL.md` too, never a second, hand-copied literal — and including its fixed demo
 `traceparent` (`00-a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4-a1b2c3d4a1b2c3d4-01`),
 which exists only so this page's output is reproducible; a real run adopts
 an inbound header or generates its own. The marker comment (never rendered

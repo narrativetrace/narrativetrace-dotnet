@@ -1,4 +1,4 @@
-<!-- source: documentation/sixty-seconds.md blob b461ec499340 | translated: 2026-09-13 | reviewed: - -->
+<!-- source: documentation/sixty-seconds.md blob 93b73c1b53c2 | translated: 2026-09-14 | reviewed: - -->
 # Ve una traza en 60 segundos
 
 [English](../sixty-seconds.md) | **Español** | [Português](../pt-BR/sessenta-segundos.md) | [简体中文](../zh-CN/60秒.md)
@@ -82,7 +82,7 @@ dotnet run
 ```text
 trace: loose hook parks (a1b2c3d)
 
-└── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 12ms
+└── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 10ms
 ```
 
 (El tiempo es lo único que variará en tu máquina y entre ejecuciones — el

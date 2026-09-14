@@ -24,8 +24,16 @@ internal sealed class PlantUmlSequenceGrammar(bool includeLifelines) : ISequence
     public string Header => "@startuml" + Environment.NewLine;
 
     /// <inheritdoc/>
-    public string Participant(DiagramLabel label) =>
-        "participant " + label.Text + Environment.NewLine;
+    /// <remarks>
+    /// PlantUML's own syntax is <c>&lt;participant_type&gt; &lt;label&gt; as &lt;alias&gt;</c> (see
+    /// https://plantuml.com/sequence-diagram, "Declaring participant") — the display name comes
+    /// first, and the identifier after <c>as</c> is the one every arrow must address. Declaring it
+    /// the other way around leaves the display name as PlantUML's real reference name (never used
+    /// by any arrow) and turns the short alias arrows do use into an unrecognized identifier, which
+    /// PlantUML silently renders as a second, disconnected participant.
+    /// </remarks>
+    public string Participant(DiagramLabel alias, DiagramLabel displayName) =>
+        "participant " + displayName.Text + " as " + alias.Text + Environment.NewLine;
 
     /// <inheritdoc/>
     public string CallArrow(DiagramLabel caller, DiagramLabel target, DiagramLabel signature)

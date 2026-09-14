@@ -40,10 +40,44 @@ internal static class AliasGenerator
         }
 
         var candidate = ExtractInitials(className);
+        candidate = GuardReservedWord(candidate);
         candidate = ResolveConflict(candidate, existing);
         existing[className] = candidate;
         return candidate;
     }
+
+    // A bare alias is emitted unquoted on every arrow and, on the left of "as", in every
+    // participant declaration — both sequence grammars this alias serves. A class name whose
+    // candidate collides with one of the grammars' own reserved words would hand back the exact
+    // word the parser reserves for something else — "end" closes a Mermaid block outright rather
+    // than naming a participant, and PlantUML's own "as" would collide with the two-initial path
+    // (e.g. "ArithmeticSum" extracts to "AS"), which is exactly why this guard runs on every
+    // candidate — the two-initial and single-initial paths above, not only the all-lowercase
+    // fallback — rather than being folded into just one of them. Sourced independently for each
+    // grammar, verified 2026-09-13, cross-port finding: Mermaid's
+    // reserved set is every single-word literal lexer rule in sequenceDiagram.jison
+    // (mermaid-js/mermaid, case-insensitive grammar; "title" is included defensively even though
+    // its rule only fires with same-line trailing text today); PlantUML's is every keyword its own
+    // sequence-diagram documentation (plantuml.com/sequence-diagram) names for participant
+    // declarations, flow-control blocks, annotations and formatting, plus "as" and "order" (both
+    // load-bearing in the declaration line itself). Both are guarded here because this one
+    // generator's alias is emitted, unquoted, by both grammars — never split by call site, since a
+    // Mermaid-only guard would leave PlantUML's larger reserved set unprotected and vice versa.
+    private static readonly HashSet<string> ReservedAliases = new(StringComparer.OrdinalIgnoreCase)
+    {
+        // Mermaid sequenceDiagram.jison
+        "sequencediagram", "participant", "actor", "create", "destroy", "box", "loop", "rect",
+        "opt", "alt", "else", "par", "par_over", "and", "critical", "option", "break", "end",
+        "links", "link", "properties", "details", "over", "note", "activate", "deactivate",
+        "autonumber", "off", "title",
+        // PlantUML sequence-diagram documentation (plantuml.com/sequence-diagram)
+        "boundary", "control", "entity", "database", "collections", "queue", "group", "ref",
+        "return", "hide", "show", "skinparam", "header", "footer", "newpage", "mainframe",
+        "partition", "as", "order",
+    };
+
+    private static string GuardReservedWord(string candidate) =>
+        ReservedAliases.Contains(candidate) ? candidate + "_" : candidate;
 
     private static string ExtractInitials(string name)
     {

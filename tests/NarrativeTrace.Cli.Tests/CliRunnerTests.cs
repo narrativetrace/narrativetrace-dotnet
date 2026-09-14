@@ -184,7 +184,7 @@ public sealed class CliRunnerTests : IDisposable
         var exit = CliRunner.Run(["skills", "render", "--dir", _outputDir], _out, _err);
 
         Assert.Equal(0, exit);
-        Assert.True(File.Exists(Path.Combine(_outputDir, ".claude", "skills", "doctor", "SKILL.md")));
+        Assert.True(File.Exists(Path.Combine(_outputDir, ".claude", "skills", "narrativetrace-doctor", "SKILL.md")));
     }
 
     [Fact]

@@ -24,10 +24,11 @@ namespace NarrativeTrace.Diagrams;
 /// delegates to <see cref="DiagramText"/>'s existing sanitizer, unchanged. <see cref="CheckMark"/>
 /// is the one exception: a fixed program literal, never trace-derived, so it needs no sanitizing —
 /// it is still built through this type's own private constructor, not a public escape hatch.
-/// <see cref="WithParameters"/> and <see cref="AliasedAs"/> compose labels that are already
-/// sanitized, joining their text with literal punctuation that never came from the trace
-/// (<c>(</c>, <c>, </c>, <c>: </c>, <c>as</c>) — so composition can never reopen the hole the
-/// sanitizer closed.
+/// <see cref="WithParameters"/> composes labels that are already sanitized, joining their text with
+/// literal punctuation that never came from the trace (<c>(</c>, <c>, </c>, <c>: </c>) — so
+/// composition can never reopen the hole the sanitizer closed. The alias/display-name pair for a
+/// participant line is composed by <see cref="ISequenceGrammar.Participant"/> itself, not here,
+/// because the two shipped grammars disagree about which one comes first.
 /// </para>
 /// </remarks>
 internal readonly record struct DiagramLabel
@@ -102,13 +103,6 @@ internal readonly record struct DiagramLabel
             sb.Append(parameters[i].Value.Text);
         }
     }
-
-    /// <summary>
-    /// This label (a participant alias) followed by the display name it stands for:
-    /// <c>X as Name</c> — the participant declaration line both grammars emit.
-    /// </summary>
-    /// <param name="displayName">The already-sanitized display name.</param>
-    public DiagramLabel AliasedAs(DiagramLabel displayName) => new(Text + " as " + displayName.Text);
 
     /// <summary>Returns <see cref="Text"/>.</summary>
     public override string ToString() => Text;

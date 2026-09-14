@@ -11,7 +11,6 @@ public sealed class ClaudeSkillRendererTests
 {
     private static readonly Skill Simple = new(
         CanonicalName: "narrativetrace-example",
-        ClaudeSegment: "example",
         SkillClass: SkillClass.Mechanical,
         Description: "Does a thing.",
         WhenToUse: "When a thing needs doing.",
@@ -26,11 +25,11 @@ public sealed class ClaudeSkillRendererTests
         Never: [new ReasonedRule("Never skip verification", "silent drift is the failure mode")]);
 
     [Fact]
-    public void Frontmatter_uses_the_claude_segment_as_name()
+    public void Frontmatter_uses_the_canonical_name_as_name()
     {
         var rendered = ClaudeSkillRenderer.Render(Simple, TestPaths.RepoRoot());
 
-        Assert.StartsWith("---\nname: example\n", rendered, StringComparison.Ordinal);
+        Assert.StartsWith("---\nname: narrativetrace-example\n", rendered, StringComparison.Ordinal);
     }
 
     [Fact]

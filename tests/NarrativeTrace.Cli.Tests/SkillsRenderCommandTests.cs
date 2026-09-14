@@ -34,8 +34,20 @@ public sealed class SkillsRenderCommandTests : IDisposable
         var exit = SkillsRenderCommand.Run(_root, _out, _err);
 
         Assert.Equal(0, exit);
-        Assert.True(File.Exists(Path.Combine(_root, ".claude", "skills", "doctor", "SKILL.md")));
-        Assert.True(File.Exists(Path.Combine(_root, ".claude", "skills", "add", "SKILL.md")));
+        Assert.True(File.Exists(Path.Combine(_root, ".claude", "skills", "narrativetrace-doctor", "SKILL.md")));
+        Assert.True(File.Exists(Path.Combine(_root, ".claude", "skills", "add-narrative-tracing", "SKILL.md")));
+    }
+
+    [Fact]
+    public void Renders_the_same_skill_pages_under_codexs_agents_skills_layout()
+    {
+        SeedFixtureFiles();
+
+        var exit = SkillsRenderCommand.Run(_root, _out, _err);
+
+        Assert.Equal(0, exit);
+        Assert.True(File.Exists(Path.Combine(_root, ".agents", "skills", "narrativetrace-doctor", "SKILL.md")));
+        Assert.True(File.Exists(Path.Combine(_root, ".agents", "skills", "add-narrative-tracing", "SKILL.md")));
     }
 
     [Fact]
@@ -56,7 +68,7 @@ public sealed class SkillsRenderCommandTests : IDisposable
     {
         SeedFixtureFiles();
         SkillsRenderCommand.Run(_root, _out, _err);
-        var path = Path.Combine(_root, ".claude", "skills", "doctor", "SKILL.md");
+        var path = Path.Combine(_root, ".claude", "skills", "narrativetrace-doctor", "SKILL.md");
         var before = File.GetLastWriteTimeUtc(path);
 
         SkillsRenderCommand.Run(_root, _out, _err);

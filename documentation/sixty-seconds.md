@@ -82,7 +82,7 @@ dotnet run
 ```text
 trace: loose hook parks (a1b2c3d)
 
-└── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 12ms
+└── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 10ms
 ```
 <!-- /snippet -->
 

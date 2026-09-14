@@ -51,7 +51,19 @@ public sealed class SkillsLintCommandTests : IDisposable
     public void Fails_again_once_a_rendered_page_is_hand_edited()
     {
         SkillsRenderCommand.Run(_root, _out, _err);
-        var path = Path.Combine(_root, ".claude", "skills", "doctor", "SKILL.md");
+        var path = Path.Combine(_root, ".claude", "skills", "narrativetrace-doctor", "SKILL.md");
+        File.AppendAllText(path, "\nhand-edited\n");
+
+        var exit = SkillsLintCommand.Run(_root, _out, _err);
+
+        Assert.Equal(1, exit);
+    }
+
+    [Fact]
+    public void Fails_again_once_a_rendered_codex_page_is_hand_edited()
+    {
+        SkillsRenderCommand.Run(_root, _out, _err);
+        var path = Path.Combine(_root, ".agents", "skills", "narrativetrace-doctor", "SKILL.md");
         File.AppendAllText(path, "\nhand-edited\n");
 
         var exit = SkillsLintCommand.Run(_root, _out, _err);
