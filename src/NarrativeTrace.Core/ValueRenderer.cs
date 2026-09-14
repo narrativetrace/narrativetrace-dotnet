@@ -842,15 +842,23 @@ public static class ValueRenderer
     /// Renders a map key through the same guarded path as any other value, so
     /// key objects honour <see cref="NotTracedAttribute"/>, the redaction
     /// deny-list, cycle detection and the depth/size bounds. String keys keep
-    /// their bare form (no quotes) for readability.
+    /// their bare form (no quotes) for readability, and are checked against
+    /// the value-shape secret axis (JWT/PAN/<c>Set-Cookie</c>/national-id)
+    /// the same way an ordinary string value is — a secret is a secret
+    /// whether it sits on the key side of an entry or the value side.
     /// </summary>
     private static string RenderMapKey(
         object key, RenderOptions opts,
         HashSet<object> seen, int depth)
     {
-        return key is string s
-            ? Truncate(ControlEscape.Sanitize(s), opts)
-            : RenderValue(key, opts, seen, depth);
+        if (key is not string s)
+        {
+            return RenderValue(key, opts, seen, depth);
+        }
+
+        return opts.RedactionPolicy.ShouldRedactValue(s)
+            ? RedactionPolicy.Marker
+            : Truncate(ControlEscape.Sanitize(s), opts);
     }
 
     private static string SafeToString(object value, RenderOptions opts)
