@@ -30,13 +30,13 @@ namespace NarrativeTrace.Core;
 /// unwiring them.
 /// </param>
 /// <param name="Approval">
-/// Approval mode <i>(since 0.1.4, unreleased)</i>: when on, a passing test
+/// Approval mode <i>(since 0.1.5, unreleased)</i>: when on, a passing test
 /// whose traced structure differs from its committed <c>*.approved.nt</c>
 /// baseline fails with a readable diff. Off by default — opt in per project.
 /// </param>
 /// <param name="ApprovedDir">
 /// Directory of committed baselines, <c>&lt;dir&gt;/&lt;TestClass&gt;/&lt;scenario&gt;.approved.nt</c>
-/// <i>(since 0.1.4, unreleased)</i>. Null uses the caller's own default.
+/// <i>(since 0.1.5, unreleased)</i>. Null uses the caller's own default.
 /// </param>
 public sealed record ResolvedConfig(
     TracingLevel Level,
@@ -116,7 +116,7 @@ public static class ConfigResolver
     public const string NarrationKey = "NARRATIVETRACE_NARRATION";
 
     /// <summary>
-    /// Environment variable enabling approval mode <i>(since 0.1.4, unreleased)</i>: a passing test
+    /// Environment variable enabling approval mode <i>(since 0.1.5, unreleased)</i>: a passing test
     /// whose traced structure differs from its committed <c>*.approved.nt</c> baseline fails with a
     /// readable diff. Parsed like <see cref="OutputKey"/>. The Java runtime spells the same switch
     /// <c>narrativetrace.approval</c>.
@@ -125,7 +125,7 @@ public static class ConfigResolver
 
     /// <summary>
     /// Environment variable naming the directory of committed approval baselines
-    /// <i>(since 0.1.4, unreleased)</i>. A blank value is treated as unset, like
+    /// <i>(since 0.1.5, unreleased)</i>. A blank value is treated as unset, like
     /// <see cref="OutputDirKey"/>. The Java runtime spells the same switch
     /// <c>narrativetrace.approvedDir</c>.
     /// </summary>

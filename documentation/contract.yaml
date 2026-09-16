@@ -69,14 +69,14 @@ entries:
   # verb noted this at the time). This is the honest, expressible slice of the same claim: the
   # package the verb ships in actually resolves at the release version. Naturally
   # not-applicable-before-since today (installed max is 0.1.3; the doctor verb itself is
-  # unreleased) — that is the correct, not a degraded, verdict until 0.1.4 actually publishes.
+  # unreleased) — that is the correct, not a degraded, verdict until 0.1.5 actually publishes.
   - id: entry-point-cli
     kind: entry-point
     registry: nuget-org
     coordinate: "NarrativeTrace.Cli"
     page: "documentation/guides/installation.md#validate-installation"
     claim: "NarrativeTrace.Cli (carrying the doctor verb) resolves on nuget.org at the installed version"
-    since: "0.1.4"
+    since: "0.1.5"
     documented_default: "PRESENT"
     probe: "contract-probe/Probes/EntryPointProbe.cs"
 
@@ -85,7 +85,7 @@ entries:
     kind: reflectable-default
     page: "documentation/guides/installation.md#configure-trace-output"
     claim: "NARRATIVETRACE_OUTPUT defaults to true — ConfigResolver.Resolve().Output is true with no variable set"
-    since: "0.1.4"
+    since: "0.1.5"
     documented_default: "true"
     probe: "contract-probe/Probes/OutputDefaultProbe.cs"
 
@@ -93,7 +93,7 @@ entries:
     kind: reflectable-default
     page: "documentation/guides/configuration.md#2-environment-variables-configresolver"
     claim: "NARRATIVETRACE_APPROVAL defaults to false — ConfigResolver.Resolve().Approval is false with no variable set"
-    since: "0.1.4"
+    since: "0.1.5"
     documented_default: "false"
     probe: "contract-probe/Probes/ApprovalDefaultProbe.cs"
 
@@ -102,7 +102,7 @@ entries:
     kind: probed-default
     page: "documentation/privacy-and-redaction.md#redaction-surface-by-surface"
     claim: "NarrativeTraceProxy.Create<T> with new ProxyOptions(Redaction: ...) replaces the default redaction decision for that proxy"
-    since: "0.1.4"
+    since: "0.1.5"
     documented_default: "true"
     probe: "contract-probe/Probes/ProxyOptionsRedactionProbe.cs"
 
@@ -110,7 +110,7 @@ entries:
     kind: probed-default
     page: "documentation/guides/annotations.md#nottraced"
     claim: "[NotTraced] on a method throws InvalidOperationException at proxy-creation time, naming the attribute and the offending method"
-    since: "0.1.4"
+    since: "0.1.5"
     documented_default: "true"
     probe: "contract-probe/Probes/NotTracedOnMethodRejectedProbe.cs"
 
@@ -118,7 +118,7 @@ entries:
     kind: probed-default
     page: "documentation/guides/annotations.md#nottraced"
     claim: "a [Narrated] template resolved on a proxy built with a custom ProxyOptions.Redaction renders a redacted placeholder for a path that policy denies"
-    since: "0.1.4"
+    since: "0.1.5"
     documented_default: "true"
     probe: "contract-probe/Probes/TemplatesHonourRedactionProbe.cs"
 
@@ -126,7 +126,7 @@ entries:
     kind: probed-default
     page: "documentation/privacy-and-redaction.md#guarantees"
     claim: "a throwing [NarrativeSummary] member degrades to a typed <error: TypeName> placeholder — the exception's message is excluded"
-    since: "0.1.4"
+    since: "0.1.5"
     documented_default: "<error: InvalidOperationException>"
     probe: "contract-probe/Probes/TypedErrorMarkerProbe.cs"
 
@@ -150,7 +150,7 @@ entries:
     kind: reflectable-default
     page: "documentation/structural-trace-format.md#artifact-identity-cross-platform"
     claim: "two invocations of the same scenario differ by a 1-based invocation index suffix, never by a display-name label alone"
-    since: "0.1.4"
+    since: "0.1.5"
     documented_default: "index-suffixed"
     probe: "contract-probe/Probes/ReflectablePerInvocationIdentityProbe.cs"
 
@@ -159,7 +159,7 @@ entries:
     kind: config-shape
     page: "documentation/sixty-seconds.md#1-new-console-app-add-the-package"
     claim: "NarrativeTrace.Proxy's published .nuspec depends on NarrativeTrace.Runtime, which depends on NarrativeTrace.Core — one dotnet add package resolves the whole chain"
-    since: "0.1.4"
+    since: "0.1.5"
     expected_effect: "true"
     probe: "contract-probe/Probes/OnePackageInstallProbe.cs"
 
@@ -175,7 +175,7 @@ entries:
     kind: probed-default
     page: "documentation/guides/configuration.md#7-logging-bridge-microsoftextensionslogging"
     claim: "the console suite footer names the run: a \"run: <phrase>\" line"
-    since: "0.1.4"
+    since: "0.1.5"
     documented_default: "true"
     probe: "contract-probe/Probes/RunNameConsoleFooterProbe.cs"
 
@@ -183,18 +183,18 @@ entries:
     kind: probed-default
     page: "documentation/guides/configuration.md#7-logging-bridge-microsoftextensionslogging"
     claim: "manifest.json carries a top-level run object (id, name) naming the run it belongs to"
-    since: "0.1.4"
+    since: "0.1.5"
     documented_default: "true"
     probe: "contract-probe/Probes/RunNameManifestFieldProbe.cs"
 
   # The commit that added traceparent adoption deliberately shipped without these: "a properly
-  # verified probe against the published package belongs with 0.1.4 release prep rather than this
+  # verified probe against the published package belongs with 0.1.5 release prep rather than this
   # change." This is that release prep.
   - id: probed-initial-traceparent-seeds-context
     kind: probed-default
     page: "documentation/guides/configuration.md#traceparent-seeding"
     claim: "new NarrativeTraceConfig(initialTraceparent: Traceparent.Parse(...)) seeds a context's CurrentTraceId with the parsed trace id"
-    since: "0.1.4"
+    since: "0.1.5"
     documented_default: "true"
     probe: "contract-probe/Probes/InitialTraceparentSeedsContextProbe.cs"
 
@@ -202,6 +202,6 @@ entries:
     kind: probed-default
     page: "documentation/guides/configuration.md#4-aspnet-core"
     claim: "NarrativeTraceMiddleware adopts an inbound traceparent request header automatically, continuing the caller's trace"
-    since: "0.1.4"
+    since: "0.1.5"
     documented_default: "true"
     probe: "contract-probe/Probes/MiddlewareAdoptsTraceparentProbe.cs"

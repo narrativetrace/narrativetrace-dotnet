@@ -4,7 +4,7 @@
 namespace NarrativeTrace.Cli.Doctor.Checks;
 
 /// <summary>
-/// <c>toolchain.companion-packages</c>: before 0.1.4, <c>NarrativeTrace.Proxy</c>
+/// <c>toolchain.companion-packages</c>: before 0.1.5, <c>NarrativeTrace.Proxy</c>
 /// does not pull in <c>.Runtime</c>/<c>.Core</c> transitively — a project on an
 /// older resolved version needs all three added by hand (see the quickstart's
 /// "before you start" notes).
@@ -12,7 +12,7 @@ namespace NarrativeTrace.Cli.Doctor.Checks;
 public static class ToolchainCompanionPackagesCheck
 {
     private const string Id = "toolchain.companion-packages";
-    private const string TransitiveSince = "0.1.4";
+    private const string TransitiveSince = "0.1.5";
     private static readonly string[] RequiredCompanions = ["NarrativeTrace.Core", "NarrativeTrace.Runtime"];
 
     /// <summary>Runs the check.</summary>
@@ -42,7 +42,7 @@ public static class ToolchainCompanionPackagesCheck
             .ToList();
         return missing.Count == 0
             ? DoctorFinding.Pass(
-                Id, $"NarrativeTrace.Proxy@{proxyVersion} is pre-0.1.4, but Core and Runtime are " +
+                Id, $"NarrativeTrace.Proxy@{proxyVersion} is pre-0.1.5, but Core and Runtime are " +
                     "both installed by hand",
                 DoctorDocUrls.InstallationPackages)
             : Fail(proxyVersion, missing);
@@ -52,7 +52,7 @@ public static class ToolchainCompanionPackagesCheck
     {
         return DoctorFinding.Fail(
             Id,
-            $"NarrativeTrace.Proxy@{proxyVersion} is pre-0.1.4 and does not pull in " +
+            $"NarrativeTrace.Proxy@{proxyVersion} is pre-0.1.5 and does not pull in " +
             $"{string.Join(", ", missing)} transitively",
             $"Add {string.Join(" and ", missing)} as direct package references, or upgrade " +
             $"NarrativeTrace.Proxy to {TransitiveSince}+.",

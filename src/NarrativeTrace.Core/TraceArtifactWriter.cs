@@ -144,7 +144,7 @@ public static class TraceArtifactWriter
     /// The enclosing test-suite run's three-word phrase, reaching only the
     /// Markdown document's frontmatter (<c>run:</c>) — never the structural
     /// artifact, never the delta, never any other format (2026-09-13 ruling,
-    /// items 2–3) *(since 0.1.4, unreleased)*. <see langword="null"/> outside a
+    /// items 2–3) *(since 0.1.5, unreleased)*. <see langword="null"/> outside a
     /// tracked run.
     /// </param>
     public static ScenarioDelta? Write(

@@ -21,12 +21,12 @@ namespace NarrativeTrace.Core;
 /// off by default, matching the Java runtime's opt-in switches.
 /// </param>
 /// <param name="ApprovalEnabled">
-/// Approval mode <i>(since 0.1.4, unreleased)</i>: when on, a passing test
+/// Approval mode <i>(since 0.1.5, unreleased)</i>: when on, a passing test
 /// whose traced structure differs from its committed <c>*.approved.nt</c>
 /// baseline fails with a readable diff. Off by default.
 /// </param>
 /// <param name="ApprovedDir">
-/// Directory of committed approval baselines <i>(since 0.1.4, unreleased)</i>.
+/// Directory of committed approval baselines <i>(since 0.1.5, unreleased)</i>.
 /// </param>
 public sealed record TestArtifactSettings(
     bool Enabled,

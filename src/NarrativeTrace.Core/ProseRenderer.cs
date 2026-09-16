@@ -35,7 +35,7 @@ public static class ProseRenderer
 
     /// <summary>
     /// Opens in this renderer's own voice — <c>"The trace bold elk soars: "</c>
-    /// — before the first sentence (2026-09-13 ruling, item 4) *(since 0.1.4,
+    /// — before the first sentence (2026-09-13 ruling, item 4) *(since 0.1.5,
     /// unreleased)*. Silent when <see cref="TraceTree.TraceId"/> is
     /// <see cref="TraceId.Empty"/>: an empty tree gets no invented name.
     /// </summary>

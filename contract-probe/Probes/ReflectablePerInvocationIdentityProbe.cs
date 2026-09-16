@@ -6,7 +6,7 @@ using System.Reflection;
 namespace NarrativeTrace.ContractProbe.Probes;
 
 /// <summary>
-/// <c>reflectable-default</c>, since 0.1.4: two invocation identities sharing the SAME display
+/// <c>reflectable-default</c>, since 0.1.5: two invocation identities sharing the SAME display
 /// label but different 1-based indices must produce different file slugs — the index, not the
 /// label, is what structural-trace-format.md's "Artifact identity" section says makes the scheme
 /// collision-proof.

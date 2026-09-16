@@ -126,7 +126,7 @@ public sealed class SnippetCheckSupportTests : IDisposable
         Assert.Contains("drifted", problem, StringComparison.Ordinal);
     }
 
-    /// <summary>Ruling item 5 (2026-09-13), *(since 0.1.4, unreleased)*: the trace/run phrase varies run to run.</summary>
+    /// <summary>Ruling item 5 (2026-09-13), *(since 0.1.5, unreleased)*: the trace/run phrase varies run to run.</summary>
     [Fact]
     public void Mask_traceName_ignores_a_changed_trace_header_line()
     {

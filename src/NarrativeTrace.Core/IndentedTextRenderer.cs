@@ -37,7 +37,7 @@ public static class IndentedTextRenderer
     /// Opens with <c>trace: bold elk soars (a1b2c3d)</c> — the trace's own
     /// three-word phrase plus the first 7 hex characters of its id — so a
     /// console reader can name and locate the trace without cross-referencing
-    /// a separate identifier line (2026-09-13 ruling, item 4) *(since 0.1.4,
+    /// a separate identifier line (2026-09-13 ruling, item 4) *(since 0.1.5,
     /// unreleased)*. Silent when <see cref="TraceTree.TraceId"/> is
     /// <see cref="TraceId.Empty"/> (an empty tree): nothing here is invented.
     /// </summary>

@@ -23,18 +23,18 @@ Start with the minimum and add only what you need.
 
 ```xml
 <!-- Minimum: capture + render -->
-<PackageReference Include="NarrativeTrace.Proxy" Version="0.1.4" />
+<PackageReference Include="NarrativeTrace.Proxy" Version="0.1.5" />
 ```
 
 `NarrativeTrace.Proxy` depends on `.Runtime`, which depends on `.Core` — one
 `dotnet add package NarrativeTrace.Proxy` restores all three, and their
 types (`SyncNarrativeContext`, `IndentedTextRenderer`, …) are available for
-you to use directly *(since 0.1.4)*.
+you to use directly *(since 0.1.5)*.
 
 | Package | When to add it |
 |---|---|
-| `NarrativeTrace.Core` | Always — trace model, `INarrativeContext`, config, redaction, Markdown/Prose/text renderers, and the `[Narrated]`/`[OnError]`/`[NotTraced]`/`[NarrativeSummary]` attributes (namespace `NarrativeTrace.Core.Annotation`). Pulled in transitively by `.Runtime` *(since 0.1.4)*. |
-| `NarrativeTrace.Runtime` | Always — the capture engine (`SyncNarrativeContext`, `AsyncNarrativeContext`, JSON/chapter exporters). Pulled in transitively by `.Proxy` *(since 0.1.4)*. |
+| `NarrativeTrace.Core` | Always — trace model, `INarrativeContext`, config, redaction, Markdown/Prose/text renderers, and the `[Narrated]`/`[OnError]`/`[NotTraced]`/`[NarrativeSummary]` attributes (namespace `NarrativeTrace.Core.Annotation`). Pulled in transitively by `.Runtime` *(since 0.1.5)*. |
+| `NarrativeTrace.Runtime` | Always — the capture engine (`SyncNarrativeContext`, `AsyncNarrativeContext`, JSON/chapter exporters). Pulled in transitively by `.Proxy` *(since 0.1.5)*. |
 | `NarrativeTrace.Proxy` | Interface tracing via `DispatchProxy`, plus the proxy-specific `[Traced]` parameter-name override and `ProxyOptions.Redaction` (a custom `RedactionPolicy` for that proxy's captures — see [Configuration §6](configuration.md#6-redaction)). |
 | `NarrativeTrace.DependencyInjection` | `AddNarrativeTracing` — auto-wrap namespace-matched interface services in the MS.DI container. |
 | `NarrativeTrace.AspNetCore` | Per-request trace lifecycle middleware for ASP.NET Core. |
@@ -195,7 +195,7 @@ See the [Clarity Guide](clarity.md) for the scoring model and CI gate.
 Add the build-only package to run the clarity gate as part of your build:
 
 ```xml
-<PackageReference Include="NarrativeTrace.MSBuild" Version="0.1.4"
+<PackageReference Include="NarrativeTrace.MSBuild" Version="0.1.5"
                   PrivateAssets="all" />
 ```
 
@@ -218,7 +218,7 @@ The library reads four `NARRATIVETRACE_*` environment variables through
 Invalid values degrade to the default rather than throwing, so bad
 configuration never crashes capture. Level parsing is case- and
 punctuation-lenient (`detail`, `DETAIL`, `Detail` all resolve).
-`NARRATIVETRACE_OUTPUT` is on by default *(since 0.1.4)* — the
+`NARRATIVETRACE_OUTPUT` is on by default *(since 0.1.5)* — the
 xUnit fixture and NUnit base write per-test artifacts to
 `TestResults/narrativetrace/` (ephemeral, already gitignored by the `.NET`
 `TestResults/` convention) without any flag; set it to `false` to opt out.
@@ -238,7 +238,7 @@ Console.WriteLine(IndentedTextRenderer.Render(context.CaptureTrace()));
 You should see a nested narrative with the method name, parameter values,
 and return value.
 
-Or let the CLI diagnose the install for you *(since 0.1.4)* —
+Or let the CLI diagnose the install for you *(since 0.1.5)* —
 read-only, no network, no mutation:
 
 ```bash

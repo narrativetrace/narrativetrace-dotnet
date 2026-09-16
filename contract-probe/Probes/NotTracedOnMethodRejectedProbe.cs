@@ -21,7 +21,7 @@ namespace NarrativeTrace.ContractProbe.Probes;
 /// never through a literal C# <c>[NotTraced]</c> on a method declaration: contract-probe compiles
 /// every probe class together against whichever single published version is under test
 /// (documentation/contract-gate.md), and <c>NotTracedAttribute</c>'s own <c>[AttributeUsage]</c>
-/// only started permitting <see cref="AttributeTargets.Method"/> in the same 0.1.4 release this
+/// only started permitting <see cref="AttributeTargets.Method"/> in the same 0.1.5 release this
 /// entry's <c>since</c> names — a source-level attribute application would be a COMPILE error
 /// against the older 0.1.3 package the contract still has to build against for its other entries.
 /// <see cref="CustomAttributeBuilder"/> writes the attribute metadata directly, bypassing that

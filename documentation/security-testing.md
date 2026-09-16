@@ -38,7 +38,7 @@ reader and the object-graph builder are written per language.
 
 A crash is not the only defect, and "it did not throw" is not an oracle.
 Every target asserts from this list; this runtime implements the same seven
-Java's does — target 1 (`traceparent` parsing) landed *(since 0.1.4)*, so the "N/A" note below now applies only to `tracestate`,
+Java's does — target 1 (`traceparent` parsing) landed *(since 0.1.5)*, so the "N/A" note below now applies only to `tracestate`,
 which remains an explicit non-goal.
 
 1. **No uncaught exception.** A hostile input degrades — it never
@@ -93,7 +93,7 @@ read across repositories.
 
 | # | Target | The oracle that matters most | This runtime |
 |---|---|---|---|
-| 1 | `Traceparent` and any other wire reader | never throws; round-trips what it accepts | `TraceparentParsingPropertyTests` replays the corpus's `traceparent` array against `Traceparent.Parse` — never throws, matches each case's declared `accepted`, and an accepted header round-trips through `Format()` *(since 0.1.4)*. `tracestate` remains **N/A** — an explicit non-goal here (and in the Java runtime); the same test file carries a single evidence-bearing canary that fails loudly if a `Tracestate`-shaped type is ever added without the target being ported for real. |
+| 1 | `Traceparent` and any other wire reader | never throws; round-trips what it accepts | `TraceparentParsingPropertyTests` replays the corpus's `traceparent` array against `Traceparent.Parse` — never throws, matches each case's declared `accepted`, and an accepted header round-trips through `Format()` *(since 0.1.5)*. `tracestate` remains **N/A** — an explicit non-goal here (and in the Java runtime); the same test file carries a single evidence-bearing canary that fails loudly if a `Tracestate`-shaped type is ever added without the target being ported for real. |
 | 2 | `ValueRenderer` over hostile object graphs | redaction, at any depth, through any container | `ValueRendererRedactionPropertyTests` |
 | 3 | Every output format | well-formedness, bounded size | `OutputFormatPropertyTests` |
 | 4 | Template parsing and rendering | a redacted path or object renders the marker | `TemplateRedactionPropertyTests` |
@@ -106,7 +106,7 @@ read across repositories.
 Recorded with evidence, not silently dropped:
 
 - **No W3C `tracestate` header parser** (the other half of target 1). Confirmed
-  absent by repository-wide grep — `traceparent` parsing landed *(since 0.1.4)* as `NarrativeTrace.Core.Traceparent`.
+  absent by repository-wide grep — `traceparent` parsing landed *(since 0.1.5)* as `NarrativeTrace.Core.Traceparent`.
   The corpus's `headers.json` (30 traceparent + 9 tracestate cases) is still
   copied verbatim; the 9 tracestate cases wait for a future parser to land
   with their fuzz cases already in place.

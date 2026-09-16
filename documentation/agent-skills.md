@@ -16,7 +16,7 @@ hand-edited — from a typed catalogue in
   `.claude/skills/add-narrative-tracing/SKILL.md` — the exact files Claude Code discovers. The
   same catalogue also renders Codex CLI's repository-level layout at
   `.agents/skills/narrativetrace-doctor/SKILL.md` and
-  `.agents/skills/add-narrative-tracing/SKILL.md` *(since 0.1.4)* — Codex scans
+  `.agents/skills/add-narrative-tracing/SKILL.md` *(since 0.1.5)* — Codex scans
   `.agents/skills` from the working directory up to the repository root
   (developers.openai.com/codex/skills, redirects to learn.chatgpt.com/docs/build-skills; fetched
   2026-09-13). Every rendered page's directory name — on every platform — is the skill's own

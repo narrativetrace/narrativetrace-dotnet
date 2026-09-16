@@ -222,7 +222,7 @@ public class OrderTests : IClassFixture<NarrativeFixture>
 narrated automatically in teardown via `TestContext`.
 
 Both write real files to disk by default, no flag to set
-*(since 0.1.4)*:
+*(since 0.1.5)*:
 `TestResults/narrativetrace/traces/<Class>/<slug>.md`, a sibling `.json`, a
 `.mmd` diagram, and a value-free `.nt` — under the ephemeral, gitignored
 directory `dotnet test` already treats as disposable output. Set
@@ -504,7 +504,7 @@ Going deeper:
 - [Security Tooling](documentation/security-tooling.md) — the scanner lineup and what gates the build vs. runs on a schedule
 - [Security Testing](documentation/security-testing.md) — the fuzz/property suite mirrored across every NarrativeTrace runtime
 - [The Contract Gate](documentation/contract-gate.md) — proving documented defaults and entry points against a published nuget.org install, not just the working tree
-- [Agent Skills](documentation/agent-skills.md) — the `narrativetrace-doctor` and `add-narrative-tracing` Claude Code and Codex CLI skills *(Codex since 0.1.4, unreleased)*, generated from a typed catalogue
+- [Agent Skills](documentation/agent-skills.md) — the `narrativetrace-doctor` and `add-narrative-tracing` Claude Code and Codex CLI skills *(Codex since 0.1.5, unreleased)*, generated from a typed catalogue
 
 For AI consumers: [`llms.txt`](documentation/guides/llms.txt) and
 [`llms-full.md`](documentation/guides/llms-full.md).

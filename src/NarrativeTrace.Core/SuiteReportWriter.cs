@@ -41,7 +41,7 @@ public static class SuiteReportWriter
     /// <param name="run">
     /// The test-suite run this suite executed as, named in the footer's
     /// leading <c>run:</c> line; <see langword="null"/> when the caller has
-    /// not adopted <see cref="RunIdentity"/> *(since 0.1.4, unreleased)*.
+    /// not adopted <see cref="RunIdentity"/> *(since 0.1.5, unreleased)*.
     /// </param>
     public static void Write(
         IReadOnlyList<KeyValuePair<string, TraceTree>> entries,

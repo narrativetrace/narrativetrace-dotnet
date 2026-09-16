@@ -296,7 +296,7 @@ public sealed class LoggingNarrativeContext
     /// (<see cref="RunScope.Current"/>) — the same seam <see cref="RunScope"/>
     /// exists for: the suite fixture publishes its identity there without
     /// this module depending on it, or it on this one (2026-09-13 ruling,
-    /// item 2) *(since 0.1.4, unreleased)*. Absent entirely outside a tracked
+    /// item 2) *(since 0.1.5, unreleased)*. Absent entirely outside a tracked
     /// run — a real application has no active <see cref="RunScope"/>, so its
     /// log lines never gain the field at all.
     /// </summary>

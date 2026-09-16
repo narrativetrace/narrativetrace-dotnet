@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/aspnetcore.md blob 9f761aa780d7 | translated: 2026-09-12 | reviewed: - -->
+<!-- source: documentation/guides/aspnetcore.md blob bd0eeb4173b9 | translated: 2026-09-12 | reviewed: - -->
 # Guía de integración con ASP.NET Core
 
 [English](../aspnetcore.md) | **Español** | [Português](../pt-BR/guia-de-integracao-com-aspnet-core.md) | [简体中文](../zh-CN/ASP.NET-Core集成指南.md)
@@ -10,7 +10,7 @@ enchufable, la exclusión de rutas y el contexto de petición/usuario.
 ## Paquete
 
 ```xml
-<PackageReference Include="NarrativeTrace.AspNetCore" Version="0.1.4" />
+<PackageReference Include="NarrativeTrace.AspNetCore" Version="0.1.5" />
 ```
 
 ## 1. Registrar y cablear el middleware
@@ -75,7 +75,7 @@ seguro — simplemente no registra nada cuando no hay traza activa.
 > servicios envueltos automáticamente aparezcan en la traza exportada por
 > el middleware.
 
-**Ocultación** *(since 0.1.4)*: `NarrativeTraceOptions.Redaction`
+**Ocultación** *(since 0.1.5)*: `NarrativeTraceOptions.Redaction`
 en `AddNarrativeTrace` registra una `RedactionPolicy` en la colección de
 servicios, que la auto-envoltura de `AddNarrativeTracing` recoge como
 respaldo para cada servicio que envuelve — así que una política configurada

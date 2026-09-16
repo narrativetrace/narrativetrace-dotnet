@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/annotations.md blob 28de41542ba3 | translated: 2026-09-13 | reviewed: - -->
+<!-- source: documentation/guides/annotations.md blob 2369154736dc | translated: 2026-09-13 | reviewed: - -->
 # NarrativeTrace .NET — Guía de atributos
 
 [English](../annotations.md) | **Español** | [Português](../pt-BR/guia-de-atributos.md) | [简体中文](../zh-CN/特性指南.md)
@@ -141,7 +141,7 @@ parámetro, una propiedad o un componente de record, nunca el método en sí,
 igual que el `@NotTraced` de la edición JVM (que tampoco tiene destino
 `METHOD`). Ponerlo sobre un método compila, pero un proxy creado sobre una
 interfaz que lo hace lanza `InvalidOperationException` en el momento de
-crear el proxy *(desde 0.1.4, sin publicar)*, nombrando el atributo, el
+crear el proxy *(desde 0.1.5, sin publicar)*, nombrando el atributo, el
 método afectado y la solución:
 
 ```csharp
@@ -170,7 +170,7 @@ esa eliminación es la decisión deliberada y revisable, y queda a la vista
 en el diff.
 
 **Las plantillas respetan la propia política de ocultación del proxy**
-*(since 0.1.4)*: una plantilla `[Narrated]`/`[OnError]`
+*(since 0.1.5)*: una plantilla `[Narrated]`/`[OnError]`
 resuelta en un proxy construido con un `new ProxyOptions(Redaction: ...)`
 personalizado consulta esa misma política en los dos ejes de arriba — un
 marcador de posición desnudo como `{password}` y una ruta como

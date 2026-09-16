@@ -6,14 +6,14 @@ using System.Reflection;
 namespace NarrativeTrace.ContractProbe.Probes;
 
 /// <summary>
-/// <c>probed-default</c>, since 0.1.4: <c>manifest.json</c> carries a top-level <c>run</c> object
+/// <c>probed-default</c>, since 0.1.5: <c>manifest.json</c> carries a top-level <c>run</c> object
 /// (<c>id</c>, <c>name</c>) naming the run this manifest belongs to (configuration-guide.md §7).
 /// </summary>
 /// <remarks>
 /// Same reflection constraint as <see cref="RunNameConsoleFooterProbe"/>, extended to every type
 /// this probe touches: <c>RunIdentity</c>, <c>ArtifactIdentity</c> and <c>ScenarioManifest.Entry</c>
 /// (and the <c>RunIdentity</c>-typed overload of <c>ScenarioManifest.Render</c>) are all new since
-/// 0.1.4 and absent from the 0.1.3 package this project compiles against by default — none of them
+/// 0.1.5 and absent from the 0.1.3 package this project compiles against by default — none of them
 /// is named at compile time, mirroring <see cref="ReflectablePerInvocationIdentityProbe"/>'s own
 /// note.
 /// </remarks>
@@ -21,7 +21,7 @@ internal static class RunNameManifestFieldProbe
 {
     public static string Observe()
     {
-        // TraceId always exists (it long predates 0.1.4) — the safe anchor this probe uses to
+        // TraceId always exists (it long predates 0.1.5) — the safe anchor this probe uses to
         // find NarrativeTrace.Core's assembly without naming any of the new types at compile time.
         var core = typeof(NarrativeTrace.Core.TraceId).Assembly;
         var runIdentityType = Required(core, "NarrativeTrace.Core.RunIdentity");

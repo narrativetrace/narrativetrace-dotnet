@@ -66,7 +66,7 @@ A failure names all four facts in one line, so a skim is enough:
 
 ```
 documentation/contract.yaml: reflectable-output-default documented default "true"
-(since 0.1.4) but NarrativeTrace.Core 0.1.4 (published) reads "false"
+(since 0.1.5) but NarrativeTrace.Core 0.1.5 (published) reads "false"
 ```
 
 ## `contract-probe/`
@@ -103,7 +103,7 @@ still has to *compile* against that older package — even though it will
 never *run* there (the applicability check skips it) — so a probe must never
 reference a type or member that only exists in a newer release: a source-level
 `[NotTraced]` on a method, `ProxyOptions.Redaction`, `ResolvedConfig.Approval`
-and `NarrativeTrace.Core.ArtifactIdentity` are all new in `0.1.4` and are
+and `NarrativeTrace.Core.ArtifactIdentity` are all new in `0.1.5` and are
 found by name through reflection (`Type.GetType`, `PropertyInfo`,
 `ConstructorInfo`) rather than a direct reference, precisely so the same
 compiled probe assembly still builds against `0.1.3`. See

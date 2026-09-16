@@ -17,9 +17,9 @@ public sealed class TrapLlmsBeforeYouStartCheckTests
     }
 
     [Fact]
-    public void Passes_when_installed_packages_are_0_1_4_or_newer()
+    public void Passes_when_installed_packages_are_0_1_5_or_newer()
     {
-        var snapshot = DoctorSnapshotFixtures.WithPackages(("NarrativeTrace.Core", "0.1.4"));
+        var snapshot = DoctorSnapshotFixtures.WithPackages(("NarrativeTrace.Core", "0.1.5"));
 
         var finding = TrapLlmsBeforeYouStartCheck.Run(snapshot);
 
@@ -27,7 +27,7 @@ public sealed class TrapLlmsBeforeYouStartCheckTests
     }
 
     [Fact]
-    public void Fails_when_an_installed_package_predates_0_1_4()
+    public void Fails_when_an_installed_package_predates_0_1_5()
     {
         var snapshot = DoctorSnapshotFixtures.WithPackages(("NarrativeTrace.Core", "0.1.3"));
 

@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/aspnetcore.md blob 9f761aa780d7 | translated: 2026-09-12 | reviewed: - -->
+<!-- source: documentation/guides/aspnetcore.md blob bd0eeb4173b9 | translated: 2026-09-12 | reviewed: - -->
 # ASP.NET Core 集成指南
 
 [English](../aspnetcore.md) | [Español](../es/guia-de-integracion-con-aspnet-core.md) | [Português](../pt-BR/guia-de-integracao-com-aspnet-core.md) | **简体中文**
@@ -9,7 +9,7 @@
 ## 包
 
 ```xml
-<PackageReference Include="NarrativeTrace.AspNetCore" Version="0.1.4" />
+<PackageReference Include="NarrativeTrace.AspNetCore" Version="0.1.5" />
 ```
 
 ## 1. 注册并接入中间件
@@ -69,7 +69,7 @@ app.MapPost("/orders", (OrderRequest request, HttpContext http) =>
 > 自动导出。每条请求路径只选其一 — 不要指望自动包装的服务出现在中间件
 > 导出的追踪里。
 
-**脱敏** *(since 0.1.4)*：`AddNarrativeTrace` 上的
+**脱敏** *(since 0.1.5)*：`AddNarrativeTrace` 上的
 `NarrativeTraceOptions.Redaction` 会把一个 `RedactionPolicy` 注册到服务
 集合里，`AddNarrativeTracing` 的自动包装会把它当作自己所包装的每个服务
 的回退策略 —— 所以在这里配置一次的策略，也能触达自动包装的服务，即便这

@@ -8,7 +8,7 @@ using NarrativeTrace.Core;
 namespace NarrativeTrace.ContractProbe.Probes;
 
 /// <summary>
-/// <c>probed-default</c>, since 0.1.4: the console suite footer names the enclosing test-suite run
+/// <c>probed-default</c>, since 0.1.5: the console suite footer names the enclosing test-suite run
 /// (configuration-guide.md §7) — a <c>run: &lt;phrase&gt;</c> line on its own.
 /// </summary>
 /// <remarks>
@@ -18,7 +18,7 @@ namespace NarrativeTrace.ContractProbe.Probes;
 /// that only exists in a newer release must never name that type at compile time. Found entirely
 /// through reflection, mirroring <see cref="ReflectablePerInvocationIdentityProbe"/>'s own note;
 /// this entry's own <c>since</c> keeps it unreached before the type actually ships.
-/// <see cref="ConsoleSummaryReporter"/> itself predates 0.1.4 and is referenced directly — only the
+/// <see cref="ConsoleSummaryReporter"/> itself predates 0.1.5 and is referenced directly — only the
 /// <c>RunIdentity</c>-typed overload of <c>FormatSuiteFooter</c> is new, and is dispatched by
 /// reflection.
 /// </remarks>

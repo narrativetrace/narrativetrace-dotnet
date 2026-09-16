@@ -2,7 +2,7 @@
 
 **English** | [Español](es/deteccion-de-duplicacion.md) | [Português](pt-BR/deteccao-de-duplicacao.md) | [简体中文](zh-CN/重复代码检测.md)
 
-*(since 0.1.4)* — build-time tooling, not a runtime library
+*(since 0.1.5)* — build-time tooling, not a runtime library
 behavior: nothing here ships in the NuGet packages.
 
 `./build.sh DuplicationReport` runs [jscpd](https://github.com/kucherenko/jscpd)

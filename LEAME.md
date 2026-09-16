@@ -1,4 +1,4 @@
-<!-- source: README.md blob 1f0377eed5e6 | translated: 2026-09-13 | reviewed: - -->
+<!-- source: README.md blob d664df94811c | translated: 2026-09-13 | reviewed: - -->
 # NarrativeTrace .NET
 
 [English](README.md) | **Español** | [Português](LEIAME.md) | [简体中文](自述文件.md)
@@ -235,7 +235,7 @@ public class OrderTests : IClassFixture<NarrativeFixture>
 automáticamente en el teardown vía `TestContext`.
 
 Ambos escriben archivos reales en disco por defecto, sin ninguna opción que
-activar *(since 0.1.4)*:
+activar *(since 0.1.5)*:
 `TestResults/narrativetrace/traces/<Class>/<slug>.md`, un `.json`
 hermano, un diagrama `.mmd` y un `.nt` libre de valores — en el directorio
 efímero e ignorado por Git que `dotnet test` ya trata como salida
@@ -526,7 +526,7 @@ Para profundizar:
 - [Guía de funcionalidades](documentation/feature-guide.md) — tabla de estado canónica (Free/Pro/In development/Planned) para cada funcionalidad, con el código detrás de cada fila ya implementada
 - [Herramientas de seguridad](documentation/security-tooling.md) — el catálogo de escáneres y qué condiciona el build frente a lo que corre en un horario
 - [Pruebas de seguridad](documentation/security-testing.md) — la suite de fuzzing/propiedades reflejada en todas las implementaciones de NarrativeTrace
-- [Habilidades del agente](documentation/agent-skills.md) (solo en inglés) — las habilidades `narrativetrace-doctor` y `add-narrative-tracing` para Claude Code y Codex CLI *(Codex since 0.1.4, unreleased)*, generadas a partir de un catálogo tipado
+- [Habilidades del agente](documentation/agent-skills.md) (solo en inglés) — las habilidades `narrativetrace-doctor` y `add-narrative-tracing` para Claude Code y Codex CLI *(Codex since 0.1.5, unreleased)*, generadas a partir de un catálogo tipado
 
 Para consumidores de IA (solo en inglés):
 [`llms.txt`](documentation/guides/llms.txt) y

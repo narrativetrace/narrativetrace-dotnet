@@ -30,7 +30,7 @@ public sealed class NarrativeTracingDiOptions
     /// <c>[NotTraced]</c> always wins regardless. Left unset, a
     /// <see cref="RedactionPolicy"/> registered by the ASP.NET Core
     /// integration's own <c>AddNarrativeTrace(o => o.Redaction = …)</c> is
-    /// used instead, when present *(since 0.1.4, unreleased)*.
+    /// used instead, when present *(since 0.1.5, unreleased)*.
     /// </summary>
     public RedactionPolicy? Redaction { get; set; }
 

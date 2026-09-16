@@ -2,6 +2,7 @@
 // Licensed under the Business Source License 1.1 (see LICENSE); Change Date: four years from publication; Change License: Apache-2.0
 // Copyright (c) 2026 Empower Agile
 using System.Diagnostics;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -81,6 +82,29 @@ internal static class SkillReplayEngine
 internal static class SkillReplayRegistry
 {
     private static readonly TimeSpan ProcessTimeout = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// The build configuration every <c>--no-build</c> subprocess below must be told to use: the one
+    /// THIS assembly was compiled in, read off its own <see cref="AssemblyConfigurationAttribute"/>.
+    ///
+    /// <para>
+    /// Never a literal, and never the <c>dotnet</c> CLI's own default. <c>dotnet run</c>/<c>dotnet
+    /// test</c> default to <c>Debug</c> regardless of what produced the caller, while the build that
+    /// produced the caller is <c>Debug</c> locally and <c>Release</c> on a server
+    /// (<c>build/Build.cs</c>: <c>IsLocalBuild ? Debug : Release</c>). Combined with
+    /// <c>--no-build</c>, that mismatch made this replay pass on every developer machine — where a
+    /// <c>bin/Debug</c> from some earlier local build always exists — and fail on a cold CI checkout,
+    /// which only ever produced <c>bin/Release</c>: every spawned command died with "An error
+    /// occurred trying to start process .../bin/Debug/net10.0/dotnet-narrativetrace ... No such file
+    /// or directory". It is the environment the gate never ran in that breaks it (release rule 1),
+    /// so the configuration is derived, not assumed.
+    /// </para>
+    /// </summary>
+    internal static string BuildConfiguration { get; } =
+        typeof(SkillReplayRegistry).Assembly.GetCustomAttribute<AssemblyConfigurationAttribute>()
+            ?.Configuration is { Length: > 0 } configuration
+            ? configuration
+            : "Debug";
 
     private delegate bool CommandExecutor(string repoRoot, string fixtureDir);
 
@@ -189,7 +213,10 @@ internal static class SkillReplayRegistry
     {
         var cliProject = Path.Combine(repoRoot, "src", "NarrativeTrace.Cli");
         var result = RunProcess(
-            "dotnet", $"run --project \"{cliProject}\" --no-build -- doctor --json --dir \"{fixtureDir}\"", repoRoot);
+            "dotnet",
+            $"run --project \"{cliProject}\" --configuration {BuildConfiguration} --no-build "
+                + $"-- doctor --json --dir \"{fixtureDir}\"",
+            repoRoot);
         try
         {
             var document = JsonDocument.Parse(result.StdOut);
@@ -207,12 +234,14 @@ internal static class SkillReplayRegistry
     private static ProcessResult RunSixtySecondsTests(string repoRoot)
     {
         var project = Path.Combine(repoRoot, "tests", "NarrativeTrace.Examples.SixtySeconds.Tests");
-        return RunProcess("dotnet", $"test \"{project}\" --no-build", repoRoot);
+        return RunProcess(
+            "dotnet", $"test \"{project}\" --configuration {BuildConfiguration} --no-build", repoRoot);
     }
 
     private static bool DotnetRunPrintsTraceLine(string fixtureDir)
     {
-        var result = RunProcess("dotnet", "run --no-build", fixtureDir);
+        var result = RunProcess(
+            "dotnet", $"run --configuration {BuildConfiguration} --no-build", fixtureDir);
         return result.ExitCode == 0 && TraceLine.IsMatch(result.StdOut);
     }
 

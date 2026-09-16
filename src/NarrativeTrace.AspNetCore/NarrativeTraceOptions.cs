@@ -50,7 +50,7 @@ public sealed class NarrativeTraceOptions
     /// o.Redaction = …)</c> — reaches every proxy
     /// <c>NarrativeTrace.DependencyInjection</c>'s auto-wrap constructs in
     /// this app, without that package's own options needing to repeat it
-    /// *(since 0.1.4, unreleased)*. <c>NarrativeTracingDiOptions.Redaction</c>,
+    /// *(since 0.1.5, unreleased)*. <c>NarrativeTracingDiOptions.Redaction</c>,
     /// when also set, takes precedence for that call. Given explicitly, the
     /// policy <em>replaces</em> the default name-based decision rather than
     /// widening it; <c>[NotTraced]</c> always wins regardless.

@@ -1,7 +1,7 @@
 # NarrativeTrace .NET
 
 <!-- published-version -->
-*(These docs describe 0.1.4; published is 0.1.3.)* <!-- published-version checked 2026-09-16T15:28:08Z (live) -->
+*(These docs describe 0.1.5; published is 0.1.3.)* <!-- published-version checked 2026-09-16T15:28:08Z (live) -->
 <!-- /published-version -->
 
 > Code is the log. Auto-generate human-readable execution narratives from method names, parameter names, and return values — no manual logging.
@@ -62,12 +62,12 @@ TraceLogExporter.ExportToLogger(context.CaptureTrace(), loggerFactory.CreateLogg
 ```
 
 ## Before you start
-- `NarrativeTrace.Proxy` pulls in `.Runtime`+`.Core` *(since 0.1.4)*.
-- `NARRATIVETRACE_OUTPUT` defaults **on** *(since 0.1.4)*.
-- `new ProxyOptions(Redaction: ...)` reaches the proxy, and `NarrativeTracingDiOptions.Redaction`/`NarrativeTraceOptions.Redaction` reach DI auto-wrap and ASP.NET Core auto-wrapped proxies too *(since 0.1.4)*.
+- `NarrativeTrace.Proxy` pulls in `.Runtime`+`.Core` *(since 0.1.5)*.
+- `NARRATIVETRACE_OUTPUT` defaults **on** *(since 0.1.5)*.
+- `new ProxyOptions(Redaction: ...)` reaches the proxy, and `NarrativeTracingDiOptions.Redaction`/`NarrativeTraceOptions.Redaction` reach DI auto-wrap and ASP.NET Core auto-wrapped proxies too *(since 0.1.5)*.
 - No compiler flag needed for parameter names — unlike the JVM's `-parameters`.
-- The `.nt` structural artifact is a last-green baseline with per-invocation identity, `manifest.json` and approval mode *(since 0.1.4)*: `NARRATIVETRACE_APPROVAL=true` fails a passing test whose structure differs from its committed `*.approved.nt`, and `./build.sh Approve` promotes a reviewed `*.received.nt`. See [Structural Trace Format](../structural-trace-format.md).
-- A trace has a name (`trace: bold elk soars (a1b2c3d)`, above), and *(since 0.1.4)* a test-suite run has one too — the console footer, `manifest.json`'s `run` object, the Markdown frontmatter's `run:` field, and `nt.runName` in the logging bridge's scope. Neither ever reaches the `.nt` text. See [Configuration Guide §7](configuration.md#7-logging-bridge-microsoftextensionslogging).
+- The `.nt` structural artifact is a last-green baseline with per-invocation identity, `manifest.json` and approval mode *(since 0.1.5)*: `NARRATIVETRACE_APPROVAL=true` fails a passing test whose structure differs from its committed `*.approved.nt`, and `./build.sh Approve` promotes a reviewed `*.received.nt`. See [Structural Trace Format](../structural-trace-format.md).
+- A trace has a name (`trace: bold elk soars (a1b2c3d)`, above), and *(since 0.1.5)* a test-suite run has one too — the console footer, `manifest.json`'s `run` object, the Markdown frontmatter's `run:` field, and `nt.runName` in the logging bridge's scope. Neither ever reaches the `.nt` text. See [Configuration Guide §7](configuration.md#7-logging-bridge-microsoftextensionslogging).
 - Every `NARRATIVETRACE_*` variable — what it sets, its default, and a runnable example of the effect — is tabulated in [Configuration Guide §10](configuration.md#10-environment-variable-worked-examples).
 
 ## Field notes from AI agents (self-reported, not a benchmark)

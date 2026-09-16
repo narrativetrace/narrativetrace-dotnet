@@ -17,9 +17,9 @@ public sealed class ToolchainCompanionPackagesCheckTests
     }
 
     [Fact]
-    public void Passes_when_proxy_is_0_1_4_or_newer()
+    public void Passes_when_proxy_is_0_1_5_or_newer()
     {
-        var snapshot = DoctorSnapshotFixtures.WithPackages(("NarrativeTrace.Proxy", "0.1.4"));
+        var snapshot = DoctorSnapshotFixtures.WithPackages(("NarrativeTrace.Proxy", "0.1.5"));
 
         var finding = ToolchainCompanionPackagesCheck.Run(snapshot);
 
@@ -27,7 +27,7 @@ public sealed class ToolchainCompanionPackagesCheckTests
     }
 
     [Fact]
-    public void Passes_when_pre_0_1_4_proxy_has_both_companions_installed_by_hand()
+    public void Passes_when_pre_0_1_5_proxy_has_both_companions_installed_by_hand()
     {
         var snapshot = DoctorSnapshotFixtures.WithPackages(
             ("NarrativeTrace.Proxy", "0.1.3"),
@@ -40,7 +40,7 @@ public sealed class ToolchainCompanionPackagesCheckTests
     }
 
     [Fact]
-    public void Fails_when_pre_0_1_4_proxy_is_missing_a_companion()
+    public void Fails_when_pre_0_1_5_proxy_is_missing_a_companion()
     {
         var snapshot = DoctorSnapshotFixtures.WithPackages(("NarrativeTrace.Proxy", "0.1.3"));
 

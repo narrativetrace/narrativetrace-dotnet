@@ -49,6 +49,25 @@ public sealed class SkillsReplayCommandTests : IDisposable
         Assert.Empty(_err.ToString());
     }
 
+    /// <summary>
+    /// Pins the bug class the v0.1.4 publish run died of, not just that one instance: every replay
+    /// subprocess is spawned with <c>--no-build</c>, so the configuration it is told to use must be
+    /// the one this build actually produced — <c>Debug</c> locally, <c>Release</c> on a server
+    /// (<c>build/Build.cs</c>: <c>IsLocalBuild ? Debug : Release</c>). The <c>dotnet</c> CLI's own
+    /// default is <c>Debug</c> unconditionally, which is invisible on a developer machine (a
+    /// <c>bin/Debug</c> from an earlier build is always lying around) and fatal on a cold CI
+    /// checkout that only ever built <c>Release</c>. Asserting against the directory this test
+    /// assembly was itself loaded from is what makes the check environment-carried rather than
+    /// environment-assumed.
+    /// </summary>
+    [Fact]
+    public void Replay_subprocesses_target_the_configuration_this_build_actually_produced()
+    {
+        var builtInto = new DirectoryInfo(AppContext.BaseDirectory).Parent!.Name;
+
+        Assert.Equal(builtInto, SkillReplayRegistry.BuildConfiguration);
+    }
+
     [Fact]
     public void A_missing_fixture_is_reported_as_a_problem_never_an_unhandled_exception()
     {

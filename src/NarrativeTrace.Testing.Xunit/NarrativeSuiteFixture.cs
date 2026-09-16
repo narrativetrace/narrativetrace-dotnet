@@ -37,7 +37,7 @@ public sealed class NarrativeSuiteFixture : IDisposable
     /// construction, which is exactly once per collection this fixture is
     /// registered against (2026-09-13 ruling, item 2; the xUnit "assembly
     /// fixture" the convention names when one collection covers the whole
-    /// assembly) *(since 0.1.4, unreleased)*. Threaded explicitly into this
+    /// assembly) *(since 0.1.5, unreleased)*. Threaded explicitly into this
     /// suite's own footer and manifest, and published via
     /// <see cref="RunScope"/> for the whole fixture's lifetime so a per-test
     /// <see cref="NarrativeFixture"/> — a separate object, with no reference

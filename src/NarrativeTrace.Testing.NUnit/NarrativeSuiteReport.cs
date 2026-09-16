@@ -31,7 +31,7 @@ public sealed class NarrativeSuiteReport
     /// <summary>
     /// This report's own test-suite execution identity — generated once, at
     /// construction, which is once per <see cref="NarrativeSuiteSetup"/>
-    /// <c>[OneTimeSetUp]</c> (2026-09-13 ruling, item 2) *(since 0.1.4,
+    /// <c>[OneTimeSetUp]</c> (2026-09-13 ruling, item 2) *(since 0.1.5,
     /// unreleased)*. Threaded explicitly into this suite's own footer and
     /// manifest; <see cref="NarrativeSuiteSetup"/> additionally publishes it
     /// via <see cref="RunScope"/> so <see cref="NarrativeTestBase"/>'s

@@ -56,7 +56,7 @@ namespace NarrativeTrace.Build;
 /// defined as varying between *some* number of milliseconds and *none
 /// rendered*, not just between numbers, so the mask has to erase the whole
 /// optional fragment on both sides.</item>
-/// <item><c>traceName</c> *(since 0.1.4, unreleased)* replaces the
+/// <item><c>traceName</c> *(since 0.1.5, unreleased)* replaces the
 /// trace/run three-word phrase — and, where adjacent, the 7-hex trace-id
 /// fragment — wherever a <c>trace:</c>/<c>run:</c>/<c>trace_name:</c>/
 /// <c>runName:</c> label, a <c>The trace ...:</c> prose lead-in, or a
@@ -99,7 +99,7 @@ internal static class SnippetCheckSupport
     // A label immediately followed by "adjective noun verb", optionally the
     // "(1234567)" trace-id fragment — the exact shapes TraceNamer-derived
     // text appears in across every renderer and frontmatter field this
-    // repository writes *(since 0.1.4, unreleased)*.
+    // repository writes *(since 0.1.5, unreleased)*.
     private static readonly Regex TraceLabelMask = new(
         @"(?i)\b(trace_name|traceName|runName|run|trace):(\s*)[a-z]+ [a-z]+ [a-z]+(\s*\([0-9a-f]{7}\))?",
         RegexOptions.CultureInvariant);
@@ -358,7 +358,7 @@ internal static class SnippetCheckSupport
     /// <summary>
     /// The <c>mask=</c> names parsed from one snippet marker, each an
     /// independent normalization applied to both sides before comparison —
-    /// see the type's own remarks *(since 0.1.4, unreleased)*.
+    /// see the type's own remarks *(since 0.1.5, unreleased)*.
     /// </summary>
     private readonly record struct SnippetMasks(bool Duration, bool TraceName)
     {

@@ -8,7 +8,7 @@ using NarrativeTrace.Runtime;
 namespace NarrativeTrace.ContractProbe.Probes;
 
 /// <summary>
-/// <c>probed-default</c>, since 0.1.4: a context built from
+/// <c>probed-default</c>, since 0.1.5: a context built from
 /// <c>new NarrativeTraceConfig(initialTraceparent: Traceparent.Parse(...))</c> adopts the parsed
 /// trace id as its own <c>CurrentTraceId</c> — configuration-guide.md "Traceparent seeding", the
 /// no-HTTP-header sibling of <see cref="MiddlewareAdoptsTraceparentProbe"/>'s inbound-header path.
@@ -17,7 +17,7 @@ namespace NarrativeTrace.ContractProbe.Probes;
 /// <c>NarrativeTrace.Core.Traceparent</c> does not exist in the 0.1.3 package this project compiles
 /// against by default (same situation <see cref="ReflectablePerInvocationIdentityProbe"/>
 /// documents), so it is found and invoked entirely through reflection. <see cref="NarrativeTraceConfig"/>
-/// and <see cref="TraceId"/> already existed before 0.1.4, so they are used directly — only the
+/// and <see cref="TraceId"/> already existed before 0.1.5, so they are used directly — only the
 /// specific 3-parameter constructor overload that accepts a <c>Traceparent</c> is new, found by
 /// shape (parameter count) rather than by naming it at compile time.
 /// </remarks>

@@ -62,7 +62,7 @@ spans.
 ### Traceparent seeding
 
 Seed a starting [W3C `traceparent`](https://www.w3.org/TR/trace-context/#traceparent-header)
-*(since 0.1.4)* so every context built from a configuration
+*(since 0.1.5)* so every context built from a configuration
 continues a caller's trace instead of starting its own — the no-HTTP-header
 equivalent of what `NarrativeTraceMiddleware` adopts from an inbound request
 (§4 below):
@@ -107,7 +107,7 @@ Level and format parsing is lenient (case- and punctuation-insensitive:
 `detail`, `DETAIL`, and `Detail` all resolve).
 
 `NARRATIVETRACE_OUTPUT` is **on by default** (owner ruling, 2026-09-11)
-*(since 0.1.4)*: the per-test artifacts the xUnit fixture and
+*(since 0.1.5)*: the per-test artifacts the xUnit fixture and
 NUnit base write are the payoff of
 adopting this library, so writing happens without any flag. Only an explicit
 `NARRATIVETRACE_OUTPUT=false` (or `0`) opts out; `true`/`1` are accepted as a
@@ -138,7 +138,7 @@ the trace file, whatever the primary format is:
 Both are off by default; they are machine artifacts, not something you read
 next to the trace.
 
-`NARRATIVETRACE_APPROVAL` turns on approval mode *(since 0.1.4)*: after a **passing** test, the scenario's value-free structure
+`NARRATIVETRACE_APPROVAL` turns on approval mode *(since 0.1.5)*: after a **passing** test, the scenario's value-free structure
 (the same render as the `.nt` artifact) is verified against the committed
 approved trace `<approvedDir>/<TestClassSimpleName>/<artifact_name>.approved.nt`
 — the same artifact identity as every other per-test file, so a method that
@@ -215,7 +215,7 @@ builder.Services.AddNarrativeTrace(builder.Configuration, options =>
 | `ExcludedPaths` | `string[]` | Path prefixes skipped entirely (matched by segment). |
 
 `NarrativeTraceMiddleware` adopts an inbound `traceparent` request header
-automatically *(since 0.1.4)* — no option to flip; an absent,
+automatically *(since 0.1.5)* — no option to flip; an absent,
 malformed, or forbidden-version header is ignored and the request gets a
 freshly generated trace id, exactly like the config-seeded path above but
 driven by the caller's header instead of a fixed value.
@@ -308,7 +308,7 @@ position regardless of name.
 **Wiring a custom policy into the proxy path.** The `RenderOptions` above is
 what `ValueRenderer.Render` takes when you call it yourself; reaching the
 *shipped* `NarrativeTraceProxy` capture path is a separate step, through
-`ProxyOptions.Redaction` *(since 0.1.4)*:
+`ProxyOptions.Redaction` *(since 0.1.5)*:
 
 ```csharp
 var proxy = NarrativeTraceProxy.Create<IOrderService>(
@@ -324,7 +324,7 @@ still redacts regardless). Leave `Redaction` unset (the default) and a
 proxy behaves exactly as before.
 
 DI auto-wrap and the ASP.NET Core integration expose the same hook
-*(since 0.1.4)*: `NarrativeTracingDiOptions.Redaction` on
+*(since 0.1.5)*: `NarrativeTracingDiOptions.Redaction` on
 [`AddNarrativeTracing`](dependency-injection.md) reaches every service that
 call wraps, and `NarrativeTraceOptions.Redaction` on
 [`AddNarrativeTrace`](aspnetcore.md) reaches auto-wrapped proxies too when
@@ -403,7 +403,7 @@ NarrativeTrace captures the story from signatures and return values. Mix
 in `ILogger` calls only for decisions that don't surface at method
 boundaries, then remove them as you refactor.
 
-**A test-suite run has a name too** *(since 0.1.4)*: while
+**A test-suite run has a name too** *(since 0.1.5)*: while
 `NarrativeTrace.Testing.Xunit` or `NarrativeTrace.Testing.NUnit` has an
 active suite run, both bridges above additionally add `nt.runName` to the
 scope — the run's own three-word phrase, alongside `nt.traceId`/

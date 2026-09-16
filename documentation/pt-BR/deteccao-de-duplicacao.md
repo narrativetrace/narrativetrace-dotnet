@@ -1,9 +1,9 @@
-<!-- source: documentation/duplication.md blob f30a0f822c50 | translated: 2026-09-13 | reviewed: - -->
+<!-- source: documentation/duplication.md blob 7ce9aac0fb0f | translated: 2026-09-13 | reviewed: - -->
 # Detecção de duplicação
 
 [English](../duplication.md) | [Español](../es/deteccion-de-duplicacion.md) | **Português** | [简体中文](../zh-CN/重复代码检测.md)
 
-*(desde 0.1.4, não lançado)* — ferramenta de tempo de build, não um
+*(desde 0.1.5, não lançado)* — ferramenta de tempo de build, não um
 comportamento da biblioteca em tempo de execução: nada aqui é distribuído
 nos pacotes NuGet.
 

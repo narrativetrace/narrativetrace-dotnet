@@ -141,7 +141,7 @@ public static class MarkdownRenderer
     /// is <see cref="TraceId.Empty"/> — the frontmatter already carries the
     /// phrase (and the raw id) as <c>trace_name:</c>/<c>trace_id:</c>; this is
     /// the same phrase in the document's own title line (2026-09-13 ruling,
-    /// item 4) *(since 0.1.4, unreleased)*.
+    /// item 4) *(since 0.1.5, unreleased)*.
     /// </summary>
     private static string TracePhrasePrefix(TraceTree tree)
     {
@@ -194,7 +194,7 @@ public static class MarkdownRenderer
     /// <summary>
     /// The enclosing test-suite run's phrase (<c>run:</c>), or nothing when the
     /// document was not rendered inside a run an integration tracks
-    /// (2026-09-13 ruling, item 2) *(since 0.1.4, unreleased)*. The ONLY
+    /// (2026-09-13 ruling, item 2) *(since 0.1.5, unreleased)*. The ONLY
     /// frontmatter field <see cref="RunIdentity"/> ever reaches — never folded
     /// into <c>scenario</c>, never read back by <c>entry_point</c>/<c>trace_id</c>/
     /// <c>trace_name</c>, and never present on the structural <c>.nt</c>

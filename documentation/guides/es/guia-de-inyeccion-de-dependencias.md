@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/dependency-injection.md blob 4d3f196ae65d | translated: 2026-09-12 | reviewed: - -->
+<!-- source: documentation/guides/dependency-injection.md blob 6b2cb07a0781 | translated: 2026-09-12 | reviewed: - -->
 # Guía de envoltura automática con inyección de dependencias
 
 [English](../dependency-injection.md) | **Español** | [Português](../pt-BR/guia-de-injecao-de-dependencias.md) | [简体中文](../zh-CN/依赖注入指南.md)
@@ -14,7 +14,7 @@ decora in situ los beans que coinciden.
 ## Paquete
 
 ```xml
-<PackageReference Include="NarrativeTrace.DependencyInjection" Version="0.1.4" />
+<PackageReference Include="NarrativeTrace.DependencyInjection" Version="0.1.5" />
 ```
 
 ## 1. Registrar y envolver automáticamente
@@ -69,7 +69,7 @@ delegado de configuración. `NarrativeTracingDiOptions` expone:
 | `Level` | `TracingLevel` | `Detail` | Nivel de captura del contexto scoped compartido. |
 | `Namespaces(params string[])` | fluida | (vacío) | Namespaces base a envolver automáticamente. |
 | `ExcludeNamespaces(params string[])` | fluida | (vacío) | Namespaces de interfaz a excluir, incluso cuando su namespace de implementación esté incluido. |
-| `Redaction` | `RedactionPolicy?` | `null` | La política de ocultación con la que cada servicio que esta llamada envuelve renderiza parámetros y valores de retorno *(since 0.1.4)*. Ver más abajo. |
+| `Redaction` | `RedactionPolicy?` | `null` | La política de ocultación con la que cada servicio que esta llamada envuelve renderiza parámetros y valores de retorno *(since 0.1.5)*. Ver más abajo. |
 
 `Namespaces` y `ExcludeNamespaces` son aditivos y encadenables, y cada uno
 devuelve la instancia de opciones:
@@ -203,7 +203,7 @@ apps de consola, consumidores de mensajes) donde tú eres dueño del scope y
 capturas la traza directamente.
 
 **La ocultación igual conecta ambas vías, aunque sigan siendo caminos de
-trazado independientes** *(since 0.1.4)*: una `RedactionPolicy`
+trazado independientes** *(since 0.1.5)*: una `RedactionPolicy`
 configurada vía `services.AddNarrativeTrace(o => o.Redaction = …)` se
 registra en la misma colección de servicios, así que la auto-envoltura de
 `AddNarrativeTracing` la recoge como respaldo para cada servicio que
