@@ -23,7 +23,7 @@ namespace NarrativeTrace.SecurityTests;
 /// defect actually lived (<c>NarrativeInterceptor.BuildParameterInfo</c>, which used to consult only
 /// <c>[NotTraced]</c>). A test aimed at the renderer cannot see a bug in the capture decision that
 /// happens before any renderer runs. This class is the corpus aimed at the real seam instead — the
-/// java flagship's mirror of the same finding: with the capture fix reverted, 28 of the 88 rows fail
+/// java flagship's mirror of the same finding: with the capture fix reverted, 28 of the 89 rows fail
 /// here (every <c>name</c> case whose <c>expect</c> is <c>redacted</c>), and this file is what makes
 /// that observable rather than assumed.
 /// </para>
@@ -33,7 +33,7 @@ namespace NarrativeTrace.SecurityTests;
 /// included), so each name case's interface has to be synthesized at runtime; see
 /// <see cref="DynamicCaptureHarness"/>. A name that cannot be emitted as a legal parameter
 /// identifier fails LOUDLY, tagged <c>SKIPPED</c> with the row id in the message, rather than being
-/// silently absent from the run — a green suite that quietly ran fewer than 88 cases is exactly the
+/// silently absent from the run — a green suite that quietly ran fewer than 89 cases is exactly the
 /// failure mode this wave exists to close.
 /// </para>
 /// <para>
@@ -108,10 +108,70 @@ public class RedactionCapturePathConformanceTests
         // copy ever drifts or is deleted.
         var rows = HostileCorpus.Redactions();
 
-        Assert.Equal(88, rows.Count);
+        Assert.Equal(89, rows.Count);
         Assert.Equal(50, rows.Count(r => r.IsName));
-        Assert.Equal(38, rows.Count(r => !r.IsName));
+        Assert.Equal(39, rows.Count(r => !r.IsName));
         Assert.Equal(28, rows.Count(r => r.IsName && r.ExpectsRedaction));
+    }
+
+    /// <summary>
+    /// ADV-2026-09-14-1, driven through the REAL proxy rather than <see cref="ValueRenderer"/>
+    /// directly (<see cref="RedactionVocabularyPropertyTests"/> already covers the renderer level):
+    /// a masked map KEY is a per-leaf shape match, not a whole-value withholding. Family-wide
+    /// ruling, 2026-09-10, on <see cref="ParameterCapture.Redacted"/>: the flag says the WHOLE
+    /// captured value was withheld, and <c>NarrativeInterceptor</c> sets it by comparing the FULL
+    /// rendered text to the marker — a one-entry map never renders as exactly the marker, so the
+    /// flag legitimately stays <see langword="false"/> here even though the key itself is masked.
+    /// Asserting <see langword="true"/> would be the over-flagging a name-only reader could not
+    /// tell from a real whole-value redaction.
+    /// </summary>
+    [Fact]
+    public void A_map_key_case_masks_the_key_alone_and_leaves_the_whole_value_flag_false()
+    {
+        var mapKeyCases = HostileCorpus.Redactions().Where(c => c.IsMapKeyCase).ToList();
+        Assert.NotEmpty(mapKeyCases);
+
+        foreach (var corpusCase in mapKeyCases)
+        {
+            var ctx = new SyncNarrativeContext(new NarrativeTraceConfig());
+            var proxy = NarrativeTraceProxy.Create<IMapKeyCaptureProbe>(new MapKeyCaptureProbe(), ctx);
+
+            proxy.Invoke(corpusCase.Payload);
+
+            var tree = ctx.CaptureTrace();
+            var parameter = tree.Roots[0].Signature.Parameters[0];
+
+            Assert.False(
+                parameter.Redacted,
+                $"{corpusCase.Id}: a masked map KEY is a per-leaf shape match — the whole-value "
+                + "flag must stay false");
+            Assert.DoesNotContain(
+                corpusCase.Secret, parameter.RenderedValue, StringComparison.Ordinal);
+            Assert.Contains(
+                RedactionCase.MapKeyCompanionValue,
+                parameter.RenderedValue,
+                StringComparison.Ordinal);
+
+            foreach (var (emitter, output) in Emitters.EveryOutput(tree))
+            {
+                Assert.False(
+                    output.Contains(corpusCase.Secret, StringComparison.Ordinal),
+                    $"{corpusCase.Id} ({corpusCase.Description}) must not reach {emitter}");
+            }
+        }
+    }
+
+    /// <summary>A fixed, non-generated probe: the map-key case's parameter name is not corpus data, unlike a name case's.</summary>
+    public interface IMapKeyCaptureProbe
+    {
+        void Invoke(object data);
+    }
+
+    private sealed class MapKeyCaptureProbe : IMapKeyCaptureProbe
+    {
+        public void Invoke(object data)
+        {
+        }
     }
 
     private static (ParameterCapture Parameter, TraceTree Tree) Capture(

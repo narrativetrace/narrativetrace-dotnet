@@ -12,7 +12,7 @@ at your service namespaces and it decorates the matching beans in place.
 ## Package
 
 ```xml
-<PackageReference Include="NarrativeTrace.DependencyInjection" Version="0.1.3" />
+<PackageReference Include="NarrativeTrace.DependencyInjection" Version="0.1.4" />
 ```
 
 ## 1. Register and auto-wrap
@@ -65,7 +65,7 @@ configuration delegate. `NarrativeTracingDiOptions` exposes:
 | `Level` | `TracingLevel` | `Detail` | Capture level for the shared scoped context. |
 | `Namespaces(params string[])` | fluent | (empty) | Base namespaces to auto-wrap. |
 | `ExcludeNamespaces(params string[])` | fluent | (empty) | Interface namespaces to carve out, even when their implementation namespace is included. |
-| `Redaction` | `RedactionPolicy?` | `null` | The redaction policy every service this call wraps renders parameters and return values with *(since 0.1.4, unreleased)*. See below. |
+| `Redaction` | `RedactionPolicy?` | `null` | The redaction policy every service this call wraps renders parameters and return values with *(since 0.1.4)*. See below. |
 
 `Namespaces` and `ExcludeNamespaces` are additive and chainable, and each
 returns the options instance:
@@ -192,7 +192,7 @@ Reach for the DI auto-wrap in non-web hosts (workers, console apps,
 message consumers) where you own the scope and capture the trace directly.
 
 **Redaction still bridges across both, even as independent tracing paths**
-*(since 0.1.4, unreleased)*: a `RedactionPolicy` configured via
+*(since 0.1.4)*: a `RedactionPolicy` configured via
 `services.AddNarrativeTrace(o => o.Redaction = …)` is registered into the
 same service collection, so `AddNarrativeTracing`'s auto-wrap picks it up as
 a fallback for every service it wraps — without that call's own `Redaction`

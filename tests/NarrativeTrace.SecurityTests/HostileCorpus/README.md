@@ -94,6 +94,15 @@ because the shape *is* the secret. `expect` is `"redacted"` when the canary
 must appear in no byte of any output and `"visible"` when it must survive —
 the false-positive half is the half that keeps the default switched on.
 
+A value case's `value` renders as a bare top-level scalar by default. Optional
+`"position": "mapKey"` places it as the KEY of a one-entry map instead (paired
+with an ordinary visible value), so the value-shape axis is asserted in a map
+KEY position and not only where a value ordinarily sits:
+
+```json
+{ "id": "shape-jwt-map-key", "description": "the same JWT, as a map KEY rather than a value", "value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZGEifQ.dBjftJeZ4CVPmB92K27uhbUJU1p1r_wW1gFWFOEjXk", "position": "mapKey", "expect": "redacted" }
+```
+
 ## The oracles these feed
 
 Named here so every runtime implements the same ones. They are documented for readers

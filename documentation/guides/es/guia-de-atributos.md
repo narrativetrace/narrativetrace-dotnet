@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/annotations.md blob bba088bcb791 | translated: 2026-09-13 | reviewed: - -->
+<!-- source: documentation/guides/annotations.md blob 28de41542ba3 | translated: 2026-09-13 | reviewed: - -->
 # NarrativeTrace .NET — Guía de atributos
 
 [English](../annotations.md) | **Español** | [Português](../pt-BR/guia-de-atributos.md) | [简体中文](../zh-CN/特性指南.md)
@@ -170,7 +170,7 @@ esa eliminación es la decisión deliberada y revisable, y queda a la vista
 en el diff.
 
 **Las plantillas respetan la propia política de ocultación del proxy**
-*(since 0.1.4, unreleased)*: una plantilla `[Narrated]`/`[OnError]`
+*(since 0.1.4)*: una plantilla `[Narrated]`/`[OnError]`
 resuelta en un proxy construido con un `new ProxyOptions(Redaction: ...)`
 personalizado consulta esa misma política en los dos ejes de arriba — un
 marcador de posición desnudo como `{password}` y una ruta como

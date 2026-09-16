@@ -95,6 +95,45 @@ public sealed class HostileCorpusTest
         Assert.True(offending.Count == 0, $"{fileName} must spell hostile characters as escapes, not raw bytes");
     }
 
+    /// <summary>
+    /// ADV-2026-09-14-1: <c>position</c> only ever means "as a map key", and only a value case may
+    /// declare it — a name case already renders as a map, under its own field name, so a second map
+    /// position on top of that would test nothing new. At least one row must use it, or the map-KEY
+    /// value-shape axis is back to being asserted nowhere in the corpus.
+    /// </summary>
+    [Fact]
+    public void Every_redaction_position_is_well_formed()
+    {
+        foreach (var redactionCase in HostileCorpus.Redactions())
+        {
+            if (redactionCase.Position is null)
+            {
+                continue;
+            }
+
+            Assert.True(
+                redactionCase.IsMapKeyCase,
+                $"{redactionCase.Id} declares an unknown position: {redactionCase.Position}");
+            Assert.False(
+                redactionCase.IsName,
+                $"{redactionCase.Id}: only a value case may declare a map-key position");
+        }
+
+        Assert.Contains(HostileCorpus.Redactions(), c => c.IsMapKeyCase);
+    }
+
+    [Fact]
+    public void A_map_key_case_renders_its_value_as_the_key_of_a_one_entry_dictionary()
+    {
+        foreach (var redactionCase in HostileCorpus.Redactions().Where(c => c.IsMapKeyCase))
+        {
+            var payload = Assert.IsType<Dictionary<string, object>>(redactionCase.Payload);
+            var entry = Assert.Single(payload);
+            Assert.Equal(redactionCase.Value, entry.Key);
+            Assert.Equal(RedactionCase.MapKeyCompanionValue, entry.Value);
+        }
+    }
+
     [Fact]
     public void Every_declared_graph_shape_builds()
     {

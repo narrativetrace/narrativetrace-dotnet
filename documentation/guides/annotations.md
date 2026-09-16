@@ -133,7 +133,7 @@ redacted" meaning — it always names a parameter, property, or record
 component, never the method itself, matching the JVM edition's `@NotTraced`
 (no `METHOD` target there either). Putting it on a method compiles, but a
 proxy created over an interface that does throws `InvalidOperationException`
-at proxy-creation time *(since 0.1.4, unreleased)*, naming the attribute, the
+at proxy-creation time *(since 0.1.4)*, naming the attribute, the
 offending method, and the fix:
 
 ```csharp
@@ -160,8 +160,7 @@ rules that apply to the value directly. If you need the value in a
 narrative, remove `[NotTraced]` from the property — that removal is the
 deliberate, reviewable decision, and it shows up in the diff.
 
-**Templates honor the proxy's own redaction policy** *(since 0.1.4,
-unreleased)*: a `[Narrated]`/`[OnError]` template resolved on a proxy
+**Templates honor the proxy's own redaction policy** *(since 0.1.4)*: a `[Narrated]`/`[OnError]` template resolved on a proxy
 constructed with a custom `new ProxyOptions(Redaction: ...)` checks that
 same policy for both axes above — a bare `{password}` placeholder and a
 `{policy.HolderName}` path alike — rather than always falling back to

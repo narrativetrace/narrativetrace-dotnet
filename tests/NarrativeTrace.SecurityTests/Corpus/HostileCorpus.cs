@@ -163,7 +163,8 @@ public static class HostileCorpus
                 Text(node, "name"),
                 Text(node, "value"),
                 Text(node, "canary"),
-                Text(node, "expect")!));
+                Text(node, "expect")!,
+                Text(node, "position")));
         }
         return result;
     }

@@ -94,7 +94,15 @@ internal static class CoverageAccounting
         // run for real by SixtySecondsTests (its own compiler-generated entry point,
         // invoked via reflection so the embedded doc snippet stays untouched). 100%
         // measured in BOTH Debug and Release; 98 leaves the two points of headroom every
-        // other 98-gated project in this map gets.
+        // other 98-gated project in this map gets. The "Send it to your logger" postscript
+        // lives in its own sibling project (NarrativeTrace.Examples.SixtySeconds.WithLogger,
+        // same reflection-on-the-real-entry-point technique) — a comma-separated Include
+        // (tried 2026-09-16) breaks this Coverage target's own command-line invocation
+        // (MSB1006: the comma splits into a second, invalid switch), so that project is
+        // simply not part of this Include filter and carries no coverage gate of its own —
+        // matching every other example project's non-`.Tests` half, none of which appear in
+        // this map either; it is still proven by being executed (MutationAccounting.cs) and
+        // by snippet-check comparing its output to the page.
         ["NarrativeTrace.Examples.SixtySeconds.Tests"] = new(98, "[NarrativeTrace.Examples.SixtySeconds]*"),
         // Exercises the shipped NUnit engine/runner adapter narrowly (the integration seam, not
         // the breadth NarrativeTrace.Testing.NUnit.Tests already covers at 86) — 71% is the

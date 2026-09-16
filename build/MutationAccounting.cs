@@ -162,6 +162,13 @@ internal static class MutationAccounting
             + "RunExamples (it is not a demo.sh scenario), but executed on every commit by its own "
             + "NarrativeTrace.Examples.SixtySeconds.Tests via the real traced proxy; proven by being "
             + "executed and by snippet-check comparing its output to the page, not by mutants"),
+        ["NarrativeTrace.Examples.SixtySeconds.WithLogger"] = new(
+            "the \"Send it to your logger\" postscript of the same quickstart page as a project "
+            + "(rule 8) — not run by RunExamples, but executed on every commit by "
+            + "NarrativeTrace.Examples.SixtySeconds.Tests via its own compiled entry point "
+            + "(reflection, mirroring how the SixtySeconds sibling's Program.cs is exercised); "
+            + "proven by being executed and by snippet-check comparing its output to the page, not "
+            + "by mutants"),
 
         // ---- harnesses: drive an external tool, assert nothing themselves ----------------------
         ["NarrativeTrace.Benchmarks"] = new(

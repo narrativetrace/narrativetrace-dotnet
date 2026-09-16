@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/configuration.md blob da0becfadddb | translated: 2026-09-13 | reviewed: - -->
+<!-- source: documentation/guides/configuration.md blob 559edb2058e0 | translated: 2026-09-13 | reviewed: - -->
 # NarrativeTrace .NET — Guía de configuración
 
 [English](../configuration.md) | **Español** | [Português](../pt-BR/guia-de-configuracao.md) | [简体中文](../zh-CN/配置指南.md)
@@ -60,13 +60,13 @@ var config = new NarrativeTraceConfig(TracingLevel.Detail, identity);
 Aparecen como `service.name` / `service.version` / `service.environment` en
 la exportación JSON, los scopes de logging y los spans de OpenTelemetry.
 
-### Siembra de traceparent *(since 0.1.4, unreleased)*
+### Siembra de traceparent
 
 Siembra un [`traceparent`](https://www.w3.org/TR/trace-context/#traceparent-header)
-W3C inicial para que cada contexto construido a partir de una configuración
-continúe la traza de quien llama en lugar de iniciar la suya propia — el
-equivalente sin cabecera HTTP de lo que `NarrativeTraceMiddleware` adopta de
-una petición entrante (§4 más abajo):
+W3C inicial *(since 0.1.4)* para que cada contexto construido a
+partir de una configuración continúe la traza de quien llama en lugar de
+iniciar la suya propia — el equivalente sin cabecera HTTP de lo que
+`NarrativeTraceMiddleware` adopta de una petición entrante (§4 más abajo):
 
 ```csharp
 var config = new NarrativeTraceConfig(
@@ -111,7 +111,7 @@ El parseo del nivel y del formato es tolerante (insensible a mayúsculas y
 puntuación: `detail`, `DETAIL` y `Detail` resuelven todos).
 
 `NARRATIVETRACE_OUTPUT` está **activado por defecto** (decisión del
-responsable, 2026-09-11) *(since 0.1.4, unreleased)*: los artefactos por prueba que escriben el fixture
+responsable, 2026-09-11) *(since 0.1.4)*: los artefactos por prueba que escriben el fixture
 de xUnit y la base de NUnit son la recompensa de adoptar esta biblioteca,
 así que la escritura ocurre sin ninguna opción. Solo un
 `NARRATIVETRACE_OUTPUT=false` explícito (o `0`) lo desactiva; `true`/`1` se
@@ -143,8 +143,7 @@ junto al fichero de traza, sea cual sea el formato principal:
 Ambos están desactivados por defecto: son artefactos de máquina, no algo que se
 lea junto a la traza.
 
-`NARRATIVETRACE_APPROVAL` activa el modo de aprobación *(since 0.1.4,
-unreleased)*: después de una prueba que **pasa**, la estructura sin
+`NARRATIVETRACE_APPROVAL` activa el modo de aprobación *(since 0.1.4)*: después de una prueba que **pasa**, la estructura sin
 valores del escenario (el mismo render que el artefacto `.nt`) se verifica
 contra la traza aprobada con commit
 `<approvedDir>/<TestClassSimpleName>/<artifact_name>.approved.nt` — la
@@ -225,7 +224,7 @@ builder.Services.AddNarrativeTrace(builder.Configuration, options =>
 | `ExcludedPaths` | `string[]` | Prefijos de ruta omitidos por completo (coincidencia por segmento). |
 
 `NarrativeTraceMiddleware` adopta automáticamente una cabecera de petición
-`traceparent` entrante *(since 0.1.4, unreleased)* — sin opción para
+`traceparent` entrante *(since 0.1.4)* — sin opción para
 desactivarlo; una cabecera ausente, malformada o con versión prohibida se
 ignora y la petición obtiene una traza recién generada, igual que la vía
 sembrada por configuración de arriba pero impulsada por la cabecera de
@@ -325,7 +324,7 @@ depender del nombre.
 `RenderOptions` de arriba es lo que toma `ValueRenderer.Render` cuando lo
 llamas tú mismo; llegar a la vía de captura *distribuida* de
 `NarrativeTraceProxy` es un paso aparte, mediante `ProxyOptions.Redaction`
-*(since 0.1.4, unreleased)*:
+*(since 0.1.4)*:
 
 ```csharp
 var proxy = NarrativeTraceProxy.Create<IOrderService>(
@@ -342,7 +341,7 @@ sigue ocultando de todos modos). Deja `Redaction` sin definir (el valor
 por defecto) y un proxy se comporta exactamente como antes.
 
 La auto-envoltura de DI y la integración de ASP.NET Core exponen el mismo
-gancho *(since 0.1.4, unreleased)*: `NarrativeTracingDiOptions.Redaction`
+gancho *(since 0.1.4)*: `NarrativeTracingDiOptions.Redaction`
 en [`AddNarrativeTracing`](guia-de-inyeccion-de-dependencias.md) alcanza
 cada servicio que esa llamada envuelve, y `NarrativeTraceOptions.Redaction`
 en [`AddNarrativeTrace`](guia-de-integracion-con-aspnet-core.md) también

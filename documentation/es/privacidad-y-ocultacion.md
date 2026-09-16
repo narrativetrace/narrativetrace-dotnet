@@ -1,4 +1,4 @@
-<!-- source: documentation/privacy-and-redaction.md blob 7ad6098968b3 | translated: 2026-09-13 | reviewed: - -->
+<!-- source: documentation/privacy-and-redaction.md blob da7e40aeb689 | translated: 2026-09-16 | reviewed: - -->
 # Privacidad y ocultación
 
 [English](../privacy-and-redaction.md) | **Español** | [Português](../pt-BR/privacidade-e-ocultacao.md) | [简体中文](../zh-CN/隐私与脱敏.md)
@@ -16,16 +16,16 @@ Toda integración distribuida en esta implementación renderiza los valores de
 parámetros y de retorno a través del mismo motor (`ValueRenderer`,
 `NarrativeInterceptor`). La mayoría resuelve a `RedactionPolicy.Default` sin
 forma de cambiarlo; la vía del proxy y sus dos puntos de auto-envoltura
-aceptan una política distinta *(since 0.1.4, unreleased)*:
+aceptan una política distinta *(since 0.1.4)*:
 
 | Superficie | ¿Puede conectar una `RedactionPolicy` personalizada? | Por qué |
 |---|---|---|
-| `NarrativeTraceProxy.Create<T>` / `.Create` (captura cruda de `DispatchProxy`) | **Sí**, vía `new ProxyOptions(Redaction: ...)` *(since 0.1.4, unreleased)* | Conecta la política en cada llamada a `ValueRenderer.Render` que hace este interceptor (parámetros, recorridos de objetos anidados, valores de retorno) y también en la decisión de nombre a nivel superior — consulta [Guía de configuración §6](../guides/es/guia-de-configuracion.md#6-ocultación). Dada explícitamente, *reemplaza* la decisión por defecto en lugar de ampliarla, así que `RedactionPolicy.Disabled` aquí realmente desactiva la ocultación basada en nombre de principio a fin. `0.1.3` (la versión actual en nuget.org) no tiene ningún `ProxyOptions.Redaction`. |
-| Auto-envoltura de DI (`AddNarrativeTracing`) | **Sí**, vía `NarrativeTracingDiOptions.Redaction` *(since 0.1.4, unreleased)* | Conectada al `ProxyOptions` con el que se construye cada servicio envuelto. Recurre a una `RedactionPolicy` registrada por `AddNarrativeTrace` (abajo) en el mismo contenedor cuando esta llamada deja su propio `Redaction` sin fijar. |
-| Integración de ASP.NET Core (`AddNarrativeTrace`) | **Sí**, vía `NarrativeTraceOptions.Redaction` *(since 0.1.4, unreleased)* | Registra la política como un singleton `RedactionPolicy` en la misma colección de servicios, así que la auto-envoltura de `AddNarrativeTracing` — un paquete separado sin referencia a este — puede resolverla como respaldo para cada servicio que envuelve en la misma aplicación. El middleware en sí no renderiza ningún valor; esto es lo que permite que una política, configurada una sola vez, alcance cada proxy invocado a lo largo de una solicitud. |
+| `NarrativeTraceProxy.Create<T>` / `.Create` (captura cruda de `DispatchProxy`) | **Sí**, vía `new ProxyOptions(Redaction: ...)` *(since 0.1.4)* | Conecta la política en cada llamada a `ValueRenderer.Render` que hace este interceptor (parámetros, recorridos de objetos anidados, valores de retorno) y también en la decisión de nombre a nivel superior — consulta [Guía de configuración §6](../guides/es/guia-de-configuracion.md#6-ocultación). Dada explícitamente, *reemplaza* la decisión por defecto en lugar de ampliarla, así que `RedactionPolicy.Disabled` aquí realmente desactiva la ocultación basada en nombre de principio a fin. |
+| Auto-envoltura de DI (`AddNarrativeTracing`) | **Sí**, vía `NarrativeTracingDiOptions.Redaction` *(since 0.1.4)* | Conectada al `ProxyOptions` con el que se construye cada servicio envuelto. Recurre a una `RedactionPolicy` registrada por `AddNarrativeTrace` (abajo) en el mismo contenedor cuando esta llamada deja su propio `Redaction` sin fijar. |
+| Integración de ASP.NET Core (`AddNarrativeTrace`) | **Sí**, vía `NarrativeTraceOptions.Redaction` *(since 0.1.4)* | Registra la política como un singleton `RedactionPolicy` en la misma colección de servicios, así que la auto-envoltura de `AddNarrativeTracing` — un paquete separado sin referencia a este — puede resolverla como respaldo para cada servicio que envuelve en la misma aplicación. El middleware en sí no renderiza ningún valor; esto es lo que permite que una política, configurada una sola vez, alcance cada proxy invocado a lo largo de una solicitud. |
 | `NarrativeFixture` de xUnit | No | No hay parámetro `RedactionPolicy`/`RenderOptions` en ningún sitio del tipo. |
 | `NarrativeTestBase` de NUnit | No | Misma forma que el fixture de xUnit. |
-| Marcadores de plantilla de `[Narrated]` / `[OnError]` (`NarrationResolver`) | **Sí**, vía el mismo `ProxyOptions.Redaction` del proxy *(since 0.1.4, unreleased)* | Conectada desde `NarrativeInterceptor` a cada llamada a `NarrationResolver.Resolve`, en los dos puntos de invocación (narración de entrada y contexto de error en el momento de la excepción). `0.1.3` y cualquier proxy que deje `Redaction` sin definir siguen resolviendo vía `RedactionPolicy.Default`. |
+| Marcadores de plantilla de `[Narrated]` / `[OnError]` (`NarrationResolver`) | **Sí**, vía el mismo `ProxyOptions.Redaction` del proxy *(since 0.1.4)* | Conectada desde `NarrativeInterceptor` a cada llamada a `NarrationResolver.Resolve`, en los dos puntos de invocación (narración de entrada y contexto de error en el momento de la excepción). Cualquier proxy que deje `Redaction` sin definir sigue resolviendo vía `RedactionPolicy.Default`. |
 | Proyección JSON canónico / JSON estructural | N/D — nada que desactivar | Consume cadenas ya renderizadas (ya ocultadas); la proyección estructural además elide todo valor incondicionalmente. |
 | Artefacto estructural `.nt` | N/D — no existen valores | `StructuralTraceRenderer` emite solo nombres, jerarquía y tipo de resultado, nunca un valor. |
 | `dotnet-narrativetrace clarity-scan` | N/D — nunca lee valores | Solo reflexión sobre un `MetadataLoadContext`: nunca construye una instancia ni invoca nada, así que no hay ningún valor que ocultar. |
@@ -90,7 +90,7 @@ el mal uso para un fallo confuso la primera vez que ese método se invoque.
 
 La resolución de marcadores de plantilla (`[Narrated]`/`[OnError]`) ahora
 también respeta la política efectiva del propio proxy
-*(since 0.1.4, unreleased)*: una plantilla `[Narrated("issued {token}")]`
+*(since 0.1.4)*: una plantilla `[Narrated("issued {token}")]`
 resuelta en un proxy construido con `new ProxyOptions(Redaction: ...)`
 consulta esa política — tanto en el eje de nombre de un marcador de
 posición desnudo como `{token}` como en una ruta `{obj.Property}` — el
@@ -156,7 +156,7 @@ ocultación:
   propiedad o campo que lanza al ser alcanzado por la introspección
   reflexiva (incluido uno nombrado en una plantilla). Cada uno degrada
   *esa única parte* a un marcador de posición tipado `<error: TypeName>`
-  *(since 0.1.4, unreleased)*
+  *(since 0.1.4)*
   — el nombre del propio tipo de la excepción capturada, p. ej.
   `<error: InvalidOperationException>`, nunca su `.Message` (un mensaje
   puede llevar consigo el mismísimo valor que el renderizado intentaba
@@ -196,7 +196,7 @@ ocultación:
   Ambos son una frase determinista de tres palabras derivada de un id
   aleatorio (ver
   [Guía de configuración §7](../guides/es/guia-de-configuracion.md#7-puente-de-logging-microsoftextensionslogging)
-  *(since 0.1.4, unreleased)*) — nunca de nada capturado — así que ninguno
+  *(since 0.1.4)*) — nunca de nada capturado — así que ninguno
   puede filtrar un valor en tiempo de ejecución, y ambos quedan fuera del
   artefacto estructural `.nt` por la misma razón que todo lo demás en él.
 
@@ -218,7 +218,7 @@ ocultación:
   confianza que un `ToString()` escrito a mano que leerías en un depurador
   — no un hueco que introdujo el renderizador. Si en cambio lanza, el
   valor degrada al marcador tipado `<error: TypeName>`
-  *(since 0.1.4, unreleased)*, nunca una fuga de
+  *(since 0.1.4)*, nunca una fuga de
   lo que habría mostrado. Anota el *miembro* con `[NotTraced]` en su lugar
   si no se puede confiar en el resumen propio de un tipo con un campo.
 - **No hay ocultación de *nombres* de prueba.** El nombre visible de una
@@ -234,8 +234,7 @@ ocultación:
   encabezado del `.nt` sin valores es el único lugar donde esto ya está
   resuelto por ti, al no usar el nombre visible en absoluto (consulta
   [Formato de traza estructural](../structural-trace-format.md)).
-- **Adoptar un `traceparent` entrante confía en quien llama** *(since
-  0.1.4, unreleased)*. Tanto `NarrativeTraceMiddleware` como la vía de
+- **Adoptar un `traceparent` entrante confía en quien llama** *(since 0.1.4)*. Tanto `NarrativeTraceMiddleware` como la vía de
   siembra de `NarrativeTraceConfig` toman el id de traza y el id del span
   padre de una cabecera o valor `traceparent` tal cual — no hay firma, ni
   lista de orígenes confiables, y nada aquí confirma que quien llama
@@ -249,7 +248,7 @@ ocultación:
   cabecera malformada o prohibida a "iniciar una traza nueva" en lugar de
   lanzar excepción, así que una cabecera mal formada de un desconocido
   tampoco puede hacer fallar la petición — consulta la [Guía de
-  configuración, §1](../guides/es/guia-de-configuracion.md#siembra-de-traceparent-since-014-unreleased)
+  configuración, §1](../guides/es/guia-de-configuracion.md#siembra-de-traceparent)
   para la vía de siembra y el
   [§4](../guides/es/guia-de-configuracion.md#4-aspnet-core) para el
   middleware.

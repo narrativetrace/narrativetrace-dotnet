@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/dependency-injection.md blob 67da1b190563 | translated: 2026-09-12 | reviewed: - -->
+<!-- source: documentation/guides/dependency-injection.md blob 4d3f196ae65d | translated: 2026-09-12 | reviewed: - -->
 # Guia de encapsulamento automático com injeção de dependências
 
 [English](../dependency-injection.md) | [Español](../es/guia-de-inyeccion-de-dependencias.md) | **Português** | [简体中文](../zh-CN/依赖注入指南.md)
@@ -15,7 +15,7 @@ correspondentes.
 ## Pacote
 
 ```xml
-<PackageReference Include="NarrativeTrace.DependencyInjection" Version="0.1.3" />
+<PackageReference Include="NarrativeTrace.DependencyInjection" Version="0.1.4" />
 ```
 
 ## 1. Registre e encapsule automaticamente
@@ -71,7 +71,7 @@ delegate de configuração obrigatório. O `NarrativeTracingDiOptions` expõe:
 | `Level` | `TracingLevel` | `Detail` | Nível de captura do contexto scoped compartilhado. |
 | `Namespaces(params string[])` | fluente | (vazio) | Namespaces base a encapsular automaticamente. |
 | `ExcludeNamespaces(params string[])` | fluente | (vazio) | Namespaces de interface a excluir, mesmo quando o namespace de implementação correspondente estiver incluído. |
-| `Redaction` | `RedactionPolicy?` | `null` | A política de ocultação com a qual cada serviço que essa chamada encapsula renderiza parâmetros e valores de retorno *(since 0.1.4, unreleased)*. Veja abaixo. |
+| `Redaction` | `RedactionPolicy?` | `null` | A política de ocultação com a qual cada serviço que essa chamada encapsula renderiza parâmetros e valores de retorno *(since 0.1.4)*. Veja abaixo. |
 
 `Namespaces` e `ExcludeNamespaces` são aditivos e encadeáveis, e cada um
 devolve a própria instância de opções:
@@ -206,7 +206,7 @@ Recorra ao encapsulamento automático de DI em hosts que não são web
 escopo e captura o trace diretamente.
 
 **A ocultação continua conectando os dois lados, mesmo sendo caminhos de
-trace independentes** *(since 0.1.4, unreleased)*: uma `RedactionPolicy`
+trace independentes** *(since 0.1.4)*: uma `RedactionPolicy`
 configurada via `services.AddNarrativeTrace(o => o.Redaction = …)` é
 registrada na mesma coleção de serviços, então o encapsulamento automático
 de `AddNarrativeTracing` a pega como alternativa para cada serviço que

@@ -179,7 +179,10 @@ public sealed class CliRunnerTests : IDisposable
         var fixtureDir = Path.Combine(_outputDir, "examples", "NarrativeTrace.Examples.SixtySeconds");
         Directory.CreateDirectory(fixtureDir);
         File.WriteAllText(Path.Combine(fixtureDir, "Program.cs"), "// program\n");
-        File.WriteAllText(Path.Combine(fixtureDir, "WithLogger.cs"), "// with logger\n");
+
+        var withLoggerDir = Path.Combine(_outputDir, "examples", "NarrativeTrace.Examples.SixtySeconds.WithLogger");
+        Directory.CreateDirectory(withLoggerDir);
+        File.WriteAllText(Path.Combine(withLoggerDir, "Program.cs"), "// with logger\n");
 
         var exit = CliRunner.Run(["skills", "render", "--dir", _outputDir], _out, _err);
 

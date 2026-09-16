@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/configuration.md blob da0becfadddb | translated: 2026-09-13 | reviewed: - -->
+<!-- source: documentation/guides/configuration.md blob 559edb2058e0 | translated: 2026-09-13 | reviewed: - -->
 # NarrativeTrace .NET — Guia de configuração
 
 [English](../configuration.md) | [Español](../es/guia-de-configuracion.md) | **Português** | [简体中文](../zh-CN/配置指南.md)
@@ -60,13 +60,13 @@ Eles aparecem como `service.name` / `service.version` /
 `service.environment` na exportação JSON, nos escopos de logging e nos
 spans do OpenTelemetry.
 
-### Semeadura de traceparent *(since 0.1.4, unreleased)*
+### Semeadura de traceparent
 
 Semeie um [`traceparent`](https://www.w3.org/TR/trace-context/#traceparent-header)
-W3C inicial para que todo contexto construído a partir de uma configuração
-continue o trace de quem chamou em vez de iniciar o seu próprio — o
-equivalente sem cabeçalho HTTP do que `NarrativeTraceMiddleware` adota de
-uma requisição recebida (§4 abaixo):
+W3C inicial *(since 0.1.4)* para que todo contexto construído a
+partir de uma configuração continue o trace de quem chamou em vez de
+iniciar o seu próprio — o equivalente sem cabeçalho HTTP do que
+`NarrativeTraceMiddleware` adota de uma requisição recebida (§4 abaixo):
 
 ```csharp
 var config = new NarrativeTraceConfig(
@@ -110,7 +110,7 @@ O parsing de nível e formato é tolerante (insensível a maiúsculas/minúscula
 e pontuação: `detail`, `DETAIL` e `Detail` resolvem igualmente).
 
 `NARRATIVETRACE_OUTPUT` está **ativado por padrão** (decisão do
-responsável, 2026-09-11) *(since 0.1.4, unreleased)*: os artefatos por teste que o fixture do xUnit e a
+responsável, 2026-09-11) *(since 0.1.4)*: os artefatos por teste que o fixture do xUnit e a
 base do NUnit escrevem são a recompensa de adotar esta biblioteca, então a
 escrita acontece sem nenhuma flag. Só um `NARRATIVETRACE_OUTPUT=false`
 explícito (ou `0`) desativa; `true`/`1` são aceitos como no-op para scripts
@@ -143,8 +143,7 @@ principal:
 Ambos ficam desativados por padrão; são artefatos de máquina, não algo que
 você lê ao lado do trace.
 
-`NARRATIVETRACE_APPROVAL` ativa o modo de aprovação *(since 0.1.4,
-unreleased)*: depois de um teste que **passa**, a estrutura sem valores
+`NARRATIVETRACE_APPROVAL` ativa o modo de aprovação *(since 0.1.4)*: depois de um teste que **passa**, a estrutura sem valores
 do cenário (o mesmo render do artefato `.nt`) é verificada contra a trace
 aprovada commitada
 `<approvedDir>/<TestClassSimpleName>/<artifact_name>.approved.nt` — a
@@ -225,7 +224,7 @@ builder.Services.AddNarrativeTrace(builder.Configuration, options =>
 | `ExcludedPaths` | `string[]` | Prefixos de rota totalmente ignorados (correspondência por segmento). |
 
 `NarrativeTraceMiddleware` adota um cabeçalho de requisição `traceparent`
-recebido automaticamente *(since 0.1.4, unreleased)* — sem opção para
+recebido automaticamente *(since 0.1.4)* — sem opção para
 desativar; um cabeçalho ausente, malformado ou de versão proibida é
 ignorado e a requisição recebe um trace recém-gerado, exatamente como a
 via semeada por configuração acima, mas conduzida pelo cabeçalho de quem
@@ -326,7 +325,7 @@ independentemente do nome.
 `RenderOptions` acima é o que `ValueRenderer.Render` recebe quando você o
 chama diretamente; alcançar o caminho de captura *distribuído* do
 `NarrativeTraceProxy` é um passo separado, através de
-`ProxyOptions.Redaction` *(since 0.1.4, unreleased)*:
+`ProxyOptions.Redaction` *(since 0.1.4)*:
 
 ```csharp
 var proxy = NarrativeTraceProxy.Create<IOrderService>(
@@ -343,7 +342,7 @@ qualquer forma). Deixe `Redaction` sem definir (o padrão) e um proxy se
 comporta exatamente como antes.
 
 O encapsulamento automático de DI e a integração ASP.NET Core expõem o
-mesmo gancho *(since 0.1.4, unreleased)*: `NarrativeTracingDiOptions.Redaction`
+mesmo gancho *(since 0.1.4)*: `NarrativeTracingDiOptions.Redaction`
 em [`AddNarrativeTracing`](guia-de-injecao-de-dependencias.md) alcança
 cada serviço que essa chamada encapsula, e `NarrativeTraceOptions.Redaction`
 em [`AddNarrativeTrace`](guia-de-integracao-com-aspnet-core.md) também

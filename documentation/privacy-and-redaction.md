@@ -15,16 +15,16 @@ Every shipped integration in this runtime renders parameter and return values
 through the same engine (`ValueRenderer`, `NarrativeInterceptor`). Most
 resolve to `RedactionPolicy.Default` with no way to change it; the proxy path
 and its two auto-wrap entry points accept a different policy
-*(since 0.1.4, unreleased)*:
+*(since 0.1.4)*:
 
 | Surface | Can plug in a custom `RedactionPolicy`? | Why |
 |---|---|---|
-| `NarrativeTraceProxy.Create<T>` / `.Create` (raw `DispatchProxy` capture) | **Yes**, via `new ProxyOptions(Redaction: ...)` *(since 0.1.4, unreleased)* | Threads the policy into every `ValueRenderer.Render` call this interceptor makes (parameters, nested object walks, return values) and into the top-level parameter-name decision alike — see [Configuration Guide §6](guides/configuration.md#6-redaction). Given explicitly, it *replaces* the default decision rather than widening it, so `RedactionPolicy.Disabled` here really disables name-based redaction end to end. `0.1.3` (the current nuget.org release) has no `ProxyOptions.Redaction` at all. |
-| DI auto-wrap (`AddNarrativeTracing`) | **Yes**, via `NarrativeTracingDiOptions.Redaction` *(since 0.1.4, unreleased)* | Threaded into the `ProxyOptions` each wrapped service is constructed with. Falls back to a `RedactionPolicy` registered by `AddNarrativeTrace` (below) in the same container when this call's own `Redaction` is left unset. |
-| ASP.NET Core integration (`AddNarrativeTrace`) | **Yes**, via `NarrativeTraceOptions.Redaction` *(since 0.1.4, unreleased)* | Registers the policy as a `RedactionPolicy` singleton in the same service collection, so `AddNarrativeTracing`'s auto-wrap — a separate package with no reference to this one — can resolve it as a fallback for every service it wraps in the same app. The middleware itself renders no values; this is what lets one policy, configured once, reach every proxy invoked over the course of a request. |
+| `NarrativeTraceProxy.Create<T>` / `.Create` (raw `DispatchProxy` capture) | **Yes**, via `new ProxyOptions(Redaction: ...)` *(since 0.1.4)* | Threads the policy into every `ValueRenderer.Render` call this interceptor makes (parameters, nested object walks, return values) and into the top-level parameter-name decision alike — see [Configuration Guide §6](guides/configuration.md#6-redaction). Given explicitly, it *replaces* the default decision rather than widening it, so `RedactionPolicy.Disabled` here really disables name-based redaction end to end. |
+| DI auto-wrap (`AddNarrativeTracing`) | **Yes**, via `NarrativeTracingDiOptions.Redaction` *(since 0.1.4)* | Threaded into the `ProxyOptions` each wrapped service is constructed with. Falls back to a `RedactionPolicy` registered by `AddNarrativeTrace` (below) in the same container when this call's own `Redaction` is left unset. |
+| ASP.NET Core integration (`AddNarrativeTrace`) | **Yes**, via `NarrativeTraceOptions.Redaction` *(since 0.1.4)* | Registers the policy as a `RedactionPolicy` singleton in the same service collection, so `AddNarrativeTracing`'s auto-wrap — a separate package with no reference to this one — can resolve it as a fallback for every service it wraps in the same app. The middleware itself renders no values; this is what lets one policy, configured once, reach every proxy invoked over the course of a request. |
 | xUnit `NarrativeFixture` | No | No `RedactionPolicy`/`RenderOptions` parameter anywhere in the type. |
 | NUnit `NarrativeTestBase` | No | Same shape as the xUnit fixture. |
-| `[Narrated]` / `[OnError]` template placeholders (`NarrationResolver`) | **Yes**, via the same proxy's `ProxyOptions.Redaction` *(since 0.1.4, unreleased)* | Threaded through from `NarrativeInterceptor` into every `NarrationResolver.Resolve` call, both call sites (entry narration and exception-time error context). `0.1.3` and any proxy with `Redaction` left unset still resolve through `RedactionPolicy.Default`. |
+| `[Narrated]` / `[OnError]` template placeholders (`NarrationResolver`) | **Yes**, via the same proxy's `ProxyOptions.Redaction` *(since 0.1.4)* | Threaded through from `NarrativeInterceptor` into every `NarrationResolver.Resolve` call, both call sites (entry narration and exception-time error context). Any proxy with `Redaction` left unset still resolves through `RedactionPolicy.Default`. |
 | Canonical JSON / structural JSON projection | N/A — nothing to turn off | Consumes already-rendered (already-redacted) strings; the structural projection additionally elides every value unconditionally. |
 | Structural `.nt` artifact | N/A — no values exist | `StructuralTraceRenderer` emits names, hierarchy and outcome kind only, never a value. |
 | `dotnet-narrativetrace clarity-scan` | N/A — never reads values | Reflection-only over a `MetadataLoadContext`: it never constructs an instance or invokes anything, so there is no value to redact. |
@@ -76,11 +76,11 @@ the deny-list:
 property, or record component, never a whole call. Applying it to a method
 compiles, but `NarrativeTraceProxy.Create`/`.Create<T>` reject it at
 proxy-creation time with an `InvalidOperationException` naming the attribute,
-the offending method, and the fix *(since 0.1.4, unreleased)*, rather than
+the offending method, and the fix *(since 0.1.4)*, rather than
 leaving the misuse to a confusing failure the first time that method runs.
 
 Template placeholder resolution (`[Narrated]`/`[OnError]`) now honors the
-proxy's own effective policy too *(since 0.1.4, unreleased)*: a
+proxy's own effective policy too *(since 0.1.4)*: a
 `[Narrated("issued {token}")]` template resolved on a proxy constructed
 with `new ProxyOptions(Redaction: ...)` checks that policy — the name axis
 on a bare `{token}` placeholder and on a `{obj.Property}` path alike — the
@@ -138,7 +138,7 @@ Every rendered value is capped and sanitized, regardless of redaction:
   throwing custom `ToString()`, a throwing `[NarrativeSummary]` member, and
   a throwing property/field getter reached during reflective introspection
   (including one named in a template). Each degrades *that one part* to a
-  typed `<error: TypeName>` placeholder *(since 0.1.4, unreleased)* — the
+  typed `<error: TypeName>` placeholder *(since 0.1.4)* — the
   caught exception's own type
   name, e.g. `<error: InvalidOperationException>`, never its `.Message`
   (a message can carry the very value the render was protecting) — without
@@ -173,7 +173,7 @@ Every rendered value is capped and sanitized, regardless of redaction:
 - **A trace's name and a run's name carry no data.** Both are a
   deterministic three-word phrase derived from a random id (see
   [Configuration Guide §7](guides/configuration.md#7-logging-bridge-microsoftextensionslogging)
-  *(since 0.1.4, unreleased)*) — never from anything captured — so neither
+  *(since 0.1.4)*) — never from anything captured — so neither
   can leak a runtime value, and both stay out of the structural `.nt`
   artifact for the same reason everything else in it does.
 
@@ -193,8 +193,7 @@ Every rendered value is capped and sanitized, regardless of redaction:
   field back, that is the summary you wrote choosing to expose it, the
   same trust model as a hand-written `ToString()` you'd read in a
   debugger — not a gap the renderer introduced. If it throws instead, the
-  value degrades to the typed `<error: TypeName>` placeholder *(since
-  0.1.4, unreleased)*, never a
+  value degrades to the typed `<error: TypeName>` placeholder *(since 0.1.4)*, never a
   leak of whatever it would have shown. Annotate the *member* with
   `[NotTraced]` instead if a type's own summary can't be trusted with a
   field.
@@ -209,8 +208,7 @@ Every rendered value is capped and sanitized, regardless of redaction:
   value-free `.nt` header is the one place this is handled for you, by not
   using the display name at all (see
   [Structural Trace Format](structural-trace-format.md)).
-- **Adopting an inbound `traceparent` trusts the caller** *(since 0.1.4,
-  unreleased)*. `NarrativeTraceMiddleware` and `NarrativeTraceConfig`'s
+- **Adopting an inbound `traceparent` trusts the caller** *(since 0.1.4)*. `NarrativeTraceMiddleware` and `NarrativeTraceConfig`'s
   seeding path both take the trace id and parent span id from a
   `traceparent` header or value at face value — there is no signature, no
   allow-list of trusted upstreams, and nothing here confirms the caller
@@ -222,7 +220,7 @@ Every rendered value is capped and sanitized, regardless of redaction:
   page redacts. `Traceparent.Parse` degrades a malformed or forbidden
   header to "start a fresh trace" rather than throwing, so a stranger's bad
   header cannot fail the request either way — see the [Configuration
-  Guide, §1](guides/configuration.md#traceparent-seeding-since-014-unreleased)
+  Guide, §1](guides/configuration.md#traceparent-seeding)
   for the seeding path and [§4](guides/configuration.md#4-aspnet-core) for
   the middleware.
 

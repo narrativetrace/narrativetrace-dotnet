@@ -192,7 +192,7 @@ entries:
   # change." This is that release prep.
   - id: probed-initial-traceparent-seeds-context
     kind: probed-default
-    page: "documentation/guides/configuration.md#traceparent-seeding-since-014-unreleased"
+    page: "documentation/guides/configuration.md#traceparent-seeding"
     claim: "new NarrativeTraceConfig(initialTraceparent: Traceparent.Parse(...)) seeds a context's CurrentTraceId with the parsed trace id"
     since: "0.1.4"
     documented_default: "true"

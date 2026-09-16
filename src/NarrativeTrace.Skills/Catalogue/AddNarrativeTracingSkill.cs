@@ -62,7 +62,7 @@ public static class AddNarrativeTracingSkill
             new SkillStep(
                 Title: "Send it to your logger — one call, same captured tree",
                 Body: new SnippetStep(
-                    Path: $"{Fixture}/WithLogger.cs", Language: "csharp"),
+                    Path: $"{Fixture}.WithLogger/Program.cs", Language: "csharp"),
                 Verify: "the console logger prints one Information-level record per trace node",
                 Failure: []),
             new SkillStep(

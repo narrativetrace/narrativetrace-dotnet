@@ -1,14 +1,11 @@
-<!-- source: documentation/sixty-seconds.md blob 93b73c1b53c2 | translated: 2026-09-14 | reviewed: - -->
+<!-- source: documentation/sixty-seconds.md blob 70186c49812a | translated: 2026-09-16 | reviewed: - -->
 # Ve una traza en 60 segundos
 
 [English](../sixty-seconds.md) | **Español** | [Português](../pt-BR/sessenta-segundos.md) | [简体中文](../zh-CN/60秒.md)
 
 Sin sentencias de log, sin framework de pruebas, sin archivos que abrir: una
 app de consola, un `dotnet run`, y una traza en tu terminal. Todo lo que
-sigue se ejecutó de verdad — la salida está pegada, no imaginada. (La
-instalación de un solo paquete *(since 0.1.4, unreleased)* es el grafo de
-dependencias que trae el proxy; en `0.1.3`, la versión actual en nuget.org,
-añade `.Runtime` y `.Core` a mano también — ver abajo.)
+sigue se ejecutó de verdad — la salida está pegada, no imaginada.
 
 ## 1. App de consola nueva, añade el paquete
 
@@ -20,15 +17,7 @@ dotnet add package NarrativeTrace.Proxy
 Un solo paquete: `NarrativeTrace.Proxy` depende de `NarrativeTrace.Runtime`,
 que depende de `NarrativeTrace.Core` — `dotnet add package` resuelve toda la
 cadena, así que `SyncNarrativeContext` e `IndentedTextRenderer` de más abajo
-quedan disponibles sin dos `dotnet add package` más
-*(since 0.1.4, unreleased)*. En `0.1.3`, `Proxy`
-depende solo de `Core`; hasta que salga `0.1.4`, ejecuta los tres:
-
-```bash
-dotnet add package NarrativeTrace.Core
-dotnet add package NarrativeTrace.Runtime
-dotnet add package NarrativeTrace.Proxy
-```
+quedan disponibles sin dos `dotnet add package` más.
 
 ## 2. Reemplaza Program.cs
 
@@ -117,27 +106,45 @@ dotnet add package NarrativeTrace.Logging
 dotnet add package Microsoft.Extensions.Logging.Console
 ```
 
-```diff
-+using Microsoft.Extensions.Logging;
-+using Microsoft.Extensions.Logging.Console;
- using NarrativeTrace.Core;
-+using NarrativeTrace.Logging;
- using NarrativeTrace.Proxy;
- using NarrativeTrace.Runtime;
+Las líneas comentadas de abajo son el cambio — un `Program.cs` completo,
+listo para pegar:
 
- var context = new SyncNarrativeContext(
-     new NarrativeTraceConfig(initialTraceparent: Traceparent.Parse(DemoTraceparent)));
- var orders = NarrativeTraceProxy.Create<IOrderService>(new OrderService(), context);
+```csharp
+using Microsoft.Extensions.Logging; // new: send the trace to an ILogger, not only the console
+using Microsoft.Extensions.Logging.Console; // new: for LoggerColorBehavior below
+using NarrativeTrace.Core;
+using NarrativeTrace.Logging; // new: TraceLogExporter replays a captured trace onto an ILogger
+using NarrativeTrace.Proxy;
+using NarrativeTrace.Runtime;
 
- orders.PlaceOrder("cust-1", "book-123", 2);
+// A fixed W3C traceparent, seeded through NarrativeTraceConfig so this page's embedded output
+// always names the same trace. A real run adopts nothing here (or a real inbound request header,
+// via NarrativeTraceMiddleware) and gets a fresh, randomly generated trace id every time.
+const string DemoTraceparent = "00-a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4-a1b2c3d4a1b2c3d4-01";
 
--Console.WriteLine(IndentedTextRenderer.Render(context.CaptureTrace()));
-+var tree = context.CaptureTrace();
-+Console.WriteLine(IndentedTextRenderer.Render(tree));
-+
-+using var loggerFactory = LoggerFactory.Create(builder =>
-+    builder.AddSimpleConsole(options => options.ColorBehavior = LoggerColorBehavior.Disabled));
-+TraceLogExporter.ExportToLogger(tree, loggerFactory.CreateLogger("NarrativeTrace"));
+var context = new SyncNarrativeContext(
+    new NarrativeTraceConfig(initialTraceparent: Traceparent.Parse(DemoTraceparent)));
+var orders = NarrativeTraceProxy.Create<IOrderService>(new OrderService(), context);
+
+orders.PlaceOrder("cust-1", "book-123", 2);
+
+var tree = context.CaptureTrace(); // new: capture once, render it to both destinations below
+Console.WriteLine(IndentedTextRenderer.Render(tree));
+
+using var loggerFactory = LoggerFactory.Create(builder => // new: a second destination for the same trace
+    builder.AddSimpleConsole(options => options.ColorBehavior = LoggerColorBehavior.Disabled)); // new: disable ANSI color codes so captured/piped output stays plain text
+TraceLogExporter.ExportToLogger(tree, loggerFactory.CreateLogger("NarrativeTrace")); // new: replay the same tree onto the logger
+
+public interface IOrderService
+{
+    string PlaceOrder(string customerId, string productId, int quantity);
+}
+
+public sealed class OrderService : IOrderService
+{
+    public string PlaceOrder(string customerId, string productId, int quantity)
+        => $"confirmed:{customerId}:{productId}:{quantity}";
+}
 ```
 
 **Por qué `AddSimpleConsole(… ColorBehavior.Disabled)` dentro de un

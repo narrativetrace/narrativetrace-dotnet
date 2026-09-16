@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/annotations.md blob bba088bcb791 | translated: 2026-09-13 | reviewed: - -->
+<!-- source: documentation/guides/annotations.md blob 28de41542ba3 | translated: 2026-09-13 | reviewed: - -->
 # NarrativeTrace .NET — Guia de atributos
 
 [English](../annotations.md) | [Español](../es/guia-de-atributos.md) | **Português** | [简体中文](../zh-CN/特性指南.md)
@@ -170,7 +170,7 @@ propriedade — essa remoção é a decisão deliberada e revisável, e aparece
 no diff.
 
 **Os templates respeitam a própria política de ocultação do proxy**
-*(since 0.1.4, unreleased)*: um template `[Narrated]`/`[OnError]`
+*(since 0.1.4)*: um template `[Narrated]`/`[OnError]`
 resolvido em um proxy construído com um `new ProxyOptions(Redaction: ...)`
 personalizado consulta essa mesma política nos dois eixos acima — um
 placeholder simples como `{password}` e um caminho como

@@ -1,4 +1,4 @@
-<!-- source: documentation/duplication.md blob 9e6fce46f9a3 | translated: 2026-09-13 | reviewed: - -->
+<!-- source: documentation/duplication.md blob f30a0f822c50 | translated: 2026-09-13 | reviewed: - -->
 # Detecção de duplicação
 
 [English](../duplication.md) | [Español](../es/deteccion-de-duplicacion.md) | **Português** | [简体中文](../zh-CN/重复代码检测.md)

@@ -1,4 +1,4 @@
-<!-- source: README.md blob 234a3b5d6205 | translated: 2026-09-13 | reviewed: - -->
+<!-- source: README.md blob 1f0377eed5e6 | translated: 2026-09-13 | reviewed: - -->
 # NarrativeTrace .NET
 
 [English](README.md) | [Español](LEAME.md) | **Português** | [简体中文](自述文件.md)
@@ -235,7 +235,7 @@ public class OrderTests : IClassFixture<NarrativeFixture>
 narradas automaticamente no teardown via `TestContext`.
 
 Ambos escrevem arquivos reais em disco por padrão, sem nenhuma opção para
-ativar *(since 0.1.4, unreleased)*:
+ativar *(since 0.1.4)*:
 `TestResults/narrativetrace/traces/<Class>/<slug>.md`, um `.json`
 irmão, um diagrama `.mmd` e um `.nt` sem valores — no diretório efêmero e
 ignorado pelo Git que o `dotnet test` já trata como saída descartável.

@@ -64,14 +64,20 @@ public sealed class SixtySecondsTests : IClassFixture<NarrativeFixture>
 
     /// <summary>
     /// The "Send it to your logger" postscript: the same call, plus the
-    /// diff's four lines, run for real via <see cref="WithLogger.Run"/> —
-    /// backs the page's second output block, the one showing the
-    /// <c>ILogger</c> record.
+    /// postscript's added packages, run for real through its own compiled
+    /// entry point in the sibling
+    /// <c>NarrativeTrace.Examples.SixtySeconds.WithLogger</c> project — a
+    /// second project, not a second run mode of this project's own
+    /// <c>Program.cs</c>, for the identical reason
+    /// <see cref="Runs_program_cs_through_its_own_compiled_entry_point"/>
+    /// gives: no test may restate a page's embedded program in a testable
+    /// helper the embedded snippet could drift from. Backs the page's second
+    /// output block, the one showing the <c>ILogger</c> record.
     /// </summary>
     [Fact]
     public void Sends_the_trace_to_its_logger()
     {
-        var captured = WithLogger.Run();
+        var captured = RunWithLoggerProgram();
 
         Assert.Contains("info: NarrativeTrace[1]", captured);
         CapturedOutput.Write("see-a-trace-with-logger.txt", captured);
@@ -86,9 +92,10 @@ public sealed class SixtySecondsTests : IClassFixture<NarrativeFixture>
     /// <para>
     /// INTENT: <c>Program.cs</c> is a top-level-statements file the page
     /// embeds verbatim (rule 8, docs as tests) — its content is the contract,
-    /// so no test may restate its body in a testable helper the way
-    /// <see cref="WithLogger"/> does for the postscript; that would let the
-    /// embedded snippet drift from what actually executes.
+    /// so no test may restate its body in a testable helper; that would let
+    /// the embedded snippet drift from what actually executes. The postscript's
+    /// own program (<see cref="RunWithLoggerProgram"/>) follows the identical
+    /// rule, one project over.
     /// <see cref="Places_an_order_through_the_real_traced_proxy"/> exercises
     /// the same <see cref="IOrderService"/>/<see cref="OrderService"/> types
     /// but through a context this test class builds, never through
@@ -136,6 +143,50 @@ public sealed class SixtySecondsTests : IClassFixture<NarrativeFixture>
     private static void InvokeCompiledMain()
     {
         var assembly = typeof(IOrderService).Assembly;
+        var programType = assembly.GetType("Program", throwOnError: true)!;
+        var main = programType.GetMethod(
+            "<Main>$", BindingFlags.NonPublic | BindingFlags.Static)!;
+        main.Invoke(null, [Array.Empty<string>()]);
+    }
+
+    private static string RunWithLoggerProgram()
+    {
+        var originalOut = Console.Out;
+        var captured = new StringWriter { NewLine = "\n" };
+        Console.SetOut(captured);
+        try
+        {
+            InvokeWithLoggerMain();
+            return captured.ToString();
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
+
+    /// <summary>
+    /// The sibling project builds to
+    /// <c>examples/NarrativeTrace.Examples.SixtySeconds.WithLogger/bin/&lt;Config&gt;/net10.0/</c>
+    /// — the same repo-root climb <see cref="CapturedOutput"/> uses, and the
+    /// same <c>Configuration</c> this test assembly itself was built with
+    /// (read off <see cref="AppContext.BaseDirectory"/> rather than
+    /// hard-coded, so this works under both <c>./build.sh Test</c> (Debug)
+    /// and <c>./build.sh Verify</c> (Release)). Loaded via
+    /// <see cref="Assembly.LoadFrom(string)"/> rather than a project
+    /// reference: both example projects declare their own top-level
+    /// <c>IOrderService</c>/<c>OrderService</c>/<c>Program</c> in the global
+    /// namespace, so a compile-time reference to both from this one test
+    /// project would collide; reflection needs only the built DLL.
+    /// </summary>
+    private static void InvokeWithLoggerMain()
+    {
+        var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../"));
+        var configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent!.Name;
+        var dllPath = Path.Combine(
+            repoRoot, "examples", "NarrativeTrace.Examples.SixtySeconds.WithLogger",
+            "bin", configuration, "net10.0", "NarrativeTrace.Examples.SixtySeconds.WithLogger.dll");
+        var assembly = Assembly.LoadFrom(dllPath);
         var programType = assembly.GetType("Program", throwOnError: true)!;
         var main = programType.GetMethod(
             "<Main>$", BindingFlags.NonPublic | BindingFlags.Static)!;

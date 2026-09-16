@@ -222,7 +222,7 @@ public class OrderTests : IClassFixture<NarrativeFixture>
 narrated automatically in teardown via `TestContext`.
 
 Both write real files to disk by default, no flag to set
-*(since 0.1.4, unreleased)*:
+*(since 0.1.4)*:
 `TestResults/narrativetrace/traces/<Class>/<slug>.md`, a sibling `.json`, a
 `.mmd` diagram, and a value-free `.nt` — under the ephemeral, gitignored
 directory `dotnet test` already treats as disposable output. Set

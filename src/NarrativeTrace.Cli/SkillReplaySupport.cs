@@ -104,7 +104,10 @@ internal static class SkillReplayRegistry
             // The fixture itself is a console example, not a test host — its own real, committed
             // test project (tests/NarrativeTrace.Examples.SixtySeconds.Tests) is the safe,
             // fixture-scoped equivalent of "run the tests a real consumer would already have":
-            // it exercises Program.cs and WithLogger.cs verbatim (see that project's own remarks).
+            // it exercises Program.cs verbatim, plus the "Send it to your logger" postscript's own
+            // sibling project (examples/NarrativeTrace.Examples.SixtySeconds.WithLogger/Program.cs,
+            // invoked via reflection on its own compiled entry point — see that test project's own
+            // remarks).
             ["dotnet test"] = (repoRoot, _) => RunSixtySecondsTests(repoRoot).ExitCode == 0,
         };
 
@@ -133,10 +136,12 @@ internal static class SkillReplayRegistry
             // to make it pass. Mirrors the golden TypeScript/Java sources, which check a finding's
             // PRESENCE/well-formedness here, never its pass/fail value, for the identical reason.
             // The console-logger verify (add-narrative-tracing's "Send it to your logger" step) is
-            // also left unregistered: WithLogger.cs is a library helper, never itself a
-            // `dotnet run` entry point (see that file's own remarks) — already proven for real by
-            // SixtySecondsTests.Sends_the_trace_to_its_logger and contract-probe's
-            // TraceLogExporterProbe, just not by a command this replay can name.
+            // also left unregistered: its own project's Program.cs is a real `dotnet run` entry
+            // point, but the step's Verify text is prose, not one of the SkillCommands constants
+            // this replay matches against — already proven for real by
+            // SixtySecondsTests.Sends_the_trace_to_its_logger (reflection on that project's own
+            // compiled entry point) and contract-probe's TraceLogExporterProbe, just not by a
+            // command this replay can name.
         };
 
     public static bool RunCommand(string command, string repoRoot, string fixtureDir)

@@ -58,7 +58,7 @@ is found under the same name by another:
 
 Because artifact names are derived rather than announced, a run also writes
 `<outputDir>/manifest.json`: a top-level `run` object (`id`, `name` — the
-run's own three-word phrase *(since 0.1.4, unreleased)*, see
+run's own three-word phrase *(since 0.1.4)*, see
 [Configuration Guide §7](guides/configuration.md#7-logging-bridge-microsoftextensionslogging))
 followed by one row per traced scenario naming its test, its invocation
 number and every file it owns. Read that when you know the scenario and

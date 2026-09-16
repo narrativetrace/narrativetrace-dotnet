@@ -9,7 +9,7 @@ and request/user context.
 ## Package
 
 ```xml
-<PackageReference Include="NarrativeTrace.AspNetCore" Version="0.1.3" />
+<PackageReference Include="NarrativeTrace.AspNetCore" Version="0.1.4" />
 ```
 
 ## 1. Register and wire the middleware
@@ -73,7 +73,7 @@ records nothing when there is no active trace.
 > request path — don't expect auto-wrapped services to appear in the
 > middleware's exported trace.
 
-**Redaction** *(since 0.1.4, unreleased)*: `NarrativeTraceOptions.Redaction`
+**Redaction** *(since 0.1.4)*: `NarrativeTraceOptions.Redaction`
 on `AddNarrativeTrace` registers a `RedactionPolicy` in the service
 collection, which `AddNarrativeTracing`'s auto-wrap picks up as a fallback
 for every service it wraps — so a policy configured once here reaches
