@@ -31,6 +31,10 @@
          contract-probe/ uses independently (the two projects cannot share code; see
          ContractLintSupport's own remarks), so the schema is never parsed two different ways. -->
     <PackageReference Include="YamlDotNet" Version="18.1.0" />
+    <!-- MutationVocabularyExclusion parses candidate mutate-exclude source files with a real
+         C# syntax tree (loop / arithmetic / ordering-comparison constructs disqualify a file
+         from the clarity vocabulary-data exclude list) rather than a text heuristic. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.1.0" />
   </ItemGroup>
 
   <ItemGroup>

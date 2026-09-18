@@ -143,8 +143,8 @@ across 248 files.
 
 The `NARRATIVETRACE_GLOSSARY_PATH` override beside it reads an arbitrary
 absolute path and is *not* flagged (no `Path.Combine`), correctly: it is
-process configuration, the same trust tier as Java's
-`narrativetrace.glossary.path` system property, and pointing it at a file is
+process configuration — the same trust tier every `NARRATIVETRACE_*`
+environment variable in this family carries — and pointing it at a file is
 the whole point of the key.
 
 ## OSV-Scanner + `dotnet list package --vulnerable`

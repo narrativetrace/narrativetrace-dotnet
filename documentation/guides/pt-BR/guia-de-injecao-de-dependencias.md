@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/dependency-injection.md blob 6b2cb07a0781 | translated: 2026-09-12 | reviewed: - -->
+<!-- source: documentation/guides/dependency-injection.md blob 7dc5805150f6 | translated: 2026-09-17 | reviewed: - -->
 # Guia de encapsulamento automático com injeção de dependências
 
 [English](../dependency-injection.md) | [Español](../es/guia-de-inyeccion-de-dependencias.md) | **Português** | [简体中文](../zh-CN/依赖注入指南.md)
@@ -7,9 +7,8 @@ Este guia cobre o `AddNarrativeTracing` — a integração do NarrativeTrace
 com `Microsoft.Extensions.DependencyInjection`. Ele encapsula
 automaticamente os serviços registrados por interface cujo namespace de
 implementação corresponde a um prefixo configurado, de modo que suas
-chamadas entram no trace sem tocar nos pontos de chamada. É o equivalente
-em `.NET` do tracing de beans do Spring/Micronaut: você aponta para os
-namespaces dos seus serviços, e ele decora no local os beans
+chamadas entram no trace sem tocar nos pontos de chamada. Você aponta
+para os namespaces dos seus serviços, e ele decora no local os serviços
 correspondentes.
 
 ## Pacote
@@ -100,8 +99,7 @@ conjunto de regras diferente:
 - A **exclusão** (`ExcludeNamespaces`) é testada contra o namespace da
   **interface** (o tipo de serviço). Isso permite incluir amplamente um
   namespace de implementação e, depois, excluir as interfaces de
-  framework/SPI que vivem em outro namespace — o análogo da exclusão de
-  SPI/configuração do Spring.
+  framework/SPI que vivem em outro namespace.
 
 Ambas usam a mesma regra de **fronteira de ponto**: um candidato
 corresponde a uma base quando é exatamente igual a ela, ou começa com a
@@ -145,9 +143,10 @@ registrado, então resolvê-lo devolve a implementação bruta.
 > interface por proxy. Uma classe registrada sob duas interfaces (por
 > exemplo, `AddSingleton<IAlpha>(impl)` e `AddSingleton<IBeta>(impl)`) é
 > encapsulada **duas vezes** — dois objetos proxy distintos sobre o mesmo
-> alvo compartilhado. Isso difere do Spring/Micronaut, que constroem um
-> único proxy implementando todas as interfaces de um bean. A divergência é
-> intencional; igualá-la em .NET exigiria o Castle.DynamicProxy.
+> alvo compartilhado, em vez de um único proxy combinado implementando
+> todas as interfaces. Essa forma de proxy único não é tentada aqui de
+> propósito; construí-la em .NET exigiria o Castle.DynamicProxy em vez do
+> `DispatchProxy` embutido.
 
 ## 5. Como o namespace de implementação é resolvido
 

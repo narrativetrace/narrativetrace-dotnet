@@ -295,10 +295,9 @@ public sealed class LoggingNarrativeContext
     /// Adds <c>nt.runName</c> when a test-suite run is active
     /// (<see cref="RunScope.Current"/>) — the same seam <see cref="RunScope"/>
     /// exists for: the suite fixture publishes its identity there without
-    /// this module depending on it, or it on this one (2026-09-13 ruling,
-    /// item 2) *(since 0.1.5, unreleased)*. Absent entirely outside a tracked
-    /// run — a real application has no active <see cref="RunScope"/>, so its
-    /// log lines never gain the field at all.
+    /// this module depending on it, or it on this one. Absent entirely
+    /// outside a tracked run — a real application has no active
+    /// <see cref="RunScope"/>, so its log lines never gain the field at all.
     /// </summary>
     internal static void AddRunName(Dictionary<string, object> scope)
     {
@@ -346,17 +345,35 @@ public sealed class LoggingNarrativeContext
         }
     }
 
+    // §127 (rendering reads state, never runs behaviour): ExceptionMessage.Text
+    // reflectively reads the thrown exception's own (possibly overridden)
+    // Message getter — application code that can call back into a traced
+    // collaborator. Reached under RenderingGuard.Enter(), the same guard
+    // NarrativeInterceptor's own rendering already runs behind, so a
+    // reentrant call from inside a hostile Message override is recognized
+    // as rendering-in-progress and opens no phantom span for it.
     private void LogExitError(
         SpanId? handle, Exception? error,
         string? errorContext = null)
     {
         var type = error?.GetType().Name ?? "Unknown";
-        var message = error is null ? string.Empty : ExceptionMessage.Text(error);
+        var message = ExitErrorMessage(error);
         var context = errorContext is null
             ? null
             : ControlEscape.Sanitize(errorContext);
         _emitter.Exception(
             BuildExitScope(handle), type, message, context);
+    }
+
+    private static string ExitErrorMessage(Exception? error)
+    {
+        if (error is null)
+        {
+            return string.Empty;
+        }
+
+        using var _ = RenderingGuard.Enter();
+        return ExceptionMessage.Text(error);
     }
 
     private Dictionary<string, object> BuildExitScope(

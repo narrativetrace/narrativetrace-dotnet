@@ -1,4 +1,4 @@
-<!-- source: documentation/choosing-an-integration.md blob 3ec6646bb9ad | translated: 2026-09-12 | reviewed: - -->
+<!-- source: documentation/choosing-an-integration.md blob f8eef66e4a41 | translated: 2026-09-17 | reviewed: - -->
 # Escolhendo uma integração
 
 [English](../choosing-an-integration.md) | [Español](../es/elegir-una-integracion.md) | **Português** | [简体中文](../zh-CN/选择集成方式.md)
@@ -14,13 +14,13 @@ de cada caminho, veja o
 |---|---|
 | Traces em um teste, com o mínimo de cerimônia | `NarrativeFixture` do xUnit ou `NarrativeTestBase` do NUnit |
 | Controle explícito sobre exatamente o que é encapsulado, em .NET puro | `NarrativeTraceProxy.Create<T>` (um `DispatchProxy`) |
-| Todo serviço com interface registrado no MS.DI sob um namespace, rastreado automaticamente | `AddNarrativeTracing` (o equivalente em .NET do tracing de beans do Spring/Micronaut) |
+| Todo serviço com interface registrado no MS.DI sob um namespace, rastreado automaticamente | `AddNarrativeTracing` (tracing de beans) |
 | Ciclo de vida de requisições HTTP em produção no ASP.NET Core | Middleware do `NarrativeTrace.AspNetCore` |
 | Um gate de qualidade de nomenclatura em CI sobre um assembly compilado, sem precisar rodar testes | `dotnet-narrativetrace clarity-scan` + `clarity-check`, ou o pacote `NarrativeTrace.MSBuild` |
 | Traces roteados para seu pipeline `ILogger` já existente | `NarrativeTrace.Logging` (`AddNarrativeLogging()`) |
 | Spans do OpenTelemetry, em lote ou ao vivo | `NarrativeTrace.Observability` |
 | Diagramas de sequência (Mermaid/PlantUML) junto com uma trace | `NarrativeTrace.Diagrams` |
-| Zero alterações de código — um app cuja montagem você não controla | **Ainda não disponível.** Planejado (Free) — nenhum análogo no CLR de um `-javaagent` do Java foi decidido; a questão em aberto é um spike entre gerador de código fonte e IL weaving. Veja o [Guia de funcionalidades](../feature-guide.md). |
+| Zero alterações de código — um app cuja montagem você não controla | **Ainda não disponível.** Planejado (Free) — nenhum mecanismo do CLR para instrumentação transparente em tempo de carregamento foi decidido; a questão em aberto é um spike entre gerador de código fonte e IL weaving. Veja o [Guia de funcionalidades](../feature-guide.md). |
 
 ## A decisão
 

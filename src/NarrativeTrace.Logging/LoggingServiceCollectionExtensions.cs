@@ -16,11 +16,8 @@ namespace NarrativeTrace.Logging;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The .NET answer to Java's <c>PipelineBootstrap</c>, which has no .NET equivalent.
-/// SLF4J's <c>LoggerFactory</c> is a static global, so the JVM edition can take
-/// the module's presence on the classpath as the activation signal and
-/// manufacture a logger reflectively. .NET's <see cref="ILogger"/> comes from
-/// the container: a type probe cannot conjure one, and it would be hostile to
+/// <see cref="ILogger"/> comes from the dependency-injection container, not a
+/// static global: a type probe cannot conjure one, and it would be hostile to
 /// trimming and AOT besides. <b>"An <see cref="ILoggerFactory"/> is registered"
 /// is the .NET activation signal</b>, and this extension is where the host
 /// states it.

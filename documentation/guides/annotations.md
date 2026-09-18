@@ -8,13 +8,13 @@ Keep business logic clean and expressive first, then reach for attributes
 *exceptionally* — for targeted narration, error context, redaction, or
 custom value rendering.
 
-The four narrative attributes live in `NarrativeTrace.Core.Annotation` — one
+The five narrative attributes live in `NarrativeTrace.Core.Annotation` — one
 `using` for all of them, and the same package your trace model already comes
 from. They are pure metadata: the `DispatchProxy` interceptor
 (`NarrativeTrace.Proxy`) reads `[Narrated]`, `[OnError]` and `[NotTraced]` on
-calls it intercepts, while `[NarrativeSummary]` and `[NotTraced]` are honored
-wherever values are rendered. `[Traced]` is the one exception — a
-`DispatchProxy`-specific marker with no JVM counterpart, so it stays in
+calls it intercepts, while `[NarrativeSummary]`, `[NarrativeElements]` and
+`[NotTraced]` are honored wherever values are rendered. `[Traced]` is the one
+exception — a `DispatchProxy`-specific marker, so it stays in
 `NarrativeTrace.Proxy`.
 
 ```csharp
@@ -26,6 +26,7 @@ using NarrativeTrace.Core.Annotation;
 | Attribute | Namespace | Target | Purpose |
 |---|---|---|---|
 | `[NarrativeSummary]` | `NarrativeTrace.Core.Annotation` | Method or property | Preferred summary rendering for its declaring type. |
+| `[NarrativeElements]` | `NarrativeTrace.Core.Annotation` | Class, struct | Declares a non-platform type's own elements safe to enumerate during rendering. |
 | `[Narrated]` | `NarrativeTrace.Core.Annotation` | Method | Adds human-readable narration text to a traced method. |
 | `[OnError]` | `NarrativeTrace.Core.Annotation` | Method (repeatable) | Attaches contextual error text to a method. |
 | `[NotTraced]` | `NarrativeTrace.Core.Annotation` | Parameter, Property, Field (Method compiles but is rejected at proxy creation) | Redacts a value in trace output, including members of introspected objects. |
@@ -72,7 +73,7 @@ public interface IPaymentService
 }
 ```
 
-How it works in .NET (matching the JVM edition):
+How it works in .NET:
 
 - The template is **resolved when the exception is thrown**, using the same
   placeholder rules as `[Narrated]`, and stored as
@@ -102,8 +103,7 @@ public interface IAuthService
 }
 ```
 
-Secrets **nested inside a traced object** are covered two ways, matching the
-JVM edition's redact-by-default posture:
+Secrets **nested inside a traced object** are covered two ways:
 
 - **Name-based deny-list** — reflective rendering redacts common sensitive
   member names (`password`, `token`, `cvv`, …) automatically via
@@ -130,8 +130,7 @@ public sealed class Payment
 
 **Not valid on a whole method.** `[NotTraced]` has no "the whole call is
 redacted" meaning — it always names a parameter, property, or record
-component, never the method itself, matching the JVM edition's `@NotTraced`
-(no `METHOD` target there either). Putting it on a method compiles, but a
+component, never the method itself. Putting it on a method compiles, but a
 proxy created over an interface that does throws `InvalidOperationException`
 at proxy-creation time *(since 0.1.5)*, naming the attribute, the
 offending method, and the fix:
@@ -169,8 +168,8 @@ Leave `Redaction` unset and templates behave exactly as before.
 
 ## `[Traced]`
 
-`.NET` retains parameter names in metadata by default, so — unlike the
-JVM — you rarely need this. Use `[Traced]` to **override** the captured
+`.NET` retains parameter names in metadata by default, so you rarely
+need this. Use `[Traced]` to **override** the captured
 parameter names positionally, e.g. to give a clearer domain name than the
 source identifier:
 
@@ -209,6 +208,51 @@ public sealed record Customer(string Id, string Name, CustomerTier Tier)
 - If invoking it throws, normal renderer fallback applies. This surfaces
   everywhere values are rendered (all renderers and exporters).
 
+## `[NarrativeElements]`
+
+Rendering reads a value's **state**, never its behaviour (see [the purity
+contract](#the-purity-contract--side-effects-during-tracing) below) — which
+means a collection is walked only when its runtime type is a **platform**
+type (`List<T>`, `Dictionary<K,V>`, an array, …): a hand-rolled
+`IEnumerable`/`IEnumerable<T>` is never enumerated, because its own
+`GetEnumerator()` is code the renderer does not otherwise trust. Two
+exceptions preserve richness without running behaviour. A user subclass of a
+platform collection is walked through the **platform ancestor's own state**
+(`List<T>`'s backing fields), never the subclass's override — nothing to
+declare, this is automatic. A type that is not a platform-collection
+subclass at all — a `Collection`/`IEnumerable` implemented from scratch — can
+opt back in with `[NarrativeElements]`:
+
+```csharp
+[NarrativeElements]
+public sealed class RecentOrders : IEnumerable<Order>
+{
+    private readonly List<Order> _orders = new();
+
+    public IEnumerator<Order> GetEnumerator() => _orders.GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+}
+```
+
+- **The declaration is the author's purity promise.** `[NarrativeElements]`
+  asserts that `GetEnumerator()` (and the enumerator it returns) is a pure
+  state read — no lazy loading, no counters, no I/O — the same promise
+  `[NarrativeSummary]` and a stateless leaf's `ToString()` already carry as
+  the other two sanctioned rendering hooks. There is no attribute that opts
+  in an *untrusted* iterator; the promise is load-bearing.
+- **Undeclared stays undeclared.** Without the attribute, a from-scratch
+  `IEnumerable` renders as its type name and, where free, its element count
+  — never its elements, and `GetEnumerator()` is never called.
+- **Walked exactly like a platform collection once declared** — under the
+  rendering guard, bounded by the same element cap
+  (`RenderOptions.MaxArrayItems`) as every other collection walk, with a
+  throwing enumerator degrading to the typed failure marker like any other
+  hook rather than propagating.
+- **Not inherited.** Apply it to the type that actually declares the
+  iterator; a derived type that adds no enumeration logic of its own needs
+  its own declaration only if it is not already a platform-collection
+  subclass or annotated ancestor.
+
 ## The purity contract — side effects during tracing
 
 NarrativeTrace may invoke a small, fixed set of code paths on your objects
@@ -218,17 +262,27 @@ you would for a debugger or a serializer. This matters more in .NET than on
 other platforms because idiomatic C# state lives behind *properties*, and a
 property getter is a method: reading it can run arbitrary code.
 
+**Rendering reads state, never runs behaviour.** Values come from fields
+and — for an auto-property or a record component — the compiler-generated
+backing field, read directly; a property's own getter *body* is never
+invoked by rendering, so a hostile or merely careless getter (a counter, a
+cache-populating side effect) cannot be observed through tracing at all.
+The only user code rendering ever executes is three documented hooks, each
+under the rendering guard: a `[NarrativeSummary]` member, a stateless leaf's
+own `ToString()`, and — the newest of the three — a `[NarrativeElements]`-declared
+type's own `GetEnumerator()`. Everything else below this line describes
+those three hooks and their guarantees; there is no fourth.
+
 What is invoked during rendering:
 
-- **Reflective introspection reads properties and fields.** A property
-  getter with side effects (a counter, lazy initialization, a database
-  round-trip) *will* run when an instance is rendered without a curated
-  `ToString()` or `[NarrativeSummary]` member. .NET Framework Design
-  Guidelines already require getters to be side-effect-free; NarrativeTrace
-  relies on that convention.
-- Also invoked: a custom `ToString()`, a `[NarrativeSummary]` member, and
-  property paths named in `[Narrated]`/`[OnError]` templates
-  (`{order.Total}`).
+- Reflective introspection reads **backing fields**, not property getters —
+  a getter with a side effect (a counter, lazy initialization, a database
+  round-trip) never runs merely because an instance is rendered.
+- Also invoked, each under the rendering guard: a `[NarrativeSummary]`
+  member, a stateless leaf's own `ToString()`, a `[NarrativeElements]`-declared
+  type's own `GetEnumerator()`, and property paths named in
+  `[Narrated]`/`[OnError]` templates (`{order.Total}`) — which likewise
+  resolve against the same backing-field reads, not the getter body.
 
 How the exposure is contained:
 

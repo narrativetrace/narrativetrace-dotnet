@@ -1,0 +1,23 @@
+{
+  "clarity": {
+    "score": 76.36,
+    "recorded": "2026-09-18",
+    "break-target": 80,
+    "gap": 3.64,
+    "note": "post vocabulary-data exclude (TODO §35) + MethodNameScorer behaviour tests (51 -> 9 survivors). Largest remaining clusters: ClassNameScorer (27), ClarityReportRenderer (21), MorphologyAnalyzer (17)."
+  },
+  "core": {
+    "score": 89.95,
+    "recorded": "2026-09-18",
+    "break-target": 91,
+    "gap": 1.05,
+    "note": "340 survivors, worst in ValueRenderer (40), MarkdownRenderer (33), SecretValueShapes (29) — TODO §35"
+  },
+  "proxy": {
+    "score": 78.20,
+    "recorded": "2026-09-18",
+    "break-target": 85,
+    "gap": 6.80,
+    "note": "35 survivors: NarrationResolver (21), NarrativeInterceptor (8), NarrativeTraceProxy (6) — TODO §35"
+  }
+}

@@ -55,8 +55,20 @@ internal static class CoverageAccounting
     /// </summary>
     public static readonly Dictionary<string, Gate> Thresholds = new()
     {
-        // no Include: gates Core AND Runtime (both ≥ 98; Runtime has no own test project)
-        ["NarrativeTrace.Core.Tests"] = new(98),
+        // Explicit Include, added when RenderReadsStateTests.cs started referencing Proxy and
+        // Logging (NarrativeTraceProxy/LoggingNarrativeContext, needed to pin the rendering
+        // rule end to end) for the first time: without one, coverlet instruments every
+        // assembly copied into this project's own output directory, which now also includes
+        // Proxy.dll/Logging.dll — both already gated at their own, much lower thresholds by
+        // their own test projects, and barely exercised from here — and blending them in
+        // dragged the reported line rate under 98 even though Core and Runtime themselves were
+        // unaffected. Two assembly filters need a literal comma, which MSBuild's own /p:
+        // switch parser reads as a SECOND property assignment (confirmed: "MSB1006: Property
+        // is not valid. Switch: [NarrativeTrace.Runtime]*") — %2c is the working escape,
+        // decoded back to a literal comma by the time coverlet reads the property.
+        // Runtime still needs to be swept into the SAME number: it has no test project of its
+        // own, so gates AND Runtime the same way an absent Include used to before this.
+        ["NarrativeTrace.Core.Tests"] = new(98, "[NarrativeTrace.Core]*%2c[NarrativeTrace.Runtime]*"),
         ["NarrativeTrace.AspNetCore.Tests"] = new(98, "[NarrativeTrace.AspNetCore]*"),
         ["NarrativeTrace.Clarity.Tests"] = new(98, "[NarrativeTrace.Clarity]*"),
         // coverlet's filter parser chokes on the hyphen in dotnet-narrativetrace; prefix wildcard instead

@@ -11,18 +11,21 @@ namespace NarrativeTrace.Proxy.Tests;
 /// <summary>
 /// A parameter whose <c>ToString()</c> throws must never break the traced call.
 /// <para>
-/// <c>ValueRenderer.SafeToString</c> already treats a rogue <c>ToString()</c> as a known
-/// hazard and degrades to the typed <c>&lt;error: TypeName&gt;</c> marker documented in
-/// privacy-and-redaction.md (the caught exception's own type, e.g.
-/// <c>&lt;error: InvalidOperationException&gt;</c> — never the failing value's type, and
-/// never <see cref="Exception.Message"/>). These tests hold the narration path to the same
-/// contract: observability failure must never become application failure.
+/// A narration placeholder is rendering, so it obeys the same rule as any other output:
+/// a composite's own <c>ToString()</c> is never called (only a stateless leaf's is — see
+/// <c>PlatformTypes.IsStatelessLeaf</c>), so the rogue implementations below never get to
+/// run, and the placeholder resolves to the ordinary object dump. That is what makes
+/// observability failure impossible here rather than merely survivable: the throw has
+/// nowhere to happen. The typed <c>&lt;error: TypeName&gt;</c> marker documented in
+/// privacy-and-redaction.md (the caught exception's own type — never the failing value's,
+/// and never <see cref="Exception.Message"/>) still covers the two hooks that do run user
+/// code, the <c>[NarrativeSummary]</c> member and a <c>{obj.Prop}</c> accessor.
 /// </para>
 /// </summary>
 public class RogueToStringNarrationTests
 {
     [Fact]
-    public void Rogue_ToString_in_a_narration_placeholder_does_not_break_the_call()
+    public void Rogue_ToString_in_a_narration_placeholder_is_never_called()
     {
         var ctx = new SyncNarrativeContext(new NarrativeTraceConfig());
         var proxy = NarrativeTraceProxy.Create<IRogueNarrated>(
@@ -31,12 +34,12 @@ public class RogueToStringNarrationTests
         proxy.Handle(new RogueToString());
 
         Assert.Equal(
-            "Processing <error: InvalidOperationException>",
+            "Processing RogueToString{}",
             ctx.CaptureTrace().Roots[0].Signature.Narration);
     }
 
     [Fact]
-    public void Rogue_ToString_behind_a_property_placeholder_degrades_to_a_marker()
+    public void Rogue_ToString_behind_a_property_placeholder_is_never_called()
     {
         var ctx = new SyncNarrativeContext(new NarrativeTraceConfig());
         var proxy = NarrativeTraceProxy.Create<IRogueNarrated>(
@@ -45,15 +48,15 @@ public class RogueToStringNarrationTests
         proxy.Inspect(new Holder(new RogueToString()));
 
         Assert.Equal(
-            "Processing <error: InvalidOperationException>",
+            "Processing RogueToString{}",
             ctx.CaptureTrace().Roots[0].Signature.Narration);
     }
 
-    // A throwing GETTER and a throwing ToString() are different failures and
-    // must stay distinguishable: the getter leaves the {obj.prop} literal
-    // visible (a template typo looks the same as a broken accessor and both
-    // want the placeholder back), while a value that resolved fine but cannot
-    // render degrades to the type marker.
+    // A throwing GETTER is the one of these two that still runs: the accessor
+    // named in a {obj.prop} placeholder is resolved, and when it throws the
+    // literal placeholder stays visible (a template typo looks the same as a
+    // broken accessor, and both want the placeholder back). A throwing
+    // ToString has no such moment — it is never entered at all.
     [Fact]
     public void A_throwing_getter_still_preserves_the_literal_placeholder()
     {
@@ -91,7 +94,7 @@ public class RogueToStringNarrationTests
     }
 
     [Fact]
-    public void A_ToString_returning_null_degrades_to_a_marker()
+    public void A_ToString_returning_null_is_never_called()
     {
         var ctx = new SyncNarrativeContext(new NarrativeTraceConfig());
         var proxy = NarrativeTraceProxy.Create<IRogueNarrated>(
@@ -100,7 +103,7 @@ public class RogueToStringNarrationTests
         proxy.Blank(new NullToString());
 
         Assert.Equal(
-            "Processing <NullToString>",
+            "Processing NullToString{}",
             ctx.CaptureTrace().Roots[0].Signature.Narration);
     }
 
@@ -132,7 +135,7 @@ public class RogueToStringNarrationTests
             () => proxy.Fail(new RogueToString()));
 
         Assert.Equal(
-            "Failed while processing <error: InvalidOperationException>",
+            "Failed while processing RogueToString{}",
             ctx.CaptureTrace().Roots[0].Signature.ErrorContext);
     }
 
@@ -146,7 +149,7 @@ public class RogueToStringNarrationTests
         proxy.HandleWithId(7, new RogueToString());
 
         Assert.Equal(
-            "7: <error: InvalidOperationException>",
+            "7: RogueToString{}",
             ctx.CaptureTrace().Roots[0].Signature.Narration);
     }
 

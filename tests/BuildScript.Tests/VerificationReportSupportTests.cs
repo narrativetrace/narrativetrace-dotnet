@@ -9,7 +9,7 @@ namespace Build.Tests;
 /// <summary>
 /// Covers <see cref="VerificationReportSupport"/> — the one writer and one renderer for
 /// <c>reports/verification/&lt;date&gt;.json</c>/<c>.md</c>, the family-wide contract
-/// <c>reports/verification/SCHEMA.md</c> (golden Java repo) defines.
+/// <c>reports/verification/SCHEMA.md</c> (canonical Java repo) defines.
 /// </summary>
 public sealed class VerificationReportSupportTests : IDisposable
 {

@@ -1,4 +1,4 @@
-<!-- source: documentation/duplication.md blob 7ce9aac0fb0f | translated: 2026-09-13 | reviewed: - -->
+<!-- source: documentation/duplication.md blob e84b0f7ccab8 | translated: 2026-09-17 | reviewed: - -->
 # Detecção de duplicação
 
 [English](../duplication.md) | [Español](../es/deteccion-de-duplicacion.md) | **Português** | [简体中文](../zh-CN/重复代码检测.md)
@@ -8,10 +8,9 @@ comportamento da biblioteca em tempo de execução: nada aqui é distribuído
 nos pacotes NuGet.
 
 `./build.sh DuplicationReport` executa o [jscpd](https://github.com/kucherenko/jscpd)
-(uma versão exata fixada, invocada via `npx jscpd@<versão>` — este
-repositório não tem um equivalente JVM/PMD já presente no seu próprio
-classpath como tem o CPD do runtime Java) sobre os fontes C# principais e
-de teste, e escreve um relatório a cada commit. `./build.sh
+(uma versão exata fixada, invocada via `npx jscpd@<versão>` — nenhuma
+ferramenta assim já existe no grafo de dependências desta build) sobre os
+fontes C# principais e de teste, e escreve um relatório a cada commit. `./build.sh
 DuplicationCheck` lê esse relatório e aplica a catraca de duplicação
 descrita abaixo; faz parte de `Verify`.
 
@@ -81,8 +80,8 @@ build falhar diretamente em vez de ser ignorado.
 A única isenção registrada no primeiro escaneamento eram os dicionários de
 listas de palavras do módulo clarity
 (`src/NarrativeTrace.Clarity/*Dictionary.cs`). Uma decisão do proprietário
-em 2026-09-12 (espelhando as mesmas categorias de isenção do runtime Java)
-ampliou isso para três categorias justificadas, escritas como linhas
+em 2026-09-12 (alinhada com as categorias de isenção compartilhadas por
+esta família) ampliou isso para três categorias justificadas, escritas como linhas
 `globA :: globB` separadas em vez de um único padrão combinado (este motor
 de globs não tem alternância de chaves): **tabelas de palavras
 identificadas pelo arquivo** — as tabelas adjetivo/substantivo/verbo de
@@ -93,9 +92,8 @@ do arquivo** — as listas de palavras `HashSet`/literal de array de
 si e com os dicionários mesmo que nenhum dos dois arquivos corresponda ao
 padrão `*Dictionary`; e **registros largos** — `CanonicalEntry.cs` e
 `SpanContext.cs`, cada um um único registro posicional com um componente
-anulável por campo do esquema (o equivalente deste runtime à classe
-builder de um-setter-por-componente do runtime Java), isentos contra si
-mesmos e entre si já que colapsar a forma de um componente por campo
+anulável por campo do esquema, isentos contra si mesmos e entre si já
+que colapsar a forma de um componente por campo
 mudaria a superfície pública do construtor. Cada um desses pares documenta
 qualquer lacuna conhecida em que o mesmo padrão também cobre
 (necessariamente) lógica real que vive ao lado dos dados que isenta, em
@@ -118,10 +116,10 @@ emite, para quaisquer linguagens que cubra):
 `tokensDuplicated` é uma **união**, não uma soma sobre clusters — contar
 tokens `× ocorrências` conta duas e três vezes uma região coberta por
 vários clusters (a mesma classe de bug que mediu mais de 300% de
-duplicação no primeiro escaneamento do runtime Java, antes da correção por
-união), então `percent` nunca pode ultrapassar 100%. O jscpd tokeniza cada
-arquivo por conta própria em vez de em um único fluxo compartilhado para
-todo o corpus como faz o CPD do PMD, e seu relatório JSON não carrega
+duplicação no primeiro escaneamento de outro runtime da família, antes da
+correção por união), então `percent` nunca pode ultrapassar 100%. O jscpd
+tokeniza cada arquivo por conta própria em vez de em um único fluxo
+compartilhado para todo o corpus, e seu relatório JSON não carrega
 nenhum índice de token por ocorrência — apenas uma linha de início/fim por
 ocorrência, mais uma contagem de tokens para todo o fragmento
 correspondente — então a união deste runtime opera sobre os intervalos de
@@ -148,9 +146,8 @@ src/NarrativeTrace.Core/TraceNamer.cs:29 ↔ src/NarrativeTrace.Core/TraceNamer.
 ## Um Node/npx ausente nunca é uma aprovação silenciosa
 
 O jscpd é um CLI Node externo, não uma biblioteca já presente no próprio
-grafo desta build — então, ao contrário do PMD-CPD do runtime Java (uma
-dependência de biblioteca, sempre presente), `DuplicationReport`/
-`DuplicationCheck` pode encontrar um ambiente sem Node nenhum. Isso segue a
+grafo desta build, então `DuplicationReport`/`DuplicationCheck` pode
+encontrar um ambiente sem Node nenhum. Isso segue a
 mesma convenção do `ScannerGateSupport` que `SecretsScan`/`Semgrep`/
 `OsvScan` já usam: localmente, um `npx` ausente **avisa** e registra um
 status `skipped` em `artifacts/duplication/scan-status/` — nunca um verde

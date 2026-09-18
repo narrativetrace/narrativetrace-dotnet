@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Licensed under the Business Source License 1.1 (see LICENSE); Change Date: four years from publication; Change License: Apache-2.0
 // Copyright (c) 2026 Empower Agile
+using System.Globalization;
 using NarrativeTrace.Glossary;
 using Xunit;
 
@@ -102,5 +103,67 @@ public class JsonParserTests
             JsonParser.Parse(" \n\t{ \"a\" : [ 1 , 2 ] }\r\n"));
 
         Assert.Equal([1L, 2L], Assert.IsAssignableFrom<IReadOnlyList<object>>(root["a"]));
+    }
+
+    [Fact]
+    public void Accepts_nesting_exactly_at_the_family_depth_limit()
+    {
+        var text = new string('[', JsonParser.MaxNestingDepth)
+                   + new string(']', JsonParser.MaxNestingDepth);
+
+        var value = JsonParser.Parse(text);
+
+        Assert.IsAssignableFrom<IReadOnlyList<object>>(value);
+    }
+
+    [Fact]
+    public void Rejects_nesting_one_level_past_the_family_depth_limit()
+    {
+        var depth = JsonParser.MaxNestingDepth + 1;
+        var text = new string('[', depth) + new string(']', depth);
+
+        var ex = Assert.Throws<ArgumentException>(() => JsonParser.Parse(text));
+
+        Assert.Contains(JsonParser.MaxNestingDepth.ToString(CultureInfo.InvariantCulture), ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Brackets_inside_a_string_value_do_not_count_toward_nesting_depth()
+    {
+        var padding = new string('[', JsonParser.MaxNestingDepth + 50);
+        var text = $$"""{"a": "{{padding}}"}""";
+
+        var root = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(
+            JsonParser.Parse(text)); // must not throw: only one real container, the root object
+
+        Assert.Equal(padding, root["a"]);
+    }
+
+    [Fact]
+    public void An_escaped_quote_does_not_end_a_string_early_for_nesting_purposes()
+    {
+        var depth = JsonParser.MaxNestingDepth + 1;
+        var text = "{\"a\": \"value with \\\" quote\", \"b\": "
+                    + new string('[', depth) + new string(']', depth) + "}";
+
+        var ex = Assert.Throws<ArgumentException>(() => JsonParser.Parse(text));
+
+        Assert.Contains(JsonParser.MaxNestingDepth.ToString(CultureInfo.InvariantCulture), ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task Rejects_an_eight_thousand_deep_array_fast_without_stack_growth()
+    {
+        // The original crash shape: on a 1 MB thread stack, real recursion this deep is an
+        // uncatchable StackOverflowException that kills the process. An explicit timeout (a real
+        // barrier, never a wall-clock tolerance) guards against a guard that regresses into
+        // unbounded work; the guard itself must refuse the document before any recursive descent
+        // begins, well inside that budget.
+        var depth = 8_000;
+        var text = new string('[', depth) + new string(']', depth);
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => Task.Run(() => JsonParser.Parse(text)));
+
+        Assert.Contains(JsonParser.MaxNestingDepth.ToString(CultureInfo.InvariantCulture), ex.Message, StringComparison.Ordinal);
     }
 }

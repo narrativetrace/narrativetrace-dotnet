@@ -20,7 +20,7 @@ internal readonly record struct StepReplayResult(string Title, bool Ran, bool Ok
 /// Tier A2 (skill-harness design §4.2): mechanically replays a skill's own step data against the
 /// sixty-seconds fixture, no LLM. Green means the instructions are literally executable today
 /// against this commit's code — the generic engine below is deliberately data-only (an injected
-/// <c>runCommand</c>/<c>tryVerify</c> pair), unit-testable with fakes exactly like the golden
+/// <c>runCommand</c>/<c>tryVerify</c> pair), unit-testable with fakes exactly like the canonical
 /// TypeScript source's <c>replaySkill</c> (<c>packages/skills/src/replay.ts</c>); the concrete,
 /// process-spawning registry lives in <see cref="SkillReplayRegistry"/> so the decision logic
 /// above it never itself needs a real process or a real fixture to test.
@@ -157,7 +157,7 @@ internal static class SkillReplayRegistry
             // trap.redaction-proof failed and exits 1, exactly as doctor is SUPPOSED to behave for
             // a project that hasn't written that test yet — wiring either claim here would either
             // make this gate permanently red, or (worse) require weakening the fixture's honesty
-            // to make it pass. Mirrors the golden TypeScript/Java sources, which check a finding's
+            // to make it pass. Mirrors the canonical TypeScript/Java sources, which check a finding's
             // PRESENCE/well-formedness here, never its pass/fail value, for the identical reason.
             // The console-logger verify (add-narrative-tracing's "Send it to your logger" step) is
             // also left unregistered: its own project's Program.cs is a real `dotnet run` entry

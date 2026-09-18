@@ -11,33 +11,6 @@ namespace NarrativeTrace.Clarity;
 /// </summary>
 public static class GenericTokenDetector
 {
-    private static readonly HashSet<string> MeaninglessPlaceholders =
-        ["foo", "bar", "baz", "qux", "quux", "temp", "tmp", "test",
-         "dummy", "sample", "example", "xxx", "yyy", "zzz", "todo", "fixme"];
-
-    private static readonly HashSet<string> VagueWords =
-        ["data", "info", "object", "thing", "item", "element", "stuff",
-         "result", "response", "output", "input", "value", "content",
-         "payload", "resource", "record", "entry", "detail", "details",
-         "entity", "bean", "model", "wrapper", "holder", "container",
-         "bundle", "batch", "chunk", "block", "piece", "part", "unit",
-         "instance", "param", "argument", "body", "obj", "val", "arg",
-         "meta", "metadata", "blob", "document", "artifact", "messagebody",
-         "dataset", "modeloutput", "modelinput"];
-
-    private static readonly HashSet<string> TypedGenericWords =
-        ["id", "name", "type", "status", "state", "count", "size", "length",
-         "index", "key", "flag", "code", "text", "message", "label",
-         "number", "amount", "total", "level", "mode", "kind", "category",
-         "group", "list", "map", "set", "queue", "stack", "array",
-         "collection", "table", "row", "column", "field", "property", "tag",
-         "version", "timestamp", "date", "time", "duration", "interval",
-         "timeout", "limit", "offset", "page", "sort", "order", "direction",
-         "position", "priority", "weight", "rank", "score", "rating",
-         "percentage", "ratio", "factor", "coefficient", "path", "url",
-         "uri", "host", "port", "endpoint", "topic", "channel", "session",
-         "token", "trace", "metric", "tenant"];
-
     /// <summary>Classifies how much meaning a single token carries.</summary>
     /// <param name="token">One token from <see cref="IdentifierTokenizer.Tokenize"/>.</param>
     /// <returns>The token's genericity tier.</returns>
@@ -60,7 +33,7 @@ public static class GenericTokenDetector
         var lower = token.ToLowerInvariant();
 
         if (IsMeaninglessSingleLetter(lower)
-            || MeaninglessPlaceholders.Contains(lower))
+            || GenericTokenVocabulary.MeaninglessPlaceholders.Contains(lower))
         {
             return TokenTier.Meaningless;
         }
@@ -70,12 +43,12 @@ public static class GenericTokenDetector
             return TokenTier.NotGeneric;
         }
 
-        if (VagueWords.Contains(lower))
+        if (GenericTokenVocabulary.VagueWords.Contains(lower))
         {
             return TokenTier.Vague;
         }
 
-        if (TypedGenericWords.Contains(lower))
+        if (GenericTokenVocabulary.TypedGenericWords.Contains(lower))
         {
             return TokenTier.TypedGeneric;
         }
@@ -89,8 +62,8 @@ public static class GenericTokenDetector
     /// <c>0.0</c> for <see cref="TokenTier.Meaningless"/>, <c>0.2</c> for
     /// <see cref="TokenTier.Vague"/>, <c>0.5</c> for
     /// <see cref="TokenTier.TypedGeneric"/>, and <c>1.0</c> otherwise. These
-    /// weights are a cross-language contract shared with the Java runtime —
-    /// changing one changes every published score.
+    /// weights are a cross-language contract shared with every NarrativeTrace
+    /// runtime — changing one changes every published score.
     /// </returns>
     public static double Score(TokenTier tier)
     {

@@ -28,6 +28,13 @@ namespace NarrativeTrace.SecurityTests.Corpus;
 /// known to look — never in a map KEY position, which is exactly where a dedicated map-key renderer
 /// was found (family-wide) to skip that axis.
 /// </param>
+/// <param name="Kind">
+/// The name of one of <see cref="HostileGraphs"/>'s composite builders (a curated <c>ToString</c>, a
+/// sensitive map key, a throwing summary), or <see langword="null"/> for a name or value row. Unlike a
+/// name or value row — which the value renderer alone can settle — a <c>kind</c> row is meaningless
+/// replayed through <see cref="NarrativeTrace.Core.ValueRenderer"/> directly; what it adds is the
+/// capture path one layer up: a traced method call, parameter binding and every rendered artifact.
+/// </param>
 public sealed record RedactionCase(
     string Id,
     string Description,
@@ -35,7 +42,8 @@ public sealed record RedactionCase(
     string? Value,
     string? Canary,
     string Expect,
-    string? Position = null)
+    string? Position = null,
+    string? Kind = null)
 {
     private const string MapKeyPosition = "mapKey";
 
@@ -45,24 +53,30 @@ public sealed record RedactionCase(
     /// <summary>Whether the canary must appear in no byte of any output.</summary>
     public bool ExpectsRedaction => Expect == "redacted";
 
-    /// <summary>Whether this row names a field rather than carrying a bare value.</summary>
+    /// <summary>Whether this row names a field rather than carrying a bare value or a composite kind.</summary>
     public bool IsName => Name is not null;
+
+    /// <summary>Whether this row names one of <see cref="HostileGraphs"/>'s composite builders.</summary>
+    public bool IsKind => Kind is not null;
 
     /// <summary>Whether a value case places <see cref="Value"/> as a map key rather than rendering it bare.</summary>
     public bool IsMapKeyCase => Position == MapKeyPosition;
 
-    /// <summary>The string the oracle looks for: the canary for a name case, the value itself for a value case.</summary>
-    public string Secret => IsName ? Canary! : Value!;
+    /// <summary>The string the oracle looks for: the canary for a name or kind case, the value itself for a value case.</summary>
+    public string Secret => IsName || IsKind ? Canary! : Value!;
 
     /// <summary>
-    /// The object to render: the value alone, the value as a map key, or a one-entry dictionary
-    /// under the sensitive field name.
+    /// The object to render: the value alone, the value as a map key, a one-entry dictionary under
+    /// the sensitive field name, or the composite <see cref="Kind"/> builds around <see cref="Canary"/>.
     /// </summary>
     /// <remarks>
     /// A dictionary is the vehicle for name cases because a record component has to be a
     /// compile-time identifier and these names are data — including two spellings of the same
     /// Spanish word that differ only by Unicode normalization form. A value case opts into the same
-    /// vehicle, as the KEY rather than the value, via <see cref="IsMapKeyCase"/>.
+    /// vehicle, as the KEY rather than the value, via <see cref="IsMapKeyCase"/>. A kind row delegates
+    /// to <see cref="HostileGraphs.Build"/>, the same builder <c>graphs.json</c>'s own rows use, via a
+    /// <see cref="GraphCase"/> that carries only <see cref="Kind"/> — the other <see cref="GraphCase"/>
+    /// fields go unused by every kind these four rows name.
     /// </remarks>
     public object Payload
     {
@@ -73,11 +87,19 @@ public sealed record RedactionCase(
                 return new Dictionary<string, object> { [Name!] = Canary! };
             }
 
+            if (IsKind)
+            {
+                return HostileGraphs.Build(KindGraphCase(), Canary!);
+            }
+
             return IsMapKeyCase
                 ? new Dictionary<string, object> { [Value!] = MapKeyCompanionValue }
                 : Value!;
         }
     }
+
+    private GraphCase KindGraphCase() =>
+        new(Id, Description, Kind, Array.Empty<string>(), null, null, null, null, "secret-record", 0);
 
     /// <inheritdoc />
     public override string ToString() => Id;

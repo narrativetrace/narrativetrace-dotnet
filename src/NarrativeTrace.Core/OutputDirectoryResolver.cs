@@ -10,7 +10,7 @@ namespace NarrativeTrace.Core;
 /// <summary>
 /// Resolves the on-disk layout for per-test trace artifacts —
 /// <c>&lt;baseDir&gt;/traces/&lt;SimpleClassName&gt;/&lt;method-slug&gt;.md</c> — so every
-/// test integration writes into the same structure as the Java runtime.
+/// test integration writes into the same structure as every NarrativeTrace runtime.
 /// </summary>
 public sealed class OutputDirectoryResolver
 {
@@ -46,8 +46,8 @@ public sealed class OutputDirectoryResolver
     /// interpolate arguments into it — so it is bounded before the method
     /// slug is, and the index it follows is never the part that gets
     /// truncated. 60 leaves a long name readable while keeping the whole
-    /// element far below the component limit. Mirrors the Java runtime's
-    /// <c>MAX_LABEL_BYTES</c>.
+    /// element far below the component limit — the same bound every
+    /// NarrativeTrace runtime uses.
     /// </remarks>
     private const int MaxLabelBytes = 60;
 
@@ -232,8 +232,7 @@ public sealed class OutputDirectoryResolver
     /// <remarks>
     /// A hostile <paramref name="simpleName"/> — a separator, a <c>..</c> traversal, or a value built
     /// from data the caller does not control — used to reach <see cref="Path.Combine(string, string, string)"/>
-    /// unfiltered here, writing an artifact outside the directory it was given. This is that guard,
-    /// mirroring the Java runtime's <c>toDirectorySlug</c>.
+    /// unfiltered here, writing an artifact outside the directory it was given. This is that guard.
     /// </remarks>
     public static string ToDirectorySlug(string simpleName)
     {

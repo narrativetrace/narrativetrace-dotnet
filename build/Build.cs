@@ -67,6 +67,33 @@ class Build : NukeBuild
     /// </summary>
     bool SecurityScannersRequired =>
         SecurityRequired || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CI"));
+
+    /// <summary>
+    /// Whether a missing <c>afl-fuzz</c> must fail <see cref="Fuzz"/> rather than leave it
+    /// instrumenting and exiting zero. Separate from <see cref="SecurityScannersRequired"/> because
+    /// AFL++ is not installed on every CI job that sets <c>CI</c> — only the fuzz job installs it —
+    /// so the requirement is declared by the caller that promised the tool:
+    /// <c>NARRATIVETRACE_REQUIRE_AFL=1</c>.
+    /// </summary>
+    /// <remarks>
+    /// Release rule 2 (a graceful-skip tool must prove it has ever run) and the 2026-09-17 nightly
+    /// finding behind it: the nightly ran <c>Fuzz</c> with no AFL++ present, so for months it only
+    /// instrumented and exited zero — reported as a passing fuzz run while nothing was ever fuzzed.
+    /// The skip now says <c>SKIPPED: afl-fuzz not installed</c> in as many words, and any caller
+    /// that claims to be fuzzing sets this flag and fails instead. Named
+    /// <c>NARRATIVETRACE_REQUIRE_AFL</c> rather than a bare <c>REQUIRE_AFL</c> — owner ruling
+    /// 2026-09-18: a public env var carries the project's own prefix, never an internal-process
+    /// word, so its purpose reads the same to a caller who has never seen this build's source.
+    /// </remarks>
+    bool FuzzDriverRequired =>
+        SecurityRequired || Environment.GetEnvironmentVariable("NARRATIVETRACE_REQUIRE_AFL") == "1";
+
+    /// <summary>
+    /// The coverage-guided driver <see cref="Fuzz"/> runs — <c>afl-fuzz</c>, or whatever
+    /// <c>AFL_FUZZ</c> names. Also the key its recorded scan status is filed under, so
+    /// <c>VerifyAll</c>'s fuzz row reads the same name the target wrote.
+    /// </summary>
+    static string FuzzDriver => Environment.GetEnvironmentVariable("AFL_FUZZ") ?? "afl-fuzz";
     AbsolutePath FuzzDirectory => ArtifactsDirectory / "fuzz";
     AbsolutePath FuzzProject => RootDirectory / "fuzz" / "NarrativeTrace.Fuzz" / "NarrativeTrace.Fuzz.csproj";
     AbsolutePath FuzzSeeds => RootDirectory / "fuzz" / "NarrativeTrace.Fuzz" / "seeds";
@@ -410,6 +437,40 @@ class Build : NukeBuild
         });
 
     /// <summary>
+    /// Fails when a <c>src/**/*.cs</c> code comment carries audit-ledger history (an owner-ruling
+    /// citation, a "ruled 20YY-..." phrase, a bare audit date, or shipped-release wording) or frames
+    /// this runtime as secondary to a Java implementation — see
+    /// <see cref="CommentHygieneSupport"/>. A comment carries the constraint a reader of this
+    /// runtime alone must respect, not the ledger entry that produced it; that history belongs in
+    /// the commit, never in the comment that survives it. Excuses exactly the files named in
+    /// <c>comment-hygiene-allowlist.json</c> (file → reason); also fails on a stale entry there —
+    /// a file the allowlist excuses that no longer has any hit.
+    /// </summary>
+    Target CommentHygieneCheck => _ => _
+        .Executes(() =>
+        {
+            var allowlistPath = RootDirectory / "comment-hygiene-allowlist.json";
+            var allowlist = CommentHygieneSupport.LoadAllowlist(allowlistPath);
+            var result = CommentHygieneSupport.Lint(RootDirectory, allowlist);
+
+            foreach (var hit in result.Violations)
+                Console.WriteLine($"  {hit.File}:{hit.Line}: [{hit.Reason}] {hit.Text}");
+            foreach (var file in result.StaleAllowlistEntries)
+                Console.WriteLine($"  stale allowlist entry: {file}");
+
+            if (result.Violations.Count > 0 || result.StaleAllowlistEntries.Count > 0)
+                throw new InvalidOperationException(
+                    $"Comment hygiene check failed: {result.Violations.Count} history/port-framing "
+                    + $"reference(s) and {result.StaleAllowlistEntries.Count} stale allowlist entry(ies) "
+                    + "— add a reason to comment-hygiene-allowlist.json only for a project not yet swept, "
+                    + "and remove an entry once its file has no hit left.");
+
+            Console.WriteLine(
+                $"Comment hygiene check passed: src/**/*.cs is clean ({allowlist.Count} "
+                + "file(s) still allowlisted, pending their own wave)");
+        });
+
+    /// <summary>
     /// Fails when a committed image under <c>assets/</c> carries an embedded text metadata
     /// chunk (iTXt/tEXt/zTXt/XMP/C2PA) — the class of leak <c>assets/icon.png</c> shipped in
     /// every published NuGet package until 2026-09-13 (a C2PA provenance chunk naming the AI
@@ -436,15 +497,15 @@ class Build : NukeBuild
     /// <summary>
     /// Verifies the <c>legal:*</c> marked regions in README.md and its root
     /// translations (<c>legal.properties</c>, <c>scripts/legal-check.sh</c>)
-    /// are well-formed and, when the sibling golden Java repo is checked out
-    /// next to this one, still match its golden copies (LICENSE included).
+    /// are well-formed and, when the sibling canonical Java repo is checked out
+    /// next to this one, still match its canonical copies (LICENSE included).
     /// Delegates entirely to the shell script: default mode WARNs — a
     /// checkout without the sibling, the common CI case, stays green. Set
     /// <c>LEGAL_CHECK_STRICT=1</c> to fail instead for a deliberate local or
     /// CI verification run; deliberately <b>not</b> wired into
     /// the publish script as a strict preflight, because
     /// <c>legal:trademark</c> wraps each repo's own paraphrase and is
-    /// expected to differ from the golden copy — a strict preflight would
+    /// expected to differ from the canonical copy — a strict preflight would
     /// fail every publish where the sibling happens to be checked out.
     /// </summary>
     /// <remarks>
@@ -458,7 +519,16 @@ class Build : NukeBuild
             const string tool = "bash";
             if (!IsOnPath(tool))
             {
-                Console.WriteLine($"{tool} not found on PATH: legal check skipped "
+                // Release rule 2: the skip says so in as many words, and the context that is
+                // supposed to have the tool fails instead of passing green (CI always has bash).
+                if (SecurityScannersRequired)
+                {
+                    throw new InvalidOperationException(
+                        $"LegalCheck: {tool} is not on PATH and this context requires it (CI, or "
+                        + "--security-required). Nothing legal was checked.");
+                }
+
+                Console.WriteLine($"SKIPPED: {tool} not installed — legal check did not run "
                     + "(Windows without Git Bash/WSL). CI and *nix dev containers run it.");
                 return;
             }
@@ -508,7 +578,7 @@ class Build : NukeBuild
     /// <summary>
     /// Tier A2 skill replay (skill-harness design §4.2): mechanically executes both catalogue
     /// skills' own <c>commands</c>/<c>verify</c> steps against
-    /// <c>examples/NarrativeTrace.Examples.SixtySeconds</c>, no LLM — the golden TypeScript
+    /// <c>examples/NarrativeTrace.Examples.SixtySeconds</c>, no LLM — the canonical TypeScript
     /// source's <c>packages/skills/__tests__/replay.test.ts</c>, ported. Real subprocesses (a few
     /// seconds total), never against a global/published tool — see
     /// <c>SkillReplayRegistry</c>'s own remarks for what each catalogue command actually replays
@@ -989,6 +1059,12 @@ class Build : NukeBuild
         "no flags.")]
     readonly string? MutationExclude;
 
+    [Parameter("Mutation: override every module's wall-clock budget (MutationBudgetSupport's " +
+        "per-module minutes, otherwise) with this many minutes flat — a manual smoke-check knob " +
+        "(e.g. a deliberately tiny value to prove a module times out cleanly), never used by " +
+        "./build.sh Mutation/VerifyAll with no flags.")]
+    readonly int? MutationBudgetMinutes;
+
     Target Mutation => _ => _
         .DependsOn(Compile)
         .Executes(() =>
@@ -1016,27 +1092,48 @@ class Build : NukeBuild
             // MutationDirectory — silently dropping their reports, the exact defect class Java's
             // own verifyAll first run exposed (2 of 5 modules missing). Found writing VerifyAll,
             // which reads every module's report and would otherwise have inherited the gap.
+            //
+            // Each module also now runs under its own wall-clock budget (MutationBudgetSupport —
+            // see its remarks for why no "last successful run" duration exists to read instead):
+            // the 2026-09-17 nightly ran Mutation with NO bound of its own, was killed by the
+            // launchd wrapper's outer 360-minute cap, and reported nothing — a run with no
+            // per-module bound loses everything to any one slow module, on any external kill. A
+            // module that outlives its budget is killed here, named below as a timeout (never
+            // silently folded into "no report produced"), and the loop still moves on to the rest.
+            var budgets = MutationBudgetMinutes is { } flatMinutes
+                ? MutationAccounting.ConfigFiles(RootDirectory)
+                    .Select(ExtractStrykerModuleName)
+                    .ToDictionary(module => module, _ => TimeSpan.FromMinutes(flatMinutes), StringComparer.Ordinal)
+                : MutationBudgetSupport.SelectBudgets(
+                    MutationBudgetSupport.ProductionWeights, MutationBudgetSupport.ProductionCeiling,
+                    MutationBudgetSupport.ProductionFloor);
+
             var failures = new List<string>();
+            var timedOut = new List<string>();
             foreach (var config in configs)
             {
                 var moduleName = ExtractStrykerModuleName(config);
-                var strykerOutput = (AbsolutePath)(RootDirectory / "StrykerOutput");
+                var testProject = MutationAccounting.TestProjectFile(RootDirectory, config);
+                // Stryker writes StrykerOutput into its working directory, which is the module's
+                // own test project — see RunStrykerModuleWithBudget for why it is never the root.
+                var strykerOutput = (AbsolutePath)Path.Combine(
+                    Path.GetDirectoryName(testProject)!, "StrykerOutput");
                 if (Directory.Exists(strykerOutput))
                     Directory.Delete(strykerOutput, true);
 
-                // Stryker auto-detects the solution file when exactly one .sln/.slnx sits at the
-                // repo root; -s pins it explicitly instead, because that assumption breaks the
-                // moment NarrativeTrace.Format.sln (WriteFormatSolution's gitignored scratch copy,
-                // left behind by any prior Format/FormatCheck run — an everyday ambient state, not
-                // a contrived one) is still on disk: Stryker then refuses with "found more than
-                // one" and every module fails to mutate. Found running Mutation right after Verify.
-                var process = ProcessTasks.StartProcess(
-                    "dotnet",
-                    $"tool run dotnet-stryker -- --config-file \"{config}\" --solution \"{Solution.Path}\"",
-                    RootDirectory);
-                process.AssertWaitForExit();
-                if (process.ExitCode != 0)
-                    failures.Add($"{moduleName} (exit {process.ExitCode})");
+                var budget = budgets.TryGetValue(moduleName, out var configured)
+                    ? configured
+                    : MutationBudgetSupport.ProductionFloor;
+
+                var (exitCode, moduleTimedOut) = RunStrykerModuleWithBudget(config, testProject, budget);
+                if (moduleTimedOut)
+                {
+                    timedOut.Add($"{moduleName} (exceeded its {budget.TotalMinutes:F0}-minute budget)");
+                }
+                else if (exitCode != 0)
+                {
+                    failures.Add($"{moduleName} (exit {exitCode})");
+                }
 
                 if (Directory.Exists(strykerOutput))
                 {
@@ -1053,14 +1150,68 @@ class Build : NukeBuild
                 }
             }
 
-            if (failures.Count > 0)
+            if (failures.Count > 0 || timedOut.Count > 0)
             {
+                var problems = failures.Count + timedOut.Count;
+                var parts = new List<string>();
+                if (failures.Count > 0)
+                    parts.Add($"missed their break threshold or crashed: {string.Join(", ", failures)}");
+                if (timedOut.Count > 0)
+                    parts.Add($"timed out: {string.Join(", ", timedOut)}");
                 throw new Exception(
-                    $"Mutation: {failures.Count} of {configs.Count} module(s) missed their break "
-                    + $"threshold or crashed: {string.Join(", ", failures)}. Every module still ran "
-                    + $"— see {MutationDirectory} for each one's report.");
+                    $"Mutation: {problems} of {configs.Count} module(s) had a problem — "
+                    + $"{string.Join("; ", parts)}. Every module still ran — see {MutationDirectory} "
+                    + "for each one's report (a timed-out or crashed module's report is absent, not "
+                    + "silently zero).");
             }
         });
+
+    /// <summary>
+    /// Runs one Stryker module under <paramref name="budget"/>'s wall-clock cap: a module that has
+    /// not exited by then is killed (its process tree, so orphaned <c>dotnet test</c> children Stryker
+    /// spawned die too) and reported as timed out rather than left to run unbounded — the mechanism
+    /// behind <see cref="Mutation"/>'s per-module budgeting, see its own comment for why. Uses
+    /// <see cref="System.Diagnostics.Process"/> directly rather than Nuke's <c>ProcessTasks</c>,
+    /// which has no bounded-wait overload — only an unconditional <c>AssertWaitForExit</c>.
+    /// </summary>
+    /// <remarks>
+    /// Launched from <paramref name="testProject"/>'s own directory, never the repository root:
+    /// Stryker enters solution mode the moment it can see a <c>.sln</c> from its working directory
+    /// — passing <c>--solution</c> is only one way in, and removing that flag alone changes nothing
+    /// because it auto-detects the root's solution — and in solution mode a config's
+    /// <c>test-projects</c> is ignored, so every test project referencing the mutated one runs for
+    /// every mutant, some of them spawning nested <c>dotnet</c> builds of their own. That is the
+    /// fan-out behind sixteen nights of unfinished sweeps (nightly 2026-09-17, F1);
+    /// <c>--test-project</c> restates the one suite so the config's own scope survives.
+    /// </remarks>
+    (int? ExitCode, bool TimedOut) RunStrykerModuleWithBudget(
+        string config, string testProject, TimeSpan budget)
+    {
+        var startInfo = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "dotnet",
+            Arguments = $"tool run dotnet-stryker -- --config-file \"{config}\" "
+                + $"--test-project \"{testProject}\"",
+            WorkingDirectory = Path.GetDirectoryName(testProject)!,
+            UseShellExecute = false,
+        };
+        using var process = System.Diagnostics.Process.Start(startInfo)
+            ?? throw new InvalidOperationException($"Mutation: failed to start Stryker for '{config}'.");
+
+        if (process.WaitForExit((int)budget.TotalMilliseconds))
+            return (process.ExitCode, false);
+
+        try
+        {
+            process.Kill(entireProcessTree: true);
+        }
+        catch (InvalidOperationException)
+        {
+            // Already exited between the timed-out WaitForExit and here — nothing left to kill.
+        }
+        process.WaitForExit(5000);
+        return (null, true);
+    }
 
     /// <summary>
     /// Fails fast, before Stryker runs at all, when a project in the solution is present in none —
@@ -1378,19 +1529,29 @@ class Build : NukeBuild
 
             DotNet("tool restore");
 
-            var driver = Environment.GetEnvironmentVariable("AFL_FUZZ") ?? "afl-fuzz";
+            var driver = FuzzDriver;
             var driverFound = IsOnPath(driver);
+
+            if (!driverFound)
+            {
+                var decision = ScannerGateSupport.OnMissingBinary(
+                    driver, FuzzDriverRequired, "apt-get install afl++ (or set AFL_FUZZ)");
+                ScannerGateSupport.RecordSkipped(SecurityScanStatusDirectory, driver, "binary not on PATH");
+                if (decision.Fail)
+                    throw new InvalidOperationException($"Fuzz: {decision.Message}");
+            }
 
             foreach (var target in new[] { "renderer", "json" })
                 RunFuzzTarget(target, driver, driverFound);
 
-            if (!driverFound)
-            {
+            if (driverFound)
+                ScannerGateSupport.RecordRanClean(SecurityScanStatusDirectory, driver);
+            else
                 Console.WriteLine(
-                    $"afl-fuzz not found on PATH: instrumented both targets under {FuzzDirectory}, "
-                    + "but did not run the coverage-guided loop. Install AFL++ (or point AFL_FUZZ at "
-                    + "another driver) to run it for real.");
-            }
+                    $"SKIPPED: {driver} not installed — instrumented both targets under "
+                    + $"{FuzzDirectory}, but ran no coverage-guided loop. Instrumentation is not "
+                    + "fuzzing: nothing was searched. Install: apt-get install afl++ (or set "
+                    + "AFL_FUZZ); set NARRATIVETRACE_REQUIRE_AFL=1 wherever a real fuzz run is promised.");
         });
 
     static bool IsOnPath(string executable)
@@ -2228,7 +2389,7 @@ class Build : NukeBuild
     // ── VerifyAll ─────────────────────────────────────────────────────────────
     //
     // pro repo TODO §35E: "one command that runs everything and reports numbers." Mirrors the
-    // family's golden Java implementation (`./gradlew verifyAll`) and TypeScript's `verify:all` —
+    // family's canonical Java implementation (`./gradlew verifyAll`) and TypeScript's `verify:all` —
     // see reports/verification/SCHEMA.md for the cross-port contract this target's output commits
     // to (field names, the four statuses, the 21 category ids). Runs EVERY verification this repo
     // has, gate and heavy alike, as a sequence of fresh `./build.sh <Target>` subprocesses — never
@@ -2687,15 +2848,18 @@ class Build : NukeBuild
         @"afl-fuzz ran (\d+) executions", System.Text.RegularExpressions.RegexOptions.Compiled);
     private static readonly System.Text.RegularExpressions.Regex FuzzTargetPattern = new(
         @"\[fuzz:(\S+)\] afl-fuzz ran", System.Text.RegularExpressions.RegexOptions.Compiled);
-    private static readonly System.Text.RegularExpressions.Regex FuzzSkipPattern = new(
-        @"afl-fuzz not found on PATH", System.Text.RegularExpressions.RegexOptions.Compiled);
-
     void VerifyAllFuzzTierBRow(Action<CategoryResult> addRow)
     {
         var outcome = RunLogged(
             "fuzz-tier-b", "Fuzz", "--fuzz-seconds",
             FuzzSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        var skipped = FuzzSkipPattern.IsMatch(outcome.Output);
+        // Read the status the Fuzz target RECORDED, exactly as the semgrep/osv rows do, rather
+        // than scraping its console text: a scraped phrase silently stops matching the day the
+        // message is reworded, and the row then reports a skipped run as a passing one — the very
+        // failure this row exists to prevent.
+        var skipped = ScannerGateSupport
+            .Status(SecurityScanStatusDirectory, FuzzDriver)
+            .StartsWith("skipped", StringComparison.Ordinal);
         var executions = FuzzExecsPattern.Matches(outcome.Output)
             .Select(m => long.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture))
             .Sum();
@@ -2872,9 +3036,14 @@ class Build : NukeBuild
     ///
     /// <see cref="LegalCheck"/> joins the same build-free cluster: in default
     /// (non-strict) mode it only warns, so it cannot turn a green
-    /// <see cref="Verify"/> red on its own — the sibling golden repo is
+    /// <see cref="Verify"/> red on its own — the sibling canonical repo is
     /// normally absent in CI, and even present, drift is a warning, not a
     /// gate failure, until <c>LEGAL_CHECK_STRICT=1</c> is set.
+    ///
+    /// <see cref="CommentHygieneCheck"/> joins the same build-free cluster once more: a source-text
+    /// scan over <c>src/**/*.cs</c> only, no <see cref="Compile"/> dependency — catching
+    /// audit-ledger history and Java-framed wording left in a code comment on every commit, the
+    /// same reasoning that put <see cref="HeaderAbsenceCheck"/> here.
     ///
     /// <see cref="SecretsScan"/> is offline and fast (git-log mode, no
     /// network) but not build-free — it needs <c>.git</c> intact, not the
@@ -2900,6 +3069,7 @@ class Build : NukeBuild
         .DependsOn(SkillsLint)
         .DependsOn(SkillsReplay)
         .DependsOn(HeaderAbsenceCheck)
+        .DependsOn(CommentHygieneCheck)
         .DependsOn(AssetMetadataCheck)
         .DependsOn(CoverageAccountingCheck)
         .DependsOn(MutationAccountingCheck)
@@ -3088,13 +3258,7 @@ class Build : NukeBuild
         Console.WriteLine($"Method metrics report written: {path}");
     }
 
-    static string ExtractStrykerModuleName(string configPath)
-    {
-        var name = Path.GetFileNameWithoutExtension(configPath);
-        const string prefix = "stryker-config.";
-        return name == "stryker-config" ? "core" :
-            name.StartsWith(prefix) ? name.Substring(prefix.Length) : name;
-    }
+    static string ExtractStrykerModuleName(string configPath) => MutationAccounting.ModuleName(configPath);
 
     void SummarizeCoverage()
     {

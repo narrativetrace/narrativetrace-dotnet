@@ -50,11 +50,11 @@ is found under the same name by another:
 - The name is stable across runs, machines and processes, which is what
   lets one invocation's `.approved.nt` be committed at all. Where a name
   exceeds the 255-byte path-element limit the *method* half is truncated
-  and given eight hex characters of the (Java-specified, reimplemented
-  here rather than `string.GetHashCode()`, which .NET randomizes per
-  process) `String.hashCode` of the full slug — specified, therefore
-  identical everywhere; a per-process hash would silently invalidate every
-  approved trace it touched.
+  and given eight hex characters of this family's specified string hash
+  (`h = 31*h + c` over UTF-16 code units; reimplemented here rather than
+  `string.GetHashCode()`, which .NET randomizes per process) over the full
+  slug — specified, therefore identical everywhere; a per-process hash
+  would silently invalidate every approved trace it touched.
 
 Because artifact names are derived rather than announced, a run also writes
 `<outputDir>/manifest.json`: a top-level `run` object (`id`, `name` — the

@@ -66,8 +66,8 @@ renderer and nothing to configure: capture produces a `TraceTree` and you call t
 renderer you want (`IndentedTextRenderer.Render(trace)`); the renderers are static
 `Render(TraceTree)` methods, so your own is any function from a tree to a string. The
 live `→ ← !!` lines are not a renderer at all — that is a listener on the
-`DualPathPipeline` (`NarrationStreamListener` in `Examples.Common`, the `ILogger` twin of
-the Java `Slf4jTraceEventListener`), the only view that costs no rendering code.
+`DualPathPipeline` (`NarrationStreamListener` in `Examples.Common`), the only
+view that costs no rendering code.
 Configuration selects a renderer in exactly one place, trace files written from tests
 (on by default; `NARRATIVETRACE_OUTPUT=false` opts out): `NARRATIVETRACE_FORMAT=
 markdown|text|mermaid|plantuml`, where `markdown` is the default and the

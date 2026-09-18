@@ -1,4 +1,4 @@
-<!-- source: examples/README.md blob d2dbe3dbaf5e | translated: 2026-09-11 | reviewed: - -->
+<!-- source: examples/README.md blob 21ab3135f378 | translated: 2026-09-17 | reviewed: - -->
 # Ejemplos de NarrativeTrace
 
 [English](README.md) | **Español** | [简体中文](自述文件.md)
@@ -71,8 +71,8 @@ demo. No hay renderizador por defecto ni nada que configurar: la captura produce
 los renderizadores son métodos estáticos `Render(TraceTree)`, así que el tuyo propio es
 cualquier función de un árbol a una cadena. Las líneas en vivo `→ ← !!` no son un
 renderizador en absoluto: son un listener sobre el `DualPathPipeline`
-(`NarrationStreamListener` en `Examples.Common`, el gemelo `ILogger` del
-`Slf4jTraceEventListener` de Java), la única vista que no cuesta código de renderizado. La
+(`NarrationStreamListener` en `Examples.Common`), la única vista que no
+cuesta código de renderizado. La
 configuración elige un renderizador en exactamente un lugar, los archivos de traza
 escritos desde las pruebas (activado por defecto; `NARRATIVETRACE_OUTPUT=false`
 lo desactiva): `NARRATIVETRACE_FORMAT=markdown|text|mermaid|plantuml`, donde

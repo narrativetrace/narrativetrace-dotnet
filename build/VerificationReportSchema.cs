@@ -13,7 +13,7 @@ namespace NarrativeTrace.Build;
 
 /// <summary>
 /// The fixed shape every <c>verifyAll</c>-equivalent report commits to across the NarrativeTrace
-/// family (pro repo tracker item 35E), written once in the golden Java repo's
+/// family (pro repo tracker item 35E), written once in the canonical Java repo's
 /// <c>reports/verification/SCHEMA.md</c> — this is this port's implementation of that contract, not
 /// a second definition of it: same field names, same four statuses, same 21 category ids. A
 /// category this runtime genuinely lacks still gets a row (<c>not-implemented</c>), never a missing

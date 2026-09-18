@@ -59,6 +59,72 @@ public class NukeBuildTests
     }
 
     /// <summary>
+    /// Writer audit (cross-port rule, 2026-09-17): a test that only ASKS a question must never
+    /// answer it by writing — the Python port's finding was a test that asked "is a docs sync
+    /// pending?" by calling the function that PERFORMS the sync, and under mutation that rewrote
+    /// tracked pages. This is the equivalent gate for running tests themselves: the smallest test
+    /// project (<c>NarrativeTrace.StressTests</c>) is run exactly the way <see cref="Test"/> runs
+    /// every project, and the tracked tree must come back byte-for-byte unchanged. A scoped
+    /// mutation run (<c>./build.sh Mutation --mutation-exclude core,clarity,glossary,proxy</c>,
+    /// i.e. valuerefs only) was also observed clean by hand for this brief — not repeated here as
+    /// an automated gate, since a full mutation sweep is scheduled/manual, never per-commit.
+    /// </summary>
+    [Fact]
+    public void Test_LeavesTheWorkingTreeUnchanged()
+    {
+        var before = GitPorcelainStatus();
+
+        var project = Path.Combine(RepoRoot, "tests", "NarrativeTrace.StressTests", "NarrativeTrace.StressTests.csproj");
+        var result = RunProcess("dotnet", $"test \"{project}\" -c Release --nologo");
+
+        Assert.True(result.ExitCode == 0, $"exit {result.ExitCode}: {result.Output}");
+        var after = GitPorcelainStatus();
+        Assert.True(
+            before == after,
+            $"Running Test on one small project changed the tracked tree.\nBefore:\n{before}\nAfter:\n{after}");
+    }
+
+    private static string GitPorcelainStatus() => RunProcess("git", "status --porcelain").Output;
+
+    private static (int ExitCode, string Output) RunProcess(string fileName, string arguments)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = fileName,
+            Arguments = arguments,
+            WorkingDirectory = RepoRoot,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        using var process = Process.Start(psi) ?? throw new InvalidOperationException($"Failed to start {fileName}");
+        var output = new StringBuilder();
+
+        process.OutputDataReceived += (_, e) =>
+        {
+            if (e.Data != null) output.AppendLine(e.Data);
+        };
+        process.ErrorDataReceived += (_, e) =>
+        {
+            if (e.Data != null) output.AppendLine(e.Data);
+        };
+
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
+
+        if (!process.WaitForExit((int)TimeSpan.FromMinutes(5).TotalMilliseconds))
+        {
+            try { process.Kill(entireProcessTree: true); }
+            catch (InvalidOperationException) { /* already exited */ }
+            throw new TimeoutException($"{fileName} {arguments} timed out after 5 minutes.");
+        }
+
+        return (process.ExitCode, output.ToString());
+    }
+
+    /// <summary>
     /// NUKE's own engine opens <c>.nuke/temp/build.log</c> once per process and keeps it open,
     /// exclusively, for that whole process's lifetime — verified directly against this project's
     /// own dev container by polling <c>/proc/&lt;pid&gt;/fd</c> while a build ran: the SAME pid held

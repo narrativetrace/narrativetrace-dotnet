@@ -1,4 +1,4 @@
-<!-- source: documentation/privacy-and-redaction.md blob 048cd9cc5bc0 | translated: 2026-09-16 | reviewed: - -->
+<!-- source: documentation/privacy-and-redaction.md blob 9da66ed76dcd | translated: 2026-09-18 | reviewed: - -->
 # Privacidad y ocultación
 
 [English](../privacy-and-redaction.md) | **Español** | [Português](../pt-BR/privacidade-e-ocultacao.md) | [简体中文](../zh-CN/隐私与脱敏.md)
@@ -79,8 +79,7 @@ independencia de la lista de denegación:
   propiedad con nombre sensible, nunca renderizada vía un `ToString()` a
   secas.
 
-`[NotTraced]` no tiene ningún significado a nivel de MÉTODO — igual que la
-edición JVM, cuyo `@NotTraced` tampoco tiene destino `METHOD` — así que
+`[NotTraced]` no tiene ningún significado a nivel de MÉTODO — así que
 siempre nombra un parámetro, una propiedad o un componente de record, nunca
 una llamada completa. Aplicarlo a un método compila, pero
 `NarrativeTraceProxy.Create`/`.Create<T>` lo rechazan en el momento de crear
@@ -145,16 +144,27 @@ ocultación:
   + "]";`) no puede saltarse esto: en su lugar, la reflexión renderiza el
   objeto, y ese texto escrito a mano nunca se alcanza. La única vía de
   entrada más allá de la reflexión es `[NarrativeSummary]` en un miembro
-  que tú mismo nombraste — consulta la no garantía más abajo. Un tipo sin
-  ningún miembro público en absoluto (nada que recorrer) es el único caso
-  en el que se usa su propio `ToString()`, y aun así el resultado se sanea
-  y se limita en longitud como cualquier otra cadena.
+  que tú mismo nombraste — consulta la no garantía más abajo. Tampoco
+  compra esa confianza el no tener miembros públicos: un tipo cuyo estado
+  la reflexión no ve no es un tipo sin estado — `JsonElement` es un índice
+  dentro de un documento cuyo subárbol entero devuelve su `ToString()`, y
+  el estado guardado en una tabla lateral estática indexada por la
+  instancia es invisible para la reflexión pero libremente legible desde
+  el propio `ToString()` del tipo. Solo una lista explícita de hojas de la
+  plataforma — los tipos numéricos, `string`, `char`, `bool`,
+  `DateTime`/`DateTimeOffset`/`TimeSpan`/`DateOnly`/`TimeOnly`, `Guid`,
+  `Uri`, `Version`, `BigInteger` y cualquier enum, identificados por tipo
+  exacto, nunca por asignabilidad ni por nombre de ensamblado — se
+  renderiza a través de su propio `ToString()`, y aun así el resultado se
+  sanea y se limita en longitud como cualquier otra cadena. Cualquier otro
+  valor sin miembros se renderiza como el objeto que es: su nombre de tipo
+  y los miembros que halló la reflexión, que para estos son ninguno.
 - **El renderizado no puede hacer fallar tu aplicación.** La captura y el
-  renderizado están aislados de excepciones en los tres puntos que
-  alcanzan código escrito por quien llama: un `ToString()` personalizado
-  que lanza, un miembro `[NarrativeSummary]` que lanza, y un getter de
-  propiedad o campo que lanza al ser alcanzado por la introspección
-  reflexiva (incluido uno nombrado en una plantilla). Cada uno degrada
+  renderizado están aislados de excepciones en los puntos que alcanzan
+  código escrito por quien llama: un miembro `[NarrativeSummary]` que
+  lanza, y un getter de propiedad o campo que lanza al ser nombrado en una
+  plantilla. (Un `ToString()` personalizado que lanza ya no está entre
+  ellos para un compuesto: nunca se entra en él.) Cada uno degrada
   *esa única parte* a un marcador de posición tipado `<error: TypeName>`
   *(since 0.1.5)*
   — el nombre del propio tipo de la excepción capturada, p. ej.
@@ -170,9 +180,9 @@ ocultación:
   que nunca se alcanza por esta vía. Lo que realmente detiene a un tipo
   que recurre es el tope `MaxDepth` de la reflexión y su protección de
   ciclos por identidad de referencia, que es también la razón por la que
-  el propio `ToString()` de un tipo solo se invoca para un valor hoja sin
-  miembros públicos que recorrer, nunca para el compuesto que está
-  recurriendo. Un enumerador o diccionario hostil es un riesgo aparte,
+  el propio `ToString()` de un tipo solo se invoca para una hoja sin
+  estado — un escalar de la plataforma o un enum, ninguno de los cuales
+  puede recurrir — nunca para el compuesto que está recurriendo. Un enumerador o diccionario hostil es un riesgo aparte,
   igualmente protegido pero fuera de esos tres puntos de entrada
   nombrados, y degrada a un `<error>` a secas en lugar de la forma tipada.
 - **El uso de recursos está acotado.** La longitud, el tamaño de colección,

@@ -300,6 +300,80 @@ public sealed class ContractLintSupportTests : IDisposable
         Assert.Contains(problems, p => p.Contains("since: \"0.9.9\"", StringComparison.Ordinal));
     }
 
+    // ---- HeadingsWithSinceMarker -------------------------------------------------------------
+    // owner ruling 2026-09-16: a since-marker in a heading moves the heading's own GitHub anchor
+    // slug the instant a release settles, breaking every page#anchor pointer aimed at it.
+
+    [Fact]
+    public void HeadingsWithSinceMarker_flags_a_since_marker_in_a_heading()
+    {
+        Write("documentation/foo.md", "# Title\n\n## Traceparent seeding *(since 0.2.0)*\n\nSome text.\n");
+
+        var hits = ContractLintSupport.HeadingsWithSinceMarker(_repo);
+
+        Assert.Contains(hits, h => h.StartsWith("documentation/foo.md:3:", StringComparison.Ordinal));
+        Assert.Contains(hits, h => h.Contains("since-markers belong in the body", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void HeadingsWithSinceMarker_ignores_a_since_marker_in_the_body()
+    {
+        Write(
+            "documentation/foo.md",
+            "# Title\n\n## Traceparent seeding\n\n*(since 0.2.0)* Some text.\n");
+
+        var hits = ContractLintSupport.HeadingsWithSinceMarker(_repo);
+
+        Assert.Empty(hits);
+    }
+
+    [Fact]
+    public void HeadingsWithSinceMarker_flags_a_translated_mirror_heading()
+    {
+        Write(
+            "documentation/es/foo.md",
+            "<!-- source: documentation/foo.md blob 0123456789ab | translated: 2026-09-16 -->\n"
+                + "# Título\n\n## Siembra de traceparent *(since 0.2.0)*\n\nTexto.\n");
+
+        var hits = ContractLintSupport.HeadingsWithSinceMarker(_repo);
+
+        Assert.Contains(hits, h => h.StartsWith("documentation/es/foo.md:4:", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void HeadingsWithSinceMarker_flags_a_root_readme_mirror_heading()
+    {
+        Write("README.md", "# NarrativeTrace\n");
+        Write(
+            "README.es.md",
+            "<!-- source: README.md blob 0123456789ab | translated: 2026-09-16 -->\n"
+                + "# NarrativeTrace\n\n## Siembra de traceparent *(since 0.2.0)*\n");
+
+        var hits = ContractLintSupport.HeadingsWithSinceMarker(_repo);
+
+        Assert.Contains(hits, h => h.StartsWith("README.es.md:4:", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void HeadingsWithSinceMarker_ignores_a_non_mirror_root_markdown_file()
+    {
+        Write("CHANGELOG.md", "# Changelog\n\n## 0.2.0 *(since 0.2.0)*\n");
+
+        var hits = ContractLintSupport.HeadingsWithSinceMarker(_repo);
+
+        Assert.Empty(hits);
+    }
+
+    [Fact]
+    public void HeadingsWithSinceMarker_finds_nothing_in_the_real_repository_tree()
+    {
+        var realRepoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../"));
+
+        var hits = ContractLintSupport.HeadingsWithSinceMarker(realRepoRoot);
+
+        Assert.Empty(hits);
+    }
+
     [Fact]
     public void Lint_is_satisfied_when_any_entry_covers_a_marker_version()
     {

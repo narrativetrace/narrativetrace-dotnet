@@ -2,6 +2,7 @@
 // Licensed under the Business Source License 1.1 (see LICENSE); Change Date: four years from publication; Change License: Apache-2.0
 // Copyright (c) 2026 Empower Agile
 using NarrativeTrace.Core;
+using NarrativeTrace.Core.Annotation;
 using Xunit;
 
 namespace NarrativeTrace.Core.Tests;
@@ -133,7 +134,7 @@ public class ValueRendererTotalityTests
     [Fact]
     public void One_bad_element_in_a_large_list_degrades_only_that_element()
     {
-        var seq = new List<object> { "a", new ThrowingToStringValue(), "c" };
+        var seq = new List<object> { "a", new ThrowingSummaryValue(), "c" };
 
         var result = ValueRenderer.Render(seq);
 
@@ -142,12 +143,22 @@ public class ValueRendererTotalityTests
         Assert.Contains("<error: InvalidOperationException>", result);
     }
 
+    // §127 (rendering reads state, never runs behaviour): a hand-rolled
+    // IEnumerable is no longer enumerated on a bare `is IEnumerable` match —
+    // only a platform-defined type or one declaring the elements hook is.
+    // These no-poison fixtures declare the hook so they keep exercising the
+    // same guarded/capped/totality-guarded walk (RenderEnumerable /
+    // RenderStructuredList) this suite has always pinned; the hook's own
+    // contract — enumerated only when declared — is pinned separately in
+    // RenderReadsStateTests.
+    [NarrativeElements]
     private sealed class ThrowingGetEnumerator : System.Collections.IEnumerable
     {
         public System.Collections.IEnumerator GetEnumerator() =>
             throw new InvalidOperationException("boom");
     }
 
+    [NarrativeElements]
     private sealed class ThrowingMoveNextAt(int index, int total)
         : System.Collections.IEnumerable
     {
@@ -176,6 +187,7 @@ public class ValueRendererTotalityTests
         }
     }
 
+    [NarrativeElements]
     private sealed class ThrowingCurrentAt(int index, int total)
         : System.Collections.IEnumerable
     {
@@ -304,9 +316,14 @@ public class ValueRendererTotalityTests
         public new T Result => throw new InvalidOperationException("boom");
     }
 
-    private sealed class ThrowingToStringValue
+    // The narrative-summary hook, not a ToString: only a stateless leaf
+    // (PlatformTypes.IsStatelessLeaf) ever reaches its own ToString, so a
+    // hostile ToString can no longer make an element fail at all — the hook is
+    // the one place a rendered element still runs code that can throw.
+    private sealed class ThrowingSummaryValue
     {
-        public override string ToString() =>
+        [NarrativeSummary]
+        public string Summary =>
             throw new InvalidOperationException("boom");
     }
 #pragma warning restore S3877, S3871, S1144

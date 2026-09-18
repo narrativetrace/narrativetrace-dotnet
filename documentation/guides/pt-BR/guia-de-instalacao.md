@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/installation.md blob e5f2086d8d23 | translated: 2026-09-16 | reviewed: - -->
+<!-- source: documentation/guides/installation.md blob dbf214f1c5ea | translated: 2026-09-17 | reviewed: - -->
 # NarrativeTrace .NET — Guia de instalação
 
 [English](../installation.md) | [Español](../es/guia-de-instalacion.md) | **Português** | [简体中文](../zh-CN/安装指南.md)
@@ -12,10 +12,9 @@ Este guia cobre a instalação e a conexão do NarrativeTrace em um projeto
   e `netstandard2.0`, então elas rodam em qualquer runtime .NET compatível
   com netstandard2.0 (.NET Core 2.0+, .NET 5+ e — via o pacote `Legacy`
   — .NET Framework 4.8).
-- **Não é necessário nenhum flag do compilador.** Diferente da JVM (que
-  precisa de `-parameters`), o .NET mantém os nomes dos parâmetros dos
-  métodos nos metadados por padrão, então os traces mostram nomes reais
-  prontos para uso. Use o atributo
+- **Não é necessário nenhum flag do compilador.** O .NET mantém os nomes
+  dos parâmetros dos métodos nos metadados por padrão, então os traces
+  mostram nomes reais prontos para uso. Use o atributo
   [`[Traced]`](guia-de-atributos.md#traced) apenas quando quiser
   sobrescrever um nome.
 
@@ -83,10 +82,9 @@ que suas chamadas se aninhem em uma única árvore.
 
 ### Opção B — Encapsulamento automático por injeção de dependência
 
-O equivalente em `.NET` do encapsulamento automático de beans do
-Spring/Micronaut. Registre seus serviços como de costume e, em seguida,
-encapsule aqueles cujo namespace de implementação corresponde a um
-prefixo:
+Encapsulamento automático ao estilo bean para serviços registrados.
+Registre seus serviços como de costume e, em seguida, encapsule aqueles
+cujo namespace de implementação corresponde a um prefixo:
 
 ```csharp
 using NarrativeTrace.DependencyInjection;

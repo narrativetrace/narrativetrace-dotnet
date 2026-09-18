@@ -9,12 +9,13 @@ you lost, wrong. A single-threaded unit test cannot see them by
 construction.
 
 This document describes the suite that races that core on purpose:
-`NarrativeTrace.StressTests`, a hand-rolled interleaving harness mirroring
-the Java runtime's `narrativetrace-jcstress` module — invariant for
-invariant, not tool for tool. jcstress is a JVM harness (bytecode
-instrumentation, a forked-process scheduler); nothing like it exists for
-.NET. **What this runtime mirrors is the invariant table below, not the
-tool.** A runtime that cannot yet run a scenario still owes the invariant.
+`NarrativeTrace.StressTests`, a hand-rolled interleaving harness that
+implements this family's shared stress-testing invariants for this
+platform — invariant for invariant, not tool for tool. No cross-language
+tool exists for bytecode-instrumentation, forced-process scheduling, so
+each runtime builds its own harness. **What this runtime mirrors is the
+invariant table below, not any particular runtime's tool.** A runtime
+that cannot yet run a scenario still owes the invariant.
 
 Two tiers, the same split this repository already uses for mutation
 testing and fuzzing:
@@ -24,13 +25,13 @@ testing and fuzzing:
 | **Short** | Every `[Fact]` loops a bounded, seeded repetition count (`StressIterations`, default 300) | every `./build.sh Verify` | seconds |
 | **Long** | The identical project, repetition count raised via `NARRATIVETRACE_STRESS_ITERATIONS` | manual/scheduled `./build.sh Stress` | minutes |
 
-**Every NarrativeTrace runtime mirrors these invariants.** The Java runtime's suite
-own outcome tables (`ACCEPTABLE` / `ACCEPTABLE_INTERESTING` / `FORBIDDEN`)
-are the cross-runtime contract for what "correct under a race" means for this
-core; only the harness is written per platform — jcstress's `@Actor`/
-`@Arbiter` annotations become `StressRace.RunOnce`'s co-started
-`Action` delegates plus a `Task.WaitAll` join, matching jcstress's own
-guarantee that the arbiter step runs strictly after every actor finishes.
+**Every NarrativeTrace runtime mirrors these invariants.** The outcome
+tables (`ACCEPTABLE` / `ACCEPTABLE_INTERESTING` / `FORBIDDEN`) are the
+cross-runtime contract for what "correct under a race" means for this
+core; only the harness is written per platform. `StressRace.RunOnce`
+co-starts a fixed set of actor delegates as `Action` delegates and joins
+them with `Task.WaitAll`, guaranteeing the join step runs strictly after
+every actor finishes.
 
 ## Running it
 
@@ -42,24 +43,23 @@ guarantee that the arbiter step runs strictly after every actor finishes.
 
 ## The invariants
 
-In the order the cross-runtime stress-testing convention states them. This runtime's
-concurrency model is real OS threads + the .NET thread pool (`Task.Run`) —
-the closest analogue to Java's real-thread jcstress model of the runtimes this
-product ships.
+In the order the cross-runtime stress-testing convention states them. This
+runtime's concurrency model is real OS threads plus the .NET thread pool
+(`Task.Run`), racing the actual scheduler rather than a simulated one.
 
 | # | Invariant | This runtime |
 |---|---|---|
 | 1 | Loss accounting is exact: delivered + shed == published, under any interleaving; no event both counted-as-shed and delivered | `LossAccountingStressTests` — **real defect found and fixed**, see "Findings" below |
 | 2 | No torn/partial reads: a drain or snapshot sees prefix-consistent state | `NoTornReadStressTests` — verified safe (one lock, copy-out reads) |
-| 3 | Lazy ring allocation races allocate exactly once | **N/A** — `BoundedEventBuffer`'s whole ring is allocated eagerly in the constructor (`_slots = new Slot[rounded]`), matching Java's own eager allocation; there is no lazy path for a race to hit. No test needed to prove the absence of a mechanism; the constructor is the evidence. |
+| 3 | Lazy ring allocation races allocate exactly once | **N/A** — `BoundedEventBuffer`'s whole ring is allocated eagerly in the constructor (`_slots = new Slot[rounded]`); there is no lazy path for a race to hit. No test needed to prove the absence of a mechanism; the constructor is the evidence. |
 | 4 | The tail is never stranded: a publish around the drain mechanism's stop/park moment is always eventually drained | `TailNeverStrandedStressTests` — verified safe (the drain loop never parks indefinitely; a missed wake-up costs one bounded sleep interval, never forever) |
 | 5 | close()/dispose() racing publish and flush: idempotent, nothing silently lost uncounted, the drain mechanism terminates | `CloseDisposeStressTests` — verified safe (CAS-guarded `Dispose`; `Flush` never checks disposal state) |
-| 6 | flush()'s post-condition holds under concurrent publish: everything published-before is in the store after | `FlushPostconditionStressTests` — store side verified safe for the strong form (a flush strictly after every publish returned); the weak form (a flush racing a publish) matches Java's own `ACCEPTABLE_INTERESTING`, not asserted on. **Delivery side — real defect, fixed**: see "Findings" below and `FlushBarrierLiveDrainStressTests` |
-| 7 | The adoption/item-44 seams under concurrency: capture racing scope-close sees spans through exactly one side; no partial batch adoption at the ceiling; reset racing publish is safe | `AdoptionSeamStressTests` — verified safe (`AdoptionLedger.Adopt` performs the release-and-adopt step atomically under one lock, unlike Java's two separate synchronized calls — no hand-over window exists to race into) |
+| 6 | flush()'s post-condition holds under concurrent publish: everything published-before is in the store after | `FlushPostconditionStressTests` — store side verified safe for the strong form (a flush strictly after every publish returned); the weak form (a flush racing a publish) falls under this family's `ACCEPTABLE_INTERESTING` classification, not asserted on. **Delivery side — real defect, fixed**: see "Findings" below and `FlushBarrierLiveDrainStressTests` |
+| 7 | The adoption/item-44 seams under concurrency: capture racing scope-close sees spans through exactly one side; no partial batch adoption at the ceiling; reset racing publish is safe | `AdoptionSeamStressTests` — verified safe (`AdoptionLedger.Adopt` performs the release-and-adopt step atomically under one lock — no hand-over window exists to race into) |
 
 ## The targets
 
-| Class | Java mirror | What it races |
+| Class | Family mirror | What it races |
 |---|---|---|
 | `Pipeline.ConcurrentPublicationStressTests` | `ConcurrentProducersTest` | 2 producers, headroom to spare — the harness smoke test |
 | `Pipeline.LossAccountingStressTests` | `LossAccountingTest`, `SaturatedRingAccountingTest`, `ClaimUniquenessTest` | 2 and 4 producers overflowing `BoundedEventBuffer`; the shedding-fill discard path in `BufferedEventConsumer` |
@@ -67,7 +67,7 @@ product ships.
 | `Pipeline.TailNeverStrandedStressTests` | `ConsumerParkWakeupTest` | a publish racing the real background drain thread |
 | `Pipeline.CloseDisposeStressTests` | `CloseIdempotenceTest`, `CloseRacingPublishTest` | concurrent `Dispose()` calls; a publish racing a `Dispose()` |
 | `Pipeline.FlushPostconditionStressTests` | `FlushRacingPublishTest` | two producers, one flushing mid-race, one more flush after both join |
-| `Pipeline.FlushBarrierLiveDrainStressTests` | no jcstress mirror — the .NET shape of the cross-runtime parity fix Python landed at commit `24aa8e3` (`TestFlushPostConditionUnderConcurrentPublish`) | 8 producers joined via barrier, then one `Flush()` against a *live* background drain thread, in a roomy ring and in a ring forced into shedding; store, shed count and subscriber delivery all checked in one pass |
+| `Pipeline.FlushBarrierLiveDrainStressTests` | no family mirror — the .NET shape of the cross-runtime parity fix Python landed at commit `24aa8e3` (`TestFlushPostConditionUnderConcurrentPublish`) | 8 producers joined via barrier, then one `Flush()` against a *live* background drain thread, in a roomy ring and in a ring forced into shedding; store, shed count and subscriber delivery all checked in one pass |
 | `Context.AdoptionSeamStressTests` | `LiveChildHandOverTest`, `AdoptionCeilingTest` | a live child's hand-over racing a reader; two ceiling-crossing batches adopting concurrently |
 | `Pipeline.DrainRacingPublishStressTests` | `DrainRacingPublishTest` | one producer publishing eight events into a four-slot ring while a drain races both publication and overwrite — the seqlock scenario; see "Findings" below |
 
@@ -75,18 +75,19 @@ product ships.
 
 `StressRace.RunOnce(params Action[] actors)` — a `Barrier` co-starts a
 fixed set of actor delegates, `Task.WaitAll` joins them before returning.
-The .NET stand-in for jcstress's own low-level actor scheduling: no
-attempt is made to reproduce jcstress's biased-locking/C2-stress-scheduling
-tricks, since a bare thread-pool `Task.Run` plus real repetition (hundreds
-of trials per `[Fact]`) is what this platform actually offers. A single
-trial almost never hits the race; the loop is what does.
+This platform's actor scheduling is a bare thread-pool `Task.Run` plus
+real repetition (hundreds of trials per `[Fact]`); it does not attempt
+low-level scheduling tricks some other runtimes' harnesses use (biased
+locking, forced GC, compiler stress flags) — real repetition against the
+actual scheduler is what this platform offers instead. A single trial
+almost never hits the race; the loop is what does.
 
-`Pipeline.StressEvents` / `Pipeline.DeliveryTally` are the direct .NET
-mirrors of Java's identically-named jcstress helpers: identity-tagged
-events built before the race starts (never inside an actor, which would
-widen the window under test), and a delivery tally that flags a torn,
-duplicate, out-of-range or out-of-order delivery without throwing — an
-exception would hide the exact finding the tally exists to surface.
+`Pipeline.StressEvents` / `Pipeline.DeliveryTally` are this suite's own
+helpers: identity-tagged events built before the race starts (never
+inside an actor, which would widen the window under test), and a
+delivery tally that flags a torn, duplicate, out-of-range or
+out-of-order delivery without throwing — an exception would hide the
+exact finding the tally exists to surface.
 
 `Context.FakeReportableCapture` is the stress suite's own minimal
 `IReportableCapture`, matching the `AdoptionLedgerTests.FakeCapture`
@@ -100,20 +101,16 @@ which needs `InternalsVisibleTo` (granted on
 Recorded with evidence, not silently dropped:
 
 - **No lazy ring allocation** (invariant 3) — see the table above.
-- **`AdoptionLedger.Adopt` is one atomic call**, not two. Java's
-  `TraceStack.adopt()` and `unregisterLiveChild()` are separate
-  `synchronized` methods with a hand-over window between them that
-  `LiveChildHandOverTest` exists to police; this runtime's `Adopt` releases
-  the live registration and adds to the adopted set under the same lock in
-  one call, so there is no window to race into by construction. The
-  mirrored test still holds that design claim to real contention rather
-  than trusting the source reading alone.
+- **`AdoptionLedger.Adopt` is one atomic call**, not two: it releases the
+  live registration and adds to the adopted set under the same lock, so
+  there is no hand-over window between the two steps for a race to land
+  in by construction. `AdoptionSeamStressTests` holds that design claim
+  to real contention rather than trusting the source reading alone.
 - **A coarser lock, not a seqlock, protects `AdoptionLedger` and
-  `EventStore`.** Java's finer-grained mechanisms (VarHandles, seqlock-style
-  sequence checks) have .NET analogues only in `BoundedEventBuffer`
-  (`Interlocked`/`Volatile`); the context- and store-level registries use a
-  plain `lock`, which is provably safe but does not need the same
-  torn-read defenses a lock-free structure does.
+  `EventStore`.** Fine-grained, lock-free primitives (`Interlocked`/
+  `Volatile`) are used only in `BoundedEventBuffer`; the context- and
+  store-level registries use a plain `lock`, which is provably safe but
+  does not need the same torn-read defenses a lock-free structure does.
 - **The drain loop is a bounded-sleep poll, not a park/unpark primitive.**
   This is *why* invariant 4 is safe by construction here rather than
   merely tested for it — see the invariant table.
@@ -185,17 +182,18 @@ separate piece of work, not claimed here.
   `Flush()` alone (`..._via_flush_alone`), with the `Dispose()`-barrier
   test kept alongside it.
 - **Invariant 3 — N/A**, eager allocation; see the invariant table.
-- **The seqlock defect (outside the seven-invariant table) — a known java
-  defect, ported unfixed, now fixed and pinned.** `BoundedEventBuffer`'s
-  slot protocol was one sequence store guarding one data field: the
-  consumer's check proved the producer *had* finished writing the slot,
-  not that it still held that event, so a producer that lapped the ring
-  between the check and the read could deliver a later generation's event
-  under the wrong index — and deliver it again when the index caught up —
-  while the event that belonged there vanished with the loss counter
-  reading zero. Exactly the shape the Java runtime measured 1,732 forbidden
-  samples against on a four-slot ring before its own fix; flagged here as a
-  live, unlogged instance of the same defect. Fixed the same way: `Put` marks
+- **The seqlock defect (outside the seven-invariant table) — a defect
+  shared across the family, ported unfixed, now fixed and pinned.**
+  `BoundedEventBuffer`'s slot protocol was one sequence store guarding one
+  data field: the consumer's check proved the producer *had* finished
+  writing the slot, not that it still held that event, so a producer that
+  lapped the ring between the check and the read could deliver a later
+  generation's event under the wrong index — and deliver it again when
+  the index caught up — while the event that belonged there vanished
+  with the loss counter reading zero. Exactly the shape another runtime
+  in this family measured 1,732 forbidden samples against on a four-slot
+  ring before its own fix; flagged here as a live, unlogged instance of
+  the same defect. Fixed the same way: `Put` marks
   the slot
   with the claim sequence before writing the event, separated from the
   event write by a full fence (`Thread.MemoryBarrier` — .NET has no
@@ -214,9 +212,8 @@ separate piece of work, not claimed here.
   Those prove behavior deterministically; this suite proves it holds under
   real, unpredictable thread interleaving, which a single-threaded test
   cannot see by construction.
-- It does not attempt jcstress's exhaustive JVM-level scheduling tricks
-  (biased locking on/off, forced GC, C2 compiler stress flags). Real
-  repetition against the .NET thread pool is the substitute this platform
-  offers.
+- It does not attempt exhaustive low-level scheduling tricks (biased
+  locking on/off, forced GC, compiler stress flags). Real repetition
+  against the .NET thread pool is the substitute this platform offers.
 - It does not assert on timing or throughput. That is `NarrativeTrace.Benchmarks`'
   job; this owns correctness under contention, not speed.

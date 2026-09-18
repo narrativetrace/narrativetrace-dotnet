@@ -24,6 +24,12 @@
              Link="CoverageAccounting.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/MutationAccounting.cs"
              Link="MutationAccounting.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/MutationBudgetSupport.cs"
+             Link="MutationBudgetSupport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/MutationVocabularyExclusion.cs"
+             Link="MutationVocabularyExclusion.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/MutationRatchet.cs"
+             Link="MutationRatchet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/HeaderAbsenceSupport.cs"
              Link="HeaderAbsenceSupport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/AssetMetadataSupport.cs"
@@ -68,6 +74,8 @@
              Link="DuplicationCheckSupport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/ContractLintSupport.cs"
              Link="ContractLintSupport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/CommentHygieneSupport.cs"
+             Link="CommentHygieneSupport.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -80,6 +88,7 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="Microsoft.Extensions.FileSystemGlobbing" Version="10.0.12" />
     <PackageReference Include="YamlDotNet" Version="18.1.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.1.0" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
       <PrivateAssets>all</PrivateAssets>

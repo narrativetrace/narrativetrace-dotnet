@@ -1,4 +1,4 @@
-<!-- source: documentation/troubleshooting.md blob 82da97f7ce40 | translated: 2026-09-12 | reviewed: - -->
+<!-- source: documentation/troubleshooting.md blob 399ef2dc06ee | translated: 2026-09-17 | reviewed: - -->
 # Solução de problemas
 
 [English](../troubleshooting.md) | [Español](../es/solucion-de-problemas.md) | **Português** | [简体中文](../zh-CN/故障排查.md)
@@ -20,9 +20,8 @@ não deveria acontecer em uso normal.
 
 **Correção:** se isso acontecer, verifique se a interface veio de um
 gerador de código ou de um caminho de assembly dinâmico que descartou os
-metadados de parâmetros. Esta é a única diferença em relação à JVM: o
-.NET não precisa de nenhuma flag `-parameters` do compilador para código
-comum.
+metadados de parâmetros. O .NET não precisa de nenhuma flag do compilador
+para manter os nomes de parâmetros em código comum.
 
 ## `NarrativeTraceProxy.Create<T>` lança uma exceção ao iniciar
 

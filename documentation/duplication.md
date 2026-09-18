@@ -6,11 +6,11 @@
 behavior: nothing here ships in the NuGet packages.
 
 `./build.sh DuplicationReport` runs [jscpd](https://github.com/kucherenko/jscpd)
-(a pinned exact version, invoked via `npx jscpd@<version>` — this repository
-has no JVM/PMD equivalent already on its own classpath the way the Java
-runtime's CPD does) over the main and test C# sources and writes a report
-every commit. `./build.sh DuplicationCheck` reads that report and enforces
-the duplication ratchet described below; it is part of `Verify`.
+(a pinned exact version, invoked via `npx jscpd@<version>` — no such tool
+ships already on this build's own dependency graph) over the main and
+test C# sources and writes a report every commit. `./build.sh
+DuplicationCheck` reads that report and enforces the duplication ratchet
+described below; it is part of `Verify`.
 
 ## What is measured
 
@@ -71,7 +71,7 @@ or a malformed pair, fails the build outright rather than being ignored.
 
 The first scan's one recorded exemption was the clarity module's word-list
 dictionaries (`src/NarrativeTrace.Clarity/*Dictionary.cs`). A 2026-09-12
-ruling (owner, mirroring the Java runtime's own exemption categories)
+ruling (owner, aligning with this family's shared exemption categories)
 widened this into three reasoned categories, kept as separate `globA ::
 globB` lines rather than one combined pattern (this glob engine has no
 brace alternation): **word tables named by file** — `TraceNamer.cs`'s
@@ -81,10 +81,9 @@ name** — `GenericTokenDetector.cs`'s and `RedactionPolicy.cs`'s
 `HashSet`/array literal word lists, which cluster with each other and with
 the dictionaries even though neither file matches the `*Dictionary` glob;
 and **wide records** — `CanonicalEntry.cs` and `SpanContext.cs`, each a
-single positional record with one nullable component per schema field (this
-runtime's equivalent of the Java runtime's one-setter-per-component builder
-class), exempted against themselves and each other since collapsing the
-per-field shape would change the public constructor surface. Every one of
+single positional record with one nullable component per schema field,
+exempted against themselves and each other since collapsing the per-field
+shape would change the public constructor surface. Every one of
 these pairs documents any known gap where the same glob also (necessarily)
 covers real logic living beside the data it exempts, rather than silently
 widening what "data, not logic" means.
@@ -105,11 +104,11 @@ whichever languages it covers):
 
 `tokensDuplicated` is a **union**, not a sum over clusters — counting
 tokens `× occurrences` double- and triple-counts a region that several
-clusters cover (the exact bug class that measured over 300% duplication on
-the Java runtime's own first scan before its union fix), so `percent` can
+clusters cover (the exact bug class that measured over 300% duplication in
+another runtime's first scan before its union fix), so `percent` can
 never exceed 100%. jscpd tokenizes each file on its own rather than into
-one shared corpus-wide stream the way PMD's CPD does, and its JSON report
-carries no per-occurrence token index at all — only a start/end line per
+one shared corpus-wide stream, and its JSON report carries no
+per-occurrence token index at all — only a start/end line per
 occurrence, plus one token count for the whole matched fragment — so this
 runtime's union runs over each file's own line ranges instead of a single
 token-index space: occurrences are grouped by file, overlapping or
@@ -132,9 +131,8 @@ src/NarrativeTrace.Core/TraceNamer.cs:29 ↔ src/NarrativeTrace.Core/TraceNamer.
 ## A missing Node/npx is never a silent pass
 
 jscpd is an external Node CLI, not a library already on this build's own
-graph — so, unlike the Java runtime's PMD-CPD (a library dependency,
-always present), `DuplicationReport`/`DuplicationCheck` can hit an
-environment with no Node at all. That follows the same
+graph, so `DuplicationReport`/`DuplicationCheck` can hit an environment
+with no Node at all. That follows the same
 `ScannerGateSupport` convention `SecretsScan`/`Semgrep`/`OsvScan` already
 use: locally, a missing `npx` **WARNs** and records a `skipped` status
 under `artifacts/duplication/scan-status/` — never a silent green; in CI,

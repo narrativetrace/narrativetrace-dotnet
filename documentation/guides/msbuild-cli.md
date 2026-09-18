@@ -5,8 +5,7 @@
 NarrativeTrace ships two build-integration surfaces: the
 `dotnet-narrativetrace` command-line tool and the `NarrativeTrace.MSBuild`
 package that wraps it. Together they turn naming clarity into a build gate
-and forward trace configuration to the test host — the `.NET` analogue of
-the Gradle plugin on the JVM side.
+and forward trace configuration to the test host.
 
 The division of labor is deliberate: **every decision lives in the CLI**;
 the MSBuild package is a thin shim that only declares defaults and invokes

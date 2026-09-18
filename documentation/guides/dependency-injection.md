@@ -6,8 +6,8 @@ This guide covers `AddNarrativeTracing` — NarrativeTrace's
 `Microsoft.Extensions.DependencyInjection` integration. It auto-wraps
 interface-registered services whose implementation namespace matches a
 configured prefix, so their calls are traced without touching call sites.
-It is the `.NET` equivalent of Spring/Micronaut bean tracing: you point it
-at your service namespaces and it decorates the matching beans in place.
+You point it at your service namespaces and it decorates the matching
+services in place.
 
 ## Package
 
@@ -93,8 +93,7 @@ different rule sets:
 - **Exclusion** (`ExcludeNamespaces`) is tested against the **interface**
   (service-type) namespace. This lets you include an implementation
   namespace broadly, then carve out the framework/SPI interfaces that live
-  under a different namespace — the analogue of Spring's SPI/configuration
-  exclusion.
+  under a different namespace.
 
 Both use the same **dot-boundary** rule: a candidate matches a base when it
 equals the base exactly, or starts with the base **followed by a dot**. A
@@ -135,10 +134,10 @@ returns the raw implementation.
 > **Multi-interface divergence.** `DispatchProxy` supports one interface
 > per proxy. A class registered under two interfaces (e.g.
 > `AddSingleton<IAlpha>(impl)` and `AddSingleton<IBeta>(impl)`) is wrapped
-> **twice** — two distinct proxy objects over the same shared target. This
-> differs from Spring/Micronaut, which build a single proxy implementing
-> all of a bean's interfaces. The divergence is intentional; matching it in
-> .NET would require Castle.DynamicProxy.
+> **twice** — two distinct proxy objects over the same shared target, rather
+> than one combined proxy implementing every interface. That single-proxy
+> shape is intentionally not attempted here; building it in .NET would
+> require Castle.DynamicProxy rather than the built-in `DispatchProxy`.
 
 ## 5. How the implementation namespace is resolved
 

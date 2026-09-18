@@ -146,7 +146,13 @@ public class ValueRendererWrapperTests
     [Fact]
     public void A_Lazy_of_a_redacted_record_does_not_leak_once_evaluated()
     {
+        // The rendering rule (§127) retired item 18b's recorded defect:
+        // rendering a Lazy<T> no longer forces its factory (see the sibling
+        // test below), so this test now forces evaluation itself — the
+        // renderer reads Lazy<T>'s own `_value` backing field once the value
+        // genuinely exists, still under full redaction rules.
         var lazy = new System.Lazy<Card>(() => new Card("4111", "123"));
+        _ = lazy.Value;
 
         var rendered = ValueRenderer.Render(lazy);
 
@@ -158,6 +164,7 @@ public class ValueRendererWrapperTests
     public void A_Lazy_of_a_redacted_record_does_not_leak_in_structured_rendering()
     {
         var lazy = new System.Lazy<Card>(() => new Card("4111", "123"));
+        _ = lazy.Value;
 
         var text = RenderedValueText(ValueRenderer.RenderStructured(lazy));
 
@@ -166,16 +173,14 @@ public class ValueRendererWrapperTests
     }
 
     [Fact]
-    public void Rendering_a_not_yet_created_Lazy_forces_its_factory_to_run()
+    public void Rendering_a_not_yet_created_Lazy_never_forces_its_factory_to_run()
     {
-        // Recorded, not fixed (see item 18b in the tracking doc): unlike Task<T>, which has a
-        // dedicated <pending> branch that never touches an incomplete task's
-        // Result, Lazy<T> has no such branch — it reaches the renderer only
-        // through the generic public-member path, so rendering it evaluates
-        // it. This is a side-effect/purity concern (the annotations guide's
-        // "keep members pure" contract), not a redaction leak: whatever the
-        // factory returns is still rendered under full redaction rules, as
-        // the tests above show.
+        // Fixes item 18b's recorded defect: Lazy<T> reaches the renderer only
+        // through the generic public-member path, and that path now reads a
+        // property's backing field directly (TypeShape.BackingFieldOf) rather
+        // than invoking the getter — so Value's own `_value` field is read as
+        // whatever it currently holds (default(T) before evaluation) and the
+        // factory is never run as a side effect of rendering.
         var evaluated = false;
         var lazy = new System.Lazy<Card>(() =>
         {
@@ -185,7 +190,7 @@ public class ValueRendererWrapperTests
 
         ValueRenderer.Render(lazy);
 
-        Assert.True(evaluated);
+        Assert.False(evaluated);
     }
 
     private static string RenderedValueText(RenderedValue value)

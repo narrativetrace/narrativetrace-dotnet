@@ -215,8 +215,7 @@ internal static class NarrationResolver
     // fall into it (Enum implements IFormattable): a C#-compiled member name
     // is a language identifier and can't carry a control character, but the
     // CLR itself does not enforce that — an IL-authored assembly can define
-    // one that does, exactly the .NET shape of the Java runtime's "Number
-    // subclass with a hostile toString()" finding. Sanitized, not truncated,
+    // one that does. Sanitized, not truncated,
     // matching ValueRenderer's own no-length-cap treatment of the same case
     // (RenderStructuredValue). bool stays raw: JVM String.valueOf parity,
     // see PlainValue's remarks — TemplateParser's own needsSanitizing draws
@@ -290,7 +289,8 @@ internal static class NarrationResolver
 
     // Unresolvable property placeholders survive as their full literal
     // ({obj.prop}) so template typos stay visible in output and warning
-    // scans — matching the JVM TemplateParser's preservation semantics.
+    // scans — the same preservation semantics as every other NarrativeTrace
+    // runtime's template parser.
     private static string GetPropertyValue(
         object? obj, string propertyName, string literal,
         RedactionPolicy? redaction)
@@ -303,16 +303,19 @@ internal static class NarrationResolver
             : ReadProperty(prop, obj!, literal, redaction);
     }
 
-    // Only the ACCESSOR is guarded here: a getter that throws leaves the
-    // placeholder literal visible, matching the JVM TemplateParser. Rendering
-    // deliberately sits outside the try, because PlainValue never lets a
-    // rogue rendering escape either: a non-scalar degrades through
-    // ValueRenderer's own guard to the <TypeName> marker, and a scalar is
-    // provably safe to begin with (see PlainValue's remarks) — the two
-    // accessor/render failures are different and must stay distinguishable
-    // in output. Folding the render back inside this try would silently
-    // downgrade every rogue ToString() to the literal and break parity with
-    // the JVM and TypeScript editions.
+    // §127 (rendering reads state, never runs behaviour): the placeholder
+    // reads the property's own backing field (TypeShape.BackingFieldOf —
+    // the compiler-generated auto-property field, or the small set of
+    // conventional hand-written names) exactly once, never the getter — the
+    // same fix ValueRenderer's own member walk already applies, reused here
+    // rather than re-invoking the accessor a second time. A property backed
+    // by neither (a genuinely computed getter with no state to read)
+    // resolves to the accessor as the last resort: it is the only answer
+    // that exists for a value with no backing field. The read stays guarded
+    // by a try/catch either way — a hostile accessor or a hostile field
+    // read leaves the placeholder literal visible — and callers already run
+    // this under RenderingGuard.Enter() (see NarrativeInterceptor), so a
+    // property whose getter is a woven proxy accessor opens no phantom span.
     private static string ReadProperty(
         PropertyInfo prop, object obj, string literal,
         RedactionPolicy? redaction)
@@ -320,7 +323,10 @@ internal static class NarrationResolver
         object? value;
         try
         {
-            value = prop.GetValue(obj);
+            var backingField = TypeShape.BackingFieldOf(obj.GetType(), prop);
+            value = backingField is not null
+                ? backingField.GetValue(obj)
+                : prop.GetValue(obj);
         }
         catch (Exception)
         {

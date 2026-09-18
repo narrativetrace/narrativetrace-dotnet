@@ -71,8 +71,7 @@ public static class ConsoleSummaryReporter
     /// The test-suite run this suite executed as, naming it in a leading
     /// <c>run: &lt;phrase&gt;</c> line, or <see langword="null"/> to omit that line
     /// entirely — an integration that has not adopted <see cref="RunIdentity"/>
-    /// yet, or a caller rendering a footer standalone
-    /// *(since 0.1.5, unreleased)*.
+    /// yet, or a caller rendering a footer standalone.
     /// </param>
     public static string FormatSuiteFooter(int scenarioCount, string outputPath, RunIdentity? run = null)
     {
@@ -89,7 +88,7 @@ public static class ConsoleSummaryReporter
     /// clarity split, and the reports path. An empty score list yields 0% for
     /// every bucket rather than dividing by zero.
     /// </summary>
-    /// <param name="run">The enclosing run, named in a leading line; <see langword="null"/> to omit it *(since 0.1.5, unreleased)*.</param>
+    /// <param name="run">The enclosing run, named in a leading line; <see langword="null"/> to omit it.</param>
     public static string FormatSuiteFooter(
         int scenarioCount, string outputPath, IReadOnlyList<double> clarityScores, RunIdentity? run = null)
     {
@@ -114,7 +113,7 @@ public static class ConsoleSummaryReporter
     /// <param name="outputPath">Where the reports were written.</param>
     /// <param name="clarityScores">One score per scenario; empty yields 0% buckets.</param>
     /// <param name="loss">What the run lost. A lossless run prints no loss line at all.</param>
-    /// <param name="run">The enclosing run, named in a leading line; <see langword="null"/> to omit it *(since 0.1.5, unreleased)*.</param>
+    /// <param name="run">The enclosing run, named in a leading line; <see langword="null"/> to omit it.</param>
     /// <returns>
     /// The same footer as the three-argument overload, plus a final
     /// <c>Incomplete: …</c> line when — and only when — something was lost.

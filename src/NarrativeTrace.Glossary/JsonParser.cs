@@ -25,6 +25,15 @@ internal sealed class JsonParser
     /// <summary>Sentinel returned for a JSON <c>null</c> literal.</summary>
     internal static readonly object Null = new();
 
+    /// <summary>
+    /// Deepest <c>{</c>/<c>[</c> nesting a document may open. Checked once, before any recursive
+    /// descent begins: this parser recurses on the CLR call stack for every open container, and a
+    /// <see cref="StackOverflowException"/> cannot be caught, so nesting is bounded so a hostile
+    /// file cannot exhaust the stack. Ruled once for the family; every runtime that reads a
+    /// glossary.json enforces this same number, not a value picked locally for this parser.
+    /// </summary>
+    internal const int MaxNestingDepth = 16;
+
     private readonly string text;
     private int pos;
 
@@ -40,13 +49,18 @@ internal sealed class JsonParser
     /// <see cref="bool"/>, or <see cref="Null"/>.
     /// </returns>
     /// <exception cref="ArgumentNullException"><paramref name="text"/> is null.</exception>
-    /// <exception cref="ArgumentException">Any syntax error, with character position.</exception>
+    /// <exception cref="ArgumentException">
+    /// Any syntax error, with character position, including nesting past
+    /// <see cref="MaxNestingDepth"/>.
+    /// </exception>
     internal static object Parse(string text)
     {
         if (text is null)
         {
             throw new ArgumentNullException(nameof(text));
         }
+
+        CheckNestingDepth(text);
 
         var parser = new JsonParser(text);
         parser.SkipWhitespace();
@@ -58,6 +72,90 @@ internal sealed class JsonParser
         }
 
         return value;
+    }
+
+    /// <summary>
+    /// Rejects a document whose <c>{</c>/<c>[</c> nesting exceeds <see cref="MaxNestingDepth"/>,
+    /// before <see cref="Parse"/> ever recurses into it.
+    /// </summary>
+    /// <remarks>
+    /// A single, non-recursive pass over the raw characters, counting container depth outside
+    /// string literals (backslash-escape aware, so a quote inside a string never looks like a
+    /// closer, and a bracket character inside a string never counts). This scan has no recursion
+    /// of its own, so it cannot itself be the thing that exhausts the stack — it exists precisely
+    /// to refuse a hostile depth before the recursive-descent parser below gets a chance to
+    /// recurse into it.
+    /// </remarks>
+    private static void CheckNestingDepth(string text)
+    {
+        var scanner = new NestingScanner();
+        for (var i = 0; i < text.Length; i++)
+        {
+            scanner.Advance(text[i], i);
+        }
+    }
+
+    /// <summary>Char-by-char state for <see cref="CheckNestingDepth"/>: container depth and whether the scan is inside a string literal.</summary>
+    private struct NestingScanner
+    {
+        private int depth;
+        private bool inString;
+        private bool escaped;
+
+        internal void Advance(char c, int pos)
+        {
+            if (inString)
+            {
+                AdvanceInString(c);
+            }
+            else
+            {
+                AdvanceOutsideString(c, pos);
+            }
+        }
+
+        private void AdvanceInString(char c)
+        {
+            if (escaped)
+            {
+                escaped = false;
+            }
+            else if (c == '\\')
+            {
+                escaped = true;
+            }
+            else if (c == '"')
+            {
+                inString = false;
+            }
+        }
+
+        private void AdvanceOutsideString(char c, int pos)
+        {
+            if (c == '"')
+            {
+                inString = true;
+            }
+            else if (c is '{' or '[')
+            {
+                OpenContainer(pos);
+            }
+            else if (c is '}' or ']')
+            {
+                depth--;
+            }
+        }
+
+        private void OpenContainer(int pos)
+        {
+            depth++;
+            if (depth > MaxNestingDepth)
+            {
+                throw new ArgumentException(
+                    $"invalid JSON at position {pos}: nesting depth {depth} exceeds the "
+                    + $"maximum of {MaxNestingDepth}");
+            }
+        }
     }
 
     private object ParseValue()

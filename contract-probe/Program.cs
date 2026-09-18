@@ -88,6 +88,7 @@ string ObserveNewer(ContractEntry entry) => entry.Id switch
     "probed-run-name-manifest-field" => RunNameManifestFieldProbe.Observe(),
     "probed-initial-traceparent-seeds-context" => InitialTraceparentSeedsContextProbe.Observe(),
     "probed-middleware-adopts-traceparent" => MiddlewareAdoptsTraceparentProbe.Observe(),
+    "probed-logger-level-does-not-affect-capture" => LoggerLevelDoesNotAffectCaptureProbe.Observe(),
     _ => throw new InvalidOperationException(
         $"no probe dispatch registered for entry \"{entry.Id}\" — add one in Program.cs's Observe"),
 };

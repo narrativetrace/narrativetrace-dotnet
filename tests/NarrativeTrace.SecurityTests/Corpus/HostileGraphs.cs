@@ -82,8 +82,41 @@ public static class HostileGraphs
             [new HostileMembers.CuratedToStringRecord(sentinel)] = "value",
         },
         "throwingSummary" => new HostileMembers.ThrowingSummaryHolder(sentinel),
+        "platformValue" => PlatformValues(),
+        "platformNameRedacted" => new HostileMembers.NamedPlatformValue(TaintedUri(sentinel)),
+        "platformLookalike" => new HostileMembers.DateTime(sentinel),
+        "platformSubclass" => new HostileMembers.ApplicationUri(sentinel),
         _ => throw new ArgumentException($"unknown graph kind: {graphCase.Kind}"),
     };
+
+    /// <summary>
+    /// The <c>platform-type-short-value</c> row: no field carries the payload, so the redaction
+    /// oracle never runs against it — the oracle here is well-formedness, each value rendering its
+    /// own short native text rather than a field walk into a BCL type this class cannot open.
+    /// </summary>
+    /// <remarks>
+    /// The master row's description names Java's four examples (URI, BigDecimal, Path, Instant);
+    /// .NET's nearest equivalents are <see cref="Uri"/>, <see cref="decimal"/> and
+    /// <see cref="DateTimeOffset"/> (the BCL's Instant analogue elsewhere in this file/renderer). The
+    /// BCL has no immutable value type for a filesystem path — <see cref="System.IO.Path"/> is a
+    /// static utility, not an instantiable type — so <see cref="Guid"/> stands in as the fourth
+    /// platform-defined leaf with no deny-listed field and no walkable public member, the same kind
+    /// of identity substitution already documented on <see cref="Wrap"/> for <c>optional</c>.
+    /// </remarks>
+    /// <seealso cref="HostileMembers.NamedPlatformValue"/>
+    private static object PlatformValues()
+    {
+        return new Dictionary<string, object>
+        {
+            ["createdAt"] = DateTimeOffset.UnixEpoch,
+            ["location"] = new Uri("https://example.test/resource"),
+            ["amount"] = 19.99m,
+            ["scratch"] = Guid.Empty,
+        };
+    }
+
+    /// <summary>A <see cref="Uri"/> carrying the sentinel in its path, for the field-name-redaction row.</summary>
+    private static Uri TaintedUri(string sentinel) => new("https://example.test/" + sentinel);
 
     private static List<string> Repeated(string layer, int count) => Enumerable.Repeat(layer, count).ToList();
 
@@ -237,7 +270,14 @@ public static class HostileGraphs
             "equalsThrows" => new HostileMembers.EqualsThrowing(held),
             "getterThrows" => new HostileMembers.GetterThrowing(held),
             "accessorThrows" => new HostileMembers.AccessorThrowing(held, "label"),
+            "numberHostileToString" => new HostileMembers.NumberHostileToString(held),
             "hostileKeyNames" => HostileMembers.HostileKeyNames(held),
+            "countingAccessor" => new HostileMembers.CountingAccessorRecord(held),
+            "sideEffectingIteratorList" => new HostileMembers.SideEffectingIteratorList(held),
+            "lookalikeCollection" => new HostileMembers.LookalikeCollection(held),
+            "abstractMapSubclassOverride" => new HostileMembers.AbstractMapSubclassOverride(held),
+            "abstractCollectionSubclassOverride" => new HostileMembers.AbstractCollectionSubclassOverride(held),
+            "fieldlessAbstractSubclassToStringDoor" => new HostileMembers.FieldlessAbstractSubclassToStringDoor(),
             _ => throw new ArgumentException($"unknown hostile member: {member}"),
         };
     }

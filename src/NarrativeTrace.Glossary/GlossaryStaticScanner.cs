@@ -31,9 +31,9 @@ namespace NarrativeTrace.Glossary;
 /// </para>
 /// <para>
 /// Declared public properties contribute a node of their own (see
-/// <see cref="PropertyNodes"/>): in C# the property is the vocabulary carrier
-/// that a Java record's accessor <em>method</em> is, and the Java runtime
-/// harvests those.
+/// <see cref="PropertyNodes"/>): the property is C#'s vocabulary carrier, the
+/// counterpart to the accessor method every other NarrativeTrace runtime
+/// harvests.
 /// </para>
 /// </remarks>
 public static class GlossaryStaticScanner

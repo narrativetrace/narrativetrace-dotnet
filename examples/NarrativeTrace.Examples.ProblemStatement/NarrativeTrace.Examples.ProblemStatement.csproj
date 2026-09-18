@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- README "The problem" section's before/after PlaceOrder method (rule 8: embedded from a
+         compiled example, never typed into the page). A library, not an Exe — nothing here runs
+         as part of RunExamples or demo.sh; it exists to compile the two method bodies the README
+         embeds by snippet region. -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
+  </ItemGroup>
+</Project>

@@ -30,13 +30,13 @@ namespace NarrativeTrace.Core;
 /// unwiring them.
 /// </param>
 /// <param name="Approval">
-/// Approval mode <i>(since 0.1.5, unreleased)</i>: when on, a passing test
-/// whose traced structure differs from its committed <c>*.approved.nt</c>
-/// baseline fails with a readable diff. Off by default — opt in per project.
+/// Approval mode: when on, a passing test whose traced structure differs
+/// from its committed <c>*.approved.nt</c> baseline fails with a readable
+/// diff. Off by default — opt in per project.
 /// </param>
 /// <param name="ApprovedDir">
-/// Directory of committed baselines, <c>&lt;dir&gt;/&lt;TestClass&gt;/&lt;scenario&gt;.approved.nt</c>
-/// <i>(since 0.1.5, unreleased)</i>. Null uses the caller's own default.
+/// Directory of committed baselines, <c>&lt;dir&gt;/&lt;TestClass&gt;/&lt;scenario&gt;.approved.nt</c>.
+/// Null uses the caller's own default.
 /// </param>
 public sealed record ResolvedConfig(
     TracingLevel Level,
@@ -65,9 +65,9 @@ public static class ConfigResolver
 
     /// <summary>
     /// Environment variable controlling whether per-test trace artifacts are
-    /// written to disk. <b>On by default</b> (owner ruling, 2026-09-11):
-    /// unset — or any value other than <c>"false"</c> (case-insensitive) or
-    /// <c>"0"</c> — leaves writing enabled. Setting it to <c>"true"</c> (or
+    /// written to disk. <b>On by default</b>: unset — or any value other
+    /// than <c>"false"</c> (case-insensitive) or <c>"0"</c> — leaves writing
+    /// enabled. Setting it to <c>"true"</c> (or
     /// <c>"1"</c>) is accepted as a no-op for compatibility with existing
     /// scripts that set it explicitly. Only <c>"false"</c>/<c>"0"</c> opts
     /// out.
@@ -116,16 +116,16 @@ public static class ConfigResolver
     public const string NarrationKey = "NARRATIVETRACE_NARRATION";
 
     /// <summary>
-    /// Environment variable enabling approval mode <i>(since 0.1.5, unreleased)</i>: a passing test
-    /// whose traced structure differs from its committed <c>*.approved.nt</c> baseline fails with a
-    /// readable diff. Parsed like <see cref="OutputKey"/>. The Java runtime spells the same switch
+    /// Environment variable enabling approval mode: a passing test whose traced structure differs
+    /// from its committed <c>*.approved.nt</c> baseline fails with a readable diff. Parsed like
+    /// <see cref="OutputKey"/>. The Java runtime spells the same switch
     /// <c>narrativetrace.approval</c>.
     /// </summary>
     public const string ApprovalKey = "NARRATIVETRACE_APPROVAL";
 
     /// <summary>
-    /// Environment variable naming the directory of committed approval baselines
-    /// <i>(since 0.1.5, unreleased)</i>. A blank value is treated as unset, like
+    /// Environment variable naming the directory of committed approval baselines.
+    /// A blank value is treated as unset, like
     /// <see cref="OutputDirKey"/>. The Java runtime spells the same switch
     /// <c>narrativetrace.approvedDir</c>.
     /// </summary>

@@ -1,0 +1,1 @@
+[docs](javascript:alert(1))

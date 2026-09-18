@@ -23,7 +23,7 @@ namespace NarrativeTrace.TestingXunit;
 /// not parallelize within a class.
 /// </para>
 /// <para>
-/// Artifact writing is <b>on by default</b> (owner ruling, 2026-09-11):
+/// Artifact writing is <b>on by default</b>:
 /// <see cref="WriteArtifacts(string, string, bool)"/> writes to the ephemeral,
 /// gitignored <see cref="TestArtifactSettings.DefaultDirectory"/> unless
 /// <c>NARRATIVETRACE_OUTPUT=false</c> opts out.

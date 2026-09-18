@@ -246,6 +246,113 @@ public class GlossaryHarvesterTests
         Assert.NotEmpty(result.Candidates);
     }
 
+    // --- Harvest and translation must resolve a node's bounded context by the same rule. A term
+    // filed under one context and looked up under another produces a gap no curation can close. ---
+
+    private static readonly Glossary ShopAndBilling = new(
+        1,
+        new Dictionary<string, BoundedContext>
+        {
+            ["shop"] = new("shop", ["Acme.Shop"]),
+            ["billing"] = new("billing", ["Acme.Billing"]),
+            ["_unassigned"] = new("_unassigned", []),
+        },
+        []);
+
+    private static TraceNode OrderNode(string? capturedNamespace)
+    {
+        return new TraceNode(
+            new MethodSignature("OrderService", "placeOrder", [], Namespace: capturedNamespace),
+            new Incomplete(),
+            [],
+            0);
+    }
+
+    private static CanonicalEntry OrderEntry(string? capturedNamespace)
+    {
+        return new CanonicalEntry(
+            Timestamp: "2026-08-14T10:00:00.000Z",
+            Level: "trace",
+            Message: "enter",
+            Service: null,
+            Environment: null,
+            TraceId: "0123456789abcdef0123456789abcdef",
+            SpanId: "0000000000000001",
+            ParentSpanId: null,
+            CodeNamespace: "OrderService",
+            CodeFunction: "placeOrder",
+            NtEventType: "method_enter",
+            NtPackage: capturedNamespace);
+    }
+
+    private static Glossary WithPlaceOrderCuratedIn(string context)
+    {
+        return new Glossary(
+            ShopAndBilling.SchemaVersion,
+            ShopAndBilling.Contexts,
+            [
+                new GlossaryTerm(
+                    "place order",
+                    context,
+                    TermKind.VerbPhrase,
+                    TermStatus.Curated,
+                    null,
+                    new Dictionary<string, string> { ["es"] = "realizar pedido" },
+                    [],
+                    [],
+                    new DateTime(2026, 8, 11, 0, 0, 0, DateTimeKind.Utc)),
+            ]);
+    }
+
+    /// <summary>
+    /// Harvests one node, curates its verb phrase in exactly the context the harvest filed it
+    /// under, then renders the same call: the translation must land. It only can when both halves
+    /// resolved the context the same way.
+    /// </summary>
+    private static void AssertHarvestAndTranslationAgree(
+        Func<string, string?> namespaceOf, string? capturedNamespace)
+    {
+        var harvested = new GlossaryHarvester(new ContextResolver(ShopAndBilling), namespaceOf)
+            .Harvest([Tree(OrderNode(capturedNamespace))]);
+        var context = harvested.Candidates
+            .Where(candidate => candidate.Phrase == "place order")
+            .Select(candidate => candidate.Context)
+            .First();
+
+        var view = new TraceTranslationView(WithPlaceOrderCuratedIn(context), namespaceOf);
+
+        Assert.Contains(
+            "realizar pedido (placeOrder)",
+            view.Render([OrderEntry(capturedNamespace)], "es"),
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Harvest_and_translation_agree_when_the_index_resolves_the_simple_name()
+    {
+        AssertHarvestAndTranslationAgree(_ => "Acme.Shop", "Acme.Shop");
+    }
+
+    [Fact]
+    public void Harvest_and_translation_agree_when_the_class_ships_in_an_assembly_the_index_never_scanned()
+    {
+        AssertHarvestAndTranslationAgree(_ => null, "Acme.Shop");
+    }
+
+    [Fact]
+    public void Harvest_and_translation_agree_when_the_simple_name_is_ambiguous_in_the_index()
+    {
+        // Two classes share the simple name, so the index answers for the wrong one (or, as the
+        // real index does, not at all). The namespace captured at the site outranks it either way.
+        AssertHarvestAndTranslationAgree(_ => "Acme.Billing", "Acme.Shop");
+    }
+
+    [Fact]
+    public void A_pre_1_2_signature_with_no_captured_namespace_still_falls_back_to_the_index()
+    {
+        AssertHarvestAndTranslationAgree(_ => "Acme.Shop", null);
+    }
+
     private static TraceTree Tree(params TraceNode[] roots)
     {
         return new TraceTree(roots);

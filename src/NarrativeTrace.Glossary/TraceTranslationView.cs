@@ -423,18 +423,16 @@ public sealed class TraceTranslationView
     /// Resolves the bounded context for an entry.
     /// </summary>
     /// <remarks>
-    /// The captured <c>nt.package</c> field (schema 1.2) is the primary
-    /// source — identity captured at the site is authoritative; the injected
-    /// namespace resolver is the fallback for pre-1.2 canonical files. When
-    /// the namespace is unknown or unmatched and the glossary declares exactly
-    /// one context, that context applies — a single-context glossary is
-    /// unambiguous. Multi-context glossaries stay strict and resolve to
-    /// <see cref="ContextResolver.Unassigned"/>.
+    /// Which namespace to resolve is <see cref="ContextResolver.PackageToResolve"/>'s single rule,
+    /// shared with the harvest so a term is always looked up in the context it was filed under.
+    /// When the namespace is unknown or unmatched and the glossary declares exactly one context,
+    /// that context applies — a single-context glossary is unambiguous. Multi-context glossaries
+    /// stay strict and resolve to <see cref="ContextResolver.Unassigned"/>.
     /// </remarks>
     private string ContextOf(CanonicalEntry entry)
     {
-        var namespaceName = entry.NtPackage ?? NamespaceOrEmpty(entry.CodeNamespace);
-        var resolved = resolver.Resolve(namespaceName);
+        var resolved = resolver.Resolve(
+            ContextResolver.PackageToResolve(entry.NtPackage, entry.CodeNamespace, namespaceOf));
         // No is-unassigned guard: the resolver only returns declared context
         // names or Unassigned, so when exactly one context is declared it
         // either matched (identity) or is the fallback.
@@ -454,10 +452,5 @@ public sealed class TraceTranslationView
         }
 
         return result;
-    }
-
-    private string NamespaceOrEmpty(string? className)
-    {
-        return className is null ? string.Empty : namespaceOf(className) ?? string.Empty;
     }
 }

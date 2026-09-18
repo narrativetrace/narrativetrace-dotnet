@@ -12,13 +12,13 @@ decision aid, not a tutorial — for the code behind each path, see the
 |---|---|
 | Traces in a test, least ceremony | xUnit `NarrativeFixture` or NUnit `NarrativeTestBase` |
 | Explicit control over exactly what's wrapped, in plain .NET | `NarrativeTraceProxy.Create<T>` (a `DispatchProxy`) |
-| Every MS.DI-registered interface service under a namespace traced automatically | `AddNarrativeTracing` (the .NET analogue of Spring/Micronaut bean tracing) |
+| Every MS.DI-registered interface service under a namespace traced automatically | `AddNarrativeTracing` (bean-style tracing) |
 | Production HTTP request lifecycle in ASP.NET Core | `NarrativeTrace.AspNetCore` middleware |
 | A CI naming-quality gate over a compiled assembly, no test run required | `dotnet-narrativetrace clarity-scan` + `clarity-check`, or the `NarrativeTrace.MSBuild` package |
 | Traces routed into your existing `ILogger` pipeline | `NarrativeTrace.Logging` (`AddNarrativeLogging()`) |
 | OpenTelemetry spans, batch or live | `NarrativeTrace.Observability` |
 | Sequence diagrams (Mermaid/PlantUML) alongside a trace | `NarrativeTrace.Diagrams` |
-| Zero code changes at all — an app you don't control the wiring of | **Not shipped yet.** Planned (Free) — no CLR analogue of a Java `-javaagent` has been decided; a source-generator vs. IL-weaving spike is the open question. See the [Feature Guide](feature-guide.md). |
+| Zero code changes at all — an app you don't control the wiring of | **Not shipped yet.** Planned (Free) — no CLR mechanism for transparent load-time instrumentation has been decided; a source-generator vs. IL-weaving spike is the open question. See the [Feature Guide](feature-guide.md). |
 
 ## The decision
 

@@ -1,8 +1,8 @@
 # NarrativeTrace .NET — Complete Reference
 
 A single-file API reference for LLM and human consumers. Everything below
-reflects the current source; where behavior differs from the JVM edition
-it is called out explicitly.
+reflects the current source; this runtime's own design choices are called
+out explicitly where they matter.
 
 ## Overview and philosophy
 
@@ -16,6 +16,11 @@ narration, error context, redaction, custom value rendering).
 
 A second module scores **naming clarity**, turning "is this code
 readable?" into a number you can enforce in CI.
+
+["Do AI Coding Agents Log Like Humans? An Empirical Study"](https://arxiv.org/abs/2604.09409)
+(arXiv:2604.09409) found agents write and comply with logging far less than humans, and that
+humans repair the gap silently afterward — the failure mode this design removes rather than
+disciplines.
 
 ## Quick start
 
@@ -44,8 +49,8 @@ into a single tree.
 
 - Libraries multi-target `net10.0` and `netstandard2.0`; the `Legacy`
   package additionally targets `net48`.
-- **No compiler flag required** — unlike the JVM's `-parameters`, .NET
-  retains method parameter names in metadata by default.
+- **No compiler flag required** — .NET retains method parameter names in
+  metadata by default.
 - NuGet package id = project directory name. Keep all `NarrativeTrace.*`
   packages on the same version.
 
@@ -371,9 +376,9 @@ values are captured only at `Detail`.
   `AddNarrativeLogging()` in `NarrativeTrace.Logging`, which otherwise
   registers `LoggingTraceEventListener` from the host's `ILoggerFactory` and
   attaches it to a registered `IEventSubscribable` stream. No `ILoggerFactory`
-  registered means no registration — that is the .NET activation signal, since
-  a type probe cannot manufacture an `ILogger` the way SLF4J's static factory
-  can.
+  registered means no registration — that is the .NET activation signal:
+  there is no way to manufacture an `ILogger` without one already
+  registered.
 
 Invalid values degrade to defaults; level/format parsing is lenient.
 
@@ -508,8 +513,7 @@ Note the namespaces omit the second dot: `NarrativeTrace.TestingXunit`,
 
 ## Namespace responsibilities
 
-Each public namespace owns a slice of the pipeline (the .NET stand-in for Java's
-`package-info.java` briefings):
+Each public namespace owns a slice of the pipeline:
 
 - **`NarrativeTrace.Core`** — the trace *model* and contracts: `TraceNode`,
   `TraceOutcome` (`Returned`/`Threw`/`Incomplete`), `MethodSignature`,
@@ -521,7 +525,7 @@ Each public namespace owns a slice of the pipeline (the .NET stand-in for Java's
   shape what is captured and how it reads: `[Narrated]` and `[OnError]` attach
   human-written templates to methods, `[NotTraced]` marks a parameter, property
   or field as redacted, and `[NarrativeSummary]` lets a type contribute its own
-  one-line summary. Mirrors Java's `ai.narrativetrace.core.annotation`. Owns
+  one-line summary. Owns
   *declaration only* — nothing here reads an attribute; the proxy and
   `ValueRenderer` do. Depends on nothing outside Core.
 - **`NarrativeTrace.Runtime`** — the capture *engine*: `SyncNarrativeContext` /
@@ -543,8 +547,7 @@ Each public namespace owns a slice of the pipeline (the .NET stand-in for Java's
 
 ### Concurrency coordination narrative
 
-The design narrative Java keeps in its `context` package-info: a fork or
-fire-and-forget spawns an **isolated child context** (a fresh logical stack) so
+A fork or fire-and-forget spawns an **isolated child context** (a fresh logical stack) so
 concurrent branches never interleave on one stack. Each branch's trace is
 captured independently, then **grafted** back onto the parent — fork-join on
 `JoinAsync` (synchronously, with join wall-time), fire-and-forget via a launcher
@@ -553,18 +556,18 @@ node grafted at `Create` (the child roots collected later via `ChildRoots`). The
 back to the fork/launch site, so a renderer or JSON consumer can reconstruct
 which nodes ran together even though they were captured on different threads.
 
-## Divergences from the JVM edition
+## Design notes
 
-- **No Gradle plugin / Java agent / Spring / Micronaut / SLF4J.** The .NET
-  equivalents are the MSBuild package, DI auto-wrap, ASP.NET Core
-  middleware, and the `Microsoft.Extensions.Logging` bridge. Compile-time
-  weaving (C# interceptors) is a future spike.
+- **Build-time integration and DI-aware tracing are its own thing here.**
+  The MSBuild package, DI auto-wrap, ASP.NET Core middleware, and the
+  `Microsoft.Extensions.Logging` bridge cover build-gate and framework
+  integration. Compile-time weaving (C# interceptors) is a future spike.
 - **`[OnError]` resolves on entry** and selects the most-specific declared
   exception type — it does not inspect the thrown exception. The error text
   renders in Markdown/Prose (the structure-only `IndentedTextRenderer` omits
   it, as it does all outcomes).
 - **`[NotTraced]` targets parameters only** (not fields/record members);
   nested-object redaction is handled by name-based `RedactionPolicy`.
-- **Clarity JSON keys** are `scenario`/`overall`/`method`/… (not the JVM's
-  `name`/`overallScore`/…).
+- **Clarity JSON keys** are `scenario`/`overall`/`method`/… — this
+  runtime's own naming for the shared clarity schema.
 - **net48** validation is pending (Windows-blocked).

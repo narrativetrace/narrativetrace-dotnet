@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/msbuild-cli.md blob 58392e8bdf18 | translated: 2026-09-09 | reviewed: 2026-09-03 -->
+<!-- source: documentation/guides/msbuild-cli.md blob 71b2fc609a6e | translated: 2026-09-17 | reviewed: 2026-09-03 -->
 # NarrativeTrace .NET — Guía de MSBuild y CLI
 
 [English](../msbuild-cli.md) | **Español** | [Português](../pt-BR/guia-de-msbuild-e-cli.md) | [简体中文](../zh-CN/MSBuild与CLI指南.md)
@@ -7,8 +7,7 @@ NarrativeTrace incluye dos superficies de integración con el build: la
 herramienta de línea de comandos `dotnet-narrativetrace` y el paquete
 `NarrativeTrace.MSBuild` que la envuelve. Juntas convierten la claridad de
 los nombres en una puerta del build y reenvían la configuración de tracing
-al host de pruebas — el análogo en `.NET` del plugin de Gradle en el lado
-JVM.
+al host de pruebas.
 
 La división del trabajo es deliberada: **todas las decisiones viven en la
 CLI**; el paquete de MSBuild es una capa fina que solo declara valores por

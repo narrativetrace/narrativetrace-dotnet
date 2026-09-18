@@ -10,23 +10,22 @@ namespace NarrativeTrace.Core;
 /// identically.
 /// </summary>
 /// <param name="Enabled">
-/// Whether artifacts are written at all. <b>On by default</b> (owner ruling,
-/// 2026-09-11) — set <see cref="ConfigResolver.OutputKey"/> to <c>false</c>
-/// to opt out.
+/// Whether artifacts are written at all. <b>On by default</b> — set
+/// <see cref="ConfigResolver.OutputKey"/> to <c>false</c> to opt out.
 /// </param>
 /// <param name="Directory">The artifact root.</param>
 /// <param name="Format">The primary artifact format.</param>
 /// <param name="EntryArtifacts">
 /// Which machine-readable entry arrays to write beside the trace file. Both
-/// off by default, matching the Java runtime's opt-in switches.
+/// off by default — opt-in switches.
 /// </param>
 /// <param name="ApprovalEnabled">
-/// Approval mode <i>(since 0.1.5, unreleased)</i>: when on, a passing test
-/// whose traced structure differs from its committed <c>*.approved.nt</c>
-/// baseline fails with a readable diff. Off by default.
+/// Approval mode: when on, a passing test whose traced structure differs
+/// from its committed <c>*.approved.nt</c> baseline fails with a readable
+/// diff. Off by default.
 /// </param>
 /// <param name="ApprovedDir">
-/// Directory of committed approval baselines <i>(since 0.1.5, unreleased)</i>.
+/// Directory of committed approval baselines.
 /// </param>
 public sealed record TestArtifactSettings(
     bool Enabled,
@@ -53,9 +52,6 @@ public sealed record TestArtifactSettings(
     /// isn't set. Deliberately <b>not</b> under <see cref="DefaultDirectory"/>:
     /// approved traces are committed, reviewed files, not ephemeral output, so
     /// they must never share a root with something <c>.gitignore</c> excludes.
-    /// Mirrors the Java runtime's <c>src/test/narratives</c> default, adapted
-    /// to this port's flatter test-project layout (no <c>src/test</c>
-    /// segregation).
     /// </summary>
     public const string DefaultApprovedDir = "narratives";
 

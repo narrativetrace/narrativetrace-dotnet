@@ -71,8 +71,7 @@ the deny-list:
   sensitively-named key is redacted the same way a sensitively-named
   property would be, never rendered via a bare `ToString()`.
 
-`[NotTraced]` has no METHOD-level meaning — matching the JVM edition, whose
-`@NotTraced` has no `METHOD` target either — so it always names a parameter,
+`[NotTraced]` has no METHOD-level meaning — it always names a parameter,
 property, or record component, never a whole call. Applying it to a method
 compiles, but `NarrativeTraceProxy.Create`/`.Create<T>` reject it at
 proxy-creation time with an `InvalidOperationException` naming the attribute,
@@ -129,15 +128,24 @@ Every rendered value is capped and sanitized, regardless of redaction:
   "]";`) cannot bypass this: the reflective walk renders the object
   instead, and that hand-written text is never reached. The only opt-in
   past the walk is `[NarrativeSummary]` on a member you named yourself —
-  see the non-guarantee below. A type with genuinely no public members at
-  all (nothing to walk) is the sole case where its own `ToString()` is
-  used, and even then the result is sanitized and length-capped like every
-  other string.
+  see the non-guarantee below. Nor does having no public members buy that
+  trust: a type whose state reflection cannot see is not a type with no
+  state — `JsonElement` is an index into a document whose whole subtree its
+  `ToString()` returns, and state parked in a static side table keyed by the
+  instance is invisible to reflection yet free to read from inside the type's
+  own `ToString()`. Only an explicit list of platform leaves — the numeric
+  types, `string`, `char`, `bool`, `DateTime`/`DateTimeOffset`/`TimeSpan`/
+  `DateOnly`/`TimeOnly`, `Guid`, `Uri`, `Version`, `BigInteger` and any enum,
+  matched by exact type, never by assignability or assembly name — renders
+  through its own `ToString()`, and even then the result is sanitized and
+  length-capped like every other string. Every other member-less value renders
+  as the object it is: its type name, and the members reflection found, which
+  for these is none.
 - **Rendering cannot fail your application.** Capture and rendering are
-  exception-isolated at the three points that reach caller-written code: a
-  throwing custom `ToString()`, a throwing `[NarrativeSummary]` member, and
-  a throwing property/field getter reached during reflective introspection
-  (including one named in a template). Each degrades *that one part* to a
+  exception-isolated at the points that reach caller-written code: a throwing
+  `[NarrativeSummary]` member, and a throwing property/field getter named in
+  a template. (A throwing custom `ToString()` is no longer among them for a
+  composite — it is never entered at all.) Each degrades *that one part* to a
   typed `<error: TypeName>` placeholder *(since 0.1.5)* — the
   caught exception's own type
   name, e.g. `<error: InvalidOperationException>`, never its `.Message`
@@ -151,8 +159,8 @@ Every rendered value is capped and sanitized, regardless of redaction:
   through this path. What actually stops a recursing type is the
   reflective walk's `MaxDepth` cap and its reference-identity cycle guard,
   which is also why a type's own `ToString()` is only ever entered for a
-  leaf value with no public members left to walk, never for the composite
-  doing the recursing. A hostile enumerator or dictionary is a separate,
+  stateless leaf — a platform scalar or an enum, neither of which can
+  recurse — never for the composite doing the recursing. A hostile enumerator or dictionary is a separate,
   still-guarded hazard outside those three named extension points, and
   degrades to a bare `<error>` rather than the typed form.
 - **Resource use is bounded.** Length, collection size, object width, and

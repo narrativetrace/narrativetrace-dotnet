@@ -10,9 +10,8 @@ This guide covers installing and wiring NarrativeTrace in a .NET project.
   `netstandard2.0`, so they run on any .NET runtime that supports
   netstandard2.0 (.NET Core 2.0+, .NET 5+, and — via the `Legacy`
   package — .NET Framework 4.8).
-- **No compiler flag is required.** Unlike the JVM (which needs
-  `-parameters`), .NET retains method parameter names in metadata by
-  default, so traces show real names out of the box. Use the
+- **No compiler flag is required.** .NET retains method parameter names
+  in metadata by default, so traces show real names out of the box. Use the
   [`[Traced]`](annotations.md#traced) attribute only when you want to
   override a name.
 
@@ -79,7 +78,7 @@ across collaborating services so their calls nest into a single tree.
 
 ### Option B — Dependency-injection auto-wrapping
 
-The `.NET` equivalent of Spring/Micronaut bean auto-wrapping. Register
+Automatic bean-style wrapping for registered services. Register
 your services as usual, then wrap the ones whose implementation namespace
 matches a prefix:
 

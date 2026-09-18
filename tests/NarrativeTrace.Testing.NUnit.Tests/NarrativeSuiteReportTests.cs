@@ -7,6 +7,7 @@ using Xunit;
 
 namespace NarrativeTrace.Testing.NUnit.Tests;
 
+[Collection(SuiteScopeCollection.Name)]
 public sealed class NarrativeSuiteReportTests
 {
     private static TraceTree Tree()

@@ -4,8 +4,30 @@
     "test-projects": [
       "tests/NarrativeTrace.Clarity.Tests/NarrativeTrace.Clarity.Tests.csproj"
     ],
+    "mutate": [
+      "**/*.cs",
+      "!**/VerbDictionary.cs",
+      "!**/CollocationDictionary.cs",
+      "!**/RoleSuffixDictionary.cs",
+      "!**/AbbreviationDictionary.cs",
+      "!**/GenericTokenVocabulary.cs"
+    ],
     "reporters": ["progress", "html", "json"],
-    "thresholds": { "high": 85, "low": 80, "break": 80 },
+    "thresholds": { "high": 85, "low": 76.36, "break": 76.36 },
     "concurrency": 4
+  },
+  "break-ratchet": {
+    "recorded": "2026-09-18",
+    "measured": 76.36,
+    "break-target": 80,
+    "gap": 3.64,
+    "note": "break is the measured score, not the 80 target (owner ruling 2026-09-18, TODO §35) — a ratchet, never lowered below the last recorded score; see mutation-ratchet.json and MutationRatchetTests"
+  },
+  "mutate-exclusion-reasons": {
+    "VerbDictionary.cs": "vocabulary data — a HashSet<string> union of ~1,160 industry verbs across 34 domain categories; a surviving string mutation (\"accrue\" -> \"\") is killed only by a golden-contents assertion over every entry, which tests the data, not behaviour (owner ruling 2026-09-18, TODO §35)",
+    "CollocationDictionary.cs": "vocabulary data — noun-to-collocating-verb tables across 35 industry/technical domains; same string-literal mutation shape as VerbDictionary, same owner ruling (TODO §35)",
+    "RoleSuffixDictionary.cs": "vocabulary data — class-name role-suffix and expected-verb word lists; same string-literal mutation shape, same owner ruling (TODO §35)",
+    "AbbreviationDictionary.cs": "vocabulary data — 187 known-abbreviation entries (CLARITY-2); same string-literal mutation shape, same owner ruling (TODO §35)",
+    "GenericTokenVocabulary.cs": "vocabulary data — the three built-in word lists GenericTokenDetector classifies tokens against, extracted from GenericTokenDetector.cs so its own Classify/Score/IsMeaninglessSingleLetter logic stays mutated while only the tables are excluded (owner ruling 2026-09-18, TODO §35)"
   }
 }

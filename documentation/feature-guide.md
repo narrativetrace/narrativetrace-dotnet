@@ -27,7 +27,7 @@ Per-topic documentation lives under [guides/](guides/).
 | Enrichment attributes — `[Narrated("… {param} / {param.Property} …")]`, repeatable `[OnError]` (most-specific exception type wins), `[Traced]` positional name overrides, `[NarrativeSummary]` | Free | [guides/annotations.md](guides/annotations.md); unresolved placeholders stay literal so typos are visible |
 | Sensitive data redaction — `[NotTraced]` (value never read at all) + name-pattern `RedactionPolicy` (deny-by-default: `password`, `cvv`, `ssn`, `token`, `secret`, `authorization`) | Free | [guides/configuration.md](guides/configuration.md); dictionary keys render through the same guarded path (redaction + bounds + cycle detection), never a bare `ToString()` |
 | Void-completion contract — a `void` method carries no rendered value (`null`, never the string `"null"`) | Free | Markdown/text render nothing, JSON omits `returnValue`, diagrams render ✔, the `ILogger` bridge logs `Exit completed`; a rendered `null` always means a real null return |
-| Five capture levels (`Off` → `Errors` → `Summary` → `Narrative` → `Detail`), runtime-changeable, `NARRATIVETRACE_LEVEL` env channel | Free | Level names match the Python runtime's (`Summary`) rather than the Java runtime's (`FLOW`); parameter values exist only at `Detail` — suppression happens at capture, not at render |
+| Five capture levels (`Off` → `Errors` → `Summary` → `Narrative` → `Detail`), runtime-changeable, `NARRATIVETRACE_LEVEL` env channel | Free | Level names match the Python runtime's naming (`Summary`); parameter values exist only at `Detail` — suppression happens at capture, not at render |
 | Two-gate levels — capture level and log level are independent | Free | [guides/configuration.md](guides/configuration.md) |
 | Concurrency capture — `ForkJoinGroup` / `FireAndForgetGroup` over `Task`s, isolated child contexts grafted back with a shared `groupId`, thread metadata, join wall-time; `AsyncNarrativeContext.RunAsync` for ambient flow across `await` | Free | Context flows via `AsyncLocal`, not `ThreadLocal` — `async`/`await` continuations resume on arbitrary thread-pool threads, so only `AsyncLocal` tracks logical rather than physical execution |
 | Trace identity — traceId, human-readable trace names, storyId/chapterId derivation | Free | Canonical-schema aligned |
@@ -38,13 +38,13 @@ Per-topic documentation lives under [guides/](guides/).
 | Feature | Status | Notes |
 |---|---|---|
 | `DispatchProxy` interface wrapping — explicit, in-box, no Castle dependency | Free | Interface boundaries only; private/internal calls inside an implementation are not individually traced |
-| DI auto-wrap — `AddNarrativeTracing(o => o.Namespaces(...))` decorates namespace-matched interface registrations in the MS.DI container (Spring/Micronaut-style bean tracing) | Free | [guides/dependency-injection.md](guides/dependency-injection.md); one proxy per interface (a `DispatchProxy` limit), keyed services skipped |
+| DI auto-wrap — `AddNarrativeTracing(o => o.Namespaces(...))` decorates namespace-matched interface registrations in the MS.DI container (bean-style tracing) | Free | [guides/dependency-injection.md](guides/dependency-injection.md); one proxy per interface (a `DispatchProxy` limit), keyed services skipped |
 | ASP.NET Core middleware — per-request scoped context, request tier (HTTP method/route/client IP) + user tier (enduser/session/tenant via `IRequestContextProvider`), path exclusion, `ITraceExporter` at request end; exceptions still produce a trace with the response status | Free | [guides/aspnetcore.md](guides/aspnetcore.md); `AddNarrativeTrace()` + `UseNarrativeTrace()`; net10.0 only |
 | xUnit — `NarrativeFixture` (wrap the test body), `NarrativeSuiteFixture`, per-test trace artifacts, failure narratives | Free | xUnit does not hand fixtures the test outcome, hence the wrap |
 | NUnit — `NarrativeTestBase` with automatic failure detection in teardown via `TestContext`, suite setup/report | Free | |
 | `dotnet-narrativetrace` CLI — `clarity-scan` (reflection-only, never runs the assembly), `clarity-check` (threshold gate), `clarity-aggregate` (runtime artifacts) | Free | [guides/msbuild-cli.md](guides/msbuild-cli.md) |
 | MSBuild clarity gate — `NarrativeTrace.MSBuild` targets `ClarityScan` / `ClarityAggregate` / `ClarityCheck` (incremental via stamp file), config validation, `NARRATIVETRACE_*` pass-through to the test host | Free | Thin shim over the CLI; scan (static) or runtime source selectable |
-| Zero-code-change instrumentation (javaagent analogue) — C# interceptors via source generator (preferred) or IL weaving (Fody/Cecil) | Planned (Free) | WS13 spike; no CLR analogue of `-javaagent`, decision deferred |
+| Zero-code-change instrumentation — C# interceptors via source generator (preferred) or IL weaving (Fody/Cecil) | Planned (Free) | WS13 spike; no CLR mechanism for transparent load-time bytecode instrumentation, decision deferred |
 | Multi-targeting — `net10.0` + `netstandard2.0` across the libraries; `net48` via `NarrativeTrace.Legacy` | Free | `net48` compiles on all platforms; **runtime validation on Windows is still pending** (WS15) |
 
 ## Read the story (outputs)
@@ -54,7 +54,7 @@ Per-topic documentation lives under [guides/](guides/).
 | Indented text, Markdown, and prose renderers | Free | Markdown renders parent returns inline on the entry line (no closing repeat); exceptions and in-flight calls still close after the child block |
 | Trace value references — content-addressed dedup of repeated captured values with readable labels (`‹Hotel›=full` on first emission, `‹Hotel›` after) | Free | `ValueReferenceIndex` via `MarkdownRenderer`; labels come from the structured value's identity field (Name/Id/Description/…, matched case-insensitively), never a redacted one; byte equality certifies sameness — any difference renders in full; containment inside other captured values counts and is replaced |
 | Intra-trace value deltas — a re-capture of the same entity, changed, renders as a diff against the reference (`‹Dinner›′{Amount: 100→92, Currency: "USD"→"EUR"}`) | Free | `ValueDelta` via `ValueReferenceIndex`/`MarkdownRenderer`. "Same entity" is the same structured type name plus an equal identity field — the same case-insensitive ladder that names the label; different rendered bytes mean it changed. Changed scalar fields only (string, integer, decimal, boolean, timestamp, null), formatted the way `ValueRenderer` prints them and never reconstructed from the structured tree. A changed nested object or list, a different field set, or a value with no identity field renders in full exactly as before, with no label stamped on a definition nothing refers back to. A changed variant that itself repeats is defined AS the diff (`‹Dinner·2›=‹Dinner›′{…}`). Fields are compared by a structural walk, not record equality — `ObjectVal`/`ListVal` compare their dictionary and list members by reference, so an unchanged nested value would otherwise read as changed and suppress every diff. `DoubleVal` carries a `double`, so a `decimal` captured as `100.00` prints `100` in the diff while the reference line keeps the original text. Presentation-only and Markdown-only |
-| Per-test trace artifacts — Java-compatible `traces/<Class>/<slug>` layout; Markdown output gains a sibling `.json` and a `diagrams/…/*.mmd` companion | Free | Empty traces write nothing |
+| Per-test trace artifacts — a `traces/<Class>/<slug>` layout shared across the family; Markdown output gains a sibling `.json` and a `diagrams/…/*.mmd` companion | Free | Empty traces write nothing |
 | Structural trace (`.nt`) as a last-green baseline, per-invocation artifact identity + `manifest.json`, structural delta (console "Since last green" line, failure-report delta), and approval mode (`.approved.nt` / `.received.nt`, `Approve` build target) | Free | `StructuralTraceRenderer` + `ArtifactIdentity`/`ScenarioManifest`/`StructuralDelta`/`NarrativeApproval` in `NarrativeTrace.Core`; approval mode opt-in with `NARRATIVETRACE_APPROVAL=true` — see [Structural Trace Format](structural-trace-format.md) |
 | Canonical JSON export (chapter-tree schema) | Free | `JsonExporter.Export(trace, metadata)`; schema-validated |
 | Per-service chapter export (`chapter.schema.json`, `nt.chapterTree`) | Free | `ChapterExporter` |
@@ -70,8 +70,8 @@ Per-topic documentation lives under [guides/](guides/).
 
 | Feature | Status | Notes |
 |---|---|---|
-| `ILogger` bridge — `LoggingNarrativeContext` decorator (synchronous per-call emission) + `LoggingTraceEventListener` (event-stream adapter), cached `LoggerMessage` delegates, per-event-type levels, correlation ids + service identity via `BeginScope` | Free | The MEL twin of the Java SLF4J bridge — MEL is the one abstraction every .NET logging provider plugs into, so teams keep their own sinks |
-| DI composition for the bridge — `AddNarrativeLogging()` registers the event-stream listener from the host's `ILoggerFactory` and attaches it to a registered `IEventSubscribable` stream | Free | The .NET answer to the Java runtime's classpath-probing `PipelineBootstrap`, which has no .NET equivalent: SLF4J's factory is a static global, an `ILogger` is not. Silent no-op when no `ILoggerFactory` is registered or `NARRATIVETRACE_NARRATION=off` |
+| `ILogger` bridge — `LoggingNarrativeContext` decorator (synchronous per-call emission) + `LoggingTraceEventListener` (event-stream adapter), cached `LoggerMessage` delegates, per-event-type levels, correlation ids + service identity via `BeginScope` | Free | MEL is the one abstraction every .NET logging provider plugs into, so teams keep their own sinks |
+| DI composition for the bridge — `AddNarrativeLogging()` registers the event-stream listener from the host's `ILoggerFactory` and attaches it to a registered `IEventSubscribable` stream | Free | An `ILogger` instance must already exist to be discovered — there is no static global factory to probe. Silent no-op when no `ILoggerFactory` is registered or `NARRATIVETRACE_NARRATION=off` |
 | Three-tier attribute model — `AttributeTier` (resource / trace / span) decided at the export boundary; every span internally carries full context | Free | Implements product ADR-009 |
 | Coexistence with hand-written logs | Free | Remove them at your own pace |
 | OpenTelemetry span export — `TraceActivityExporter` (batch, completed tree → `Activity` spans) + `OtelTraceEventListener` (live, from the event stream) | Free | `NarrativeTrace.Observability` |
@@ -124,8 +124,7 @@ free core on 2026-07-12 (Phase 31a Stage 2, .NET leg):
 **`EventAggregator` — Pro**. Flow summaries, migration diffs,
 dependency-graph diagrams, and MCP tool handlers are **Planned (Pro,
 gated)** — execution waits on a paying .NET-stack engagement (Phases
-E3–E5). Audit & compliance is Java-first and **not planned** for .NET
-(Phase E6).
+E3–E5). Audit & compliance is **not planned** for .NET (Phase E6).
 
 ---
 

@@ -31,7 +31,7 @@ internal static class I18nStatusExtensions
 /// <remarks>
 /// <see cref="Directory"/> is descriptive metadata (the language's primary
 /// translated-document home, e.g. <c>documentation/guides/es</c>) kept for
-/// schema parity with the Java golden source; unlike Java's flat layout, no
+/// schema parity with the Java canonical source; unlike Java's flat layout, no
 /// check in this runtime resolves a document's translated path against it —
 /// <see cref="I18nDocument.Translations"/> already carries a full path
 /// relative to <c>documentation/</c>, because this runtime's documents nest
@@ -51,7 +51,7 @@ internal sealed record I18nLanguage(
 /// has translated it to, if any. Translation values are paths relative to
 /// <c>documentation/</c> — not bare filenames — because this runtime's user docs
 /// nest two levels deep (<c>documentation/*.md</c> funnel pages alongside
-/// <c>documentation/guides/*.md</c> task guides), unlike the Java golden
+/// <c>documentation/guides/*.md</c> task guides), unlike the Java canonical
 /// source's single flat <c>documentation/&lt;lang&gt;/</c> directory.
 /// </summary>
 internal sealed record I18nDocument(string Source, IReadOnlyDictionary<string, string> Translations);

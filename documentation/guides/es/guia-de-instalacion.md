@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/installation.md blob e5f2086d8d23 | translated: 2026-09-16 | reviewed: - -->
+<!-- source: documentation/guides/installation.md blob dbf214f1c5ea | translated: 2026-09-17 | reviewed: - -->
 # NarrativeTrace .NET — Guía de instalación
 
 [English](../installation.md) | **Español** | [Português](../pt-BR/guia-de-instalacao.md) | [简体中文](../zh-CN/安装指南.md)
@@ -12,10 +12,9 @@ proyecto .NET.
   y `netstandard2.0`, así que se ejecutan en cualquier runtime de .NET
   compatible con netstandard2.0 (.NET Core 2.0+, .NET 5+ y — vía el
   paquete `Legacy` — .NET Framework 4.8).
-- **No hace falta ningún flag del compilador.** A diferencia de la JVM
-  (que necesita `-parameters`), .NET conserva los nombres de los
-  parámetros en los metadatos por defecto, así que las trazas muestran los
-  nombres reales desde el primer momento. Usa el atributo
+- **No hace falta ningún flag del compilador.** .NET conserva los nombres
+  de los parámetros en los metadatos por defecto, así que las trazas
+  muestran los nombres reales desde el primer momento. Usa el atributo
   [`[Traced]`](guia-de-atributos.md#traced) solo cuando quieras
   sobrescribir un nombre.
 
@@ -83,9 +82,9 @@ sus llamadas aniden en un único árbol.
 
 ### Opción B — Envoltura automática por inyección de dependencias
 
-El equivalente en `.NET` de la envoltura automática de beans de
-Spring/Micronaut. Registra tus servicios como siempre y luego envuelve
-aquellos cuyo namespace de implementación coincida con un prefijo:
+Envoltura automática al estilo bean para servicios registrados. Registra
+tus servicios como siempre y luego envuelve aquellos cuyo namespace de
+implementación coincida con un prefijo:
 
 ```csharp
 using NarrativeTrace.DependencyInjection;

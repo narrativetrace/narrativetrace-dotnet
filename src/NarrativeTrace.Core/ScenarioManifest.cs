@@ -125,8 +125,7 @@ public static class ScenarioManifest
 
     /// <summary>
     /// The same write, naming the test-suite run that produced it: a top-level
-    /// <c>run</c> object (<c>id</c>, <c>name</c>) beside <c>scenarios</c>
-    /// (2026-09-13 ruling, item 2) *(since 0.1.5, unreleased)*.
+    /// <c>run</c> object (<c>id</c>, <c>name</c>) beside <c>scenarios</c>.
     /// </summary>
     /// <param name="run"><see langword="null"/> to omit the <c>run</c> object entirely — a caller that has not adopted <see cref="RunIdentity"/>.</param>
     public static void Write(IReadOnlyList<Entry> entries, string outputDir, RunIdentity? run)

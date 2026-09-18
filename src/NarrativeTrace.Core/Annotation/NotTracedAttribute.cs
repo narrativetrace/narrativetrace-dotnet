@@ -16,9 +16,8 @@ namespace NarrativeTrace.Core.Annotation;
 /// <see cref="AttributeTargets.Method"/> is accepted syntactically — so a
 /// misplaced <c>[NotTraced]</c> on a whole method compiles rather than
 /// failing with a generic <c>CS0592</c> that names neither this attribute
-/// nor the fix — but carries no meaning of its own: the JVM edition's
-/// <c>@NotTraced</c> has no <c>METHOD</c> target either, so there is no
-/// documented "whole call redacted" behavior to mirror. A tracing proxy
+/// nor the fix — but carries no meaning of its own: there is no documented
+/// "whole call redacted" behavior for it to trigger. A tracing proxy
 /// created over an interface with <c>[NotTraced]</c> on one of its methods
 /// throws at proxy-creation time (<c>NarrativeTraceProxy.Create</c>, in
 /// <c>NarrativeTrace.Proxy</c>), naming the method and pointing at

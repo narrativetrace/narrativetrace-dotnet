@@ -7,6 +7,7 @@ using Xunit;
 
 namespace NarrativeTrace.Testing.NUnit.Tests;
 
+[Collection(SuiteScopeCollection.Name)]
 public class NarrativeTestBaseTests
 {
     [Fact]
@@ -353,13 +354,21 @@ public class NarrativeTestBaseTests
                     ? NarrativeTrace.Glossary.GlossarySettings.OffValue
                     : null);
             NarrativeSuiteScope.Begin(report);
-            var test = new OutputSubject(dir);
-            test.SetUpTrace();
-            test.Context.EnterMethod("Svc", "run", []);
-            test.Context.ExitMethodWithReturn(null);
+            try
+            {
+                var test = new OutputSubject(dir);
+                test.SetUpTrace();
+                test.Context.EnterMethod("Svc", "run", []);
+                test.Context.ExitMethodWithReturn(null);
 
-            test.TearDownTrace();
-            NarrativeSuiteScope.End(TextWriter.Null);
+                test.TearDownTrace();
+            }
+            finally
+            {
+                // Never leave the process-global scope pointing at this test's
+                // report: the next test in the collection would record into it.
+                NarrativeSuiteScope.End(TextWriter.Null);
+            }
 
             Assert.True(File.Exists(Path.Combine(dir, "manifest.json")));
             Assert.Contains(

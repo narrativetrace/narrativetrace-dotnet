@@ -205,3 +205,11 @@ entries:
     since: "0.1.5"
     documented_default: "true"
     probe: "contract-probe/Probes/MiddlewareAdoptsTraceparentProbe.cs"
+
+  - id: probed-logger-level-does-not-affect-capture
+    kind: probed-default
+    page: "documentation/guides/configuration.md#8-two-dials-two-paths"
+    claim: "a logger's own minimum level (even set so every level is disabled) never affects what CaptureTrace() returns — only TracingLevel does"
+    since: "0.1.5"
+    documented_default: "true"
+    probe: "contract-probe/Probes/LoggerLevelDoesNotAffectCaptureProbe.cs"

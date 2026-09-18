@@ -52,6 +52,14 @@
       }
     },
     {
+      "source": "documentation/faq.md",
+      "translations": {
+        "es": "es/preguntas-frecuentes.md",
+        "pt-BR": "pt-BR/perguntas-frequentes.md",
+        "zh-CN": "zh-CN/常见问题.md"
+      }
+    },
+    {
       "source": "documentation/what-to-commit.md",
       "translations": {
         "es": "es/que-incluir-en-el-commit.md",

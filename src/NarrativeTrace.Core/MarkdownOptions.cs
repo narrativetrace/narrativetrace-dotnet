@@ -35,7 +35,7 @@ namespace NarrativeTrace.Core;
 /// <param name="RunName">
 /// The enclosing test-suite run's three-word phrase, or <see langword="null"/>
 /// to omit the frontmatter's <c>run:</c> field entirely — see
-/// <see cref="TraceMetadata.RunName"/> *(since 0.1.5, unreleased)*.
+/// <see cref="TraceMetadata.RunName"/>.
 /// </param>
 public sealed record MarkdownOptions(
     string? ScenarioName = null,

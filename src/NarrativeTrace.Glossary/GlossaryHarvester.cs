@@ -11,11 +11,13 @@ namespace NarrativeTrace.Glossary;
 /// phrase + object noun phrase), parameter names, class names (role suffix
 /// stripped), and exception type names (<c>Exception</c>/<c>Error</c>
 /// stripped). Observations are aggregated and deterministically ordered; the
-/// harvester makes no merge decisions. Trace nodes carry only simple class
-/// names, so the namespace used for context resolution comes from an injected
-/// resolver function (the suite hook supplies a real one; tests supply a
-/// map). Non-identifier names on synthetic nodes are skipped — harvesting is
-/// best-effort by design.
+/// harvester makes no merge decisions. A node's bounded context is resolved
+/// through <see cref="ContextResolver.PackageToResolve"/> — the namespace
+/// captured on the signature when the capture site supplied it, else the
+/// injected simple-name resolver (the suite hook supplies a real one; tests
+/// supply a map). Translation resolves by the same call, so a term is looked
+/// up in the context it was filed under. Non-identifier names on synthetic
+/// nodes are skipped — harvesting is best-effort by design.
 /// </remarks>
 public sealed class GlossaryHarvester
 {
@@ -111,7 +113,8 @@ public sealed class GlossaryHarvester
     {
         var signature = node.Signature;
         var className = signature.ClassName;
-        var context = contextResolver.Resolve(NamespaceOrEmpty(className));
+        var context = contextResolver.Resolve(
+            ContextResolver.PackageToResolve(signature.Namespace, className, namespaceOf));
         HarvestClass(context, className, occurrences);
         HarvestMethod(context, className, signature.MethodName, occurrences);
         HarvestParameters(node, context, occurrences);
@@ -152,11 +155,6 @@ public sealed class GlossaryHarvester
             new TermCandidate(template!, TermKind.Template),
             site,
             template!);
-    }
-
-    private string NamespaceOrEmpty(string className)
-    {
-        return namespaceOf(className) ?? "";
     }
 
     private static void HarvestClass(

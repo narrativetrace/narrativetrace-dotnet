@@ -1,4 +1,4 @@
-<!-- source: documentation/privacy-and-redaction.md blob 048cd9cc5bc0 | translated: 2026-09-16 | reviewed: - -->
+<!-- source: documentation/privacy-and-redaction.md blob 9da66ed76dcd | translated: 2026-09-18 | reviewed: - -->
 # Privacidade e ocultação
 
 [English](../privacy-and-redaction.md) | [Español](../es/privacidad-y-ocultacion.md) | **Português** | [简体中文](../zh-CN/隐私与脱敏.md)
@@ -80,8 +80,7 @@ independentemente da lista de negação:
   uma propriedade com nome sensível seria, nunca renderizada via um
   `ToString()` puro.
 
-`[NotTraced]` não tem nenhum significado em nível de MÉTODO — assim como a
-edição JVM, cujo `@NotTraced` também não tem destino `METHOD` — então ele
+`[NotTraced]` não tem nenhum significado em nível de MÉTODO — então ele
 sempre nomeia um parâmetro, uma propriedade ou um componente de record,
 nunca uma chamada inteira. Aplicá-lo a um método compila, mas
 `NarrativeTraceProxy.Create`/`.Create<T>` o rejeitam no momento da criação
@@ -147,16 +146,28 @@ ocultação:
   "]";`) não consegue burlar isso: em vez disso, a reflexão renderiza o
   objeto, e aquele texto escrito à mão nunca é alcançado. A única via de
   entrada além da reflexão é `[NarrativeSummary]` em um membro que você
-  mesmo nomeou — veja a não garantia abaixo. Um tipo sem nenhum membro
-  público (nada para percorrer) é o único caso em que seu próprio
-  `ToString()` é usado, e mesmo assim o resultado é sanitizado e limitado
-  em comprimento como qualquer outra string.
+  mesmo nomeou — veja a não garantia abaixo. Tampouco não ter membros
+  públicos compra essa confiança: um tipo cujo estado a reflexão não
+  enxerga não é um tipo sem estado — `JsonElement` é um índice dentro de
+  um documento cuja subárvore inteira seu `ToString()` devolve, e o estado
+  guardado em uma tabela lateral estática indexada pela instância é
+  invisível à reflexão mas livremente legível de dentro do próprio
+  `ToString()` do tipo. Só uma lista explícita de folhas da plataforma —
+  os tipos numéricos, `string`, `char`, `bool`,
+  `DateTime`/`DateTimeOffset`/`TimeSpan`/`DateOnly`/`TimeOnly`, `Guid`,
+  `Uri`, `Version`, `BigInteger` e qualquer enum, identificados por tipo
+  exato, nunca por atribuibilidade nem por nome de assembly — é
+  renderizada através do seu próprio `ToString()`, e mesmo assim o
+  resultado é sanitizado e limitado em comprimento como qualquer outra
+  string. Qualquer outro valor sem membros é renderizado como o objeto que
+  é: seu nome de tipo e os membros que a reflexão encontrou, que para
+  estes são nenhum.
 - **A renderização não pode fazer sua aplicação falhar.** A captura e a
-  renderização são isoladas de exceções nos três pontos que alcançam
-  código escrito por quem chama: um `ToString()` personalizado que lança,
-  um membro `[NarrativeSummary]` que lança, e um getter de propriedade ou
-  campo que lança ao ser alcançado pela introspecção reflexiva (incluindo
-  um nomeado em um template). Cada um degrada *essa única parte* para um
+  renderização são isoladas de exceções nos pontos que alcançam código
+  escrito por quem chama: um membro `[NarrativeSummary]` que lança, e um
+  getter de propriedade ou campo que lança ao ser nomeado em um template.
+  (Um `ToString()` personalizado que lança já não está entre eles para um
+  composto: nunca se entra nele.) Cada um degrada *essa única parte* para um
   marcador de posição tipado `<error: TypeName>`
   *(since 0.1.5)* — o nome do próprio tipo
   da exceção capturada, ex. `<error: InvalidOperationException>`, nunca
@@ -171,8 +182,9 @@ ocultação:
   então nunca é alcançada por este caminho. O que de fato impede um tipo
   que recorre é o limite `MaxDepth` da reflexão e sua proteção de ciclos
   por identidade de referência, que também é a razão pela qual o próprio
-  `ToString()` de um tipo só é invocado para um valor folha sem membros
-  públicos para percorrer, nunca para o composto que está recorrendo. Um
+  `ToString()` de um tipo só é invocado para uma folha sem estado — um
+  escalar da plataforma ou um enum, nenhum dos quais pode recorrer —
+  nunca para o composto que está recorrendo. Um
   enumerador ou dicionário hostil é um risco à parte, igualmente
   protegido mas fora desses três pontos de entrada nomeados, e degrada
   para um `<error>` simples em vez da forma tipada.

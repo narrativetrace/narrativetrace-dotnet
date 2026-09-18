@@ -8,7 +8,7 @@ using Xunit;
 namespace NarrativeTrace.Cli.Tests;
 
 /// <summary>
-/// Unit-level tests for the generic replay engine (skill-harness design §4.2), mirroring the golden
+/// Unit-level tests for the generic replay engine (skill-harness design §4.2), mirroring the canonical
 /// TypeScript source's own "replaySkill (generic replayer, unit-level)" describe block — fakes for
 /// <c>runCommand</c>/<c>tryVerify</c>, no real process, no real fixture. <see cref="SkillReplayRegistry"/>
 /// (the concrete, process-spawning registry) is exercised for real by

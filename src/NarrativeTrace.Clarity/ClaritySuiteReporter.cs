@@ -43,7 +43,7 @@ public static class ClaritySuiteReporter
     /// <param name="run">
     /// The test-suite run this suite executed as, named in the footer's
     /// leading <c>run:</c> line; <see langword="null"/> when the integration
-    /// has not adopted <see cref="RunIdentity"/> *(since 0.1.5, unreleased)*.
+    /// has not adopted <see cref="RunIdentity"/>.
     /// </param>
     public static void Write(
         IReadOnlyList<KeyValuePair<string, TraceTree>> entries,

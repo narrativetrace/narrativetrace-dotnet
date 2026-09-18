@@ -73,8 +73,9 @@ public static class JsonExporter
 
     /// <summary>
     /// Writes <c>scenario.durationMs</c> from the <b>first root only</b>,
-    /// matching the Java runtime and the other whole-trace duration sites in
-    /// this runtime (the Markdown document header and <c>ChapterExporter</c>).
+    /// matching every other whole-trace duration site in this runtime (the
+    /// Markdown document header and <c>ChapterExporter</c>) and every other
+    /// NarrativeTrace runtime.
     /// </summary>
     /// <remarks>
     /// Deliberately not a sum over roots. Multiple roots come from grafted

@@ -26,7 +26,7 @@ internal static class RepoRoot
 /// real <c>examples/NarrativeTrace.Examples.SixtySeconds</c> fixture, no fakes, no LLM — real
 /// <c>dotnet</c> subprocesses via <see cref="SkillReplayRegistry"/>. This is what proves the
 /// catalogue's own step data still executes today against this commit's code, the same guarantee
-/// the golden TypeScript source's own Tier A2 block proves for its fixture.
+/// the canonical TypeScript source's own Tier A2 block proves for its fixture.
 /// </summary>
 public sealed class SkillsReplayCommandTests : IDisposable
 {

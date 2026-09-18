@@ -5,6 +5,7 @@ using System;
 using System.Reflection;
 using System.Reflection.Emit;
 using NarrativeTrace.Core;
+using NarrativeTrace.Core.Annotation;
 using Xunit;
 
 namespace NarrativeTrace.Core.Tests;
@@ -256,6 +257,120 @@ public class ValueRendererStructuredTests
 
         Assert.Equal("<pending>",
             Assert.IsType<RenderedValue.StringVal>(result).Value);
+    }
+
+    [Fact]
+    public void Cancelled_task_renders_as_cancelled_string()
+    {
+        var tcs = new System.Threading.Tasks.TaskCompletionSource<int>();
+        tcs.SetCanceled();
+
+        var result = ValueRenderer.RenderStructured(tcs.Task);
+
+        Assert.Equal("<cancelled>",
+            Assert.IsType<RenderedValue.StringVal>(result).Value);
+    }
+
+    [Fact]
+    public void Faulted_task_renders_as_faulted_string()
+    {
+        var tcs = new System.Threading.Tasks.TaskCompletionSource<int>();
+        tcs.SetException(new InvalidOperationException("boom"));
+
+        var result = ValueRenderer.RenderStructured(tcs.Task);
+
+        Assert.Equal("<faulted>",
+            Assert.IsType<RenderedValue.StringVal>(result).Value);
+    }
+
+    private sealed class DeepChain
+    {
+        public DeepChain? Next { get; set; }
+        public int Level { get; set; }
+    }
+
+    [Fact]
+    public void A_chain_deeper_than_the_depth_cap_stops_at_the_max_depth_marker()
+    {
+        var opts = new RenderOptions(MaxDepth: 2);
+        var root = new DeepChain { Level = 0 };
+        var current = root;
+        for (var i = 1; i <= 5; i++)
+        {
+            current.Next = new DeepChain { Level = i };
+            current = current.Next;
+        }
+
+        var result = ValueRenderer.RenderStructured(root, opts);
+
+        var text = FlattenToText(result);
+        Assert.Contains("<...>", text, StringComparison.Ordinal);
+    }
+
+    private sealed class SelfReferentialNode
+    {
+        public string Name { get; set; } = "";
+        public SelfReferentialNode? Self { get; set; }
+    }
+
+    [Fact]
+    public void A_self_referential_object_renders_a_circular_reference_marker_not_a_stack_overflow()
+    {
+        var node = new SelfReferentialNode { Name = "root" };
+        node.Self = node;
+
+        var result = ValueRenderer.RenderStructured(node);
+
+        var objVal = Assert.IsType<RenderedValue.ObjectVal>(result);
+        var selfField = Assert.IsType<RenderedValue.StringVal>(objVal.Fields["Self"]);
+        Assert.Contains("SelfReferentialNode", selfField.Value, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_self_referential_dictionary_renders_a_circular_reference_marker_not_a_stack_overflow()
+    {
+        var dict = new System.Collections.Generic.Dictionary<string, object>();
+        dict["self"] = dict;
+
+        var result = ValueRenderer.RenderStructured(dict);
+
+        var objVal = Assert.IsType<RenderedValue.ObjectVal>(result);
+        var selfField = Assert.IsType<RenderedValue.StringVal>(objVal.Fields["self"]);
+        Assert.Contains("Dictionary", selfField.Value, StringComparison.Ordinal);
+    }
+
+    private sealed class SummarizedForStructure
+    {
+        public string Secret { get; set; } = "hidden";
+
+        [NarrativeSummary]
+        public string Summary => "curated text";
+    }
+
+    [Fact]
+    public void A_NarrativeSummary_member_short_circuits_structured_rendering_to_its_curated_text()
+    {
+        var obj = new SummarizedForStructure();
+
+        var result = ValueRenderer.RenderStructured(obj);
+
+        var stringVal = Assert.IsType<RenderedValue.StringVal>(result);
+        Assert.Equal("curated text", stringVal.Value);
+        Assert.DoesNotContain("hidden", stringVal.Value, StringComparison.Ordinal);
+    }
+
+    private static string FlattenToText(RenderedValue value)
+    {
+        return value switch
+        {
+            RenderedValue.StringVal s => s.Value,
+            RenderedValue.ObjectVal o => string.Join(
+                ", ", System.Linq.Enumerable.Select(
+                    o.Fields, kv => $"{kv.Key}={FlattenToText(kv.Value)}")),
+            RenderedValue.ListVal l => string.Join(
+                ", ", System.Linq.Enumerable.Select(l.Elements, FlattenToText)),
+            _ => value.ToString() ?? "",
+        };
     }
 
     private class StructPoco

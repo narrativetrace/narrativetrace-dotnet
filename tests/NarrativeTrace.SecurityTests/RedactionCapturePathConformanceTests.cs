@@ -55,8 +55,15 @@ public class RedactionCapturePathConformanceTests
     private static readonly HashSet<string> ValueFreeEmitters =
         new(StringComparer.Ordinal) { "renderer:structural", "renderer:structural-entries" };
 
+    // Kind rows replay through Every_composite_shape_row_holds_through_the_real_proxy below: their
+    // argument is the composite object itself, not corpusCase.Value as a bare string, so this
+    // DynamicCaptureHarness-generated string-parameter path would only ever exercise the innocuous
+    // "data" name — never the shape the row names.
     public static IEnumerable<object[]> Corpus() =>
-        HostileCorpus.Redactions().Select(c => new object[] { c });
+        HostileCorpus.Redactions().Where(c => !c.IsKind).Select(c => new object[] { c });
+
+    public static IEnumerable<object[]> KindCorpus() =>
+        HostileCorpus.Redactions().Where(c => c.IsKind).Select(c => new object[] { c });
 
     [Theory]
     [MemberData(nameof(Corpus))]
@@ -108,10 +115,74 @@ public class RedactionCapturePathConformanceTests
         // copy ever drifts or is deleted.
         var rows = HostileCorpus.Redactions();
 
-        Assert.Equal(89, rows.Count);
+        Assert.Equal(93, rows.Count);
         Assert.Equal(50, rows.Count(r => r.IsName));
-        Assert.Equal(39, rows.Count(r => !r.IsName));
+        Assert.Equal(43, rows.Count(r => !r.IsName));
         Assert.Equal(28, rows.Count(r => r.IsName && r.ExpectsRedaction));
+        Assert.Equal(4, rows.Count(r => r.IsKind));
+    }
+
+    /// <summary>
+    /// The four <c>kind</c> rows: a curated <c>ToString</c> at top level and nested, a composite
+    /// used as a map KEY, and a failing <c>[NarrativeSummary]</c> — replayed through the real proxy
+    /// via <see cref="IKindCaptureProbe"/> rather than <see cref="DynamicCaptureHarness"/>, whose
+    /// generated parameter only ever carries a <see cref="string"/>. Unlike a name or value row, a
+    /// kind row's assertion never claims the whole parameter is flagged
+    /// <see cref="ParameterCapture.Redacted"/> — only a component of it is — so containment and call
+    /// success are what the corpus row actually declares.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(KindCorpus))]
+    public void Every_composite_shape_row_holds_through_the_real_proxy(RedactionCase corpusCase)
+    {
+        var ctx = new SyncNarrativeContext(new NarrativeTraceConfig());
+        var proxy = NarrativeTraceProxy.Create<IKindCaptureProbe>(new KindCaptureProbe(), ctx);
+
+        Assert.Equal(
+            "ok",
+            proxy.Handle(corpusCase.Payload));
+
+        var tree = ctx.CaptureTrace();
+        var outputs = Emitters.EveryOutput(tree);
+
+        Assert.True(outputs.Count > 0, "the emitter sweep must not be empty");
+        foreach (var (emitter, output) in outputs)
+        {
+            Assert.False(
+                output.Contains(corpusCase.Secret, StringComparison.Ordinal),
+                $"{corpusCase.Id} ({corpusCase.Description}) must not reach {emitter}");
+        }
+
+        if (corpusCase.Id == "throwing-summary")
+        {
+            Assert.Contains(
+                outputs.Values,
+                output => output.Contains(ThrowingSummaryMarker, StringComparison.Ordinal));
+            Assert.DoesNotContain(
+                outputs.Values,
+                output => output.Contains(ThrowingSummaryExceptionText, StringComparison.Ordinal));
+        }
+    }
+
+    /// <summary>The typed marker a failing <c>[NarrativeSummary]</c> must render, and never its message.</summary>
+    private const string ThrowingSummaryMarker = "<error: InvalidOperationException>";
+
+    /// <summary>
+    /// Text unique to <see cref="HostileMembers.ThrowingSummaryHolder"/>'s own exception message —
+    /// distinct from the canary itself, which <see cref="Every_composite_shape_row_holds_through_the_real_proxy"/>
+    /// already checks is absent everywhere: this confirms the message text around it never leaks either.
+    /// </summary>
+    private const string ThrowingSummaryExceptionText = "summary refused for";
+
+    /// <summary>The interface every <c>kind</c> row is traced through; <c>data</c> is not a deny-listed name.</summary>
+    public interface IKindCaptureProbe
+    {
+        string Handle(object data);
+    }
+
+    private sealed class KindCaptureProbe : IKindCaptureProbe
+    {
+        public string Handle(object data) => "ok";
     }
 
     /// <summary>

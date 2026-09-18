@@ -18,8 +18,8 @@ namespace NarrativeTrace.Core;
 /// and the committed approval baseline beside them.
 /// </para>
 /// <para>
-/// <b>Cross-runtime contract</b> — this is the family's master naming scheme
-/// (the Java runtime's <c>ArtifactIdentity</c>), mirrored byte for byte:
+/// <b>Cross-runtime contract</b> — this naming scheme is shared byte for
+/// byte across every NarrativeTrace runtime:
 /// </para>
 /// <list type="bullet">
 /// <item>An ordinary test method keeps its bare method slug —

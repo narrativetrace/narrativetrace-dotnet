@@ -2,6 +2,7 @@
 // Licensed under the Business Source License 1.1 (see LICENSE); Change Date: four years from publication; Change License: Apache-2.0
 // Copyright (c) 2026 Empower Agile
 using System.Globalization;
+using System.Reflection;
 using NarrativeTrace.Core.Annotation;
 
 namespace NarrativeTrace.Core;
@@ -200,21 +201,95 @@ public static class ValueRenderer
             return new RenderedValue.StringVal("<...>");
         }
 
-        return value switch
+        if (value is System.Collections.IDictionary dict)
         {
-            System.Collections.IDictionary dict =>
-                RenderStructuredDictionary(dict, opts, seen, depth),
-            System.Collections.IEnumerable seq =>
-                RenderStructuredList(seq, opts, seen, depth),
-            _ => RenderStructuredShaped(value, opts, seen, depth),
-        };
+            return RenderStructuredDictionary(dict, opts, seen, depth);
+        }
+
+        if (value is System.Collections.IEnumerable seq)
+        {
+            return RenderStructuredEnumerableByOrigin(seq, opts, seen, depth)
+                ?? RenderStructuredShaped(value, opts, seen, depth);
+        }
+
+        return RenderStructuredShaped(value, opts, seen, depth);
+    }
+
+    /// <summary>Structured twin of <see cref="RenderEnumerableByOrigin"/>: same origin gate, typed values.</summary>
+    private static RenderedValue? RenderStructuredEnumerableByOrigin(
+        System.Collections.IEnumerable seq, RenderOptions opts,
+        HashSet<object> seen, int depth)
+    {
+        var type = seq.GetType();
+        if (HasNarrativeElements(type) || PlatformTypes.IsPlatformDefined(type))
+        {
+            return RenderStructuredList(seq, opts, seen, depth);
+        }
+
+        var listAncestor = PlatformTypes.ListAncestor(type);
+        return listAncestor is not null
+            ? RenderStructuredListAncestorState(seq, listAncestor, opts, seen, depth)
+            : null;
+    }
+
+    /// <summary>
+    /// The third sanctioned rendering hook (see <see cref="NarrativeElementsAttribute"/>):
+    /// a type declaring it is enumerated through its own iterator exactly
+    /// like a platform collection — <see cref="RenderEnumerable"/> and
+    /// <see cref="RenderStructuredList"/> already guard, cap and
+    /// totality-guard the walk, so no separate implementation is needed.
+    /// </summary>
+    private static bool HasNarrativeElements(Type type) =>
+        type.IsDefined(typeof(NarrativeElementsAttribute), inherit: false);
+
+    /// <summary>Structured twin of <see cref="RenderListAncestorState"/>.</summary>
+    private static RenderedValue RenderStructuredListAncestorState(
+        object seq, Type listAncestor, RenderOptions opts,
+        HashSet<object> seen, int depth)
+    {
+        if (!seen.Add(seq))
+        {
+            return new RenderedValue.StringVal(CircularRef(seq));
+        }
+
+        try
+        {
+            var (items, size) = ListAncestorState(seq, listAncestor);
+            var limit = Math.Min(size, opts.MaxArrayItems);
+            var rendered = new List<RenderedValue>(limit);
+            for (var i = 0; i < limit; i++)
+            {
+                rendered.Add(SafeStructuredIndexedItem(items, i, opts, seen, depth + 1));
+            }
+
+            return new RenderedValue.ListVal(rendered);
+        }
+        finally
+        {
+            seen.Remove(seq);
+        }
+    }
+
+    private static RenderedValue SafeStructuredIndexedItem(
+        Array items, int index, RenderOptions opts,
+        HashSet<object> seen, int depth)
+    {
+        try
+        {
+            return RenderStructuredItem(items.GetValue(index), opts, seen, depth);
+        }
+        catch (Exception ex)
+        {
+            return new RenderedValue.StringVal(ErrorMarker(ex));
+        }
     }
 
     // The same ordered decision RenderShaped makes, resolved from one cached
     // TypeShape instead of three reflective probes per render: a
     // [NarrativeSummary] member wins, then a record renders as an object even
     // with no public members, then any type that has public members, and only
-    // a type with none of those reaches its own ToString().
+    // a stateless leaf (PlatformTypes.IsStatelessLeaf) reaches its own
+    // ToString().
     private static RenderedValue RenderStructuredShaped(
         object value, RenderOptions opts,
         HashSet<object> seen, int depth)
@@ -227,6 +302,7 @@ public static class ValueRenderer
         }
 
         return shape.IsRecord || shape.Members.Length > 0
+            || !PlatformTypes.IsStatelessLeaf(value.GetType())
             ? RenderStructuredObject(value, shape, opts, seen, depth)
             : new RenderedValue.StringVal(SafeToString(value, opts));
     }
@@ -608,14 +684,121 @@ public static class ValueRenderer
             return "<...>";
         }
 
-        return value switch
+        if (value is System.Collections.IDictionary dict)
         {
-            System.Collections.IDictionary dict =>
-                RenderDictionary(dict, opts, seen, depth),
-            System.Collections.IEnumerable seq =>
-                RenderEnumerable(seq, opts, seen, depth),
-            _ => RenderShaped(value, opts, seen, depth),
-        };
+            return RenderDictionary(dict, opts, seen, depth);
+        }
+
+        if (value is System.Collections.IEnumerable seq)
+        {
+            return RenderEnumerableByOrigin(seq, opts, seen, depth)
+                ?? RenderShaped(value, opts, seen, depth);
+        }
+
+        return RenderShaped(value, opts, seen, depth);
+    }
+
+    /// <summary>
+    /// Collections and bare iterables, dispatched by ORIGIN rather than a
+    /// bare <c>is IEnumerable</c> match: a type declaring
+    /// <see cref="NarrativeElementsAttribute"/> — the third sanctioned
+    /// rendering hook — is enumerated through its own iterator on the
+    /// author's own say-so, checked first; a platform-defined type (its
+    /// declaring assembly — see <see cref="PlatformTypes"/>) enumerates
+    /// through its own iterator next, exactly as before; a user subclass of
+    /// <see cref="List{T}"/> — the one concrete platform collection this
+    /// renderer has an honest, non-overridable state read for — enumerates
+    /// through that ancestor's own <c>_items</c>/<c>_size</c> fields, never
+    /// the subclass's overridden enumerator (generic or non-generic: a
+    /// measured asymmetry from <see cref="Dictionary{TKey,TValue}"/>, whose
+    /// own non-generic <see cref="System.Collections.IDictionary"/>
+    /// enumerator a subclass cannot intercept by re-implementing only the
+    /// generic <see cref="IEnumerable{T}"/> — so <see cref="RenderDictionary"/>
+    /// needs no equivalent origin gate). Every other case — a hand-rolled
+    /// <see cref="System.Collections.IEnumerable"/> with no platform
+    /// ancestor at all — is <see langword="null"/> here, so the caller falls
+    /// through to plain object introspection, which prints the type's own
+    /// declared members and never calls anything that could be overridden.
+    /// </summary>
+    /// <returns>The rendered text, or <see langword="null"/> to fall through to object rendering.</returns>
+    private static string? RenderEnumerableByOrigin(
+        System.Collections.IEnumerable seq, RenderOptions opts,
+        HashSet<object> seen, int depth)
+    {
+        var type = seq.GetType();
+        if (HasNarrativeElements(type) || PlatformTypes.IsPlatformDefined(type))
+        {
+            return RenderEnumerable(seq, opts, seen, depth);
+        }
+
+        var listAncestor = PlatformTypes.ListAncestor(type);
+        return listAncestor is not null
+            ? RenderListAncestorState(seq, listAncestor, opts, seen, depth)
+            : null;
+    }
+
+    private const BindingFlags PrivateInstance =
+        BindingFlags.NonPublic | BindingFlags.Instance;
+
+    /// <summary>
+    /// A <see cref="List{T}"/> subclass's own elements, read through the
+    /// ancestor's <c>_items</c>/<c>_size</c> backing fields — a pure state
+    /// read, never the subclass's overridden enumerator (see
+    /// <see cref="RenderEnumerableByOrigin"/>).
+    /// </summary>
+    private static string RenderListAncestorState(
+        object seq, Type listAncestor, RenderOptions opts,
+        HashSet<object> seen, int depth)
+    {
+        if (!seen.Add(seq))
+        {
+            return CircularRef(seq);
+        }
+
+        try
+        {
+            var (items, size) = ListAncestorState(seq, listAncestor);
+            var limit = Math.Min(size, opts.MaxArrayItems);
+            var rendered = new List<string>(limit);
+            for (var i = 0; i < limit; i++)
+            {
+                rendered.Add(SafeRenderIndexedItem(items, i, opts, seen, depth + 1));
+            }
+
+            return JoinWithTruncation(rendered, size, opts.MaxArrayItems, "[", "]");
+        }
+        finally
+        {
+            seen.Remove(seq);
+        }
+    }
+
+    /// <summary>
+    /// A <see cref="List{T}"/> ancestor's own element storage, read directly
+    /// off <paramref name="seq"/> — shared by the flat and structured twins
+    /// of the ancestor-state render.
+    /// </summary>
+    private static (Array Items, int Size) ListAncestorState(object seq, Type listAncestor)
+    {
+        var items = (Array)listAncestor
+            .GetField("_items", PrivateInstance)!.GetValue(seq)!;
+        var size = (int)listAncestor
+            .GetField("_size", PrivateInstance)!.GetValue(seq)!;
+        return (items, size);
+    }
+
+    private static string SafeRenderIndexedItem(
+        Array items, int index, RenderOptions opts,
+        HashSet<object> seen, int depth)
+    {
+        try
+        {
+            return RenderItem(items.GetValue(index), opts, seen, depth);
+        }
+        catch (Exception ex)
+        {
+            return ErrorMarker(ex);
+        }
     }
 
     // A found [NarrativeSummary] member always short-circuits this decision,
@@ -640,7 +823,7 @@ public static class ValueRenderer
             return RenderObject(value, shape, opts, seen, "(", ")", depth);
         }
 
-        return shape.Members.Length > 0
+        return shape.Members.Length > 0 || !PlatformTypes.IsStatelessLeaf(value.GetType())
             ? RenderObject(value, shape, opts, seen, "{", "}", depth)
             : SafeToString(value, opts);
     }
@@ -861,6 +1044,16 @@ public static class ValueRenderer
             : Truncate(ControlEscape.Sanitize(s), opts);
     }
 
+    /// <summary>
+    /// The text of a value <see cref="PlatformTypes.IsStatelessLeaf"/> has already cleared —
+    /// never a composite's, on either path.
+    /// </summary>
+    /// <remarks>
+    /// @edgeCase A member-less composite renders as an empty object dump (its type name, no
+    /// fields) rather than reaching this method: having nothing reflection can read is not the
+    /// same as having nothing to hide, and the text of a value whose state the renderer could not
+    /// find is precisely the text it cannot vouch for.
+    /// </remarks>
     private static string SafeToString(object value, RenderOptions opts)
     {
         try
@@ -892,9 +1085,9 @@ public static class ValueRenderer
     /// this method — or anything else in this class — ever runs. What
     /// actually stops that case is <see cref="RenderOptions.MaxDepth"/> and
     /// the reference-identity cycle guard on the reflective walk, which is
-    /// why user <c>ToString()</c> is only ever entered for a leaf value —
-    /// one with no public members left to walk — never for the composite
-    /// doing the recursing.
+    /// why user <c>ToString()</c> is only ever entered for a stateless leaf —
+    /// a platform scalar or an enum, which cannot recurse — never for the
+    /// composite doing the recursing.
     /// </remarks>
     private static string ErrorMarker(Exception ex) => $"<error: {Unwrapped(ex).GetType().Name}>";
 

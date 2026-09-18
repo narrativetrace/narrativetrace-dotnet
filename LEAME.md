@@ -1,4 +1,4 @@
-<!-- source: README.md blob d664df94811c | translated: 2026-09-13 | reviewed: - -->
+<!-- source: README.md blob 0dada18d7d3d | translated: 2026-09-18 | reviewed: - -->
 # NarrativeTrace .NET
 
 [English](README.md) | **Español** | [Português](LEIAME.md) | [简体中文](自述文件.md)
@@ -33,19 +33,24 @@ Una arquitectura pensada para la migración: la misma biblioteca funciona en
 La mitad de este método es ruido de logging:
 
 ```csharp
-public OrderResult PlaceOrder(string customerId, string productId, int quantity)
+public Order PlaceOrder(OrderRequest req)
 {
-    _logger.LogInformation("Placing order for {Customer} product {Product} qty {Qty}",
-        customerId, productId, quantity);
-
-    var customer = _customers.FindCustomer(customerId);
-    var unitPrice = _catalog.LookupPrice(productId);
-    _logger.LogDebug("Priced {Product} at {Price}", productId, unitPrice);
-
-    _inventory.Reserve(productId, quantity);
-    var payment = _payments.Charge(customerId, unitPrice * quantity, $"tok_{customer.Id}");
-    _logger.LogInformation("Payment processed: {Txn}", payment.TransactionId);
-    return new OrderResult(NextOrderId(), payment.TransactionId, unitPrice * quantity, quantity);
+    _log.LogInformation("Placing order {OrderId}", req.Id);
+    try
+    {
+        var customer = _customers.Find(req.Id);
+        var price = _catalog.Price(req.Sku);
+        _inventory.Reserve(req.Sku, req.Qty);
+        var payment = _payments.Charge(price);
+        var order = _orders.Save(customer, payment);
+        _log.LogInformation("Order succeeded {OrderId}", order.Id);
+        return order;
+    }
+    catch (Exception ex)
+    {
+        _log.LogError(ex, "Placing order failed {OrderId}", req.Id);
+        throw;
+    }
 }
 ```
 
@@ -57,13 +62,14 @@ código que describe.
 NarrativeTrace lo elimina. Escribe lógica de negocio pura:
 
 ```csharp
-public OrderResult PlaceOrder(string customerId, string productId, int quantity)
+public Order PlaceOrder(OrderRequest req)
 {
-    var customer = _customers.FindCustomer(customerId);
-    var unitPrice = _catalog.LookupPrice(productId);
-    _inventory.Reserve(productId, quantity);
-    var payment = _payments.Charge(customerId, unitPrice * quantity, $"tok_{customer.Id}");
-    return new OrderResult(NextOrderId(), payment.TransactionId, unitPrice * quantity, quantity);
+    var customer = _customers.Find(req.Id);
+    var price = _catalog.Price(req.Sku);
+    _inventory.Reserve(req.Sku, req.Qty);
+    var payment = _payments.Charge(price);
+    var order = _orders.Save(customer, payment);
+    return order;
 }
 ```
 
@@ -144,6 +150,20 @@ típica, el logging es un 30–50% de las líneas. Quítalo y obtienes:
   loguea lo que hace.
 - **Diffs con solo señal** — los pull requests muestran cambios de lógica, no
   cambios mezclados de lógica y logging.
+
+Ahora hay evidencia empírica para el fallo que describe esta sección, no solo el mecanismo.
+["Do AI Coding Agents Log Like Humans? An Empirical
+Study"](https://arxiv.org/abs/2604.09409) (arXiv:2604.09409) encontró que los agentes cambian el
+logging con menos frecuencia que los humanos en el 58.4 % de los 81 repositorios estudiados; solo
+el 20.7 % de los 4.550 pull requests agénticos estudiados tocan el logging siquiera; los agentes
+no cumplen con las peticiones explícitas de logging el 67 % de las veces; y los humanos escriben
+el 72.5 % de las correcciones de logging posteriores a la generación en pull requests agénticos,
+en commits posteriores en lugar de en la revisión. El paper mide que los agentes ni escriben el
+logging de forma fiable ni cumplen las instrucciones para añadirlo, y que los humanos reparan esa
+brecha en silencio después; la respuesta de NarrativeTrace es que el código es el log, así que no
+hay nada que un agente tenga que escribir o cumplir — y las trazas de aprobación convierten la
+observabilidad en una compuerta determinista, la clase de salvaguarda que las propias
+recomendaciones del paper piden.
 
 ## Cómo se compara
 
@@ -277,8 +297,8 @@ Console.WriteLine(IndentedTextRenderer.Render(context.CaptureTrace()));
 ```
 
 **Inyección de dependencias — envuelve automáticamente cada interfaz cuya
-implementación viva bajo un prefijo de namespace**, el equivalente en .NET
-del tracing de beans de Spring/Micronaut (llámalo el último, después de que
+implementación viva bajo un prefijo de namespace**, tracing de beans
+cableado a nivel del contenedor de DI (llámalo el último, después de que
 todos los servicios que deba ver ya estén registrados):
 
 ```csharp
@@ -428,9 +448,9 @@ bufferedConsumer.Subscribe(listener.OnEvent);
 
 NarrativeTrace sigue la ejecución concurrente — paralelismo fork-join y tareas
 fire-and-forget (lanzar y olvidar) — como ciudadanos de primera clase del árbol
-de trazas. Como el contexto en .NET fluye por `AsyncLocal` (el análogo del
-`ThreadLocal` de Java), cada rama paralela se ejecuta contra un contexto hijo
-aislado cuya traza se fusiona de vuelta en el padre con metadatos de hilo.
+de trazas. Como el contexto en .NET fluye por `AsyncLocal`, cada rama
+paralela se ejecuta contra un contexto hijo aislado cuya traza se fusiona
+de vuelta en el padre con metadatos de hilo.
 
 **Fork-join** — `ForkJoinGroup` ejecuta las ramas en paralelo, las une e injerta
 sus trazas bajo el padre con un `groupId` compartido:
@@ -500,6 +520,10 @@ Cada ajuste se puede resolver desde variables de entorno `NARRATIVETRACE_*`
 Niveles de captura, de menos a más detalle: `Off`, `Errors`, `Summary`,
 `Narrative`, `Detail`.
 
+`TracingLevel` y el nivel de tu propio logger son dos diales independientes — consulta la
+[Guía de configuración §8, "Dos diales, dos vías"](documentation/guides/es/guia-de-configuracion.md#8-dos-diales-dos-vías)
+para ver cómo se combinan.
+
 ## Documentación
 
 Empieza aquí:
@@ -509,6 +533,7 @@ Empieza aquí:
 - [Solución de problemas](documentation/es/solucion-de-problemas.md) — síntoma → causa → arreglo para los fallos que la gente realmente encuentra
 - [Qué incluir en el commit](documentation/es/que-incluir-en-el-commit.md) — qué archivos generados son desechables y cuáles se revisan
 - [Privacidad y ocultación](documentation/es/privacidad-y-ocultacion.md) — el contrato de ocultación fila por fila, verificado contra el código
+- [FAQ](documentation/es/preguntas-frecuentes.md) — dos diales, dos vías, y otras preguntas frecuentes
 
 Las guías orientadas a tareas viven en
 [`documentation/guides/es/`](documentation/guides/es/):
@@ -583,7 +608,7 @@ estrés de concurrencia, y las comprobaciones de secretos/SAST/SCA/lint/
 formato/complejidad/traducción — en una sola pasada, recogiendo el resultado
 de cada categoría en vez de detenerse en el primer fallo. Escribe
 `reports/verification/<date>.json` y su gemelo `.md` renderizado, con la
-forma multi-runtime que este repositorio Java de la familia define
+forma multi-runtime que comparte esta familia
 (`reports/verification/SCHEMA.md`): los mismos nombres de campo, los mismos
 cuatro estados (`passed`/`failed`/`skipped`/`not-implemented`), los mismos 21
 ids de categoría en todos los runtimes de NarrativeTrace. Es lento por
@@ -682,8 +707,8 @@ de propiedades stub en la suite de seguridad afirma que todavía no existe
 ningún tipo `Traceparent` en `NarrativeTrace.Core`, precisamente para que un
 futuro parser llegue con sus casos de fuzzing ya preparados. `TraceId` se
 genera localmente y tiene forma W3C (32 caracteres hexadecimales en
-minúscula, comparable byte a byte con los IDs que produciría el runtime de
-Java o una cabecera `traceparent` real) — pero nunca se *deriva* de una
+minúscula, comparable byte a byte con los IDs que produciría otro runtime
+de NarrativeTrace o una cabecera `traceparent` real) — pero nunca se *deriva* de una
 cabecera entrante, así que un ID de traza de NarrativeTrace no será igual al
 de una traza distribuida previa.
 

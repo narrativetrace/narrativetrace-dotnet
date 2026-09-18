@@ -14,5 +14,20 @@
       own copy — see JsonEscape.cs's remarks.
     -->
     <InternalsVisibleTo Include="NarrativeTrace.Glossary" />
+    <!--
+      Proxy already references Core (RenderOptions, ValueRenderer); this
+      grant lets NarrationResolver call TypeShape's backing-field lookup
+      (the §127 rendering rule's property-read fix), and lets
+      NarrativeInterceptor call RenderingGuard, which moved here from Proxy
+      so a second caller (Logging) could share it without a lateral
+      cross-layer dependency — see RenderingGuard.cs's remarks.
+    -->
+    <InternalsVisibleTo Include="NarrativeTrace.Proxy" />
+    <!--
+      Logging already references Core; this grant lets LoggingNarrativeContext
+      wrap its ExceptionMessage.Text read in RenderingGuard.Enter() — see
+      RenderingGuard.cs's remarks.
+    -->
+    <InternalsVisibleTo Include="NarrativeTrace.Logging" />
   </ItemGroup>
 </Project>

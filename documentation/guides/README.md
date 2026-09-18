@@ -10,8 +10,8 @@ value proposition and a 60-second quick start, see the
 |---|---|
 | [Installation](installation.md) | Add packages and pick an integration path (proxy, DI, ASP.NET Core, test frameworks, CLI, MSBuild). |
 | [Configuration](configuration.md) | Set tracing levels, env vars, DI/ASP.NET Core options, MSBuild properties, and redaction. |
-| [Annotations](annotations.md) | Use `[Narrated]`, `[OnError]`, `[NotTraced]`, `[Traced]`, and `[NarrativeSummary]`. |
-| [Dependency Injection](dependency-injection.md) | Auto-wrap namespace-matched interface services in the MS.DI container (Spring/Micronaut-style bean tracing). |
+| [Annotations](annotations.md) | Use `[Narrated]`, `[OnError]`, `[NotTraced]`, `[Traced]`, `[NarrativeSummary]`, and `[NarrativeElements]`. |
+| [Dependency Injection](dependency-injection.md) | Auto-wrap namespace-matched interface services in the MS.DI container (bean-style tracing). |
 | [ASP.NET Core Integration](aspnetcore.md) | Wire the per-request middleware, exporters, path exclusion, and user context. |
 | [Clarity](clarity.md) | Score naming quality and enforce it as a CI gate. |
 | [MSBuild & CLI](msbuild-cli.md) | Run the `dotnet-narrativetrace` verbs and wire the clarity gate into `dotnet build` / `dotnet test`. |

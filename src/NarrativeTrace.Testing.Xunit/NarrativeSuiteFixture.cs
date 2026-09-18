@@ -35,10 +35,9 @@ public sealed class NarrativeSuiteFixture : IDisposable
     /// <summary>
     /// This fixture's own test-suite execution identity — generated once, at
     /// construction, which is exactly once per collection this fixture is
-    /// registered against (2026-09-13 ruling, item 2; the xUnit "assembly
-    /// fixture" the convention names when one collection covers the whole
-    /// assembly) *(since 0.1.5, unreleased)*. Threaded explicitly into this
-    /// suite's own footer and manifest, and published via
+    /// registered against (the xUnit "assembly fixture" the convention names
+    /// when one collection covers the whole assembly). Threaded explicitly
+    /// into this suite's own footer and manifest, and published via
     /// <see cref="RunScope"/> for the whole fixture's lifetime so a per-test
     /// <see cref="NarrativeFixture"/> — a separate object, with no reference
     /// back to this one — can still name its Markdown frontmatter's <c>run:</c>

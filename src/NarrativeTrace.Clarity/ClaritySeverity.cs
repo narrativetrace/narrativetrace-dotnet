@@ -58,7 +58,7 @@ public static class ClaritySeverityExtensions
     }
 
     /// <summary>Classifies a 0–1 identifier score into a severity.</summary>
-    /// <remarks>Thresholds match the Java runtime: ≤0.20 High, ≤0.50 Medium.</remarks>
+    /// <remarks>Thresholds are shared across every NarrativeTrace runtime: ≤0.20 High, ≤0.50 Medium.</remarks>
     public static ClaritySeverity FromScore(double score)
     {
         if (score <= 0.20)

@@ -156,8 +156,7 @@ which of these files to commit.
 ## 3. Dependency injection
 
 `AddNarrativeTracing` wraps interface-registered services whose
-implementation namespace matches a configured prefix (the `.NET`
-equivalent of Spring/Micronaut bean auto-wrapping).
+implementation namespace matches a configured prefix.
 
 ```csharp
 using NarrativeTrace.DependencyInjection;
@@ -393,8 +392,9 @@ registered `ILoggerFactory`, and attaches it to any registered
 `IEventSubscribable` event stream so the stream arrives already narrating. Two
 conditions silence it, both deliberately without an exception: no
 `ILoggerFactory` is registered (the bridge would have nowhere to write), or
-`NARRATIVETRACE_NARRATION=off` vetoes narration — the .NET spelling of Java's
-`narrativetrace.narration=off`. `off` is the only value that vetoes, so a typo
+`NARRATIVETRACE_NARRATION=off` vetoes narration — the same veto this
+family's other runtimes each provide in their own configuration spelling.
+`off` is the only value that vetoes, so a typo
 leaves you narrating rather than silently silenced.
 
 Well-structured code — small methods with clear names, computed values
@@ -414,18 +414,94 @@ object, and prefixes the Markdown trace document's frontmatter (`run:`)
 and the text/prose renderers' opening line — never the value-free `.nt`
 structural artifact (see [Structural Trace Format](../structural-trace-format.md)).
 
-## 8. TracingLevel vs. logging level
+## 8. Two dials, two paths
 
-These are two independent filters. **TracingLevel** controls what is
-*recorded* into the trace tree (and therefore the overhead of capture).
-**Logging level** controls what a logging bridge *emits*. A call filtered
-out by TracingLevel never reaches the tree, renderers, or any logger.
+An adopter configures two independent things — NarrativeTrace's own `TracingLevel`, and the
+`Microsoft.Extensions.Logging` provider NarrativeTrace writes into — and the two rarely interact
+the way the setting names suggest. This section explains both dials, the two paths a captured
+event can take to reach a logger, and the one place that consults neither. See also the
+[FAQ](../faq.md#which-wins-the-tracing-level-or-my-loggers-level) for the same material in Q&A
+form.
+
+### Dial 1 — `TracingLevel` decides what is captured
+
+`Off`, `Errors`, `Summary`, `Narrative`, `Detail` (§1 above, low → high). It sits at the front of
+capture: a call this level filters out never becomes part of the trace tree, for any consumer, and
+no other setting can bring it back. `TracingLevel` is also the only dial that changes the cost of
+tracing:
+
+- `Off` skips capture entirely — `EnterMethod` returns immediately and no event is created.
+- `Errors` and `Summary` still intercept every call — a full enter/exit event is captured — and
+  `TraceTreeBuilder` prunes the assembled tree afterward: an error node keeps its whole subtree; a
+  `Summary` tree collapses non-error intermediate nodes, keeping leaves and error frames.
+- `Narrative` and `Detail` keep the whole tree unfiltered; `Detail` additionally captures
+  parameter values (`CapturesParameterValues`).
+
+### Dial 2 — your logger's level decides what is printed
+
+`TraceLoggingOptions` maps event kinds to `LogLevel`:
+
+| Event kind | Option | Default |
+|---|---|---|
+| Method entry, fork/join/fire-and-forget lifecycle | `EnterLevel` | `Trace` |
+| Successful return | `ReturnLevel` | `Trace` |
+| Thrown exit | `ExceptionLevel` | `Warning` |
+
+Both `LoggingNarrativeContext` and `services.AddNarrativeLogging(options)` take a
+`TraceLoggingOptions` — pass one to change these per app. An ASP.NET Core host additionally gets
+one `Information`-level line per finished *request* trace from `LoggerTraceExporter` (logger
+category `NarrativeTrace.Export`, configurable via `NarrativeTraceOptions.LoggerName`) — a
+separate, per-request summary line, not part of `TraceLoggingOptions`. Your logger's own minimum
+level then does what it always does: raising it silences lines. It never captures more, and it
+never captures less.
+
+### The two paths — where the confusion comes from
+
+`DualPathPipeline` is the type name: a fan-out with one synchronous slot and one buffered slot,
+both optional.
+
+- **Synchronous** — runs inline, on the calling thread, before the traced call returns. Either
+  wire `LoggingTraceEventListener.OnEvent` directly into `DualPathPipeline`'s synchronous-listener
+  constructor argument, or skip the pipeline altogether and wrap a context in
+  `LoggingNarrativeContext`, which has the same before-the-call-returns property without going
+  through `DualPathPipeline` at all. Either way, the log line is written before anything
+  downstream sees the result.
+- **Buffered** — `DualPathPipeline`'s other slot, a `BufferedEventConsumer`: a bounded, lock-free
+  ring buffer drained on a background thread, load-shedding under pressure so it never blocks the
+  caller. `services.AddNarrativeLogging()` subscribes `LoggingTraceEventListener` to it
+  automatically wherever an `IEventSubscribable` is registered; the live OpenTelemetry listener
+  (`OtelTraceEventListener`, `NarrativeTrace.Observability`) can subscribe the same way.
+
+Both are opt-in: `AddNarrativeTracing`/`AddNarrativeTrace` construct a plain
+`SyncNarrativeContext` with no sink at all, so nothing streams live until a host wires one
+explicitly as the context's second constructor argument.
+
+### The one place neither path reaches
+
+`CaptureTrace()`, the trace file, an approval baseline, and `TraceActivityExporter`'s
+OpenTelemetry export all read a context's own always-on, synchronous, in-memory capture list —
+present whether or not any pipeline sink is ever wired, and never consulted by a logger at all.
+So: a logger at `Warning` and a `TracingLevel` of `Detail` gives you a quiet log and a complete
+`CaptureTrace()` result. A `TracingLevel` of `Summary` and a logger at `Trace` gives you a loud log
+of a thin trace. A `TracingLevel` of `Off` gives you nothing anywhere, because nothing was
+captured.
+
+### Where each dial lives
+
+| Dial | Where it's set |
+|---|---|
+| `TracingLevel` | `NarrativeTraceConfig.Level` (constructor default `Detail`); env `NARRATIVETRACE_LEVEL`; DI `NarrativeTracingDiOptions.Level`; ASP.NET Core `appsettings.json` → `"NarrativeTrace": { "Level": "..." }` (`NarrativeTraceOptions.Level`) |
+| Logger threshold | Your logging provider's own minimum-level configuration, for logger category `NarrativeTrace` (the event-stream bridge, `LoggingServiceCollectionExtensions.LoggerCategory`) — or whatever category you pass `LoggingNarrativeContext`'s `ILogger` directly |
+| Level per kind of line | `TraceLoggingOptions` — `EnterLevel`/`ReturnLevel` (default `Trace`), `ExceptionLevel` (default `Warning`) — passed to `new LoggingNarrativeContext(inner, logger, options)` or `AddNarrativeLogging(options)` |
+
+### Rules of thumb
 
 | Goal | Adjust |
 |---|---|
-| Reduce log noise | Raise the logger's level (tree still captured for files/renderers). |
-| Reduce trace size | Lower `TracingLevel` (`Narrative` → `Summary`). |
-| Reduce CPU/memory | Lower `TracingLevel` — logging level has no effect on capture cost. |
+| Reduce log volume | Raise the logger's minimum level for the `NarrativeTrace` category (or narrow `TraceLoggingOptions`); `CaptureTrace()`, the trace file, and approval baselines are untouched. |
+| Reduce trace size | Lower `TracingLevel` (`Detail` → `Narrative` → `Summary` → `Errors`). |
+| Reduce CPU/memory | Lower `TracingLevel` — `Off` skips capture entirely; the logger threshold changes nothing about capture cost. |
+| Keep tracing on in production but out of the logs | Leave `TracingLevel` at `Summary` or `Narrative`; either skip wiring `AddNarrativeLogging()`/`LoggingNarrativeContext` entirely, or raise the `NarrativeTrace` category above `Warning` — `CaptureTrace()` and any exporter still see the full picture. |
 
 ## 9. Recommended defaults by environment
 
@@ -750,6 +826,7 @@ loaded from override == True
 
 ## See also
 
+- [FAQ](../faq.md) — two dials, two paths, and other common questions
 - [Installation Guide](installation.md) — packages and integration paths
 - [Annotations Guide](annotations.md) — redaction and narration attributes
 - [ASP.NET Core Integration Guide](aspnetcore.md) — middleware and exporters

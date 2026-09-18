@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/annotations.md blob 2369154736dc | translated: 2026-09-13 | reviewed: - -->
+<!-- source: documentation/guides/annotations.md blob 8e8081d83657 | translated: 2026-09-18 | reviewed: - -->
 # NarrativeTrace .NET — Guia de atributos
 
 [English](../annotations.md) | [Español](../es/guia-de-atributos.md) | **Português** | [简体中文](../zh-CN/特性指南.md)
@@ -10,14 +10,14 @@ expressiva primeiro, e só então recorra aos atributos de forma
 *excepcional* — para narração pontual, contexto de erro, ocultação ou
 renderização de valores personalizada.
 
-Os quatro atributos narrativos vivem em `NarrativeTrace.Core.Annotation` —
+Os cinco atributos narrativos vivem em `NarrativeTrace.Core.Annotation` —
 um único `using` para todos eles, e o mesmo pacote do qual já vem seu
 modelo de trace. São metadados puros: o interceptor `DispatchProxy`
 (`NarrativeTrace.Proxy`) lê `[Narrated]`, `[OnError]` e `[NotTraced]` nas
-chamadas que intercepta, enquanto `[NarrativeSummary]` e `[NotTraced]` são
-respeitados em qualquer lugar onde valores sejam renderizados. `[Traced]` é
-a única exceção — um marcador específico do `DispatchProxy` sem
-equivalente na JVM, então ele permanece em `NarrativeTrace.Proxy`.
+chamadas que intercepta, enquanto `[NarrativeSummary]`, `[NarrativeElements]`
+e `[NotTraced]` são respeitados em qualquer lugar onde valores sejam
+renderizados. `[Traced]` é a única exceção — um marcador específico do
+`DispatchProxy`, então ele permanece em `NarrativeTrace.Proxy`.
 
 ```csharp
 using NarrativeTrace.Core.Annotation;
@@ -28,6 +28,7 @@ using NarrativeTrace.Core.Annotation;
 | Atributo | Namespace | Destino | Finalidade |
 |---|---|---|---|
 | `[NarrativeSummary]` | `NarrativeTrace.Core.Annotation` | Método ou propriedade | Renderização de resumo preferencial para o tipo declarante. |
+| `[NarrativeElements]` | `NarrativeTrace.Core.Annotation` | Classe, struct | Declara os próprios elementos de um tipo não pertencente à plataforma como seguros para enumerar durante a renderização. |
 | `[Narrated]` | `NarrativeTrace.Core.Annotation` | Método | Adiciona texto de narração legível a um método rastreado. |
 | `[OnError]` | `NarrativeTrace.Core.Annotation` | Método (repetível) | Anexa texto de erro contextual a um método. |
 | `[NotTraced]` | `NarrativeTrace.Core.Annotation` | Parâmetro, propriedade, campo (em um método compila mas é rejeitado ao criar o proxy) | Oculta um valor na saída do trace, incluindo membros de objetos introspeccionados. |
@@ -75,7 +76,7 @@ public interface IPaymentService
 }
 ```
 
-Como funciona no .NET (igual à edição JVM):
+Como funciona no .NET:
 
 - O template é **resolvido quando a exceção é lançada**, usando as
   mesmas regras de marcadores do `[Narrated]`, e é armazenado como
@@ -109,8 +110,7 @@ public interface IAuthService
 ```
 
 Segredos **aninhados dentro de um objeto rastreado** são cobertos de
-duas formas, alinhadas com a postura de ocultação por padrão da edição
-JVM:
+duas formas:
 
 - **Lista de negação baseada em nome** — a renderização reflexiva oculta
   automaticamente nomes de membros sensíveis comuns (`password`, `token`,
@@ -138,8 +138,7 @@ public sealed class Payment
 
 **Não é válido em um método inteiro.** `[NotTraced]` não tem o significado
 de "a chamada inteira fica oculta" — ele sempre nomeia um parâmetro, uma
-propriedade ou um componente de record, nunca o método em si, assim como o
-`@NotTraced` da edição JVM (que também não tem destino `METHOD`). Colocá-lo
+propriedade ou um componente de record, nunca o método em si. Colocá-lo
 em um método compila, mas um proxy criado sobre uma interface que o faz
 lança `InvalidOperationException` no momento da criação do proxy *(desde
 0.1.5, não publicado)*, nomeando o atributo, o método afetado e a correção:
@@ -182,7 +181,7 @@ templates se comportam exatamente como antes.
 ## `[Traced]`
 
 O `.NET` mantém os nomes de parâmetros nos metadados por padrão, então
-— diferentemente da JVM — você raramente vai precisar disso. Use
+você raramente vai precisar disso. Use
 `[Traced]` para **sobrescrever** posicionalmente os nomes de parâmetros
 capturados, por exemplo para dar um nome de domínio mais claro do que o
 identificador do código-fonte:
@@ -224,6 +223,55 @@ public sealed record Customer(string Id, string Name, CustomerTier Tier)
   renderizador. Isso se manifesta em todos os lugares onde valores são
   renderizados (todos os renderizadores e exportadores).
 
+## `[NarrativeElements]`
+
+A renderização lê o **estado** de um valor, nunca seu comportamento (veja
+[o contrato de pureza](#o-contrato-de-pureza--efeitos-colaterais-durante-o-tracing)
+abaixo) — o que significa que uma coleção só é percorrida quando seu tipo em
+tempo de execução é um tipo de **plataforma** (`List<T>`, `Dictionary<K,V>`,
+um array, …): um `IEnumerable`/`IEnumerable<T>` feito à mão nunca é
+enumerado, porque seu próprio `GetEnumerator()` é código no qual o
+renderizador não confia por padrão. Duas exceções preservam a riqueza sem
+executar comportamento. Uma subclasse do usuário de uma coleção de
+plataforma é percorrida através do **estado próprio do ancestral de
+plataforma** (os campos internos de `List<T>`), nunca a sobrescrita da
+subclasse — nada a declarar, isso é automático. Um tipo que não é em
+absoluto uma subclasse de coleção de plataforma — uma `Collection`/
+`IEnumerable` implementada do zero — pode voltar a ser habilitado com
+`[NarrativeElements]`:
+
+```csharp
+[NarrativeElements]
+public sealed class RecentOrders : IEnumerable<Order>
+{
+    private readonly List<Order> _orders = new();
+
+    public IEnumerator<Order> GetEnumerator() => _orders.GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+}
+```
+
+- **A declaração é a promessa de pureza do autor.** `[NarrativeElements]`
+  garante que `GetEnumerator()` (e o enumerador que ele retorna) é uma
+  leitura de estado pura — sem carregamento tardio, sem contadores, sem
+  E/S — a mesma promessa que `[NarrativeSummary]` e o `ToString()` de uma
+  folha sem estado já carregam como os outros dois ganchos de renderização
+  sancionados. Não existe nenhum atributo que habilite um iterador *não
+  confiável*; a promessa é o que sustenta a garantia.
+- **O não declarado permanece não declarado.** Sem o atributo, um
+  `IEnumerable` feito do zero é renderizado como seu nome de tipo e, quando
+  gratuito obtê-la, sua contagem de elementos — nunca seus elementos, e
+  `GetEnumerator()` nunca é chamado.
+- **Percorrido exatamente como uma coleção de plataforma uma vez
+  declarado** — sob a guarda de renderização, limitado pelo mesmo teto de
+  elementos (`RenderOptions.MaxArrayItems`) de qualquer outro percurso de
+  coleção, e um enumerador que lança degrada para o marcador de falha
+  tipado como qualquer outro gancho, em vez de se propagar.
+- **Não é herdado.** Aplique-o ao tipo que de fato declara o iterador; um
+  tipo derivado que não adiciona lógica de enumeração própria só precisa da
+  sua própria declaração se ainda não for uma subclasse de coleção de
+  plataforma ou um ancestral anotado.
+
 ## O contrato de pureza — efeitos colaterais durante o tracing
 
 O NarrativeTrace pode invocar um pequeno conjunto fixo de caminhos de
@@ -235,18 +283,31 @@ como você faria para um depurador ou um serializador. Isso importa mais no
 por trás de *propriedades*, e o getter de uma propriedade é um método:
 lê-lo pode executar código arbitrário.
 
+**A renderização lê estado, nunca executa comportamento.** Os valores vêm
+de campos e — para uma propriedade automática ou um componente de record —
+do campo interno gerado pelo compilador, lido diretamente; o *corpo* do
+getter de uma propriedade nunca é invocado pela renderização, então um
+getter hostil ou simplesmente descuidado (um contador, um efeito colateral
+que preenche um cache) não pode ser observado através do tracing de forma
+alguma. O único código do usuário que a renderização chega a executar são
+três ganchos documentados, cada um sob a guarda de renderização: um membro
+`[NarrativeSummary]`, o `ToString()` próprio de uma folha sem estado e — o
+mais novo dos três — o `GetEnumerator()` próprio de um tipo declarado
+`[NarrativeElements]`. Tudo abaixo desta linha descreve esses três ganchos
+e suas garantias; não há um quarto.
+
 O que é invocado durante a renderização:
 
-- **A introspecção reflexiva lê propriedades e campos.** Um getter de
-  propriedade com efeitos colaterais (um contador, uma inicialização
-  tardia, uma ida e volta ao banco de dados) *será* executado quando uma
-  instância for renderizada sem um `ToString()` cuidadosamente elaborado ou
-  um membro `[NarrativeSummary]`. As .NET Framework Design Guidelines já
-  exigem que os getters não tenham efeitos colaterais; o NarrativeTrace se
-  apoia nessa convenção.
-- Também são invocados: um `ToString()` personalizado, um membro
-  `[NarrativeSummary]`, e caminhos de propriedade nomeados em templates de
-  `[Narrated]`/`[OnError]` (`{order.Total}`).
+- A introspecção reflexiva lê **campos internos**, não os getters das
+  propriedades — um getter com um efeito colateral (um contador, uma
+  inicialização tardia, uma ida e volta ao banco de dados) nunca é
+  executado apenas porque uma instância é renderizada.
+- Também são invocados, cada um sob a guarda de renderização: um membro
+  `[NarrativeSummary]`, o `ToString()` próprio de uma folha sem estado, o
+  `GetEnumerator()` próprio de um tipo declarado `[NarrativeElements]`, e
+  caminhos de propriedade nomeados em templates de `[Narrated]`/
+  `[OnError]` (`{order.Total}`) — que igualmente se resolvem contra essas
+  mesmas leituras de campos internos, não contra o corpo do getter.
 
 Como a exposição é contida:
 

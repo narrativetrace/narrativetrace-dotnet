@@ -91,7 +91,7 @@ never "paid": the mark is "Pro" plus a status (`shipped`, `in development`,
   — mechanically executes each step's real `commands` (and the handful of
   `verify:` claims that reduce to a mechanical check) against
   `examples/NarrativeTrace.Examples.SixtySeconds`, no LLM. Mirrors the
-  golden TypeScript source's `packages/skills/__tests__/replay.test.ts`,
+  canonical TypeScript source's `packages/skills/__tests__/replay.test.ts`,
   ported through a closed registry of safe, in-repo executors — see
   `SkillReplayRegistry` for what each catalogue command actually replays as
   and why. Rides `./build.sh Verify` beside `skills lint`.

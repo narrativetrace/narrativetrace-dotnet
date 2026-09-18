@@ -27,6 +27,16 @@ namespace NarrativeTrace.Proxy;
 /// metadata is reflected once and cached. This type is public only because
 /// <see cref="DispatchProxy"/> requires it; construct proxies through
 /// <see cref="NarrativeTraceProxy"/> rather than directly.
+/// <para>
+/// <b>Rendering never re-enters tracing.</b> A rendered parameter or return
+/// value can itself be a live tracing proxy (a DI-wrapped collaborator, or
+/// one traced interface handed to another); reflectively reading its
+/// members would otherwise call straight back into <see cref="Invoke"/> and
+/// open a phantom span for a call the application never made. Every call
+/// into <c>ValueRenderer</c>/<c>NarrationResolver</c> this type makes runs
+/// under <see cref="RenderingGuard.Enter"/>, and <see cref="Invoke"/> checks
+/// <see cref="RenderingGuard.IsActive"/> first — see that type's remarks.
+/// </para>
 /// </remarks>
 public class NarrativeInterceptor : DispatchProxy
 {
@@ -65,7 +75,7 @@ public class NarrativeInterceptor : DispatchProxy
         }
 
         var actualArgs = args ?? [];
-        if (!_context.IsActive)
+        if (RenderingGuard.IsActive || !_context.IsActive)
         {
             return InvokeRaw(targetMethod, actualArgs);
         }
@@ -186,14 +196,20 @@ public class NarrativeInterceptor : DispatchProxy
         var meta = GetMetadata(method);
         var className = _options?.ClassName
             ?? meta.ClassName;
-        var parameters = CaptureParameters(
-            meta, args, _context.CapturesParameterValues,
-            _options?.Redaction, RenderOptionsFor);
-        var options = new MethodOptions(
-            ResolveNarration(meta, args, method, _options?.Redaction),
-            Namespace: meta.Namespace,
-            ReturnType: meta.ReturnType,
-            NarrationTemplate: meta.NarrationTemplate);
+        MethodOptions options;
+        IReadOnlyList<ParameterCapture> parameters;
+        using (RenderingGuard.Enter())
+        {
+            parameters = CaptureParameters(
+                meta, args, _context.CapturesParameterValues,
+                _options?.Redaction, RenderOptionsFor);
+            options = new MethodOptions(
+                ResolveNarration(meta, args, method, _options?.Redaction),
+                Namespace: meta.Namespace,
+                ReturnType: meta.ReturnType,
+                NarrationTemplate: meta.NarrationTemplate);
+        }
+
         return _context.EnterMethod(
             className, meta.MethodName,
             parameters, options);
@@ -277,6 +293,7 @@ public class NarrativeInterceptor : DispatchProxy
     private string? ErrorContextFor(
         MethodInfo method, object?[] args, Exception thrown)
     {
+        using var _ = RenderingGuard.Enter();
         return ResolveErrorContext(
             GetMetadata(method), args, method, thrown, _options?.Redaction);
     }
@@ -463,9 +480,14 @@ public class NarrativeInterceptor : DispatchProxy
     {
         try
         {
-            var rendered = ShouldRenderReturn
-                ? ValueRenderer.Render(result, RenderOptionsFor)
-                : null;
+            string? rendered;
+            using (RenderingGuard.Enter())
+            {
+                rendered = ShouldRenderReturn
+                    ? ValueRenderer.Render(result, RenderOptionsFor)
+                    : null;
+            }
+
             _context.ExitMethodWithReturn(rendered, handle);
         }
         catch (Exception)
@@ -508,10 +530,15 @@ public class NarrativeInterceptor : DispatchProxy
     private void ExitWithRenderedReturn(
         object? result, Type returnType, SpanId handle)
     {
-        var rendered = ShouldRenderReturn
-            && returnType != typeof(void)
-            ? ValueRenderer.Render(result, RenderOptionsFor)
-            : null;
+        string? rendered;
+        using (RenderingGuard.Enter())
+        {
+            rendered = ShouldRenderReturn
+                && returnType != typeof(void)
+                ? ValueRenderer.Render(result, RenderOptionsFor)
+                : null;
+        }
+
         _context.ExitMethodWithReturn(rendered, handle);
     }
 

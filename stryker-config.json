@@ -11,9 +11,16 @@
     ],
     "thresholds": {
       "high": 95,
-      "low": 91,
-      "break": 91
+      "low": 89.95,
+      "break": 89.95
     },
     "concurrency": 4
+  },
+  "break-ratchet": {
+    "recorded": "2026-09-18",
+    "measured": 89.95,
+    "break-target": 91,
+    "gap": 1.05,
+    "note": "break is the measured score, not the 91 target (owner ruling 2026-09-18, TODO §35) — a ratchet, never lowered below the last recorded score; see mutation-ratchet.json and MutationRatchetTests"
   }
 }

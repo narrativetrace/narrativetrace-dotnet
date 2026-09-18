@@ -1,4 +1,4 @@
-<!-- source: documentation/choosing-an-integration.md blob 3ec6646bb9ad | translated: 2026-09-12 | reviewed: - -->
+<!-- source: documentation/choosing-an-integration.md blob f8eef66e4a41 | translated: 2026-09-17 | reviewed: - -->
 # Elegir una integración
 
 [English](../choosing-an-integration.md) | **Español** | [Português](../pt-BR/escolhendo-uma-integracao.md) | [简体中文](../zh-CN/选择集成方式.md)
@@ -14,13 +14,13 @@ código detrás de cada vía, consulta la
 |---|---|
 | Trazas en una prueba, con la mínima ceremonia | `NarrativeFixture` de xUnit o `NarrativeTestBase` de NUnit |
 | Control explícito sobre exactamente qué se envuelve, en .NET puro | `NarrativeTraceProxy.Create<T>` (un `DispatchProxy`) |
-| Todo servicio con interfaz registrado en MS.DI bajo un namespace, trazado automáticamente | `AddNarrativeTracing` (el equivalente en .NET del tracing de beans de Spring/Micronaut) |
+| Todo servicio con interfaz registrado en MS.DI bajo un namespace, trazado automáticamente | `AddNarrativeTracing` (tracing de beans) |
 | Ciclo de vida de peticiones HTTP en producción con ASP.NET Core | Middleware de `NarrativeTrace.AspNetCore` |
 | Una puerta de calidad de nombres en CI sobre un ensamblado compilado, sin necesidad de ejecutar pruebas | `dotnet-narrativetrace clarity-scan` + `clarity-check`, o el paquete `NarrativeTrace.MSBuild` |
 | Trazas encaminadas a tu pipeline de `ILogger` existente | `NarrativeTrace.Logging` (`AddNarrativeLogging()`) |
 | Spans de OpenTelemetry, por lotes o en vivo | `NarrativeTrace.Observability` |
 | Diagramas de secuencia (Mermaid/PlantUML) junto a una traza | `NarrativeTrace.Diagrams` |
-| Cero cambios de código — una app cuyo cableado no controlas | **Aún no disponible.** Planificada (Free) — no se ha decidido un análogo en el CLR de un `-javaagent` de Java; la cuestión abierta es un spike entre generador de código fuente y IL weaving. Consulta la [Guía de funcionalidades](../feature-guide.md). |
+| Cero cambios de código — una app cuyo cableado no controlas | **Aún no disponible.** Planificada (Free) — no se ha decidido un mecanismo del CLR para instrumentación transparente en tiempo de carga; la cuestión abierta es un spike entre generador de código fuente y IL weaving. Consulta la [Guía de funcionalidades](../feature-guide.md). |
 
 ## La decisión
 

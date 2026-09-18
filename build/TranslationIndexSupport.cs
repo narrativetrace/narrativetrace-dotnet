@@ -18,12 +18,12 @@ namespace NarrativeTrace.Build;
 /// <item>the <b>root README family</b> — <c>README.md</c>, and each
 /// language's root README (<c>LEAME.md</c>, <c>自述文件.md</c>, …), which
 /// double as the documentation-root index in this runtime (there is no separate
-/// <c>documentation/README.md</c>, unlike the Java golden source);</item>
+/// <c>documentation/README.md</c>, unlike the Java canonical source);</item>
 /// <item>the <b>guides index family</b> — <c>documentation/guides/README.md</c>
 /// and each language's sibling guide index (<c>documentation/guides/es/guias-de-usuario.md</c>,
 /// …), which lists exactly the guides that language currently has.</item>
 /// </list>
-/// Both families share one convention, simpler than the Java golden source's:
+/// Both families share one convention, simpler than the Java canonical source's:
 /// every index carries a language menu directly under its H1 — the current
 /// language bold and unlinked, every other language linked when its sibling
 /// file exists, plain text otherwise. Unlike Java's <c>documentation/README.md</c>

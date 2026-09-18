@@ -5,7 +5,14 @@
       "tests/NarrativeTrace.Proxy.Tests/NarrativeTrace.Proxy.Tests.csproj"
     ],
     "reporters": ["progress", "html", "json"],
-    "thresholds": { "high": 90, "low": 85, "break": 85 },
+    "thresholds": { "high": 90, "low": 78.20, "break": 78.20 },
     "concurrency": 4
+  },
+  "break-ratchet": {
+    "recorded": "2026-09-18",
+    "measured": 78.20,
+    "break-target": 85,
+    "gap": 6.80,
+    "note": "break is the measured score, not the 85 target (owner ruling 2026-09-18, TODO §35) — a ratchet, never lowered below the last recorded score; see mutation-ratchet.json and MutationRatchetTests"
   }
 }

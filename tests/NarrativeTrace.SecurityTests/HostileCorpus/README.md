@@ -12,8 +12,8 @@ shapes the redaction policy must recognize.
 copies these files verbatim — the way the conformance schemas are copied — so
 the same case hits all five renderers. A newly-understood attack shape is added
 *here*, once, and every runtime gains it on the next sync. Nothing in these
-files is Java-specific: they are data, and the builder that turns a declarative
-graph shape into a live object graph is the only per-runtime code.
+files is runtime-specific: they are data, and the builder that turns a
+declarative graph shape into a live object graph is the only per-runtime code.
 
 Adding a case: append an object to the relevant array, give it a stable
 kebab-case `id` and a `description` that says *what breaks* rather than what the
@@ -31,7 +31,7 @@ bytes are, and keep the file ASCII — every non-ASCII character is written as a
 | `tree-shapes.json` | every renderer/exporter, over the `TraceNode` call tree itself | declarative call-tree *shapes*: a legitimate deep chain, and cyclic rings (`n: 1` is a self-holding node) — the shape `TraceNode.Children` itself can carry, not a value inside it, so kept separate from `graphs.json`, which is documented as feeding specifically the value renderer |
 | `injection.json` | every output format, as an AI-consumer oracle | prompt-injection payloads arriving as captured values: override phrasings, role and turn markers, tool-call lookalikes, markdown-link exfiltration, fence and frontmatter terminators, Mermaid label terminators, homoglyph and zero-width variants |
 | `names.json` | the artifact writer / output-directory resolver | names an artifact writer must survive: test class and method names that reach the filesystem — empty, whitespace, traversal, separators, control characters, unpaired surrogates, noncharacters, bidi overrides, and names at and past the 255-byte per-component limit |
-| `redaction.json` | `RedactionPolicy` (both axes) | **MIRROR-OF** `narrative-trace-java`'s `narrativetrace-security-tests/src/test/resources/hostile-corpus/redaction.json` — the sensitive-field name vocabulary (es/pt/fr/zh, folded through NFD) and the national-id value shapes (RUT, CPF/CNPJ, DNI/NIE, NIR, Chinese resident id), each row a `name`+`canary` pair or a bare `value`, saying whether it must be `redacted` or stay `visible` — the false-positive half is what keeps the default switched on |
+| `redaction.json` | `RedactionPolicy` (both axes) | **MIRROR-OF** this family's shared `redaction.json` master copy, held in a sibling repository this one cannot write to directly — the sensitive-field name vocabulary (es/pt/fr/zh, folded through NFD) and the national-id value shapes (RUT, CPF/CNPJ, DNI/NIE, NIR, Chinese resident id), each row a `name`+`canary` pair or a bare `value`, saying whether it must be `redacted` or stay `visible` — the false-positive half is what keeps the default switched on |
 
 ## Case shapes
 

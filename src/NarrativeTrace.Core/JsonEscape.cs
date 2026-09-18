@@ -12,10 +12,7 @@ namespace NarrativeTrace.Core;
 /// <c>NarrativeTrace.Glossary</c> (<c>GlossaryJsonWriter</c>,
 /// <c>GlossaryUsageReport</c>). Glossary already references Core for
 /// <c>CanonicalEntryMapper</c>, so this one small escaping routine is folded
-/// into the lowest project both depend on rather than kept as two copies —
-/// mirrors the Java runtime's single shared <c>JsonEscape</c> (the .NET
-/// Python port already delegates the same way; Java's own duplicate elsewhere
-/// is a separate, still-exempt zero-dependency-CLI case, not this pair).
+/// into the lowest project both depend on rather than kept as two copies.
 /// </summary>
 internal static class JsonEscape
 {

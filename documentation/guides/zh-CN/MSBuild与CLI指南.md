@@ -1,12 +1,11 @@
-<!-- source: documentation/guides/msbuild-cli.md blob 58392e8bdf18 | translated: 2026-09-09 | reviewed: 2026-09-03 -->
+<!-- source: documentation/guides/msbuild-cli.md blob 71b2fc609a6e | translated: 2026-09-17 | reviewed: 2026-09-03 -->
 # NarrativeTrace .NET — MSBuild 与 CLI 指南
 
 [English](../msbuild-cli.md) | [Español](../es/guia-de-msbuild-y-cli.md) | [Português](../pt-BR/guia-de-msbuild-e-cli.md) | **简体中文**
 
 NarrativeTrace 提供两个构建集成面：命令行工具 `dotnet-narrativetrace`，
 以及包装了它的 `NarrativeTrace.MSBuild` 包。两者共同把命名清晰度变成构建
-门禁，并把追踪配置转发给测试宿主 — 这是 JVM 侧 Gradle 插件在 `.NET` 中的
-对应物。
+门禁，并把追踪配置转发给测试宿主。
 
 这种分工是有意的：**所有决策都在 CLI 里**；MSBuild 包只是一层薄封装，仅
 声明默认值并调用该工具。先学会 CLI，MSBuild 的接线自然就清楚了。

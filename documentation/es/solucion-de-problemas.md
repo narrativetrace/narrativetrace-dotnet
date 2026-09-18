@@ -1,4 +1,4 @@
-<!-- source: documentation/troubleshooting.md blob 82da97f7ce40 | translated: 2026-09-12 | reviewed: - -->
+<!-- source: documentation/troubleshooting.md blob 399ef2dc06ee | translated: 2026-09-17 | reviewed: - -->
 # Solución de problemas
 
 [English](../troubleshooting.md) | **Español** | [Português](../pt-BR/solucao-de-problemas.md) | [简体中文](../zh-CN/故障排查.md)
@@ -20,8 +20,8 @@ trimming, así que esto no debería pasar en uso normal.
 
 **Arreglo:** si te ocurre, comprueba si la interfaz vino de un generador
 de código o de una vía de ensamblado dinámico que descartó los metadatos
-de parámetros. Esta es la única diferencia con la JVM: .NET no necesita
-ningún flag `-parameters` del compilador para código ordinario.
+de parámetros. .NET no necesita ningún flag del compilador para conservar
+los nombres de parámetros en código ordinario.
 
 ## `NarrativeTraceProxy.Create<T>` lanza una excepción al arrancar
 

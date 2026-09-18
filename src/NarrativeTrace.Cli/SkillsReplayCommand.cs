@@ -9,7 +9,7 @@ namespace NarrativeTrace.Cli;
 /// <summary>
 /// The <c>skills replay</c> verb — Tier A2 (skill-harness design §4.2): mechanically replays every
 /// catalogue skill's own <c>commands</c>/<c>verify</c> steps against the sixty-seconds fixture, no
-/// LLM. Mirrors the golden TypeScript source's <c>packages/skills/__tests__/replay.test.ts</c>
+/// LLM. Mirrors the canonical TypeScript source's <c>packages/skills/__tests__/replay.test.ts</c>
 /// (adapted the way the Java port's own <c>SkillReplayer</c> is: a closed registry of safe, in-repo
 /// executors, since a literal replay of some commands — installing THIS repo's own tool from the
 /// registry, adding a package this fixture already references by <c>ProjectReference</c> — would

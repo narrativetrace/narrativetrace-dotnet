@@ -43,7 +43,7 @@ public sealed record SnippetStep(string Path, string Language, string? Region = 
 /// <summary>One numbered step in a skill.</summary>
 /// <param name="Title">
 /// The step's heading — carries the instruction itself for a guided/judgmental step, since
-/// this schema has no separate prose field (mirrors the golden TypeScript source's own shape).
+/// this schema has no separate prose field (mirrors the canonical TypeScript source's own shape).
 /// </param>
 /// <param name="Body">What the step actually does.</param>
 /// <param name="Verify">

@@ -9,10 +9,11 @@ is then read by a language model as often as by a person.
 This document describes the suite that attacks all of that on purpose:
 `NarrativeTrace.SecurityTests`, a test-only project that depends on every
 project which renders or emits, so one assertion can reach the whole output
-surface. It mirrors the Java runtime's `narrativetrace-security-tests`
-module target for target and case for case, adapted where this runtime's own
-seams differ from the JVM's — every adaptation is recorded with evidence
-rather than silently dropped; see "What this runtime does not have" below.
+surface. It mirrors this family's shared `narrativetrace-security-tests`
+target set, target for target and case for case, adapted where this
+runtime's own seams call for it — every adaptation is recorded with
+evidence rather than silently dropped; see "What this runtime does not
+have" below.
 
 Two tiers, one of them a real gate today:
 
@@ -37,9 +38,10 @@ reader and the object-graph builder are written per language.
 ## The oracles
 
 A crash is not the only defect, and "it did not throw" is not an oracle.
-Every target asserts from this list; this runtime implements the same seven
-Java's does — target 1 (`traceparent` parsing) landed *(since 0.1.5)*, so the "N/A" note below now applies only to `tracestate`,
-which remains an explicit non-goal.
+Every target asserts from this list; this runtime implements the same
+seven oracles the shared suite defines — target 1 (`traceparent`
+parsing) landed *(since 0.1.5)*, so the "N/A" note below now applies only
+to `tracestate`, which remains an explicit non-goal.
 
 1. **No uncaught exception.** A hostile input degrades — it never
    propagates. This is the pipeline contract in one line: an observability
@@ -65,9 +67,8 @@ which remains an explicit non-goal.
    order.
 6. **No thread or hook left behind.** Rendering starts no background
    thread. N/A-by-construction in this runtime rather than actively checked:
-   .NET has no portable "enumerate all live threads" API the way
-   `Thread.getAllStackTraces()` is on the JVM, and the render path starts no
-   `Task.Run`/timer to begin with — recorded as evidence
+   .NET has no portable "enumerate all live threads" API, and the render
+   path starts no `Task.Run`/timer to begin with — recorded as evidence
    (`Oracles.NoLibraryThreadLeft`), not silently skipped.
 7. **AI-consumer containment.** An instruction-shaped value comes back as
    *exactly one value* when the output is parsed or lexed again. It never
@@ -88,12 +89,12 @@ makes "one value" mean something.
 
 ## The targets
 
-In priority order, matching the Java runtime's suite numbering so the two ledgers
-read across repositories.
+In priority order, matching this family's shared suite numbering so
+ledgers read consistently across repositories.
 
 | # | Target | The oracle that matters most | This runtime |
 |---|---|---|---|
-| 1 | `Traceparent` and any other wire reader | never throws; round-trips what it accepts | `TraceparentParsingPropertyTests` replays the corpus's `traceparent` array against `Traceparent.Parse` — never throws, matches each case's declared `accepted`, and an accepted header round-trips through `Format()` *(since 0.1.5)*. `tracestate` remains **N/A** — an explicit non-goal here (and in the Java runtime); the same test file carries a single evidence-bearing canary that fails loudly if a `Tracestate`-shaped type is ever added without the target being ported for real. |
+| 1 | `Traceparent` and any other wire reader | never throws; round-trips what it accepts | `TraceparentParsingPropertyTests` replays the corpus's `traceparent` array against `Traceparent.Parse` — never throws, matches each case's declared `accepted`, and an accepted header round-trips through `Format()` *(since 0.1.5)*. `tracestate` remains **N/A** — an explicit non-goal here; the same test file carries a single evidence-bearing canary that fails loudly if a `Tracestate`-shaped type is ever added without the target being ported for real. |
 | 2 | `ValueRenderer` over hostile object graphs | redaction, at any depth, through any container | `ValueRendererRedactionPropertyTests` |
 | 3 | Every output format | well-formedness, bounded size | `OutputFormatPropertyTests` |
 | 4 | Template parsing and rendering | a redacted path or object renders the marker | `TemplateRedactionPropertyTests` |
@@ -118,8 +119,8 @@ Recorded with evidence, not silently dropped:
   universal invariants (never throws, never leaks) but not depth-redaction,
   which is why `TemplateRedactionPropertyTests` asserts the marker only via
   generated single-level paths, not the corpus replay.
-- **Case-sensitive property matching.** The corpus's template paths are
-  written in Java's javaBean casing (`card.cvv`); this runtime's properties are
+- **Case-sensitive property matching.** The corpus's template paths use
+  lowerCamelCase property names (`card.cvv`); this runtime's properties are
   ordinary C# PascalCase (`Card.Cvv`). None of the corpus's own redacted-path
   cases resolve against this runtime's fixtures for that reason alone — see
   `Corpus/TemplateResolution.cs`'s remarks for the full explanation and why
@@ -134,7 +135,7 @@ Recorded with evidence, not silently dropped:
 
 `tests/NarrativeTrace.SecurityTests/HostileCorpus/` holds six JSON fixtures
 with a `README.md` beside them describing every case shape — copied
-byte-for-byte from the Java runtime except where this runtime has added a
+byte-for-byte from the shared corpus except where this runtime has added a
 case (or a file) of its own (see "Findings" below), each marked in its own
 commit.
 
@@ -160,7 +161,7 @@ commit.
 4. Run the `NarrativeTrace.SecurityTests` project. The new case is picked
    up by every property that reads that fixture; nothing needs registering.
 5. Note the addition in the repository backlog for back-porting to the
-   Java master copy — this repository cannot write to `narrative-trace-java`
+   shared corpus's master copy — this repository cannot write to it
    directly.
 
 ## Tier B — coverage-guided fuzzing
@@ -227,13 +228,13 @@ them under `afl-fuzz` for a budgeted duration each
    the shared corpus's master copy, which this repository cannot write to
    directly.
 
-## Findings — this runtime's audit against the fixes the Java runtime landed
+## Findings — this runtime's audit against fixes landed elsewhere in the family
 
-The Java runtime's security fuzz suite found and fixed nine defects. Every
+Another runtime's security fuzz suite found and fixed nine defects. Every
 one was checked against this runtime, not assumed safe by default. A
 degraded render falling back to a value's own `ToString()` landed here
 too: `NarrationResolver.PlainValue` had the exact "safe form carries no
-marker ⇒ nothing is hidden" shortcut Java's own fix disproved.
+marker ⇒ nothing is hidden" shortcut that fix disproved.
 
 ## What the suite does not do
 

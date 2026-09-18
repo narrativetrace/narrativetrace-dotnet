@@ -50,6 +50,21 @@ internal static class MutationAccounting
             .ToList();
 
     /// <summary>
+    /// The module name a stryker-config file's own filename encodes: <c>stryker-config.json</c>
+    /// is <c>"core"</c> (the un-suffixed, original config); every other
+    /// <c>stryker-config.&lt;name&gt;.json</c> is <c>&lt;name&gt;</c>. The single place this
+    /// naming convention is spelled out — <see cref="MutationRatchet"/> and the <c>Mutation</c>/
+    /// <c>VerifyAll</c> targets all read it from here rather than each re-deriving it.
+    /// </summary>
+    public static string ModuleName(string configPath)
+    {
+        var name = Path.GetFileNameWithoutExtension(configPath);
+        const string prefix = "stryker-config.";
+        return name == "stryker-config" ? "core" :
+            name.StartsWith(prefix, StringComparison.Ordinal) ? name[prefix.Length..] : name;
+    }
+
+    /// <summary>
     /// The single source of which product projects are mutation-tested: the distinct
     /// <c>stryker-config.project</c> value read fresh out of every file <see cref="ConfigFiles"/>
     /// finds — never a second, hand-copied name list. A project earns a spot here by being the
@@ -62,6 +77,44 @@ internal static class MutationAccounting
             .Select(ProjectNameFromConfig)
             .OfType<string>()
             .ToHashSet(StringComparer.Ordinal);
+
+    /// <summary>
+    /// The absolute path of the ONE test project a module's config names — the working directory
+    /// every Stryker run is launched from, and the value passed to its <c>--test-project</c>.
+    /// </summary>
+    /// <remarks>
+    /// Stryker enters solution mode whenever it can see a <c>.sln</c> from its working directory,
+    /// and in solution mode it ignores <c>test-projects</c> entirely: every test project that
+    /// references the mutated one runs, for every mutant (nightly 2026-09-17, F1). Dropping
+    /// <c>--solution</c> is NOT enough — it auto-detects the repo root's solution just the same.
+    /// Launching from the test project's own directory is what actually holds it to one suite,
+    /// measured on <c>valuerefs</c>: 1,671 tests and 1m42s, against 3,645 tests and no result in
+    /// nine minutes from the root.
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">
+    /// The config names anything other than exactly one test project.
+    /// </exception>
+    public static string TestProjectFile(string repoRoot, string configPath)
+    {
+        using var document = JsonDocument.Parse(File.ReadAllText(configPath));
+        var projects = document.RootElement
+            .GetProperty("stryker-config")
+            .GetProperty("test-projects")
+            .EnumerateArray()
+            .Select(entry => entry.GetString()!)
+            .ToList();
+
+        if (projects.Count != 1)
+        {
+            throw new InvalidOperationException(
+                $"Mutation: {Path.GetFileName(configPath)} names {projects.Count} test projects; "
+                + "exactly one is required, because one module's mutants must never run another "
+                + "module's suite.");
+        }
+
+        return Path.GetFullPath(Path.Combine(
+            repoRoot, projects[0].Replace('/', Path.DirectorySeparatorChar)));
+    }
 
     private static string? ProjectNameFromConfig(string configPath)
     {
@@ -169,6 +222,11 @@ internal static class MutationAccounting
             + "(reflection, mirroring how the SixtySeconds sibling's Program.cs is exercised); "
             + "proven by being executed and by snippet-check comparing its output to the page, not "
             + "by mutants"),
+        ["NarrativeTrace.Examples.ProblemStatement"] = new(
+            "the README \"The problem\" section's before/after PlaceOrder method as a project "
+            + "(rule 8) — a library, not run by RunExamples or demo.sh; its two method bodies exist "
+            + "only to be embedded verbatim by SnippetCheck, which fails the build the moment a page "
+            + "block drifts from this source — no behavior of its own to mutate"),
 
         // ---- harnesses: drive an external tool, assert nothing themselves ----------------------
         ["NarrativeTrace.Benchmarks"] = new(

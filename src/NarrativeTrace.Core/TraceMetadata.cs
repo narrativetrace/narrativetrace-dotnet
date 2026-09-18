@@ -30,10 +30,9 @@ namespace NarrativeTrace.Core;
 /// <param name="RunName">
 /// The enclosing test-suite run's three-word phrase
 /// (<see cref="RunIdentity.Name"/>), or <see langword="null"/> when this
-/// document is not rendered inside a run an integration tracks (2026-09-13
-/// ruling, item 2) *(since 0.1.5, unreleased)*. Reaches only the Markdown
-/// frontmatter's <c>run:</c> field — never the structural <c>.nt</c> artifact
-/// or a delta computation.
+/// document is not rendered inside a run an integration tracks. Reaches only
+/// the Markdown frontmatter's <c>run:</c> field — never the structural
+/// <c>.nt</c> artifact or a delta computation.
 /// </param>
 /// <param name="Result">
 /// The scenario's overall outcome, as the producer knows it — typically the test

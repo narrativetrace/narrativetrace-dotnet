@@ -68,18 +68,33 @@ public class ValueRendererTests
     }
 
     [Fact]
-    public void Custom_ToString_output_is_truncated_to_max_string_length()
+    public void A_leafs_own_text_is_truncated_to_max_string_length()
     {
         var opts = new RenderOptions(MaxStringLength: 10);
+        var leaf = new Uri("https://example.com/" + new string('x', 300));
 
-        var flat = ValueRenderer.Render(new ChattyToString(), opts);
-        var structured = ValueRenderer.RenderStructured(
-            new ChattyToString(), opts);
+        var flat = ValueRenderer.Render(leaf, opts);
+        var structured = ValueRenderer.RenderStructured(leaf, opts);
 
-        Assert.Equal("xxxxxxxxxx...", flat);
+        Assert.Equal("https://ex...", flat);
         Assert.Equal(
-            new RenderedValue.StringVal("xxxxxxxxxx..."),
+            new RenderedValue.StringVal("https://ex..."),
             structured);
+    }
+
+    // A type with no readable member is not thereby a stateless leaf — only a
+    // platform scalar or an enum is (PlatformTypes.IsStatelessLeaf). Everything
+    // else renders as the object it is, which with no members is an empty dump.
+    [Fact]
+    public void A_member_less_class_never_renders_through_its_own_ToString()
+    {
+        var flat = ValueRenderer.Render(new ChattyToString());
+        var structured = ValueRenderer.RenderStructured(new ChattyToString());
+
+        Assert.Equal("ChattyToString{}", flat);
+        var objVal = Assert.IsType<RenderedValue.ObjectVal>(structured);
+        Assert.Equal("ChattyToString", objVal.TypeName);
+        Assert.Empty(objVal.Fields);
     }
 
     private sealed class DescribedOrder
@@ -106,15 +121,18 @@ public class ValueRendererTests
         public override string? ToString() => null;
     }
 
+    // Even a ToString that could only ever answer null is left uncalled: the
+    // decision is the type's, made before any of its code could run.
     [Fact]
-    public void Null_ToString_renders_type_name_marker()
+    public void Null_ToString_is_never_called_for_a_member_less_class()
     {
         Assert.Equal(
-            "<NullToString>",
+            "NullToString{}",
             ValueRenderer.Render(new NullToString()));
+        var structured = ValueRenderer.RenderStructured(new NullToString());
         Assert.Equal(
-            new RenderedValue.StringVal("<NullToString>"),
-            ValueRenderer.RenderStructured(new NullToString()));
+            "NullToString",
+            Assert.IsType<RenderedValue.ObjectVal>(structured).TypeName);
     }
 
     [Fact]
@@ -444,10 +462,16 @@ public class ValueRendererTests
             ValueRenderer.Render(ex));
     }
 
+    // The control character never reaches an output because the text carrying
+    // it is never produced — a stronger guarantee than escaping it would be.
+    // The escape itself is pinned where user text still legitimately arrives:
+    // Exception_message_control_chars_are_sanitized above, and the
+    // [NarrativeSummary] hook's own sanitize.
     [Fact]
-    public void ToString_fallback_control_chars_are_sanitized()
+    public void A_member_less_classes_control_chars_never_reach_the_output()
     {
-        Assert.Equal("a\\nb", ValueRenderer.Render(new ControlCharToString()));
+        Assert.Equal(
+            "ControlCharToString{}", ValueRenderer.Render(new ControlCharToString()));
     }
 
     [Fact]
@@ -470,14 +494,18 @@ public class ValueRendererTests
         Assert.Equal("<function>", ValueRenderer.Render(fn));
     }
 
+    // A throwing ToString on a member-less class no longer produces even an
+    // error marker: nothing threw, because nothing ran. The typed marker is
+    // still pinned where user code does run — see
+    // NarrativeSummary_method_that_throws_renders_typed_error_marker.
     [Fact]
-    public void ToString_exception_renders_typed_error_marker()
+    public void A_member_less_classes_throwing_ToString_is_never_entered()
     {
         var obj = new ThrowingToString();
 
         var result = ValueRenderer.Render(obj);
 
-        Assert.Equal("<error: InvalidOperationException>", result);
+        Assert.Equal("ThrowingToString{}", result);
         Assert.DoesNotContain("boom", result, StringComparison.Ordinal);
     }
 
@@ -504,14 +532,21 @@ public class ValueRendererTests
     }
 
     [Fact]
-    public void Throwing_property_renders_typed_error_marker()
+    public void A_computed_property_with_no_backing_field_is_never_invoked_and_never_appears_as_a_rendered_member()
     {
+        // Rendering reads state, never runs behaviour: Boom has no compiler-
+        // generated or conventionally named backing field, so it is not a
+        // rendering candidate at all — the getter is never called, so it
+        // cannot produce the error marker it used to. With no renderable
+        // members left, ThrowingProperty renders as an empty object dump —
+        // it is not a stateless leaf, so its ToString is not consulted either.
         var obj = new ThrowingProperty();
 
         var result = ValueRenderer.Render(obj);
 
-        Assert.Equal("ThrowingProperty{Boom: <error: InvalidOperationException>}", result);
+        Assert.DoesNotContain("<error", result, StringComparison.Ordinal);
         Assert.DoesNotContain("boom", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("Boom", result, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -556,13 +591,15 @@ public class ValueRendererTests
     public void Throwing_dictionary_key_renders_a_typed_error_placeholder()
     {
         var dict = new System.Collections.Hashtable();
-        dict[new ThrowingToString()] = "value";
+        dict[new ThrowingSummary { Value = 7 }] = "value";
 
         var result = ValueRenderer.Render(dict);
 
         // The guarded path names the caught exception's type (Java:
         // `<ExplodingKey>`); the old bare-ToString path could only say
-        // `<error>`.
+        // `<error>`. The key is a throwing [NarrativeSummary] rather than a
+        // throwing ToString because a key's ToString is no longer called: a
+        // composite is not a stateless leaf.
         Assert.Equal("{<error: InvalidOperationException>=\"value\"}", result);
     }
 
@@ -715,6 +752,58 @@ public class ValueRendererTests
         var result = ValueRenderer.Render(tcs.Task);
 
         Assert.Equal("<pending>", result);
+    }
+
+    [Fact]
+    public void Renders_a_completed_non_generic_Task_as_null_since_it_carries_no_result()
+    {
+        // TryTaskResult's non-generic branch: Task.CompletedTask is
+        // deceptive here (verified, not assumed) — its runtime type is
+        // Task`1[VoidTaskResult], not the plain Task this branch is for.
+        // The non-generic TaskCompletionSource (added net5.0) is what
+        // actually produces a Task whose runtime type is not generic, so
+        // there is no Result property to reflect at all — the method
+        // answers "read nothing, no error" rather than reaching for a
+        // property that does not exist.
+        var tcs = new TaskCompletionSource();
+        tcs.SetResult();
+
+        var result = ValueRenderer.Render(tcs.Task);
+
+        Assert.Equal("null", result);
+    }
+
+    [Fact]
+    public void DateTimeOffset_renders_in_round_trip_format()
+    {
+        var value = new DateTimeOffset(2026, 9, 17, 12, 30, 0, TimeSpan.Zero);
+
+        var result = ValueRenderer.Render(value);
+
+        Assert.Equal(value.ToString("O"), result);
+    }
+
+    [Fact]
+    public void RenderNarrationText_sanitizes_and_caps_without_quoting()
+    {
+        var result = ValueRenderer.RenderNarrationText("hello\tworld");
+
+        Assert.DoesNotContain("\"", result, StringComparison.Ordinal);
+        Assert.Contains("hello", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RenderNarrationText_redacts_a_credential_shaped_value_the_same_way_a_captured_string_would()
+    {
+        var jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+            + "eyJzdWIiOiIxMjM0NTY3ODkwIn0."
+            + "dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U";
+
+        var narrationText = ValueRenderer.RenderNarrationText(jwt);
+        var capturedText = ValueRenderer.Render(jwt);
+
+        Assert.Equal(RedactionPolicy.Marker, narrationText);
+        Assert.Contains(RedactionPolicy.Marker, capturedText, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -8,9 +8,9 @@ namespace NarrativeTrace.Core;
 /// <c>clarity-results.json</c> holding every accumulated scenario, the
 /// human-facing <c>clarity-report.md</c> beside it, and a printed footer
 /// summarizing the scenario count and clarity split. An empty suite writes
-/// nothing and prints nothing, mirroring the Java runtime's short-circuit on
-/// an empty trace set. The clarity scorer and both renderers are injected so
-/// Core needs no dependency on the clarity engine.
+/// nothing and prints nothing — a short-circuit on an empty trace set. The
+/// clarity scorer and both renderers are injected so Core needs no
+/// dependency on the clarity engine.
 /// </summary>
 public static class SuiteReportWriter
 {
@@ -41,7 +41,7 @@ public static class SuiteReportWriter
     /// <param name="run">
     /// The test-suite run this suite executed as, named in the footer's
     /// leading <c>run:</c> line; <see langword="null"/> when the caller has
-    /// not adopted <see cref="RunIdentity"/> *(since 0.1.5, unreleased)*.
+    /// not adopted <see cref="RunIdentity"/>.
     /// </param>
     public static void Write(
         IReadOnlyList<KeyValuePair<string, TraceTree>> entries,

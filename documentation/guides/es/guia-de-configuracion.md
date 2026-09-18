@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/configuration.md blob 6266df857e5f | translated: 2026-09-13 | reviewed: - -->
+<!-- source: documentation/guides/configuration.md blob 4458258f9952 | translated: 2026-09-18 | reviewed: - -->
 # NarrativeTrace .NET — Guía de configuración
 
 [English](../configuration.md) | **Español** | [Português](../pt-BR/guia-de-configuracao.md) | [简体中文](../zh-CN/配置指南.md)
@@ -163,9 +163,7 @@ para saber cuáles de estos archivos hacer commit.
 ## 3. Inyección de dependencias
 
 `AddNarrativeTracing` envuelve los servicios registrados por interfaz cuyo
-namespace de implementación coincide con un prefijo configurado (el
-equivalente en `.NET` de la envoltura automática de beans de
-Spring/Micronaut).
+namespace de implementación coincide con un prefijo configurado.
 
 ```csharp
 using NarrativeTrace.DependencyInjection;
@@ -418,8 +416,9 @@ Registra `LoggingTraceEventListener` como singleton construido a partir del
 `IEventSubscribable` registrado, de modo que el flujo llega ya narrando. Dos
 condiciones lo silencian, ambas deliberadamente sin lanzar excepción: que no
 haya ningún `ILoggerFactory` registrado (el puente no tendría dónde escribir),
-o que `NARRATIVETRACE_NARRATION=off` vete la narración — la forma .NET del
-`narrativetrace.narration=off` de Java. `off` es el único valor que veta, así
+o que `NARRATIVETRACE_NARRATION=off` vete la narración — el mismo veto que
+cada runtime de esta familia ofrece en su propia grafía de configuración.
+`off` es el único valor que veta, así
 que una errata te deja narrando en lugar de silenciado sin avisar.
 
 El código bien estructurado — métodos pequeños con nombres claros, valores
@@ -443,19 +442,98 @@ apertura de los renderizadores de texto/prosa — nunca al artefacto
 estructural `.nt`, sin valores (ver
 [Formato de Traza Estructural](../../structural-trace-format.md)).
 
-## 8. TracingLevel frente al nivel de logging
+## 8. Dos diales, dos vías
 
-Son dos filtros independientes. **TracingLevel** controla qué se *registra*
-en el árbol de trazas (y por tanto el coste de la captura). El **nivel de
-logging** controla qué *emite* un puente de logging. Una llamada filtrada
-por TracingLevel nunca llega al árbol, ni a los renderizadores, ni a ningún
-logger.
+Quien adopta la biblioteca configura dos cosas independientes — el propio `TracingLevel` de
+NarrativeTrace, y el proveedor de `Microsoft.Extensions.Logging` en el que escribe NarrativeTrace —
+y las dos rara vez interactúan como sugieren los nombres de los ajustes. Esta sección explica ambos
+diales, las dos vías por las que un evento capturado puede llegar a un logger, y el único lugar que
+no consulta ninguna de las dos. Consulta también el
+[FAQ](../../es/preguntas-frecuentes.md#cuál-gana-el-nivel-de-tracing-o-el-nivel-de-mi-logger)
+para el mismo contenido en formato de preguntas y respuestas.
+
+### Dial 1 — `TracingLevel` decide qué se captura
+
+`Off`, `Errors`, `Summary`, `Narrative`, `Detail` (§1 más arriba, de menor a mayor). Se sitúa al
+frente de la captura: una llamada que este nivel filtra nunca llega a formar parte del árbol de
+trazas, para ningún consumidor, y ningún otro ajuste puede recuperarla. `TracingLevel` es también
+el único dial que cambia el coste del tracing:
+
+- `Off` se salta la captura por completo — `EnterMethod` retorna de inmediato y no se crea ningún
+  evento.
+- `Errors` y `Summary` siguen interceptando cada llamada — se captura un evento completo de
+  entrada/salida — y `TraceTreeBuilder` poda el árbol ensamblado después: un nodo con error
+  conserva todo su subárbol; un árbol `Summary` colapsa los nodos intermedios sin error,
+  conservando las hojas y los marcos de error.
+- `Narrative` y `Detail` mantienen todo el árbol sin filtrar; `Detail` además captura los valores
+  de los parámetros (`CapturesParameterValues`).
+
+### Dial 2 — el nivel de tu logger decide qué se imprime
+
+`TraceLoggingOptions` asigna los tipos de evento a `LogLevel`:
+
+| Tipo de evento | Opción | Por defecto |
+|---|---|---|
+| Entrada al método, ciclo de vida de fork/join/fire-and-forget | `EnterLevel` | `Trace` |
+| Retorno exitoso | `ReturnLevel` | `Trace` |
+| Salida por excepción | `ExceptionLevel` | `Warning` |
+
+Tanto `LoggingNarrativeContext` como `services.AddNarrativeLogging(options)` toman un
+`TraceLoggingOptions` — pasa uno para cambiar esto por app. Un host de ASP.NET Core además obtiene
+una línea de nivel `Information` por cada traza de *petición* terminada, desde
+`LoggerTraceExporter` (categoría de logger `NarrativeTrace.Export`, configurable vía
+`NarrativeTraceOptions.LoggerName`) — una línea de resumen aparte, por petición, que no forma parte
+de `TraceLoggingOptions`. El nivel mínimo de tu propio logger hace entonces lo que siempre hace:
+subirlo silencia líneas. Nunca captura más, y nunca captura menos.
+
+### Las dos vías — de dónde viene la confusión
+
+`DualPathPipeline` es el nombre del tipo: un fan-out con una ranura síncrona y una ranura con
+buffer, ambas opcionales.
+
+- **Síncrona** — corre en línea, en el hilo que hace la llamada, antes de que retorne la llamada
+  trazada. O bien cablea `LoggingTraceEventListener.OnEvent` directamente en el argumento del
+  constructor de la ranura síncrona de `DualPathPipeline`, o bien te saltas el pipeline del todo y
+  envuelves un contexto en `LoggingNarrativeContext`, que tiene la misma propiedad de "antes de que
+  la llamada retorne" sin pasar por `DualPathPipeline` en absoluto. De cualquier forma, la línea de
+  log se escribe antes de que nada aguas abajo vea el resultado.
+- **Con buffer** — la otra ranura de `DualPathPipeline`, un `BufferedEventConsumer`: un anillo
+  acotado y sin bloqueos, drenado en un hilo en segundo plano, que descarta carga bajo presión para
+  no bloquear jamás a quien llama. `services.AddNarrativeLogging()` suscribe automáticamente
+  `LoggingTraceEventListener` a él dondequiera que haya un `IEventSubscribable` registrado; el
+  listener en vivo de OpenTelemetry (`OtelTraceEventListener`, `NarrativeTrace.Observability`)
+  puede suscribirse del mismo modo.
+
+Ambas son opcionales: `AddNarrativeTracing`/`AddNarrativeTrace` construyen un `SyncNarrativeContext`
+plano sin ningún sink, así que nada fluye en vivo hasta que un host cablea uno explícitamente como
+segundo argumento del constructor del contexto.
+
+### El único lugar al que ninguna de las dos vías llega
+
+`CaptureTrace()`, el archivo de traza, una línea base de aprobación y la exportación a
+OpenTelemetry de `TraceActivityExporter` leen todos de la propia lista de captura de un contexto —
+siempre activa, síncrona, en memoria — presente se cablee o no cualquier sink del pipeline, y a la
+que ningún logger consulta jamás. Así que: un logger en `Warning` y un `TracingLevel` en `Detail`
+te da un log silencioso y un resultado completo de `CaptureTrace()`. Un `TracingLevel` en `Summary`
+y un logger en `Trace` te da un log ruidoso de una traza delgada. Un `TracingLevel` en `Off` no te
+da nada en ningún sitio, porque no se capturó nada.
+
+### Dónde vive cada dial
+
+| Dial | Dónde se ajusta |
+|---|---|
+| `TracingLevel` | `NarrativeTraceConfig.Level` (por defecto en el constructor, `Detail`); entorno `NARRATIVETRACE_LEVEL`; DI `NarrativeTracingDiOptions.Level`; ASP.NET Core `appsettings.json` → `"NarrativeTrace": { "Level": "..." }` (`NarrativeTraceOptions.Level`) |
+| Umbral del logger | La configuración de nivel mínimo propia de tu proveedor de logging, para la categoría de logger `NarrativeTrace` (el puente de flujo de eventos, `LoggingServiceCollectionExtensions.LoggerCategory`) — o cualquier categoría que le pases directamente al `ILogger` de `LoggingNarrativeContext` |
+| Nivel por tipo de línea | `TraceLoggingOptions` — `EnterLevel`/`ReturnLevel` (por defecto `Trace`), `ExceptionLevel` (por defecto `Warning`) — pasado a `new LoggingNarrativeContext(inner, logger, options)` o a `AddNarrativeLogging(options)` |
+
+### Reglas prácticas
 
 | Objetivo | Ajusta |
 |---|---|
-| Reducir el ruido de logs | Sube el nivel del logger (el árbol se sigue capturando para archivos/renderizadores). |
-| Reducir el tamaño de la traza | Baja el `TracingLevel` (`Narrative` → `Summary`). |
-| Reducir CPU/memoria | Baja el `TracingLevel` — el nivel de logging no afecta al coste de captura. |
+| Reducir el volumen de logs | Sube el nivel mínimo del logger para la categoría `NarrativeTrace` (o acota `TraceLoggingOptions`); `CaptureTrace()`, el archivo de traza y las líneas base de aprobación quedan intactos. |
+| Reducir el tamaño de la traza | Baja el `TracingLevel` (`Detail` → `Narrative` → `Summary` → `Errors`). |
+| Reducir CPU/memoria | Baja el `TracingLevel` — `Off` se salta la captura por completo; el umbral del logger no cambia nada del coste de captura. |
+| Mantener el tracing activo en producción pero fuera de los logs | Deja el `TracingLevel` en `Summary` o `Narrative`; o bien te saltas por completo el cableado de `AddNarrativeLogging()`/`LoggingNarrativeContext`, o subes la categoría `NarrativeTrace` por encima de `Warning` — `CaptureTrace()` y cualquier exportador siguen viendo el cuadro completo. |
 
 ## 9. Valores por defecto recomendados según el entorno
 
@@ -745,6 +823,7 @@ loaded from override == True
 
 ## Véase también
 
+- [FAQ](../../es/preguntas-frecuentes.md) — dos diales, dos vías, y otras preguntas frecuentes
 - [Guía de instalación](guia-de-instalacion.md) — paquetes y vías de integración
 - [Guía de atributos](guia-de-atributos.md) — atributos de ocultación y narración
 - [Guía de integración con ASP.NET Core](guia-de-integracion-con-aspnet-core.md) — middleware y exportadores

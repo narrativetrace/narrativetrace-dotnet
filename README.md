@@ -29,22 +29,29 @@ A migration-first architecture: the same library runs on modern .NET,
 
 Half of this method is logging noise:
 
+<!-- snippet: examples/NarrativeTrace.Examples.ProblemStatement/PlaceOrder.cs region=beforeExample -->
 ```csharp
-public OrderResult PlaceOrder(string customerId, string productId, int quantity)
+public Order PlaceOrder(OrderRequest req)
 {
-    _logger.LogInformation("Placing order for {Customer} product {Product} qty {Qty}",
-        customerId, productId, quantity);
-
-    var customer = _customers.FindCustomer(customerId);
-    var unitPrice = _catalog.LookupPrice(productId);
-    _logger.LogDebug("Priced {Product} at {Price}", productId, unitPrice);
-
-    _inventory.Reserve(productId, quantity);
-    var payment = _payments.Charge(customerId, unitPrice * quantity, $"tok_{customer.Id}");
-    _logger.LogInformation("Payment processed: {Txn}", payment.TransactionId);
-    return new OrderResult(NextOrderId(), payment.TransactionId, unitPrice * quantity, quantity);
+    _log.LogInformation("Placing order {OrderId}", req.Id);
+    try
+    {
+        var customer = _customers.Find(req.Id);
+        var price = _catalog.Price(req.Sku);
+        _inventory.Reserve(req.Sku, req.Qty);
+        var payment = _payments.Charge(price);
+        var order = _orders.Save(customer, payment);
+        _log.LogInformation("Order succeeded {OrderId}", order.Id);
+        return order;
+    }
+    catch (Exception ex)
+    {
+        _log.LogError(ex, "Placing order failed {OrderId}", req.Id);
+        throw;
+    }
 }
 ```
+<!-- /snippet -->
 
 The business logic is a handful of lines; the logging is another handful. Every
 developer writes those logs differently — different messages, levels, and
@@ -53,16 +60,19 @@ it describes.
 
 NarrativeTrace eliminates it. Write pure business logic:
 
+<!-- snippet: examples/NarrativeTrace.Examples.ProblemStatement/PlaceOrder.cs region=afterExample -->
 ```csharp
-public OrderResult PlaceOrder(string customerId, string productId, int quantity)
+public Order PlaceOrder(OrderRequest req)
 {
-    var customer = _customers.FindCustomer(customerId);
-    var unitPrice = _catalog.LookupPrice(productId);
-    _inventory.Reserve(productId, quantity);
-    var payment = _payments.Charge(customerId, unitPrice * quantity, $"tok_{customer.Id}");
-    return new OrderResult(NextOrderId(), payment.TransactionId, unitPrice * quantity, quantity);
+    var customer = _customers.Find(req.Id);
+    var price = _catalog.Price(req.Sku);
+    _inventory.Reserve(req.Sku, req.Qty);
+    var payment = _payments.Charge(price);
+    var order = _orders.Save(customer, payment);
+    return order;
 }
 ```
+<!-- /snippet -->
 
 The trace is generated automatically from the method names, parameter names, and
 return values — the information that was already there:
@@ -138,6 +148,18 @@ service class, logging is 30–50% of the lines. Remove them and you get:
   what it does.
 - **Signal-only diffs** — pull requests show logic changes, not mixed
   logic-and-logging changes.
+
+There is now empirical evidence for the failure mode this section describes, not just the
+mechanism. ["Do AI Coding Agents Log Like Humans? An Empirical
+Study"](https://arxiv.org/abs/2604.09409) (arXiv:2604.09409) found that agents change logging
+less often than humans in 58.4% of the 81 repositories studied; only 20.7% of the 4,550 agentic
+pull requests studied touch logging at all; agents fail to comply with explicit logging requests
+67% of the time; and humans write 72.5% of the post-generation logging fixes on agentic pull
+requests, in later commits rather than in review. The paper measures that agents neither write
+logging reliably nor comply with instructions to add it, and that humans repair the gap silently
+afterward; NarrativeTrace's answer is that the code is the log, so there is nothing for an agent
+to write or comply with — and approval traces make observability a deterministic gate, the class
+of guardrail the paper's own recommendations call for.
 
 ## How it compares
 
@@ -264,9 +286,9 @@ Console.WriteLine(IndentedTextRenderer.Render(context.CaptureTrace()));
 ```
 
 **Dependency injection — auto-wrap every interface whose implementation
-lives under a namespace prefix**, the .NET equivalent of Spring/Micronaut
-bean tracing (call it last, after every service it should see is already
-registered):
+lives under a namespace prefix**, bean-style tracing wired at the DI
+container level (call it last, after every service it should see is
+already registered):
 
 ```csharp
 services.AddNarrativeTracing(o =>
@@ -407,9 +429,9 @@ bufferedConsumer.Subscribe(listener.OnEvent);
 
 NarrativeTrace tracks concurrent execution — fork-join parallelism and
 fire-and-forget tasks — as first-class citizens in the trace tree. Because .NET
-context flows through `AsyncLocal` (the analogue of Java's `ThreadLocal`), each
-parallel branch runs against an isolated child context whose trace is merged
-back into the parent with thread metadata.
+context flows through `AsyncLocal`, each parallel branch runs against an
+isolated child context whose trace is merged back into the parent with
+thread metadata.
 
 **Fork-join** — `ForkJoinGroup` runs branches in parallel, joins them, and grafts
 their traces under the parent with a shared `groupId`:
@@ -478,6 +500,10 @@ Every knob is resolvable from `NARRATIVETRACE_*` environment variables
 Capture levels, from least to most detail: `Off`, `Errors`, `Summary`,
 `Narrative`, `Detail`.
 
+`TracingLevel` and your logger's own level are two independent dials — see
+[Configuration Guide §8, "Two dials, two paths"](documentation/guides/configuration.md#8-two-dials-two-paths)
+for how they combine.
+
 ## Documentation
 
 Start here:
@@ -487,6 +513,7 @@ Start here:
 - [Troubleshooting](documentation/troubleshooting.md) — symptom → cause → fix for the failure modes people actually hit
 - [What to Commit](documentation/what-to-commit.md) — which generated files are throwaway output and which are reviewed
 - [Privacy and Redaction](documentation/privacy-and-redaction.md) — the row-by-row redaction contract, verified against the code
+- [FAQ](documentation/faq.md) — two dials, two paths, and other common questions
 
 Task-oriented guides live in [`documentation/guides/`](documentation/guides/):
 
@@ -556,7 +583,7 @@ concurrency stress, and the secrets/SAST/SCA/lint/format/complexity/
 translation checks — in one sitting, collecting every category's result
 rather than stopping at the first failure. It writes
 `reports/verification/<date>.json` and a rendered `.md` twin, in the
-cross-runtime shape this family's Java repo defines
+cross-runtime shape this family shares
 (`reports/verification/SCHEMA.md`): the same field names, the same four
 statuses (`passed`/`failed`/`skipped`/`not-implemented`), the same 21
 category ids across every NarrativeTrace runtime. Long-running by design —
@@ -646,8 +673,8 @@ non-goal right now, not an oversight — a stub property test in the security
 suite asserts that no `Traceparent` type exists in `NarrativeTrace.Core` yet,
 precisely so a future parser lands with its fuzz cases already in place.
 `TraceId` is generated locally and is W3C-*shaped* (32 lowercase hex
-characters, comparable byte-for-byte against ids the Java runtime or a real
-`traceparent` header would produce) — but it is never *derived* from an
+characters, comparable byte-for-byte against ids another NarrativeTrace
+runtime or a real `traceparent` header would produce) — but it is never *derived* from an
 inbound header, so a NarrativeTrace trace id will not equal an upstream
 distributed trace's id.
 

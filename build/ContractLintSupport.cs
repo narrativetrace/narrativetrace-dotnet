@@ -57,6 +57,7 @@ internal static class ContractLintSupport
 {
     private static readonly Regex SincePattern = new(@"^\d+\.\d+\.\d+$", RegexOptions.CultureInvariant);
     private static readonly Regex HeadingLine = new(@"^(#{1,6})\s+(.+?)\s*$", RegexOptions.CultureInvariant);
+    private static readonly Regex HeadingSincePattern = new(@"^#{1,6}\s.*\(since ", RegexOptions.CultureInvariant);
 
     /// <summary>
     /// The GitHub-flavoured-Markdown heading slug: lowercase, strip anything but
@@ -99,6 +100,77 @@ internal static class ContractLintSupport
         }
 
         return anchors;
+    }
+
+    /// <summary>
+    /// Every heading line, across every Markdown file and <c>llms.txt</c> anywhere under
+    /// <c>documentation/</c> (every language — translated mirrors live under
+    /// <c>documentation/&lt;lang&gt;/</c> and are in scope too) plus the root README and its own
+    /// language mirrors, that still carries an inline <c>(since ...)</c> marker. A heading's
+    /// GitHub-rendered anchor slug is exactly the text <see cref="HeadingAnchors"/> computes from
+    /// it; a since-marker's own tag rewrite (the release publish script) can later shorten or drop
+    /// the parenthetical, and that mutates the slug — any reader link into that anchor breaks the
+    /// instant a release settles. Keeping the marker in the section's body, never the heading
+    /// itself, is the only shape immune to that (owner ruling 2026-09-16) — ported from the TS
+    /// repo's <c>tools/contract-lint.ts</c> <c>headingsWithSinceMarker</c> / Java's
+    /// <c>ContractLintSupport.headingsWithSinceMarker</c> / Python's
+    /// <c>contract_lint.headings_with_since_marker</c> (read-only references, not shared code).
+    /// One entry per hit, <c>"&lt;relative path&gt;:&lt;line&gt;: &lt;reason&gt;"</c>, sorted;
+    /// empty when <paramref name="repoRoot"/> has no such heading.
+    /// </summary>
+    public static IReadOnlyList<string> HeadingsWithSinceMarker(string repoRoot)
+    {
+        var hits = new List<string>();
+        foreach (var file in SinceMarkerHeadingScanScope(repoRoot))
+        {
+            var lineNumber = 0;
+            foreach (var line in File.ReadLines(file))
+            {
+                lineNumber++;
+                if (HeadingSincePattern.IsMatch(line))
+                {
+                    var relative = Path.GetRelativePath(repoRoot, file).Replace('\\', '/');
+                    hits.Add(
+                        $"{relative}:{lineNumber}: since-markers belong in the body: heading "
+                            + "anchors must survive the tag rewrite");
+                }
+            }
+        }
+
+        hits.Sort(StringComparer.Ordinal);
+        return hits;
+    }
+
+    /// <summary>
+    /// Every Markdown file and <c>llms.txt</c> anywhere under <c>documentation/</c> (every
+    /// language — translated mirrors live under <c>documentation/&lt;lang&gt;/</c> and are in
+    /// scope too), plus the root README and its own language mirrors: <c>README.md</c> itself, and
+    /// any other root-level <c>*.md</c> file whose line-1 translation header
+    /// (<see cref="TranslationCheckSupport.ParseHeader"/>) names <c>README.md</c> as its source —
+    /// the same header-driven "is this a translation of X" test <see cref="TranslationCheckSupport"/>
+    /// already uses, so this never keeps a second, independent list of root README mirror filenames.
+    /// </summary>
+    private static IEnumerable<string> SinceMarkerHeadingScanScope(string repoRoot)
+    {
+        var documentation = Path.Combine(repoRoot, "documentation");
+        var docs = Directory.Exists(documentation)
+            ? Directory.EnumerateFiles(documentation, "*.*", SearchOption.AllDirectories)
+                .Where(file => file.EndsWith(".md", StringComparison.OrdinalIgnoreCase)
+                    || Path.GetFileName(file).Equals("llms.txt", StringComparison.OrdinalIgnoreCase))
+            : Enumerable.Empty<string>();
+        var readmeMirrors = Directory.Exists(repoRoot)
+            ? Directory.EnumerateFiles(repoRoot, "*.md", SearchOption.TopDirectoryOnly)
+                .Where(file => Path.GetFileName(file).Equals("README.md", StringComparison.OrdinalIgnoreCase)
+                    || IsReadmeMirror(file))
+            : Enumerable.Empty<string>();
+        return docs.Concat(readmeMirrors);
+    }
+
+    private static bool IsReadmeMirror(string file)
+    {
+        using var reader = new StreamReader(file, Encoding.UTF8);
+        var firstLine = reader.ReadLine() ?? string.Empty;
+        return TranslationCheckSupport.ParseHeader(firstLine)?.SourcePath == "README.md";
     }
 
     /// <summary>
@@ -188,6 +260,7 @@ internal static class ContractLintSupport
             LintEntry(repoRoot, entry, seenIds, seenClaims, problems);
 
         LintCoverage(document, unreleasedMarkerVersions, problems);
+        problems.AddRange(HeadingsWithSinceMarker(repoRoot));
         problems.Sort(StringComparer.Ordinal);
         return problems;
     }

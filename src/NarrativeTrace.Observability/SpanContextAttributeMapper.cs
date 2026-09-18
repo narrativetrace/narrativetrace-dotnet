@@ -150,8 +150,8 @@ public static class SpanContextAttributeMapper
     }
 
     /// <summary>
-    /// Sets a parameter tag, inferring a typed value from its rendered string
-    /// (mirrors Java's <c>setTypedFromString</c> fallback for unstructured captures).
+    /// Sets a parameter tag, inferring a typed value from its rendered string —
+    /// the fallback for unstructured captures.
     /// </summary>
     private static void SetTypedTag(
         Action<string, object?> setTag, string key, string rendered)

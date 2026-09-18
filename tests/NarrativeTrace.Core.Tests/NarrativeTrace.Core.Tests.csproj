@@ -29,5 +29,16 @@
   <ItemGroup>
     <ProjectReference Include="../../src/NarrativeTrace.Core/NarrativeTrace.Core.csproj" />
     <ProjectReference Include="../../src/NarrativeTrace.Runtime/NarrativeTrace.Runtime.csproj" />
+    <!--
+      RenderReadsStateTests.cs pins the rendering rule end to end through
+      NarrativeTraceProxy (Proxy) and LoggingNarrativeContext (Logging) — the
+      public surfaces every other reentrancy/narration test already exercises
+      from NarrativeTrace.Proxy.Tests, needed here too because the rule's
+      exception-message-on-the-durable-path half is a Logging-layer defect,
+      not a Core one. Both references are test-only (this project is never
+      packed, IsPackable=false above).
+    -->
+    <ProjectReference Include="../../src/NarrativeTrace.Proxy/NarrativeTrace.Proxy.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Logging/NarrativeTrace.Logging.csproj" />
   </ItemGroup>
 </Project>

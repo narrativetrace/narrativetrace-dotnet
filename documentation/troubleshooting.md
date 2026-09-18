@@ -17,9 +17,8 @@ parameter names**, including in Release builds and under trimming, so this
 should not happen in normal use.
 
 **Fix:** if you hit it, check whether the interface came from a code
-generator or dynamic-assembly path that dropped parameter metadata. This is
-the one difference from the JVM: .NET needs no `-parameters` compiler flag
-at all for ordinary code.
+generator or dynamic-assembly path that dropped parameter metadata. .NET
+needs no compiler flag at all for ordinary code to keep parameter names.
 
 ## `NarrativeTraceProxy.Create<T>` throws at startup
 

