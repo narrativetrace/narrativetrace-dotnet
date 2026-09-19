@@ -5,7 +5,7 @@
       "tests/NarrativeTrace.Proxy.Tests/NarrativeTrace.Proxy.Tests.csproj"
     ],
     "reporters": ["progress", "html", "json"],
-    "thresholds": { "high": 90, "low": 78.20, "break": 78.20 },
+    "thresholds": { "high": 90, "low": 78, "break": 78 },
     "concurrency": 4
   },
   "break-ratchet": {
@@ -13,6 +13,6 @@
     "measured": 78.20,
     "break-target": 85,
     "gap": 6.80,
-    "note": "break is the measured score, not the 85 target (owner ruling 2026-09-18, TODO §35) — a ratchet, never lowered below the last recorded score; see mutation-ratchet.json and MutationRatchetTests"
+    "note": "break is the floor of the measured score (78.20 -> 78) — Stryker's own thresholds schema is int?, never double? (nightly 2026-09-19, B-40); a ratchet, never lowered below the last recorded floor; see mutation-ratchet.json and MutationRatchetTests"
   }
 }

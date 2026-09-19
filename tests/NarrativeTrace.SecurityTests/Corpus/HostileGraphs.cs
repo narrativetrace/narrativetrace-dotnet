@@ -271,6 +271,7 @@ public static class HostileGraphs
             "getterThrows" => new HostileMembers.GetterThrowing(held),
             "accessorThrows" => new HostileMembers.AccessorThrowing(held, "label"),
             "numberHostileToString" => new HostileMembers.NumberHostileToString(held),
+            "numberSubclassToStringDoor" => new HostileMembers.NumberSubclassToStringDoor(sentinel),
             "hostileKeyNames" => HostileMembers.HostileKeyNames(held),
             "countingAccessor" => new HostileMembers.CountingAccessorRecord(held),
             "sideEffectingIteratorList" => new HostileMembers.SideEffectingIteratorList(held),
@@ -278,6 +279,7 @@ public static class HostileGraphs
             "abstractMapSubclassOverride" => new HostileMembers.AbstractMapSubclassOverride(held),
             "abstractCollectionSubclassOverride" => new HostileMembers.AbstractCollectionSubclassOverride(held),
             "fieldlessAbstractSubclassToStringDoor" => new HostileMembers.FieldlessAbstractSubclassToStringDoor(),
+            "fieldlessSideTableToStringDoor" => new HostileMembers.FieldlessSideTableToStringDoor(held),
             _ => throw new ArgumentException($"unknown hostile member: {member}"),
         };
     }

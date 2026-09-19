@@ -180,6 +180,41 @@ public static class HostileMembers
     }
 
     /// <summary>
+    /// A composite carrying a deny-listed field and a hand-written <c>ToString()</c> that prints
+    /// it — the <c>number-subclass-tostring-door</c> row.
+    /// </summary>
+    /// <remarks>
+    /// The Java corpus's <c>numberSubclassToStringDoor</c> row is a <c>java.lang.Number</c>
+    /// subclass: extending that public abstract class says nothing about what an instance holds,
+    /// so Java's scalar-numeric fast path read the subclass's own text unsanitized instead of
+    /// walking its fields. .NET has no subclassable numeric base — its numeric types are sealed
+    /// structs, and <c>RenderValue</c>/<c>RenderStructuredValue</c> pattern-match them by exact
+    /// runtime type (see <see cref="NumberHostileToString"/>'s remarks for the same architectural
+    /// fact) — so no user type can reach a numeric fast path here by inheritance at all. This
+    /// fixture is the honest .NET twin all the same: an ordinary composite, mirroring the Java
+    /// fixture's own shape (a deny-listed <c>Password</c> plus a harmless <c>Cents</c> field) and
+    /// its exact <c>ToString()</c> text, so the corpus row still exercises the one thing that IS
+    /// shared architecture on both runtimes — a composite never renders through its own
+    /// <c>ToString()</c>, only through the field walk, deny-list and all.
+    /// </remarks>
+    public sealed class NumberSubclassToStringDoor
+    {
+        /// <summary>The deny-listed field the field walk must withhold.</summary>
+        public string Password { get; }
+
+        /// <summary>A harmless sibling field, rendered normally.</summary>
+        public long Cents { get; } = 1999L;
+
+        public NumberSubclassToStringDoor(string password)
+        {
+            Password = password;
+        }
+
+        /// <inheritdoc />
+        public override string ToString() => $"Amount{{password={Password}, cents={Cents}}}";
+    }
+
+    /// <summary>
     /// A deny-listed field name whose value is a platform type the renderer would otherwise trust
     /// to stringify itself — the <c>platform-type-name-redacted</c> row.
     /// </summary>
@@ -653,6 +688,71 @@ public static class HostileMembers
         {
             Interlocked.Increment(ref _iteratorCalls);
             throw new InvalidOperationException("iterator() must never be called by rendering");
+        }
+    }
+
+    /// <summary>
+    /// A FIELDLESS class, no composite at all, whose <c>ToString()</c> reads its real state out
+    /// of a static identity-keyed SIDE TABLE — state no field reflection can see. The
+    /// <c>fieldless-sidetable-tostring-door</c> row.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// INTENT: "Declares no instance field" was never a statement that a value has nothing to
+    /// tell. This class keeps its payload in a table keyed by the instance's own identity — the
+    /// same door a <c>ConditionalWeakTable</c> or a <c>ThreadLocal</c> opens — so reflection finds
+    /// nothing to walk while the class's own text prints a deny-listed component in full. Trust in
+    /// a value's own text belongs to an explicitly named platform leaf type and nothing else
+    /// (<see cref="PlatformTypes.IsStatelessLeaf"/>): a member-less user type is never on that
+    /// list, so <c>RenderShaped</c>/<c>RenderStructuredShaped</c> take the object-dump branch
+    /// (<c>Members.Length &gt; 0 || !IsStatelessLeaf(type)</c> is true even at zero members) —
+    /// <c>SafeToString</c>, and therefore this side table, is never reached.
+    /// </para>
+    /// <para>
+    /// @llmNote The reads counter and the table are both <c>static</c>: an instance field of
+    /// either kind would give introspection something to find and destroy the fieldless
+    /// precondition this fixture exists to hold. Callers reset the counter before use, exactly as
+    /// <see cref="FieldlessAbstractSubclassToStringDoor"/> does.
+    /// </para>
+    /// <para>
+    /// @edgeCase The table compares keys by reference (<see cref="ReferenceEqualityComparer"/>),
+    /// so it consults neither <c>Equals</c> nor <c>GetHashCode</c> of the key — a hostile fixture
+    /// may have neither — and it retains every instance ever built. Bounded by construction: the
+    /// corpus builds one instance per replay of one row.
+    /// </para>
+    /// </remarks>
+    public sealed class FieldlessSideTableToStringDoor
+    {
+        private static readonly Dictionary<object, HostileGraphs.Secret> SideTable =
+            new(ReferenceEqualityComparer.Instance);
+
+        private static int _sideTableReads;
+
+        /// <summary>How many times the side table below was actually read.</summary>
+        public static int SideTableReads => Volatile.Read(ref _sideTableReads);
+
+        /// <summary>Resets the spy counter — the counter is static, so callers must reset it before use.</summary>
+        public static void ResetSideTableReads() => Volatile.Write(ref _sideTableReads, 0);
+
+        public FieldlessSideTableToStringDoor(HostileGraphs.Secret held)
+        {
+            lock (SideTable)
+            {
+                SideTable[this] = held;
+            }
+        }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            Interlocked.Increment(ref _sideTableReads);
+            HostileGraphs.Secret held;
+            lock (SideTable)
+            {
+                held = SideTable[this];
+            }
+
+            return $"FieldlessSideTableToStringDoor[{held.Label}/{held.SentinelValue}]";
         }
     }
 

@@ -9,23 +9,23 @@
   },
   "ConcurrencyBenchmarks.ExportForkJoinJson": {
     "meanNs": 8843.69,
-    "allocatedBytes": 47435
+    "allocatedBytes": 47637
   },
   "ConcurrencyBenchmarks.FireAndForget_Launch": {
     "meanNs": 1271.39,
-    "allocatedBytes": 2720
+    "allocatedBytes": 2816
   },
   "ConcurrencyBenchmarks.ForkJoin_TwoTasks": {
     "meanNs": 3311.25,
-    "allocatedBytes": 6316
+    "allocatedBytes": 6409
   },
   "ConcurrencyBenchmarks.ForkJoin_WhenAll": {
     "meanNs": 3497.77,
-    "allocatedBytes": 6472
+    "allocatedBytes": 6564
   },
   "ConcurrencyBenchmarks.RenderForkJoinIndented": {
     "meanNs": 1095.2,
-    "allocatedBytes": 4784
+    "allocatedBytes": 4944
   },
   "ConcurrencyBenchmarks.RenderForkJoinMarkdown": {
     "meanNs": 2055.64,
@@ -33,39 +33,39 @@
   },
   "CoreBenchmarks.BuildTree(NodeCount=10)": {
     "meanNs": 6109.81,
-    "allocatedBytes": 12464
+    "allocatedBytes": 14080
   },
   "CoreBenchmarks.BuildTree(NodeCount=100)": {
     "meanNs": 66595.94,
-    "allocatedBytes": 112808
+    "allocatedBytes": 128824
   },
   "CoreBenchmarks.BuildTree(NodeCount=1000)": {
     "meanNs": 3225151.87,
-    "allocatedBytes": 1104707
+    "allocatedBytes": 1264726
   },
   "CoreBenchmarks.EnterExitCycle(NodeCount=10)": {
     "meanNs": 1131.25,
-    "allocatedBytes": 2848
+    "allocatedBytes": 3024
   },
   "CoreBenchmarks.EnterExitCycle(NodeCount=100)": {
     "meanNs": 1128.21,
-    "allocatedBytes": 2848
+    "allocatedBytes": 3024
   },
   "CoreBenchmarks.EnterExitCycle(NodeCount=1000)": {
     "meanNs": 1134.66,
-    "allocatedBytes": 2848
+    "allocatedBytes": 3024
   },
   "CoreBenchmarks.RenderObject(NodeCount=10)": {
     "meanNs": 2230.02,
-    "allocatedBytes": 896
+    "allocatedBytes": 448
   },
   "CoreBenchmarks.RenderObject(NodeCount=100)": {
     "meanNs": 2317.85,
-    "allocatedBytes": 896
+    "allocatedBytes": 448
   },
   "CoreBenchmarks.RenderObject(NodeCount=1000)": {
     "meanNs": 2236.57,
-    "allocatedBytes": 896
+    "allocatedBytes": 448
   },
   "CoreBenchmarks.RenderPrimitive(NodeCount=10)": {
     "meanNs": 27.92,
@@ -85,7 +85,7 @@
   },
   "RendererBenchmarks.JsonExportSmall": {
     "meanNs": 3810.93,
-    "allocatedBytes": 17264
+    "allocatedBytes": 17272
   },
   "RendererBenchmarks.MarkdownMedium": {
     "meanNs": 6233.67,

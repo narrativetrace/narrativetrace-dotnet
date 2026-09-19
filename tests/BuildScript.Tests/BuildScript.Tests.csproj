@@ -30,6 +30,8 @@
              Link="MutationVocabularyExclusion.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/MutationRatchet.cs"
              Link="MutationRatchet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/StrykerThresholdSupport.cs"
+             Link="StrykerThresholdSupport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/HeaderAbsenceSupport.cs"
              Link="HeaderAbsenceSupport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/AssetMetadataSupport.cs"

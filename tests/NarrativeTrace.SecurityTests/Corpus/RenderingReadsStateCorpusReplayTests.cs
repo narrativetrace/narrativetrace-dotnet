@@ -131,6 +131,8 @@ public sealed class RenderingReadsStateCorpusReplayTests
     [InlineData("abstract-collection-subclass-override")]
     [InlineData("structured-path-user-collection-not-enumerated")]
     [InlineData("fieldless-abstract-subclass-tostring-door")]
+    [InlineData("fieldless-sidetable-tostring-door")]
+    [InlineData("number-subclass-tostring-door")]
     public void The_declared_graph_case_builds_the_matching_fixture_type(string caseId)
     {
         var graphCase = HostileCorpus.Graphs().Single(c => c.Id == caseId);
@@ -143,7 +145,9 @@ public sealed class RenderingReadsStateCorpusReplayTests
                 or HostileMembers.LookalikeCollection
                 or HostileMembers.AbstractMapSubclassOverride
                 or HostileMembers.AbstractCollectionSubclassOverride
-                or HostileMembers.FieldlessAbstractSubclassToStringDoor,
+                or HostileMembers.FieldlessAbstractSubclassToStringDoor
+                or HostileMembers.FieldlessSideTableToStringDoor
+                or HostileMembers.NumberSubclassToStringDoor,
             $"{caseId} built an unexpected type: {built.GetType()}");
     }
 
@@ -204,5 +208,96 @@ public sealed class RenderingReadsStateCorpusReplayTests
         ValueRenderer.RenderStructured(fixture);
 
         Assert.Equal(0, HostileMembers.FieldlessAbstractSubclassToStringDoor.IteratorCalls);
+    }
+
+    /// <summary>
+    /// §6.7 master mirror wave (2026-09-19): the <c>fieldless-sidetable-tostring-door</c> row. LIVE
+    /// here, unlike its abstract-base sibling above: this fixture is not on
+    /// <see cref="PlatformTypes.IsStatelessLeaf"/>'s explicit allowlist, so <c>RenderShaped</c>'s
+    /// <c>Members.Length &gt; 0 || !IsStatelessLeaf(type)</c> guard is true even at zero members —
+    /// the object-dump branch, never <c>SafeToString</c> — verified empirically here, not assumed.
+    /// </summary>
+    [Fact]
+    public void Fieldless_sidetable_tostring_door_row_never_consults_the_side_table()
+    {
+        HostileMembers.FieldlessSideTableToStringDoor.ResetSideTableReads();
+        var secret = HostileGraphs.BuildSecret("sentinel-side-table");
+        var fixture = new HostileMembers.FieldlessSideTableToStringDoor(secret);
+
+        var rendered = ValueRenderer.Render(fixture);
+
+        Assert.Equal(0, HostileMembers.FieldlessSideTableToStringDoor.SideTableReads);
+        Assert.Contains("FieldlessSideTableToStringDoor", rendered);
+        Assert.DoesNotContain("sentinel-side-table", rendered, StringComparison.Ordinal);
+        Assert.DoesNotContain("<error", rendered, StringComparison.Ordinal);
+    }
+
+    /// <summary>Same door, replayed on the structured path — one decision, shared, so the two cannot drift.</summary>
+    [Fact]
+    public void Fieldless_sidetable_tostring_door_row_never_consults_the_side_table_structured()
+    {
+        HostileMembers.FieldlessSideTableToStringDoor.ResetSideTableReads();
+        var secret = HostileGraphs.BuildSecret("sentinel-side-table-structured");
+        var fixture = new HostileMembers.FieldlessSideTableToStringDoor(secret);
+
+        var rendered = Dump(ValueRenderer.RenderStructured(fixture));
+
+        Assert.Equal(0, HostileMembers.FieldlessSideTableToStringDoor.SideTableReads);
+        Assert.Contains("FieldlessSideTableToStringDoor", rendered);
+        Assert.DoesNotContain("sentinel-side-table-structured", rendered, StringComparison.Ordinal);
+        Assert.DoesNotContain("<error", rendered, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// §6.7 master mirror wave (2026-09-19): the <c>number-subclass-tostring-door</c> row. Always
+    /// LIVE here — see <see cref="HostileMembers.NumberSubclassToStringDoor"/>'s remarks: .NET has
+    /// no subclassable numeric base for a scalar fast path to trust in the first place, so this
+    /// composite reaches the ordinary field walk the same way any other composite does.
+    /// </summary>
+    [Fact]
+    public void Number_subclass_tostring_door_row_is_walked_rather_than_read_on_the_flat_path()
+    {
+        var fixture = new HostileMembers.NumberSubclassToStringDoor("sentinel-number-subclass");
+
+        var rendered = ValueRenderer.Render(fixture);
+
+        Assert.Contains("NumberSubclassToStringDoor", rendered);
+        Assert.Contains("[REDACTED]", rendered);
+        Assert.DoesNotContain("sentinel-number-subclass", rendered, StringComparison.Ordinal);
+        Assert.DoesNotContain("<error", rendered, StringComparison.Ordinal);
+    }
+
+    /// <summary>The same row on the structured path: one decision, so the two channels cannot differ.</summary>
+    [Fact]
+    public void Number_subclass_tostring_door_row_is_walked_rather_than_read_on_the_structured_path()
+    {
+        var fixture = new HostileMembers.NumberSubclassToStringDoor("sentinel-number-subclass-structured");
+
+        var rendered = Dump(ValueRenderer.RenderStructured(fixture));
+
+        Assert.Contains("NumberSubclassToStringDoor", rendered);
+        Assert.Contains("[REDACTED]", rendered);
+        Assert.DoesNotContain("sentinel-number-subclass-structured", rendered, StringComparison.Ordinal);
+        Assert.DoesNotContain("<error", rendered, StringComparison.Ordinal);
+    }
+
+    // RenderedValue.ObjectVal/ListVal carry an IReadOnlyDictionary/IReadOnlyList whose default
+    // ToString() prints only the .NET type name, never a nested field's content — the same reason
+    // RedactionVocabularyPropertyTests.Dump exists. Walks the whole tree instead.
+    private static string Dump(RenderedValue value)
+    {
+        return value switch
+        {
+            RenderedValue.StringVal s => s.Value,
+            RenderedValue.LongVal l => l.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            RenderedValue.DoubleVal d => d.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            RenderedValue.BooleanVal b => b.Value.ToString(),
+            RenderedValue.InstantVal i => i.EpochMillis.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            RenderedValue.NullVal => "null",
+            RenderedValue.ListVal list => string.Join(", ", list.Elements.Select(Dump)),
+            RenderedValue.ObjectVal obj => obj.TypeName + "("
+                + string.Join(", ", obj.Fields.Select(f => $"{f.Key}={Dump(f.Value)}")) + ")",
+            _ => value.ToString() ?? "",
+        };
     }
 }

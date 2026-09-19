@@ -11,8 +11,8 @@
     ],
     "thresholds": {
       "high": 95,
-      "low": 89.95,
-      "break": 89.95
+      "low": 89,
+      "break": 89
     },
     "concurrency": 4
   },
@@ -21,6 +21,6 @@
     "measured": 89.95,
     "break-target": 91,
     "gap": 1.05,
-    "note": "break is the measured score, not the 91 target (owner ruling 2026-09-18, TODO §35) — a ratchet, never lowered below the last recorded score; see mutation-ratchet.json and MutationRatchetTests"
+    "note": "break is the floor of the measured score (89.95 -> 89) — Stryker's own thresholds schema is int?, never double? (nightly 2026-09-19, B-40); a ratchet, never lowered below the last recorded floor; see mutation-ratchet.json and MutationRatchetTests"
   }
 }

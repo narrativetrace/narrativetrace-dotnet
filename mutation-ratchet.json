@@ -1,23 +1,23 @@
 {
   "clarity": {
-    "score": 76.36,
+    "score": 76,
     "recorded": "2026-09-18",
     "break-target": 80,
-    "gap": 3.64,
-    "note": "post vocabulary-data exclude (TODO §35) + MethodNameScorer behaviour tests (51 -> 9 survivors). Largest remaining clusters: ClassNameScorer (27), ClarityReportRenderer (21), MorphologyAnalyzer (17)."
+    "gap": 4,
+    "note": "post vocabulary-data exclude (TODO §35) + MethodNameScorer behaviour tests (51 -> 9 survivors). Largest remaining clusters: ClassNameScorer (27), ClarityReportRenderer (21), MorphologyAnalyzer (17). Score floored to an integer (measured 76.36) — Stryker's own thresholds schema is int?, never double? (nightly 2026-09-19, B-40); the exact measured value lives in stryker-config.clarity.json's break-ratchet.measured."
   },
   "core": {
-    "score": 89.95,
+    "score": 89,
     "recorded": "2026-09-18",
     "break-target": 91,
-    "gap": 1.05,
-    "note": "340 survivors, worst in ValueRenderer (40), MarkdownRenderer (33), SecretValueShapes (29) — TODO §35"
+    "gap": 2,
+    "note": "340 survivors, worst in ValueRenderer (40), MarkdownRenderer (33), SecretValueShapes (29) — TODO §35. Score floored to an integer (measured 89.95) — Stryker's own thresholds schema is int?, never double? (nightly 2026-09-19, B-40); the exact measured value lives in stryker-config.json's break-ratchet.measured."
   },
   "proxy": {
-    "score": 78.20,
+    "score": 78,
     "recorded": "2026-09-18",
     "break-target": 85,
-    "gap": 6.80,
-    "note": "35 survivors: NarrationResolver (21), NarrativeInterceptor (8), NarrativeTraceProxy (6) — TODO §35"
+    "gap": 7,
+    "note": "35 survivors: NarrationResolver (21), NarrativeInterceptor (8), NarrativeTraceProxy (6) — TODO §35. Score floored to an integer (measured 78.20) — Stryker's own thresholds schema is int?, never double? (nightly 2026-09-19, B-40); the exact measured value lives in stryker-config.proxy.json's break-ratchet.measured."
   }
 }

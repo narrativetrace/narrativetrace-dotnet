@@ -1437,6 +1437,11 @@ class Build : NukeBuild
     /// are ordering constraints, not dependencies, so <c>./build.sh Benchmark</c>
     /// on its own still runs nothing but the benchmarks.
     /// </remarks>
+    [Parameter("BenchmarkBaseline: update only the allocation column, preserving each benchmark's " +
+        "existing recorded mean time untouched — for landing a determinism fix without also " +
+        "re-baselining time, which is a separate, deliberate act.")]
+    readonly bool AllocationOnly;
+
     Target Benchmark => _ => _
         .After(Clean)
         .After(FormatCheck)
@@ -1449,11 +1454,9 @@ class Build : NukeBuild
         .After(CouplingReport)
         .Executes(() =>
         {
-            PrepareBenchmarkArtifacts();
-            RunBenchmarks();
-            var results = BenchmarkGate.LoadResults(BenchmarkArtifactsDir);
+            var results = RunBenchmarksTwiceAndFloorAllocation();
             if (File.Exists(BenchmarkBaselineFile))
-                BenchmarkGate.CheckRegressions(results, BenchmarkBaselineFile);
+                BenchmarkGate.CheckRegressions(results, BenchmarkBaselineFile, VerifyAllLoadThreshold);
             else
                 Console.WriteLine("No benchmark baseline found. Run: ./build.sh BenchmarkBaseline");
         });
@@ -1461,10 +1464,18 @@ class Build : NukeBuild
     Target BenchmarkBaseline => _ => _
         .Executes(() =>
         {
-            PrepareBenchmarkArtifacts();
-            RunBenchmarks();
-            BenchmarkGate.SaveBaseline(
-                BenchmarkGate.LoadResults(BenchmarkArtifactsDir), BenchmarkBaselineFile);
+            var results = RunBenchmarksTwiceAndFloorAllocation();
+            if (AllocationOnly)
+            {
+                if (!BenchmarkGate.UpdateAllocationOnly(results, BenchmarkBaselineFile))
+                    Console.WriteLine("BenchmarkBaseline --allocation-only: no existing baseline to " +
+                        "preserve mean times from — nothing written; run without --allocation-only " +
+                        "for a first baseline.");
+            }
+            else
+            {
+                BenchmarkGate.SaveBaseline(results, BenchmarkBaselineFile);
+            }
         });
 
     // ── Tier B fuzzing (security-testing.md) ────────────────────────────────────
@@ -3115,20 +3126,42 @@ class Build : NukeBuild
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    void PrepareBenchmarkArtifacts()
+    void PrepareBenchmarkArtifacts(AbsolutePath artifactsDir)
     {
-        if (Directory.Exists(BenchmarkArtifactsDir))
-            Directory.Delete(BenchmarkArtifactsDir, true);
-        Directory.CreateDirectory(BenchmarkArtifactsDir);
+        if (Directory.Exists(artifactsDir))
+            Directory.Delete(artifactsDir, true);
+        Directory.CreateDirectory(artifactsDir);
     }
 
-    void RunBenchmarks()
+    void RunBenchmarks(AbsolutePath artifactsDir, string filter = "*")
     {
         var project = RootDirectory / "benchmarks" / "NarrativeTrace.Benchmarks" / "NarrativeTrace.Benchmarks.csproj";
         // Medium job (10 warmup / 15 measured iterations): the short job's 3
         // samples cannot hold the 15% regression band on containerized CPU —
         // back-to-back identical runs differed by up to 40%.
-        DotNet($"run --project \"{project}\" -c Release -- --filter * --exporters json --job medium --artifacts \"{BenchmarkArtifactsDir}\"");
+        BenchmarkGate.RunProcess(project, artifactsDir, filter);
+    }
+
+    /// <summary>
+    /// Runs the whole benchmark job twice — an ephemeral first run, then the canonical run into
+    /// <see cref="BenchmarkArtifactsDir"/> (the location every other reader, <c>VerifyAll</c>
+    /// included, still expects real BenchmarkDotNet reports at) — and floors the two into one
+    /// result set via <see cref="BenchmarkGate.MergeRuns"/>. See
+    /// <see cref="BenchmarkGate.DeterminismEnvironment"/> for why a single run is never trusted.
+    /// </summary>
+    Dictionary<string, (double MeanNs, long AllocBytes)> RunBenchmarksTwiceAndFloorAllocation(string filter = "*")
+    {
+        var floorDir = ArtifactsDirectory / "benchmarks-floor";
+        PrepareBenchmarkArtifacts(floorDir);
+        RunBenchmarks(floorDir, filter);
+        var firstRun = BenchmarkGate.LoadResults(floorDir);
+        Directory.Delete(floorDir, true);
+
+        PrepareBenchmarkArtifacts(BenchmarkArtifactsDir);
+        RunBenchmarks(BenchmarkArtifactsDir, filter);
+        var secondRun = BenchmarkGate.LoadResults(BenchmarkArtifactsDir);
+
+        return BenchmarkGate.MergeRuns(firstRun, secondRun);
     }
 
     static int CountNcss(IEnumerable<string> lines)
