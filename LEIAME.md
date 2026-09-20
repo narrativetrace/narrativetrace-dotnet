@@ -1,4 +1,4 @@
-<!-- source: README.md blob 0dada18d7d3d | translated: 2026-09-18 | reviewed: - -->
+<!-- source: README.md blob 28caafe49aac | translated: 2026-09-20 | reviewed: - -->
 # NarrativeTrace .NET
 
 [English](README.md) | [Español](LEAME.md) | **Português** | [简体中文](自述文件.md)
@@ -390,6 +390,14 @@ escrevendo resultados em JSON legíveis por máquina em
 `artifacts/benchmarks/`. Esse único comando é o ponto de entrada que um job
 noturno/de host invoca; regenere a baseline depois de uma mudança de
 performance intencional com `./build.sh BenchmarkBaseline`.
+
+Quando todos os benchmarks ficam mais lentos juntos e nenhum aloca mais,
+isso é um host mais lento, não um commit mais lento: o gate reporta isso
+em voz alta como uma mudança de ambiente, encerra limpo e deixa a baseline
+intocada. Um único benchmark regredindo enquanto seus pares seguem
+estáveis ainda derruba o gate, por maior que seja o seu fator — o eixo
+determinístico, a alocação, é o que uma regressão real move e o que um
+host mais lento nunca move.
 
 Em `TracingLevel.Off` o contexto interrompe o fluxo antecipadamente e não
 captura nada — um teste de caracterização fixa que um contexto em nível Off

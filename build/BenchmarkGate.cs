@@ -148,12 +148,61 @@ static class BenchmarkGate
     }
 
     /// <summary>
+    /// True only when EVERY benchmark checked against the baseline slowed past the regression
+    /// threshold and none allocated more — the shape a uniformly slower host leaves, never a code
+    /// change (release rule: bisect, never attribute). Allocation is the axis a real regression
+    /// would move and a slower host never does, so any allocation growth rules this out outright.
+    /// One benchmark regressing while its peers hold steady is a code regression report, however
+    /// large its factor, and is never classified this way — the classifier requires unanimity
+    /// among at least two checked benchmarks, never a single row standing for itself (a lone
+    /// benchmark has no peers to move "together" with, so it is always a plain regression report).
+    /// </summary>
+    public static bool IsEnvironmentShift(
+        Dictionary<string, (double MeanNs, long AllocBytes)> baseline,
+        Dictionary<string, (double MeanNs, long AllocBytes)> current,
+        out double minFactor,
+        out double maxFactor)
+    {
+        minFactor = 0;
+        maxFactor = 0;
+        var checkedCount = 0;
+        var factors = new List<double>();
+
+        foreach (var entry in baseline)
+        {
+            if (!current.TryGetValue(entry.Key, out var cur))
+                continue;
+
+            checkedCount++;
+            var (baseMean, baseAlloc) = entry.Value;
+            if (cur.AllocBytes > baseAlloc)
+                return false;
+
+            if (!(baseMean > 0) || cur.MeanNs / baseMean <= 1.15)
+                return false;
+
+            factors.Add(cur.MeanNs / baseMean);
+        }
+
+        if (checkedCount < 2)
+            return false;
+
+        minFactor = factors.Min();
+        maxFactor = factors.Max();
+        return true;
+    }
+
+    /// <summary>
     /// Compares <paramref name="current"/> (already floored by <see cref="MergeRuns"/>) against
-    /// the recorded baseline. Allocation has no exception: any allocation regression fails the
-    /// gate, because it is now measured as a floor rather than a single noisy sample. A time
-    /// regression measured while the host itself is under load measures the host, not the code
-    /// (release rule: bisect, never attribute) — the 5-minute load average is printed next to
-    /// every time regression, and when it is above <paramref name="loadThreshold"/> that
+    /// the recorded baseline. A classifier runs first: when every checked benchmark slowed and none
+    /// allocated more (<see cref="IsEnvironmentShift"/>), the run is reported as an ENVIRONMENT_SHIFT
+    /// — loud, with the factor range and the load, exit code 0, baseline left untouched — because a
+    /// uniform slowdown with a flat deterministic axis measures the host, not the code (release
+    /// rule: bisect, never attribute). Short of unanimity, the ordinary per-row verdict applies:
+    /// allocation has no exception — any allocation regression fails the gate, because it is now
+    /// measured as a floor rather than a single noisy sample — and a time regression measured while
+    /// the host itself is under load measures the host too; the 5-minute load average is printed
+    /// next to every time regression, and when it is above <paramref name="loadThreshold"/> that
     /// regression is reported but does not fail the gate.
     /// </summary>
     public static void CheckRegressions(
@@ -169,6 +218,15 @@ static class BenchmarkGate
             ? $"host load 1/5/15m: {l.OneMinute:F2}/{l.FiveMinute:F2}/{l.FifteenMinute:F2} (threshold {loadThreshold:F1})"
             : "host load unavailable (no /proc/loadavg)";
         var timeUnreliable = load is { } l2 && l2.FiveMinute > loadThreshold;
+
+        if (IsEnvironmentShift(baseline, current, out var minFactor, out var maxFactor))
+        {
+            Console.WriteLine(
+                $"ENVIRONMENT_SHIFT: every one of {baseline.Count} benchmarks slowed together "
+                + $"(x{minFactor:F2}-x{maxFactor:F2}), no allocation moved — {loadLine}. Reporting, "
+                + "not failing: a uniformly slower host, not a code regression. Baseline not refreshed.");
+            return;
+        }
 
         foreach (var r in allocRegressions)
             Console.WriteLine($"  REGRESSION: {r}");

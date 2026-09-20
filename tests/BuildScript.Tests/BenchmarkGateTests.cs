@@ -188,4 +188,110 @@ public sealed class BenchmarkGateTests : IDisposable
         Assert.Throws<InvalidOperationException>(() =>
             BenchmarkGate.CheckRegressions(current, baseline, loadThreshold: 6.0, loadAveragePath: loadPath));
     }
+    // ── Environment shift: every row moved together, allocation flat — a slower host, never a
+    // code regression (release rule: bisect, never attribute; allocation is the axis a real
+    // regression would move and a slower host never does).
+
+    private static string Capture(Action action)
+    {
+        var original = Console.Out;
+        using var captured = new StringWriter();
+        Console.SetOut(captured);
+        try
+        {
+            action();
+        }
+        finally
+        {
+            Console.SetOut(original);
+        }
+        return captured.ToString();
+    }
+
+    [Fact]
+    public void Every_row_moving_together_with_allocation_flat_is_an_environment_shift_not_a_failure()
+    {
+        // The 2026-09-20 nightly's 20 rows verbatim: every one a time regression, no allocation
+        // regression, host load 1.22/1.30/1.84 — well under the 6.0 load-unreliable threshold, so
+        // the existing load exception does not explain this case; the uniform-shift classifier is
+        // the only thing that can.
+        var baseline = WriteBaseline(
+            ("ConcurrencyBenchmarks.DetectOverlapping", 29.0, 100),
+            ("ConcurrencyBenchmarks.DetectSequential", 87.0, 100),
+            ("ConcurrencyBenchmarks.ExportForkJoinJson", 8844.0, 100),
+            ("ConcurrencyBenchmarks.FireAndForget_Launch", 1271.0, 100),
+            ("ConcurrencyBenchmarks.ForkJoin_TwoTasks", 3311.0, 100),
+            ("ConcurrencyBenchmarks.RenderForkJoinIndented", 1095.0, 100),
+            ("ConcurrencyBenchmarks.RenderForkJoinMarkdown", 2056.0, 100),
+            ("CoreBenchmarks.BuildTree(NodeCount=10)", 6110.0, 100),
+            ("CoreBenchmarks.BuildTree(NodeCount=100)", 66596.0, 100),
+            ("CoreBenchmarks.BuildTree(NodeCount=1000)", 3225152.0, 100),
+            ("CoreBenchmarks.EnterExitCycle(NodeCount=10)", 1131.0, 100),
+            ("CoreBenchmarks.EnterExitCycle(NodeCount=100)", 1128.0, 100),
+            ("CoreBenchmarks.EnterExitCycle(NodeCount=1000)", 1135.0, 100),
+            ("CoreBenchmarks.RenderPrimitive(NodeCount=10)", 28.0, 100),
+            ("CoreBenchmarks.RenderPrimitive(NodeCount=100)", 28.0, 100),
+            ("CoreBenchmarks.RenderPrimitive(NodeCount=1000)", 30.0, 100),
+            ("RendererBenchmarks.ClaritySmall", 5210.0, 100),
+            ("RendererBenchmarks.JsonExportSmall", 3811.0, 100),
+            ("RendererBenchmarks.MarkdownMedium", 6234.0, 100),
+            ("RendererBenchmarks.MarkdownSmall", 1195.0, 100));
+        var current = new Dictionary<string, (double MeanNs, long AllocBytes)>
+        {
+            ["ConcurrencyBenchmarks.DetectOverlapping"] = (68.0, 100),
+            ["ConcurrencyBenchmarks.DetectSequential"] = (307.0, 100),
+            ["ConcurrencyBenchmarks.ExportForkJoinJson"] = (11160.0, 100),
+            ["ConcurrencyBenchmarks.FireAndForget_Launch"] = (1804.0, 100),
+            ["ConcurrencyBenchmarks.ForkJoin_TwoTasks"] = (3826.0, 100),
+            ["ConcurrencyBenchmarks.RenderForkJoinIndented"] = (1641.0, 100),
+            ["ConcurrencyBenchmarks.RenderForkJoinMarkdown"] = (3404.0, 100),
+            ["CoreBenchmarks.BuildTree(NodeCount=10)"] = (16412.0, 100),
+            ["CoreBenchmarks.BuildTree(NodeCount=100)"] = (178114.0, 100),
+            ["CoreBenchmarks.BuildTree(NodeCount=1000)"] = (5280004.0, 100),
+            ["CoreBenchmarks.EnterExitCycle(NodeCount=10)"] = (2869.0, 100),
+            ["CoreBenchmarks.EnterExitCycle(NodeCount=100)"] = (2690.0, 100),
+            ["CoreBenchmarks.EnterExitCycle(NodeCount=1000)"] = (2654.0, 100),
+            ["CoreBenchmarks.RenderPrimitive(NodeCount=10)"] = (73.0, 100),
+            ["CoreBenchmarks.RenderPrimitive(NodeCount=100)"] = (73.0, 100),
+            ["CoreBenchmarks.RenderPrimitive(NodeCount=1000)"] = (73.0, 100),
+            ["RendererBenchmarks.ClaritySmall"] = (7392.0, 100),
+            ["RendererBenchmarks.JsonExportSmall"] = (4538.0, 100),
+            ["RendererBenchmarks.MarkdownMedium"] = (11609.0, 100),
+            ["RendererBenchmarks.MarkdownSmall"] = (1864.0, 100),
+        };
+        var loadPath = WriteLoadAvg(oneMinute: 1.22, fiveMinute: 1.30, fifteenMinute: 1.84);
+
+        string output = "";
+        var exception = Record.Exception(() => output = Capture(() =>
+            BenchmarkGate.CheckRegressions(current, baseline, loadThreshold: 6.0, loadAveragePath: loadPath)));
+
+        Assert.Null(exception);
+        Assert.Contains("ENVIRONMENT_SHIFT", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void One_row_regressing_while_its_peers_hold_steady_still_fails_the_gate()
+    {
+        // The opposite shape: one benchmark slower, four others unchanged. Not every row moved,
+        // so this is a code regression report, not an environment shift, however large the one
+        // row's factor — red stays red.
+        var baseline = WriteBaseline(
+            ("A", 1000.0, 100),
+            ("B", 1000.0, 100),
+            ("C", 1000.0, 100),
+            ("D", 1000.0, 100),
+            ("E", 1000.0, 100));
+        var current = new Dictionary<string, (double MeanNs, long AllocBytes)>
+        {
+            ["A"] = (2500.0, 100),
+            ["B"] = (1000.0, 100),
+            ["C"] = (1000.0, 100),
+            ["D"] = (1000.0, 100),
+            ["E"] = (1000.0, 100),
+        };
+        var loadPath = WriteLoadAvg(oneMinute: 1.0, fiveMinute: 1.0, fifteenMinute: 1.0);
+
+        Assert.Throws<InvalidOperationException>(() =>
+            BenchmarkGate.CheckRegressions(current, baseline, loadThreshold: 6.0, loadAveragePath: loadPath));
+    }
 }

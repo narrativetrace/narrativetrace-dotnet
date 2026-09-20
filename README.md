@@ -377,6 +377,13 @@ one command is the entry point a nightly/host job invokes; regenerate the
 baseline after an intentional performance change with
 `./build.sh BenchmarkBaseline`.
 
+When every benchmark slows together and none allocates more, that is a
+slower host, not a slower commit: the gate reports it loudly as an
+environment shift, exits clean, and leaves the baseline untouched. A single
+benchmark regressing while its peers hold steady still fails the gate,
+however large its factor — the deterministic axis, allocation, is what a
+real regression moves and a slower host never does.
+
 At `TracingLevel.Off` the context short-circuits and captures nothing — a
 characterization test pins that an off-level context produces an empty
 trace — but that path isn't separately benchmarked yet, so treat "Off is
