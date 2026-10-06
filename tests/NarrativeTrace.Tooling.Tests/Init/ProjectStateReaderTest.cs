@@ -1,0 +1,227 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Licensed under the Business Source License 1.1 (see LICENSE); Change Date: four years from publication; Change License: Apache-2.0
+// Copyright (c) 2026 Empower Agile
+using NarrativeTrace.Tooling.Init;
+using Xunit;
+
+namespace NarrativeTrace.Tooling.Tests.Init;
+
+/// <summary>
+/// Reads a real directory once, read-only: what the planner later decides from is decided here. Method
+/// names mirror the Java <c>ProjectStateReaderTest</c>. The Gradle output-directory cases and Java's
+/// invalid-UTF-8 "fails loudly" case have no .NET counterpart: this port has no build file to read a
+/// trace directory from, and <see cref="System.Text.Encoding.UTF8"/> decodes replacement characters
+/// rather than throwing.
+/// </summary>
+public sealed class ProjectStateReaderTest : IDisposable
+{
+    private readonly string _dir = Path.Combine(Path.GetTempPath(), "nt-reader-" + Guid.NewGuid().ToString("N"));
+
+    public ProjectStateReaderTest() => Directory.CreateDirectory(_dir);
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_dir))
+        {
+            Directory.Delete(_dir, recursive: true);
+        }
+    }
+
+    private void Write(string relative, string content)
+    {
+        var file = Path.Combine(_dir, relative.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+        File.WriteAllText(file, content);
+    }
+
+    private static string InstalledPage(string coordinate) =>
+        "---\nname: narrativetrace-doctor\n---\n" + Provenance.Line(coordinate) + "\n\nbody\n";
+
+    [Fact]
+    public void ReadsAnEmptyDirectoryAsAnUntouchedProject()
+    {
+        var state = ProjectStateReader.Read(_dir);
+
+        Assert.Null(state.AgentsMd);
+        Assert.Null(state.ClaudeMd);
+        Assert.False(state.HasClaudeDirectory);
+        Assert.Empty(state.InstalledSkills);
+        Assert.Empty(state.MarkedRuleFiles);
+        Assert.Equal("TestResults/narrativetrace", state.OutputDirectory);
+    }
+
+    [Fact]
+    public void ReadsBothContextFilesByteForByte()
+    {
+        Write("AGENTS.md", "# Agents\r\n\r\ntext");
+        Write("CLAUDE.md", "﻿# Claude\n");
+
+        var state = ProjectStateReader.Read(_dir);
+
+        Assert.Equal("# Agents\r\n\r\ntext", state.AgentsMd);
+        Assert.Equal("﻿# Claude\n", state.ClaudeMd);
+    }
+
+    [Fact]
+    public void SeesTheVendorDirectoryEvenWhenItHoldsNoSkills()
+    {
+        Directory.CreateDirectory(Path.Combine(_dir, ".claude"));
+
+        Assert.True(ProjectStateReader.Read(_dir).HasClaudeDirectory);
+    }
+
+    [Fact]
+    public void ReadsAnInstalledSkillWithItsProvenanceCoordinate()
+    {
+        var page = InstalledPage("NarrativeTrace.Skills/0.1.0");
+        Write(".agents/skills/narrativetrace-doctor/SKILL.md", page);
+
+        var skill = ProjectStateReader.Read(_dir).InstalledSkill(SkillFlavour.Agents, "narrativetrace-doctor")!;
+
+        Assert.Equal(SkillPresence.Ours, skill.Presence);
+        Assert.Equal("NarrativeTrace.Skills/0.1.0", skill.Coordinate);
+        Assert.Equal(page, skill.Body);
+        Assert.Equal(".agents/skills/narrativetrace-doctor/SKILL.md", skill.PagePath);
+        Assert.Equal(".agents/skills/narrativetrace-doctor", skill.Directory);
+    }
+
+    [Fact]
+    public void ReadsASkillDirectoryWithoutOurProvenanceAsForeign()
+    {
+        Write(".agents/skills/somebody-elses/SKILL.md", "---\nname: x\n---\nbody\n");
+        Directory.CreateDirectory(Path.Combine(_dir, ".claude", "skills", "no-page-at-all"));
+
+        var state = ProjectStateReader.Read(_dir);
+
+        Assert.Equal(SkillPresence.Foreign,
+            state.InstalledSkill(SkillFlavour.Agents, "somebody-elses")!.Presence);
+        Assert.Equal(SkillPresence.Foreign,
+            state.InstalledSkill(SkillFlavour.Claude, "no-page-at-all")!.Presence);
+    }
+
+    [Fact]
+    public void ReadsAFileSittingWhereASkillDirectoryBelongsAsNotADirectory()
+    {
+        Write(".agents/skills/narrativetrace-doctor", "not a directory\n");
+
+        var skill = ProjectStateReader.Read(_dir).InstalledSkill(SkillFlavour.Agents, "narrativetrace-doctor")!;
+
+        Assert.Equal(SkillPresence.NotADirectory, skill.Presence);
+        Assert.Equal("", skill.Body);
+    }
+
+    [Fact]
+    public void ReadsBothFlavoursIndependently()
+    {
+        Write(".agents/skills/narrativetrace-doctor/SKILL.md", InstalledPage("NarrativeTrace.Skills/0.1.0"));
+        Write(".claude/skills/narrativetrace-doctor/SKILL.md", "---\nx\n---\nother\n");
+
+        var state = ProjectStateReader.Read(_dir);
+
+        Assert.Equal(2, state.InstalledSkills.Count);
+        Assert.Equal(SkillPresence.Ours,
+            state.InstalledSkill(SkillFlavour.Agents, "narrativetrace-doctor")!.Presence);
+        Assert.Equal(SkillPresence.Foreign,
+            state.InstalledSkill(SkillFlavour.Claude, "narrativetrace-doctor")!.Presence);
+        Assert.Null(state.InstalledSkill(SkillFlavour.Claude, "absent"));
+    }
+
+    [Fact]
+    public void ReadsALegacyRuleFileOnlyWhenItCarriesOurMarkers()
+    {
+        var marked = "# rules\n<!-- narrativetrace:start -->\nx\n<!-- narrativetrace:end -->\n";
+        Write(".cursorrules", marked);
+        Write(".github/copilot-instructions.md", "# no markers here\n");
+
+        var files = ProjectStateReader.Read(_dir).MarkedRuleFiles;
+        Assert.Single(files);
+        Assert.Equal(marked, files[".cursorrules"]);
+    }
+
+    [Fact]
+    public void ReadsARuleFileWhoseMarkersDoNotPairUpSoThePlannerCanRefuseIt()
+    {
+        var broken = "# rules\n<!-- narrativetrace:start -->\nno end below it\n";
+        Write(".cursorrules", broken);
+
+        var files = ProjectStateReader.Read(_dir).MarkedRuleFiles;
+        Assert.Single(files);
+        Assert.Equal(broken, files[".cursorrules"]);
+    }
+
+    [Fact]
+    public void BoundsHowManySkillDirectoriesItReads()
+    {
+        for (var i = 0; i < 5; i++)
+        {
+            Directory.CreateDirectory(Path.Combine(_dir, ".agents", "skills", "skill-" + i));
+        }
+
+        var state = ProjectStateReader.Read(_dir, 3);
+
+        Assert.Equal(3, state.InstalledSkills.Count);
+        Assert.Equal(["skill-0", "skill-1", "skill-2"], state.InstalledSkills.Select(skill => skill.Name));
+    }
+
+    private void WriteAssets(string relativeDir, params string[] idAndVersions)
+    {
+        var libraries = string.Join(", ", idAndVersions.Select(pair => "\"" + pair + "\": {\"type\": \"package\"}"));
+        Write(relativeDir + "/project.assets.json", "{\"version\": 3, \"libraries\": {" + libraries + "}}");
+    }
+
+    [Fact]
+    public void ResolvesTheFamilyVersionFromAlignedNarrativeTracePackages()
+    {
+        WriteAssets("obj", "NarrativeTrace.Core/0.1.5", "NarrativeTrace.Proxy/0.1.5", "Newtonsoft.Json/13.0.1");
+
+        Assert.Equal("0.1.5", ProjectStateReader.Read(_dir).ResolvedFamilyVersion);
+    }
+
+    [Fact]
+    public void ResolvesTheFamilyVersionFromANestedRestoreOutput()
+    {
+        WriteAssets("src/App/obj", "NarrativeTrace.Core/0.1.4");
+
+        Assert.Equal("0.1.4", ProjectStateReader.Read(_dir).ResolvedFamilyVersion);
+    }
+
+    [Fact]
+    public void LeavesTheFamilyVersionUnresolvedWhenNoNarrativeTracePackageIsRestored()
+    {
+        WriteAssets("obj", "Newtonsoft.Json/13.0.1");
+
+        Assert.Null(ProjectStateReader.Read(_dir).ResolvedFamilyVersion);
+    }
+
+    [Fact]
+    public void LeavesTheFamilyVersionUnresolvedWhenNarrativeTracePackagesDisagree()
+    {
+        // A drifted install is ambiguous — the doctor's alignment check reports it; the version
+        // guard stays silent rather than warn against a version it cannot single out (D4).
+        WriteAssets("obj", "NarrativeTrace.Core/0.1.5", "NarrativeTrace.Proxy/0.1.4");
+
+        Assert.Null(ProjectStateReader.Read(_dir).ResolvedFamilyVersion);
+    }
+
+    [Fact]
+    public void IgnoresAMalformedRestoreOutputWhenResolvingTheFamilyVersion()
+    {
+        Write("obj/project.assets.json", "{ not json");
+
+        Assert.Null(ProjectStateReader.Read(_dir).ResolvedFamilyVersion);
+    }
+
+    [Fact]
+    public void RefusesToReadAProjectThatIsNotADirectory()
+    {
+        var file = Path.Combine(_dir, "a-file");
+        File.WriteAllText(file, "x");
+
+        Assert.Contains("not a directory",
+            Assert.Throws<ArgumentException>(() => ProjectStateReader.Read(file)).Message,
+            StringComparison.Ordinal);
+        Assert.Contains("project directory must be given",
+            Assert.Throws<ArgumentException>(() => ProjectStateReader.Read(null!)).Message,
+            StringComparison.Ordinal);
+    }
+}

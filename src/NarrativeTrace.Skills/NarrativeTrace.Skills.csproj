@@ -1,25 +1,42 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <RootNamespace>NarrativeTrace.Skills</RootNamespace>
-    <!-- Authoring tooling, not a product surface: the typed skill catalogue and its renderers
-         generate .claude/skills/**/SKILL.md and the AGENTS.md managed section as build output
-         (see NarrativeTrace.Cli's "skills" verb). Never published as its own NuGet package —
-         mirrors the golden TypeScript source's packages/skills, an unpublished workspace package. -->
-    <IsPackable>false</IsPackable>
+    <PackageId>NarrativeTrace.Skills</PackageId>
+    <Description>The NarrativeTrace agent skills carrier: narrativetrace-doctor and add-narrative-tracing as SKILL.md pages for Claude Code and Codex CLI, plus catalogue.json. Resources only — no compiled code. Installed by the dotnet-narrativetrace tool's init verb.</Description>
+    <!-- The published skills CARRIER (Phase 3 D1/D2): resources-only, no classes — mirrors the
+         Java carrier's narrativetrace-skills module (zero sources, zero dependencies). Content
+         under skills/ is committed build output (skills-devtool's "render" verb writes it; drift-
+         gated by SkillsLint) — never hand-edited. The dotnet-narrativetrace tool embeds a
+         byte-identical copy of the same files directly (NarrativeTrace.Cli.csproj's
+         EmbeddedResource items point at this same directory), so init works offline from either
+         source; this package exists for a project's own dependency graph to resolve the carrier
+         at its own installed version (design D4, milestone 3). -->
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <!-- No compiled output means no debug symbols to ship — the repo-wide snupkg default
+         (Directory.Build.props) would otherwise fail packing this project with NU5017 ("no
+         dependencies nor content") for a symbols package that would carry nothing. -->
+    <IncludeSymbols>false</IncludeSymbols>
+    <!-- The tooling surface (doctor + installer) ships permissively, like the CLI and the rest of
+         this product family's "open" category (Q2 re-ruled 2026-09-26: Apache-2.0, package-level
+         licence only, no per-file headers — matches what the Java carrier actually ships).
+         Apache-2.0 is OSI-approved, so it is a valid PackageLicenseExpression with no bundled
+         license FILE — which is why this clears the inherited PackageLicenseFile rather than
+         pointing it at a second file. Mirrors NarrativeTrace.Cli/NarrativeTrace.Tooling exactly. -->
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageLicenseFile></PackageLicenseFile>
   </PropertyGroup>
   <ItemGroup>
-    <!-- The one dependency this package carries, and deliberately so: SnippetResolver needs the
-         exact same license-header-stripping logic build/SnippetCheckSupport.cs needs for the
-         documentation snippets (a rendered SKILL.md page embeds a real source file verbatim too,
-         and hits the identical publish-time-header drift) — NarrativeTrace.Core is the shared,
-         dependency-free home for it, never a second implementation on either side. -->
-    <ProjectReference Include="../NarrativeTrace.Core/NarrativeTrace.Core.csproj" />
+    <!-- Overrides Directory.Build.props' repo-wide BSL LICENSE item: this package's license is
+         Apache-2.0 above, expressed via metadata, not a bundled BSL file. -->
+    <None Remove="$(MSBuildThisFileDirectory)../../LICENSE" />
+    <None Include="$(MSBuildThisFileDirectory)../../LICENSE-APACHE" Pack="true" PackagePath=""
+          Visible="false" />
   </ItemGroup>
   <ItemGroup>
-    <InternalsVisibleTo Include="NarrativeTrace.Skills.Tests" />
+    <!-- The carrier itself: skills/{agents,claude}/<name>/SKILL.md + skills/catalogue.json,
+         committed build output of skills-devtool's "render" verb. PackagePath preserves the
+         subtree exactly (skills/agents/..., skills/claude/..., skills/catalogue.json) — the shape
+         design D1 names and milestone 3's coordinate resolver (its "from" flag) will read. -->
+    <Content Include="skills/**/*" Pack="true" PackagePath="skills/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

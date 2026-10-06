@@ -1,8 +1,29 @@
 # NarrativeTrace .NET
 
-<!-- published-version -->
-*(Docs and published both at 0.1.5.)* <!-- published-version checked 2026-09-18T07:41:28Z (cached, 40m old) -->
-<!-- /published-version -->
+Working with an AI agent? Paste this:
+
+```
+Set up NarrativeTrace in this project and show me its first trace.
+1. Read https://narrativetrace.ai/dotnet/llms.txt first. It carries the install block and the
+known traps. Do not guess versions or artifact names.
+2. If this directory has no project yet, create the smallest console app that
+llms.txt's "Install and first trace" block describes. Otherwise work inside the existing
+project and trace one real service boundary.
+3. Install the CLI the way llms.txt shows, then run `dotnet tool run dotnet-narrativetrace
+init --dry-run` and show me the diff. It installs the NarrativeTrace agent skills into this
+project and adds a marked section to AGENTS.md. Run it for real only after I have seen the
+diff.
+4. If the `add-narrative-tracing` skill is now available, follow it. Otherwise follow the
+"Install and first trace (copy this)" block in llms.txt.
+5. Add one test that traces a call with a deny-listed parameter and asserts the trace shows
+`[REDACTED]` for it.
+6. Run the program, then run the doctor (`dotnet tool run dotnet-narrativetrace doctor`).
+Paste the trace and the doctor report, explain the trace in two sentences, and list exactly
+what changed in the project.
+Rules: never disable redaction; do not commit `.received.nt` files; run
+everything in the foreground and read the output before you report; if you cannot fetch URLs,
+say so and I will paste llms.txt.
+```
 
 > Code is the log. Auto-generate human-readable execution narratives from method names, parameter names, and return values — no manual logging.
 
@@ -11,6 +32,8 @@
 ```bash
 dotnet new console -n Hello && cd Hello
 dotnet add package NarrativeTrace.Proxy
+dotnet new tool-manifest
+dotnet tool install NarrativeTrace.Cli
 ```
 <!-- snippet: examples/NarrativeTrace.Examples.SixtySeconds/Program.cs -->
 ```csharp
@@ -52,7 +75,7 @@ dotnet run
 ```text
 trace: loose hook parks (a1b2c3d)
 
-└── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 8ms
+└── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 7ms
 ```
 <!-- /snippet -->
 Then to your logger, same tree, two lines:
@@ -61,20 +84,78 @@ using var loggerFactory = LoggerFactory.Create(b => b.AddConsole());
 TraceLogExporter.ExportToLogger(context.CaptureTrace(), loggerFactory.CreateLogger("NarrativeTrace"));
 ```
 
+Then prove the deny-list works. Same project, not a separate test project — the doctor below
+only scans the directory it runs in, so a sibling test project would go unseen:
+```bash
+dotnet add package Microsoft.NET.Test.Sdk
+dotnet add package xunit
+dotnet add package xunit.runner.visualstudio
+dotnet add package NarrativeTrace.Testing.Xunit
+```
+<!-- snippet: tests/NarrativeTrace.Examples.SixtySeconds.Tests/RedactionQuickstartTests.cs -->
+```csharp
+using NarrativeTrace.Core;
+using NarrativeTrace.Proxy;
+using NarrativeTrace.TestingXunit;
+using Xunit;
+
+namespace NarrativeTrace.Examples.SixtySeconds.Tests;
+
+public sealed class RedactionQuickstartTests
+{
+    [Fact]
+    public void Redacts_a_deny_listed_parameter()
+    {
+        using var narrative = new NarrativeFixture();
+
+        narrative.Run("pay with a deny-listed parameter", context =>
+        {
+            var account = NarrativeTraceProxy.Create<IAccountService>(new AccountService(), context);
+            account.Pay("POL-123", "tok-super-secret-xyz");
+        });
+
+        var rendered = IndentedTextRenderer.Render(narrative.CaptureTrace());
+        Assert.Contains("paymentToken: [REDACTED]", rendered);
+        Assert.DoesNotContain("tok-super-secret-xyz", rendered);
+    }
+}
+
+public interface IAccountService
+{
+    string Pay(string policyId, string paymentToken);
+}
+
+public sealed class AccountService : IAccountService
+{
+    public string Pay(string policyId, string paymentToken) => $"paid:{policyId}";
+}
+```
+<!-- /snippet -->
+```bash
+dotnet test
+```
+
 ## Before you start
-- `NarrativeTrace.Proxy` pulls in `.Runtime`+`.Core` *(since 0.1.5)*.
-- `NARRATIVETRACE_OUTPUT` defaults **on** *(since 0.1.5)*.
-- `new ProxyOptions(Redaction: ...)` reaches the proxy, and `NarrativeTracingDiOptions.Redaction`/`NarrativeTraceOptions.Redaction` reach DI auto-wrap and ASP.NET Core auto-wrapped proxies too *(since 0.1.5)*.
+- `NarrativeTrace.Proxy` pulls in `.Runtime`+`.Core`.
+- `NARRATIVETRACE_OUTPUT` defaults **on**.
+- `new ProxyOptions(Redaction: ...)` reaches the proxy, and `NarrativeTracingDiOptions.Redaction`/`NarrativeTraceOptions.Redaction` reach DI auto-wrap and ASP.NET Core auto-wrapped proxies too.
 - No compiler flag needed for parameter names.
-- The `.nt` structural artifact is a last-green baseline with per-invocation identity, `manifest.json` and approval mode *(since 0.1.5)*: `NARRATIVETRACE_APPROVAL=true` fails a passing test whose structure differs from its committed `*.approved.nt`, and `./build.sh Approve` promotes a reviewed `*.received.nt`. See [Structural Trace Format](../structural-trace-format.md).
-- A trace has a name (`trace: bold elk soars (a1b2c3d)`, above), and *(since 0.1.5)* a test-suite run has one too — the console footer, `manifest.json`'s `run` object, the Markdown frontmatter's `run:` field, and `nt.runName` in the logging bridge's scope. Neither ever reaches the `.nt` text. See [Configuration Guide §7](configuration.md#7-logging-bridge-microsoftextensionslogging).
+- The `.nt` structural artifact is a last-green baseline with per-invocation identity, `manifest.json` and approval mode: `NARRATIVETRACE_APPROVAL=true` fails a passing test whose structure differs from its committed `*.approved.nt`, and `./build.sh Approve` promotes a reviewed `*.received.nt`. See [Structural Trace Format](../structural-trace-format.md).
+- A trace has a name (`trace: bold elk soars (a1b2c3d)`, above), and a test-suite run has one too — the console footer, `manifest.json`'s `run` object, the Markdown frontmatter's `run:` field, and `nt.runName` in the logging bridge's scope. Neither ever reaches the `.nt` text. See [Configuration Guide §7](configuration.md#7-logging-bridge-microsoftextensionslogging).
 - Every `NARRATIVETRACE_*` variable — what it sets, its default, and a runnable example of the effect — is tabulated in [Configuration Guide §10](configuration.md#10-environment-variable-worked-examples).
 
-## Field notes from AI agents (self-reported, not a benchmark)
-We asked AI agents to build a claims service with NarrativeTrace and write up the experience for another engineer, naming what was awkward. Prompted, one run each, unedited, model named; we wrote the library. The reports so far are from elsewhere in the NarrativeTrace family; the same exercise runs for .NET next, and the principle they describe — the trace as evidence, redaction by parameter name, output on by default — is the same here. All six reports, the exact prompt and the task: https://narrativetrace.ai/#agents-saying
-- "…the release call is present, generated from a real run, not asserted from inside the process being tested." — Claude Sonnet, 2026-09-11
-- "The always-on name-based deny-list is a genuinely nice piece of design: naming a parameter `paymentToken` gets you redaction for free, and I could prove it in a test." — Claude Sonnet, 2026-09-11
-- "The trace of a failed payment made missing compensation immediately visible, and approval testing caught an extra call that ordinary value assertions accepted." — GPT-6, 2026-09-08
+## Agent skills
+- `narrativetrace-doctor` — Diagnoses a NarrativeTrace .NET install without changing anything: runs the doctor CLI and explains every failing check and its fix — including whether the NarrativeTrace agent skills are installed and current — proves redaction with a real test, opens the newest rendered trace before trusting any assertion against it, and — flagged unstudied — walks an approval-trace diff.
+- `add-narrative-tracing` — Adds NarrativeTrace to a .NET project end to end: installs the real toolchain with a frozen restore, wraps a service and renders its first trace, sends the trace to a logger with one call, finishes by running the doctor CLI to confirm the install, and ends by previewing the agent skills install so the next session finds them.
+
+Install them into this project: `dotnet tool run dotnet-narrativetrace init --dry-run`, read the diff, then run it again without `--dry-run`. See [Agent Skills](../agent-skills.md) for the full walkthrough and `uninstall`.
+
+## Doctor
+Confirm the install and surface misconfigurations, including whether the agent skills above are installed and current (the twelfth check, `config.skills-installed`):
+```bash
+dotnet tool run dotnet-narrativetrace doctor
+```
+If the install block above didn't make the tool available, add it first: `dotnet tool install --global NarrativeTrace.Cli` (then invoke it as `dotnet-narrativetrace doctor`).
 
 ## Docs
 
@@ -100,7 +181,7 @@ names in metadata by default.
 - `NarrativeTrace.Observability` — OpenTelemetry (`ActivitySource` "NarrativeTrace", batch + live)
 - `NarrativeTrace.Diagrams` — Mermaid / PlantUML sequence renderers
 - `NarrativeTrace.Clarity` — naming-clarity analysis and reporting
-- `NarrativeTrace.Cli` — `dotnet-narrativetrace` global tool (`clarity-scan`, `clarity-check`)
+- `NarrativeTrace.Cli` — `dotnet-narrativetrace` global tool (`doctor`, `init`, `uninstall`, `clarity-scan`, `clarity-aggregate`, `clarity-check`, `glossary`)
 - `NarrativeTrace.MSBuild` — build-only shim wiring the CLI into `dotnet build`/`test`
 - `NarrativeTrace.Testing.Xunit` / `.NUnit` — per-test context + failure-narrative printing
 
@@ -129,3 +210,9 @@ names in metadata by default.
 ## Examples
 
 - `examples/NarrativeTrace.Examples.ECommerce` — nested order-flow narrative (success, declined payment, out of stock) + clear-vs-cryptic naming comparison
+
+## Field notes from AI agents (self-reported, not a benchmark)
+We asked AI agents to build a claims service with NarrativeTrace and write up the experience for another engineer, naming what was awkward. Prompted, one run each, unedited, model named; we wrote the library. The reports so far are from elsewhere in the NarrativeTrace family; the same exercise runs for .NET next, and the principle they describe — the trace as evidence, redaction by parameter name, output on by default — is the same here. All six reports, the exact prompt and the task: https://narrativetrace.ai/#agents-saying
+- "…the release call is present, generated from a real run, not asserted from inside the process being tested." — Claude Sonnet, 2026-09-11
+- "The always-on name-based deny-list is a genuinely nice piece of design: naming a parameter `paymentToken` gets you redaction for free, and I could prove it in a test." — Claude Sonnet, 2026-09-11
+- "The trace of a failed payment made missing compensation immediately visible, and approval testing caught an extra call that ordinary value assertions accepted." — GPT-6, 2026-09-08

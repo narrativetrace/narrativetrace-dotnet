@@ -4,19 +4,19 @@ Two packaged agent playbooks ship with this repository for Claude Code and
 Codex CLI: `narrativetrace-doctor` (read-only diagnosis) and
 `add-narrative-tracing` (setup, end to end). Both are generated — never
 hand-edited — from a typed catalogue in
-[`NarrativeTrace.Skills`](../src/NarrativeTrace.Skills), the same way
+[`NarrativeTrace.Skills.Catalogue`](../src/NarrativeTrace.Skills.Catalogue), the same way
 `glossary.md` is generated from `glossary.json`.
 
 ## Where they live
 
-- **Source of truth**: `src/NarrativeTrace.Skills/Catalogue/*.cs` — typed
+- **Source of truth**: `src/NarrativeTrace.Skills.Catalogue/Catalogue/*.cs` — typed
   records (`Skill`, `SkillStep`, `ProListing`), not YAML or hand-written
   Markdown.
 - **Rendered pages**: `.claude/skills/narrativetrace-doctor/SKILL.md` and
   `.claude/skills/add-narrative-tracing/SKILL.md` — the exact files Claude Code discovers. The
   same catalogue also renders Codex CLI's repository-level layout at
   `.agents/skills/narrativetrace-doctor/SKILL.md` and
-  `.agents/skills/add-narrative-tracing/SKILL.md` *(since 0.1.5)* — Codex scans
+  `.agents/skills/add-narrative-tracing/SKILL.md` — Codex scans
   `.agents/skills` from the working directory up to the repository root
   (developers.openai.com/codex/skills, redirects to learn.chatgpt.com/docs/build-skills; fetched
   2026-09-13). Every rendered page's directory name — on every platform — is the skill's own
@@ -24,12 +24,50 @@ hand-edited — from a typed catalogue in
   namespaces with no qualified fallback and a repo-level `.claude/skills/` directory is a flat
   namespace too, not a plugin (skills-design ruling, 2026-09-04, reaffirmed 2026-09-13). Committed
   build output; see [What to Commit](what-to-commit.md).
-- **Regenerate**: `dotnet run --project src/NarrativeTrace.Cli -- skills render`.
-- **Lint**: `dotnet run --project src/NarrativeTrace.Cli -- skills lint` — part
+- **Regenerate**: `dotnet run --project skills-devtool -- render`.
+- **Lint**: `dotnet run --project skills-devtool -- lint` — part
   of `./build.sh Verify`, every commit. Fails if a rendered page drifts from
   a fresh render, a step's command uses a tool outside this port's `dotnet`/
   `git` vocabulary, a description exceeds its budget, or a Pro-tier listing
   disagrees with [`feature-guide.md`](feature-guide.md).
+
+## Installing them in your own project
+
+The published `NarrativeTrace.Cli` tool carries the same two skills this repository renders for
+itself, plus a versionless `catalogue.json` — its `init` verb copies them into `.agents/skills/`
+(and `.claude/skills/` too, once it detects `.claude/` or `CLAUDE.md`) and writes one marked
+section into `AGENTS.md`. Zero network: the carrier travels inside the package already installed.
+
+```bash
+dotnet new tool-manifest
+dotnet tool install NarrativeTrace.Cli
+dotnet tool run dotnet-narrativetrace init --dry-run
+```
+
+Read the diff, then run the same command again without `--dry-run` to apply it. Nothing is ever
+written by the `--dry-run` form. Against a fresh project the preview looks like this:
+
+<!-- snippet: artifacts/agent-skills/init-preview.json -->
+```json
+{
+  "carrier": "NarrativeTrace.Skills/0.2.0",
+  "actions": [
+    {"kind": "create", "path": ".agents/skills/narrativetrace-doctor/SKILL.md", "status": "planned"},
+    {"kind": "create", "path": ".agents/skills/add-narrative-tracing/SKILL.md", "status": "planned"},
+    {"kind": "create", "path": "AGENTS.md", "status": "planned"}
+  ],
+  "exitCode": 0
+}
+```
+<!-- /snippet -->
+
+`uninstall` removes exactly what `init` wrote — the provenance-stamped pages, the marked section,
+and nothing else — and never touches anything it didn't create. Full verb, flag and exit-code
+reference: [MSBuild & CLI Guide § init and uninstall](guides/msbuild-cli.md#init-and-uninstall).
+
+**No CLI, or offline?** Copy `.claude/skills/*` and `.agents/skills/*` from this repository by hand
+into the same paths in your own project — the rendered pages are exactly what `init` would write,
+minus the marked `AGENTS.md` section and the provenance stamp.
 
 ## `narrativetrace-doctor`
 
@@ -74,7 +112,7 @@ a tested program into one, and keep the model's job to invoking it and
 interpreting the result in context. `narrativetrace-doctor`'s report is a
 tested library subcommand (`NarrativeTrace.Cli`'s `doctor` verb — see the
 [Installation Guide](guides/installation.md#validate-installation)), not
-eleven paragraphs the model re-derives from scratch every time.
+twelve paragraphs the model re-derives from scratch every time.
 
 ## Pro-tier mentions
 
@@ -86,20 +124,23 @@ never "paid": the mark is "Pro" plus a status (`shipped`, `in development`,
 
 ## Evaluation (Tier A / A2 / B)
 
-- **Tier A** (lint, seconds, every commit): `skills lint`, described above.
-- **Tier A2** (deterministic replay, seconds, every commit): `skills replay`
+- **Tier A** (lint, seconds, every commit): the `lint` verb, described above.
+- **Tier A2** (deterministic replay, seconds, every commit): the `replay` verb
   — mechanically executes each step's real `commands` (and the handful of
   `verify:` claims that reduce to a mechanical check) against
   `examples/NarrativeTrace.Examples.SixtySeconds`, no LLM. Mirrors the
   canonical TypeScript source's `packages/skills/__tests__/replay.test.ts`,
   ported through a closed registry of safe, in-repo executors — see
   `SkillReplayRegistry` for what each catalogue command actually replays as
-  and why. Rides `./build.sh Verify` beside `skills lint`.
+  and why. Rides `./build.sh Verify` beside `lint`.
 - **Tier B** (real agent trials, sandboxed): case layout under
-  `skills-evals/` — fixtures, trigger phrasings, and graders for a future
-  run through Claude Code, Codex, and Gemini. No trial has been run yet;
-  the scaffolding exists so one can be, on the same terms the frozen design
-  describes for every runtime.
+  `skills-evals/` — fixtures, trigger phrasings, and graders — driven by the
+  standalone runner under `skills-evals/runner/` (`dotnet run --project
+  skills-evals/runner -- eval …`), never wired into `./build.sh Verify`
+  (Tier B drives subscription CLIs, by hand or from a scheduled job, never
+  the metered API). Real trials have run on the Claude/Haiku lane; see
+  `skills-evals/ledger/runs.jsonl` for every row and
+  `skills-evals/ledger/promotion.md` for the current status per case.
 
 ## See also
 

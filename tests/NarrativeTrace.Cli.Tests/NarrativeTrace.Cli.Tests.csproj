@@ -4,6 +4,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <ShouldUnsetParentConfigurationAndPlatform>false</ShouldUnsetParentConfigurationAndPlatform>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
@@ -20,5 +21,24 @@
   <ItemGroup>
     <ProjectReference Include="../../src/NarrativeTrace.Cli/NarrativeTrace.Cli.csproj" />
     <ProjectReference Include="../../src/NarrativeTrace.Clarity/NarrativeTrace.Clarity.csproj" />
+    <!-- The skills render/lint/replay verbs moved out of the shipped CLI (Phase 3 Q3) into the
+         standalone, non-packable skills-devtool/ so the CLI package no longer carries the
+         catalogue assembly. Their tests stay here, referencing the dev tool directly (an
+         out-of-solution project referenced by path, like the rest of the repo references
+         contract-probe only from the build). -->
+    <!-- skills-devtool is deliberately outside NarrativeTrace.sln (its own header says why). When
+         the SOLUTION builds, MSBuild unsets Configuration/Platform for a ProjectReference to a
+         project the solution does not list, so the devtool was built in its own default — Debug —
+         and copied, Debug-compiled, into this project's bin/Release. The replay engine reads its
+         configuration from that assembly's AssemblyConfiguration attribute, so under Release it
+         spawned `dotnet run` with the Debug configuration and no build against binaries that
+         only exist in Release: the exact failure Replay_subprocesses_target_the_configuration_this_build_actually_produced
+         pins, red in every Release build (the publish script's verify stage, 2026-10-06) and green in Debug only
+         because Debug is also the fallback. ShouldUnsetParentConfigurationAndPlatform=false (first PropertyGroup) is MSBuild's own
+         switch for this case and keeps the parent's Configuration/Platform flowing into a reference
+         the solution does not list; per-reference SetConfiguration metadata does NOT work here
+         (tried first: the solution build removes the property again after setting it); adding the devtool to the solution would undo the
+         ruling that keeps it out. -->
+    <ProjectReference Include="../../skills-devtool/NarrativeTrace.SkillsDevTool.csproj" />
   </ItemGroup>
 </Project>

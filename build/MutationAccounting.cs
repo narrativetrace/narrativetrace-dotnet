@@ -183,9 +183,13 @@ internal static class MutationAccounting
             + "names, and Runtime carries no dedicated test project of its own (Core.Tests exercises "
             + "it instead, see CoverageAccounting's own note); DEFERRED"),
         ["NarrativeTrace.Skills"] = new(
+            "the published skills carrier (Phase 3 D1) — resources-only, IncludeBuildOutput=false, "
+            + "zero .cs source; the content it packs is drift-gated by skills-devtool's SkillsLint, "
+            + "not a mutation target, the same class as NarrativeTrace.MSBuild above"),
+        ["NarrativeTrace.Skills.Catalogue"] = new(
             "authoring tooling for the skill catalogue and its SKILL.md/AGENTS.md renderers, own "
-            + "Skills.Tests already coverage-gated at 95% (CoverageAccounting) — DEFERRED, no "
-            + "stryker-config targets it yet"),
+            + "Skills.Catalogue.Tests already coverage-gated at 95% (CoverageAccounting) — DEFERRED, "
+            + "no stryker-config targets it yet"),
         ["NarrativeTrace.Testing.NUnit"] = new(
             "NUnit test-framework integration adapter (378 lines) — DEFERRED, no stryker-config "
             + "targets it yet"),

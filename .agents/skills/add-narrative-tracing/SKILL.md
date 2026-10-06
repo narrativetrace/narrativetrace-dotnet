@@ -1,6 +1,6 @@
 ---
 name: add-narrative-tracing
-description: "Adds NarrativeTrace to a .NET project end to end: installs the real toolchain with a frozen restore, wraps a service and renders its first trace, sends the trace to a logger with one call, and finishes by running the doctor CLI to confirm the install. Use when asked to \"add narrative tracing\", \"set up NarrativeTrace\", \"wire up tracing for this service\", \"instrument this .NET app with NarrativeTrace\", or \"get a trace out of this code\"."
+description: "Adds NarrativeTrace to a .NET project end to end: installs the real toolchain with a frozen restore, wraps a service and renders its first trace, sends the trace to a logger with one call, finishes by running the doctor CLI to confirm the install, and ends by previewing the agent skills install so the next session finds them. Use when asked to \"add narrative tracing\", \"set up NarrativeTrace\", \"wire up tracing for this service\", \"instrument this .NET app with NarrativeTrace\", or \"get a trace out of this code\"."
 when_to_use: "A .NET project has no NarrativeTrace install yet and needs one wired up from scratch."
 allowed-tools: dotnet, git
 ---
@@ -113,6 +113,16 @@ dotnet tool run dotnet-narrativetrace doctor --json
 
 **failure:** the doctor CLI exits 1 — at least one finding failed — fix: read its "fix" field and doc URL, resolve it, then rerun doctor
 
+## 5. Install the skills for next time
+
+```bash
+dotnet tool run dotnet-narrativetrace init --dry-run
+```
+
+**verify:** the diff names .agents/skills/ and AGENTS.md, and neither exists yet — nothing is written until the same command runs again without --dry-run
+
+**failure:** command not found: dotnet-narrativetrace — NarrativeTrace.Cli is not installed as a local tool in this project yet — fix: run this skill's own first step, or install it directly with `dotnet tool install NarrativeTrace.Cli`
+
 ## Always
 - Install with the project's own frozen restore, never a bare `dotnet add package` left unlocked (an unlocked restore can silently resolve a different version tomorrow than it did today)
 - Finish by running the doctor CLI (it is the same tested check the narrativetrace-doctor skill uses — resolving its findings here means starting from a clean baseline)
@@ -120,4 +130,5 @@ dotnet tool run dotnet-narrativetrace doctor --json
 ## Never
 - Never seed a fixed traceparent outside an example or test (the constant exists so this page's output is reproducible — a real run adopts a real inbound header or generates its own trace id)
 - Never call the wrapped target directly instead of the proxy (only calls made through the proxy returned by NarrativeTraceProxy.Create<T> are captured)
+- Never apply the installer without showing its diff first (it writes into AGENTS.md and the project's skill directories, and the approval for that is a person reading the diff — run it with --dry-run, show the output, and let them run it again without the flag)
 

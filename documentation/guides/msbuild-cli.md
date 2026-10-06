@@ -32,6 +32,39 @@ run `ClarityScan` / `ClarityCheck`.
 — the tool prints usage and exits `2`. Options are parsed as
 `--name value` pairs (flags like `--warn-only` take no value).
 
+### `init` and `uninstall`
+
+Copies the two agent skills into `.agents/skills/` (and `.claude/skills/` too, once it detects
+`.claude/` or `CLAUDE.md`) and writes one marked section into `AGENTS.md`; `uninstall` removes
+exactly what `init` wrote and nothing else. Zero network — the carrier travels inside this package.
+
+```bash
+dotnet tool run dotnet-narrativetrace init --dry-run
+dotnet tool run dotnet-narrativetrace init
+dotnet tool run dotnet-narrativetrace uninstall
+```
+
+| Option | Meaning |
+|---|---|
+| `--dry-run` | Show the plan and the unified diff. Writes nothing, always exits `0`. |
+| `--write-existing` | Permission to touch an `AGENTS.md` or `CLAUDE.md` that is already there. |
+| `--force` | Permission to overwrite a skill directory somebody else owns. |
+| `--only <half>` | `skills` \| `agents-md`. Both halves by default. |
+| `--vendor <vendor>` | `claude` \| `none`. Detected from the project by default. |
+| `--from <carrier>` | A directory, a `.nupkg`, or an `Id/Version` coordinate already in the local NuGet cache. The carrier embedded in this CLI by default. |
+| `--dir <path>` | The project directory. The current directory by default. |
+| `--json` | Machine-readable output instead of human text. |
+
+Exit codes:
+
+| Code | When |
+|---|---|
+| `0` | Applied, or a dry run — a dry run always exits `0`. |
+| `1` | At least one action was refused (an existing `AGENTS.md`/`CLAUDE.md` `init` won't touch without `--write-existing`, or a foreign skill directory without `--force`), or the carrier or project directory could not be read. |
+| `2` | The command line could not be parsed. |
+
+See [Agent Skills](../agent-skills.md) for what gets written and why.
+
 ### `clarity-scan`
 
 Reflection-only scan of a compiled assembly into a clarity report. Loads
@@ -124,7 +157,7 @@ Add the build-only package. `PrivateAssets="all"` keeps it out of your
 package's transitive dependencies:
 
 ```xml
-<PackageReference Include="NarrativeTrace.MSBuild" Version="0.1.5"
+<PackageReference Include="NarrativeTrace.MSBuild" Version="0.2.0"
                   PrivateAssets="all" />
 ```
 
@@ -144,6 +177,7 @@ logic lives in the CLI.
 | `ClarityMinScore` | `0.0` | Forwarded to `clarity-check --min-score`. |
 | `ClarityMaxHighIssues` | `2147483647` | Forwarded to `clarity-check --max-high-issues`. |
 | `ClarityWarnOnly` | `false` | When `true`, forward `--warn-only` (gate failures become warnings). |
+| `NarrativeTraceRefreshSkills` | `true` | When `false`, skip the automatic skills refresh described below entirely. |
 
 Invalid `NarrativeTraceLevel`, `NarrativeTraceFormat`, or
 `NarrativeTraceClaritySource` values fail the build **early** (via the
@@ -163,6 +197,7 @@ to the test host.
 | `ClarityScan` | `Build` | `clarity-scan --assembly $(TargetPath) --output-dir $(NarrativeTraceOutputDir)` |
 | `ClarityAggregate` | — | `clarity-aggregate --input-dir $(NarrativeTraceOutputDir) --output-dir $(NarrativeTraceOutputDir)` |
 | `ClarityCheck` | `ClarityScan` or `ClarityAggregate` (per `NarrativeTraceClaritySource`) | `clarity-check --results … --min-score … --max-high-issues … [--warn-only]` |
+| `_NarrativeTraceRefreshSkills` | `Build` (before, outer build only) | Refreshes already-installed agent-skill pages and the `AGENTS.md` section — never creates them |
 
 Run the gate as part of a build:
 
@@ -193,6 +228,25 @@ MSBuild compares timestamps and **skips the re-check entirely when
 `clarity-results.json` has not changed** — so an unchanged project doesn't
 pay for the gate twice. Delete the stamp (or the output directory) to force
 a re-check.
+
+### Refreshing installed agent skills on build
+
+Once a project has run `init` (above) at least once, `NarrativeTrace.MSBuild` keeps the installed
+agent-skill pages and the `AGENTS.md` section current on every outer build — never creates them,
+so a project that has never run `init` never invokes the tool. `_NarrativeTraceRefreshSkills` runs
+`BeforeTargets="Build"`, gated three ways:
+
+- **The sentinel page.** `.agents/skills/narrativetrace-doctor/SKILL.md` must be found upward from
+  the project directory (`GetDirectoryNameOfFileAbove`) — the only signal the target looks for
+  before it invokes anything.
+- **Outer build only.** A multi-targeted project's inner per-TFM builds are skipped; the refresh
+  runs once.
+- **The opt-out.** Set `NarrativeTraceRefreshSkills=false` to disable it entirely.
+
+When it runs, it replaces only the blocks and pages this port's own `init` wrote — the equivalent
+of `init --dry-run`'s applying form scoped to already-installed content — and prints one line
+naming what it rewrote. A missing `dotnet-narrativetrace` on `PATH` warns once and continues; it
+never fails the build.
 
 ### Trace output to the test host
 

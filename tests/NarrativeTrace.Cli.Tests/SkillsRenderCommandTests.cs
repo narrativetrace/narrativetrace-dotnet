@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Licensed under the Business Source License 1.1 (see LICENSE); Change Date: four years from publication; Change License: Apache-2.0
 // Copyright (c) 2026 Empower Agile
+using NarrativeTrace.SkillsDevTool;
 using Xunit;
 
 namespace NarrativeTrace.Cli.Tests;
@@ -74,6 +75,51 @@ public sealed class SkillsRenderCommandTests : IDisposable
         SkillsRenderCommand.Run(_root, _out, _err);
 
         Assert.Equal(before, File.GetLastWriteTimeUtc(path));
+    }
+
+    [Fact]
+    public void Writes_the_carrier_tree_the_published_package_and_the_cli_both_read()
+    {
+        SeedFixtureFiles();
+
+        var exit = SkillsRenderCommand.Run(_root, _out, _err);
+
+        Assert.Equal(0, exit);
+        var carrier = Path.Combine(_root, "src", "NarrativeTrace.Skills", "skills");
+        Assert.True(File.Exists(Path.Combine(carrier, "agents", "narrativetrace-doctor", "SKILL.md")));
+        Assert.True(File.Exists(Path.Combine(carrier, "claude", "narrativetrace-doctor", "SKILL.md")));
+        Assert.True(File.Exists(Path.Combine(carrier, "agents", "add-narrative-tracing", "SKILL.md")));
+        Assert.True(File.Exists(Path.Combine(carrier, "claude", "add-narrative-tracing", "SKILL.md")));
+        Assert.True(File.Exists(Path.Combine(carrier, "catalogue.json")));
+    }
+
+    [Fact]
+    public void Carrier_pages_match_the_repo_layout_pages_byte_for_byte()
+    {
+        SeedFixtureFiles();
+
+        SkillsRenderCommand.Run(_root, _out, _err);
+
+        var carrier = Path.Combine(_root, "src", "NarrativeTrace.Skills", "skills");
+        Assert.Equal(
+            File.ReadAllText(Path.Combine(_root, ".agents", "skills", "narrativetrace-doctor", "SKILL.md")),
+            File.ReadAllText(Path.Combine(carrier, "agents", "narrativetrace-doctor", "SKILL.md")));
+        Assert.Equal(
+            File.ReadAllText(Path.Combine(_root, ".claude", "skills", "narrativetrace-doctor", "SKILL.md")),
+            File.ReadAllText(Path.Combine(carrier, "claude", "narrativetrace-doctor", "SKILL.md")));
+    }
+
+    [Fact]
+    public void Rendering_twice_does_not_rewrite_a_byte_identical_catalogue_json()
+    {
+        SeedFixtureFiles();
+        SkillsRenderCommand.Run(_root, _out, _err);
+        var catalogueJsonPath = Path.Combine(_root, "src", "NarrativeTrace.Skills", "skills", "catalogue.json");
+        var before = File.GetLastWriteTimeUtc(catalogueJsonPath);
+
+        SkillsRenderCommand.Run(_root, _out, _err);
+
+        Assert.Equal(before, File.GetLastWriteTimeUtc(catalogueJsonPath));
     }
 
     private void SeedFixtureFiles()

@@ -1,0 +1,34 @@
+<!-- skills-devtool: a small, STANDALONE .NET console project (Phase 3 Q3 ruling 2026-09-25),
+     never included by NarrativeTrace.sln. It renders / lints / replays the skill catalogue for
+     repo developers — a build-time tool, never something a consumer installs. It lives here, out
+     of the shipped `dotnet-narrativetrace` tool, precisely so the CLI's NuGet package no longer
+     drags in the NarrativeTrace.Skills.Catalogue assembly (ladder §6.3: the catalogue is not
+     distributed). It ProjectReferences the in-repo Skills.Catalogue library because render/lint/replay ARE
+     the catalogue's own render step — the bytes the drift gate pins. The NUKE SkillsLint /
+     SkillsReplay targets invoke it via `dotnet run`, exactly as ContractCheck invokes
+     contract-probe/. Its command classes are also source-linked into tests/NarrativeTrace.Cli.Tests,
+     which keeps them under the solution's analyzers and unit tests without shipping them. -->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>NarrativeTrace.SkillsDevTool</RootNamespace>
+    <AssemblyName>NarrativeTrace.SkillsDevTool</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../src/NarrativeTrace.Skills.Catalogue/NarrativeTrace.Skills.Catalogue.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The replay engine/registry are internal; the solution's Cli.Tests source-links these files
+         and tests those internals directly, and also exercises the concrete registry for real. -->
+    <InternalsVisibleTo Include="NarrativeTrace.Cli.Tests" />
+  </ItemGroup>
+
+</Project>

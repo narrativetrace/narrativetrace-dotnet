@@ -4,7 +4,6 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -32,7 +31,7 @@ internal enum ContractKind
 /// apply to <see cref="ContractKind.EntryPoint"/> only.
 /// </summary>
 internal sealed record ContractEntry(
-    string Id, ContractKind Kind, string Page, string Claim, string Since, string Expect,
+    string Id, ContractKind Kind, string Page, string Claim, string Expect,
     string Probe, string? Coordinate = null, string? Registry = null);
 
 internal sealed record ContractDocument(string VersionSource, IReadOnlyList<ContractEntry> Entries);
@@ -41,23 +40,21 @@ internal sealed record ContractDocument(string VersionSource, IReadOnlyList<Cont
 internal sealed record ContractPageRef(string RelativePath, string Anchor);
 
 /// <summary>
-/// Backs the <c>ContractLint</c> Nuke target (docs-vs-published-gate §2/§5.1) — everything about
+/// Backs the <c>ContractLint</c> Nuke target (docs-vs-published-gate §2) — everything about
 /// <c>documentation/contract.yaml</c> a per-commit gate can check WITHOUT the network: the schema
-/// parses, every <c>since</c> is a real version string, no two entries make the same claim, every
-/// entry's <c>probe</c> file exists, every <c>page#anchor</c> pointer resolves to a heading that
-/// actually exists, and every <c>*(since X, unreleased)*</c> marker in the English docs (part (a))
-/// is backed by at least one contract entry at that version — the mechanical link between (a) and
-/// (c) the gate's design note calls for. This class deliberately never runs a probe, touches the
-/// registry, or decides holds/fails/not-applicable-before-since for a real probe result — that
-/// decision lives in <see cref="ContractDecisionSupport"/>, exercised nightly by
+/// parses, no two entries make the same claim, every entry's <c>probe</c> file exists, and every
+/// <c>page#anchor</c> pointer resolves to a heading that actually exists. Every entry describes the
+/// code it is committed with (owner ruling 2026-09-24): there is no <c>since</c> field and no
+/// coverage link to since-markers any more — a since-marker anywhere in the docs is caught by
+/// <see cref="VersionLiteralSupport"/> inside <c>SnippetCheck</c>, headings included. This class
+/// deliberately never runs a probe, touches the registry, or decides holds/fails for a real probe
+/// result — that decision lives in <see cref="ContractDecisionSupport"/>, exercised nightly by
 /// <c>contract-probe/</c> and, standalone, by four fixture tests pinning the docs-vs-published-gate
 /// design note's four historical instances, so the decision logic is provable without a release.
 /// </summary>
 internal static class ContractLintSupport
 {
-    private static readonly Regex SincePattern = new(@"^\d+\.\d+\.\d+$", RegexOptions.CultureInvariant);
     private static readonly Regex HeadingLine = new(@"^(#{1,6})\s+(.+?)\s*$", RegexOptions.CultureInvariant);
-    private static readonly Regex HeadingSincePattern = new(@"^#{1,6}\s.*\(since ", RegexOptions.CultureInvariant);
 
     /// <summary>
     /// The GitHub-flavoured-Markdown heading slug: lowercase, strip anything but
@@ -103,77 +100,6 @@ internal static class ContractLintSupport
     }
 
     /// <summary>
-    /// Every heading line, across every Markdown file and <c>llms.txt</c> anywhere under
-    /// <c>documentation/</c> (every language — translated mirrors live under
-    /// <c>documentation/&lt;lang&gt;/</c> and are in scope too) plus the root README and its own
-    /// language mirrors, that still carries an inline <c>(since ...)</c> marker. A heading's
-    /// GitHub-rendered anchor slug is exactly the text <see cref="HeadingAnchors"/> computes from
-    /// it; a since-marker's own tag rewrite (the release publish script) can later shorten or drop
-    /// the parenthetical, and that mutates the slug — any reader link into that anchor breaks the
-    /// instant a release settles. Keeping the marker in the section's body, never the heading
-    /// itself, is the only shape immune to that (owner ruling 2026-09-16) — ported from the TS
-    /// repo's <c>tools/contract-lint.ts</c> <c>headingsWithSinceMarker</c> / Java's
-    /// <c>ContractLintSupport.headingsWithSinceMarker</c> / Python's
-    /// <c>contract_lint.headings_with_since_marker</c> (read-only references, not shared code).
-    /// One entry per hit, <c>"&lt;relative path&gt;:&lt;line&gt;: &lt;reason&gt;"</c>, sorted;
-    /// empty when <paramref name="repoRoot"/> has no such heading.
-    /// </summary>
-    public static IReadOnlyList<string> HeadingsWithSinceMarker(string repoRoot)
-    {
-        var hits = new List<string>();
-        foreach (var file in SinceMarkerHeadingScanScope(repoRoot))
-        {
-            var lineNumber = 0;
-            foreach (var line in File.ReadLines(file))
-            {
-                lineNumber++;
-                if (HeadingSincePattern.IsMatch(line))
-                {
-                    var relative = Path.GetRelativePath(repoRoot, file).Replace('\\', '/');
-                    hits.Add(
-                        $"{relative}:{lineNumber}: since-markers belong in the body: heading "
-                            + "anchors must survive the tag rewrite");
-                }
-            }
-        }
-
-        hits.Sort(StringComparer.Ordinal);
-        return hits;
-    }
-
-    /// <summary>
-    /// Every Markdown file and <c>llms.txt</c> anywhere under <c>documentation/</c> (every
-    /// language — translated mirrors live under <c>documentation/&lt;lang&gt;/</c> and are in
-    /// scope too), plus the root README and its own language mirrors: <c>README.md</c> itself, and
-    /// any other root-level <c>*.md</c> file whose line-1 translation header
-    /// (<see cref="TranslationCheckSupport.ParseHeader"/>) names <c>README.md</c> as its source —
-    /// the same header-driven "is this a translation of X" test <see cref="TranslationCheckSupport"/>
-    /// already uses, so this never keeps a second, independent list of root README mirror filenames.
-    /// </summary>
-    private static IEnumerable<string> SinceMarkerHeadingScanScope(string repoRoot)
-    {
-        var documentation = Path.Combine(repoRoot, "documentation");
-        var docs = Directory.Exists(documentation)
-            ? Directory.EnumerateFiles(documentation, "*.*", SearchOption.AllDirectories)
-                .Where(file => file.EndsWith(".md", StringComparison.OrdinalIgnoreCase)
-                    || Path.GetFileName(file).Equals("llms.txt", StringComparison.OrdinalIgnoreCase))
-            : Enumerable.Empty<string>();
-        var readmeMirrors = Directory.Exists(repoRoot)
-            ? Directory.EnumerateFiles(repoRoot, "*.md", SearchOption.TopDirectoryOnly)
-                .Where(file => Path.GetFileName(file).Equals("README.md", StringComparison.OrdinalIgnoreCase)
-                    || IsReadmeMirror(file))
-            : Enumerable.Empty<string>();
-        return docs.Concat(readmeMirrors);
-    }
-
-    private static bool IsReadmeMirror(string file)
-    {
-        using var reader = new StreamReader(file, Encoding.UTF8);
-        var firstLine = reader.ReadLine() ?? string.Empty;
-        return TranslationCheckSupport.ParseHeader(firstLine)?.SourcePath == "README.md";
-    }
-
-    /// <summary>
     /// Splits <c>"documentation/foo.md#some-anchor"</c> into path and anchor; throws on a pointer
     /// with no <c>#anchor</c> half — a contract entry is always about one specific claim, never a
     /// whole page.
@@ -214,14 +140,13 @@ internal static class ContractLintSupport
     {
         var id = RequiredField(file, raw, "id");
         var kind = ParseKind(file, id, RequiredField(file, raw, "kind"));
-        var since = RequiredField(file, raw, "since");
         var expect = StringField(raw, "documented_default") ?? StringField(raw, "expected_effect")
             ?? throw new ArgumentException($"{file}: entry \"{id}\" needs \"documented_default\" or \"expected_effect\"");
         if (kind == ContractKind.EntryPoint)
             RequiredField(file, raw, "coordinate");
 
         return new ContractEntry(
-            id, kind, RequiredField(file, raw, "page"), RequiredField(file, raw, "claim"), since, expect,
+            id, kind, RequiredField(file, raw, "page"), RequiredField(file, raw, "claim"), expect,
             RequiredField(file, raw, "probe"), StringField(raw, "coordinate"), StringField(raw, "registry"));
     }
 
@@ -244,14 +169,9 @@ internal static class ContractLintSupport
 
     /// <summary>
     /// Every problem the gate reports, empty when the contract is internally consistent.
-    /// <paramref name="repoRoot"/> resolves <c>page</c> and <c>probe</c> pointers;
-    /// <paramref name="unreleasedMarkerVersions"/> is the distinct set of versions cited by
-    /// <c>*(since X.Y.Z, unreleased)*</c> across the English docs (<see cref="UnreleasedMarkerSupport"/>
-    /// already walks that file set for part (a) — passed in rather than re-walked here so the two
-    /// checks can never quietly disagree on which files count as "the English docs").
+    /// <paramref name="repoRoot"/> resolves <c>page</c> and <c>probe</c> pointers.
     /// </summary>
-    public static IReadOnlyList<string> Lint(
-        string repoRoot, ContractDocument document, IReadOnlySet<string> unreleasedMarkerVersions)
+    public static IReadOnlyList<string> Lint(string repoRoot, ContractDocument document)
     {
         var problems = new List<string>();
         var seenIds = new HashSet<string>(StringComparer.Ordinal);
@@ -259,8 +179,6 @@ internal static class ContractLintSupport
         foreach (var entry in document.Entries)
             LintEntry(repoRoot, entry, seenIds, seenClaims, problems);
 
-        LintCoverage(document, unreleasedMarkerVersions, problems);
-        problems.AddRange(HeadingsWithSinceMarker(repoRoot));
         problems.Sort(StringComparer.Ordinal);
         return problems;
     }
@@ -276,8 +194,6 @@ internal static class ContractLintSupport
         else
             seenClaims[entry.Claim] = entry.Id;
 
-        if (!SincePattern.IsMatch(entry.Since))
-            problems.Add($"\"{entry.Id}\": since \"{entry.Since}\" is not a real version string (x.y.z)");
         if (entry.Kind == ContractKind.EntryPoint && string.IsNullOrWhiteSpace(entry.Coordinate))
             problems.Add($"\"{entry.Id}\": entry-point requires \"coordinate\"");
         if (!File.Exists(Path.Combine(repoRoot, entry.Probe)))
@@ -305,33 +221,18 @@ internal static class ContractLintSupport
         else if (!HeadingAnchors(pageFile).Contains(pageRef.Anchor))
             problems.Add($"\"{entry.Id}\": anchor \"#{pageRef.Anchor}\" not found in {pageRef.RelativePath}");
     }
-
-    private static void LintCoverage(
-        ContractDocument document, IReadOnlySet<string> unreleasedMarkerVersions, List<string> problems)
-    {
-        var coveredVersions = new HashSet<string>(document.Entries.Select(e => e.Since), StringComparer.Ordinal);
-        foreach (var version in unreleasedMarkerVersions.OrderBy(v => v, StringComparer.Ordinal))
-        {
-            if (!coveredVersions.Contains(version))
-                problems.Add(
-                    $"documentation carries \"*(since {version}, unreleased)*\" but no contract.yaml entry "
-                        + $"has since: \"{version}\" — add one in the same commit as the feature "
-                        + "(docs-vs-published-gate §5.1 ruling 3)");
-        }
-    }
 }
 
 /// <summary>
-/// holds: the probe observed exactly what the docs claim. fails: it observed something else.
-/// not-applicable-before-since: the claim's <c>since</c> is later than the version actually
-/// installed — ruling 1 (docs-vs-published-gate §5.1): exempt only while later than the INSTALLED
-/// published version, never the repo's own.
+/// holds: the probe observed exactly what the docs claim. fails: it observed something else. There
+/// is no third verdict any more — every entry describes the code it is committed with (owner ruling
+/// 2026-09-24), and <c>ContractCheck</c> reads the contract at the tag it installs, so a claim can
+/// never be "not applicable yet" against the artifact that tag produced.
 /// </summary>
 internal enum ContractVerdict
 {
     Holds,
     Fails,
-    NotApplicableBeforeSince,
 }
 
 internal sealed record ContractOutcome(ContractEntry Entry, ContractVerdict Verdict, string Message);
@@ -341,47 +242,20 @@ internal sealed record ContractOutcome(ContractEntry Entry, ContractVerdict Verd
 /// fixture tests (offline, against a fake probe result standing in for one of the four historical
 /// instances, docs-vs-published-gate §3) both go through — so "would the gate have fired" is
 /// exactly the same code path whether the probe result came from nuget.org or from a test fixture.
-/// Deliberately duplicated (not shared) into <c>contract-probe/</c>'s own <c>Versions.cs</c>: that
+/// Deliberately duplicated (not shared) into <c>contract-probe/</c>'s own <c>Program.cs</c>: that
 /// project consumes only nuget.org packages and can never reference this build project, which is
-/// not published — mirroring the java runtime's own <c>Versions</c>/<c>ContractDecisionSupport</c> split.
+/// not published — mirroring the java runtime's own <c>ContractDecisionSupport</c> split.
 /// </summary>
 internal static class ContractDecisionSupport
 {
-    /// <summary>True while <paramref name="since"/> is NOT strictly later than <paramref name="installedVersion"/>.</summary>
-    public static bool IsApplicable(string since, string installedVersion)
-    {
-        var a = VersionParts(since);
-        var b = VersionParts(installedVersion);
-        var length = Math.Max(a.Length, b.Length);
-        for (var i = 0; i < length; i++)
-        {
-            var x = i < a.Length ? a[i] : 0;
-            var y = i < b.Length ? b[i] : 0;
-            if (x != y)
-                return x < y;
-        }
-
-        return true;
-    }
-
-    private static int[] VersionParts(string version) =>
-        version.Split('.').Select(part => int.Parse(part, CultureInfo.InvariantCulture)).ToArray();
-
     /// <summary>
     /// <paramref name="observed"/> is <see langword="null"/> when the probe itself could not even
     /// run (registry unreachable, artifact missing) — treated as a failure with its own explaining
-    /// message, never silently skipped; only a <c>since</c> later than
-    /// <paramref name="installedVersion"/> is ever skipped.
+    /// message, never silently skipped. Every entry is checked at <paramref name="installedVersion"/>
+    /// (the tag <c>ContractCheck</c> installs): there is no "not applicable yet" skip any more.
     /// </summary>
     public static ContractOutcome Decide(ContractEntry entry, string installedVersion, string? observed)
     {
-        if (!IsApplicable(entry.Since, installedVersion))
-        {
-            return new ContractOutcome(
-                entry, ContractVerdict.NotApplicableBeforeSince,
-                $"\"{entry.Id}\": since {entry.Since} is later than installed {installedVersion} — skipped");
-        }
-
         if (observed == entry.Expect)
             return new ContractOutcome(entry, ContractVerdict.Holds, $"\"{entry.Id}\": holds");
 
@@ -389,7 +263,6 @@ internal static class ContractDecisionSupport
         return new ContractOutcome(
             entry, ContractVerdict.Fails,
             $"documentation/contract.yaml: {entry.Id} documented default \"{entry.Expect}\" "
-                + $"(since {entry.Since}) but {coordinate} {installedVersion} (published) reads "
-                + $"\"{observed ?? "<no answer>"}\"");
+                + $"but {coordinate} {installedVersion} (published) reads \"{observed ?? "<no answer>"}\"");
     }
 }

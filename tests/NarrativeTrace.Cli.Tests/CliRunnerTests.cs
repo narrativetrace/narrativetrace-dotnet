@@ -163,51 +163,43 @@ public sealed class CliRunnerTests : IDisposable
         Assert.Contains("\"findings\"", _out.ToString(), StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// The doctor verb resolves its skills carrier the same way <c>init</c> does — the bundled
+    /// embedded resources of this running CLI — never a second, doctor-only lookup.
+    /// </summary>
     [Fact]
-    public void Skills_verb_without_a_sub_command_reports_usage()
+    public void Doctor_verb_reports_the_skills_installed_check_via_the_bundled_carrier()
     {
+        Directory.CreateDirectory(_outputDir);
+        File.WriteAllText(Path.Combine(_outputDir, "app.csproj"), "<Project />");
+
+        var exit = CliRunner.Run(["doctor", "--json", "--dir", _outputDir], _out, _err);
+
+        Assert.Equal(1, exit);
+        Assert.Contains("\"config.skills-installed\"", _out.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Top_level_help_exits_zero_and_lists_every_verb()
+    {
+        var exit = CliRunner.Run(["--help"], _out, _err);
+
+        Assert.Equal(0, exit);
+        foreach (var verb in new[] { "doctor", "init", "uninstall", "clarity-scan", "glossary" })
+        {
+            Assert.Contains(verb, _out.ToString(), StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void Skills_is_no_longer_a_cli_verb()
+    {
+        // Phase 3 Q3: render/lint/replay moved to the standalone skills-devtool so the shipped
+        // tool's package stops carrying the catalogue assembly. The shipped CLI must therefore
+        // treat `skills` as any other unknown verb.
         var exit = CliRunner.Run(["skills"], _out, _err);
 
         Assert.Equal(2, exit);
-        Assert.Contains("render", _err.ToString(), StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Skills_render_verb_dispatches_to_the_render_command()
-    {
-        Directory.CreateDirectory(_outputDir);
-        var fixtureDir = Path.Combine(_outputDir, "examples", "NarrativeTrace.Examples.SixtySeconds");
-        Directory.CreateDirectory(fixtureDir);
-        File.WriteAllText(Path.Combine(fixtureDir, "Program.cs"), "// program\n");
-
-        var withLoggerDir = Path.Combine(_outputDir, "examples", "NarrativeTrace.Examples.SixtySeconds.WithLogger");
-        Directory.CreateDirectory(withLoggerDir);
-        File.WriteAllText(Path.Combine(withLoggerDir, "Program.cs"), "// with logger\n");
-
-        var exit = CliRunner.Run(["skills", "render", "--dir", _outputDir], _out, _err);
-
-        Assert.Equal(0, exit);
-        Assert.True(File.Exists(Path.Combine(_outputDir, ".claude", "skills", "narrativetrace-doctor", "SKILL.md")));
-    }
-
-    [Fact]
-    public void Skills_lint_verb_dispatches_to_the_lint_command()
-    {
-        Directory.CreateDirectory(_outputDir);
-
-        var exit = CliRunner.Run(["skills", "lint", "--dir", _outputDir], _out, _err);
-
-        Assert.Equal(1, exit);
-    }
-
-    [Fact]
-    public void Skills_replay_verb_dispatches_to_the_replay_command()
-    {
-        Directory.CreateDirectory(_outputDir);
-
-        var exit = CliRunner.Run(["skills", "replay", "--dir", _outputDir], _out, _err);
-
-        Assert.Equal(1, exit);
-        Assert.Contains("problem", _out.ToString(), StringComparison.Ordinal);
+        Assert.Contains("unknown command 'skills'", _err.ToString(), StringComparison.Ordinal);
     }
 }

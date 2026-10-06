@@ -63,7 +63,7 @@ into a single tree.
 |---|---|---|
 | `NarrativeTrace.Core` | — | Trace model, `INarrativeContext`, config, redaction, value + text/Markdown/prose renderers, and the `NarrativeTrace.Core.Annotation` attributes `[Narrated]`/`[OnError]`/`[NotTraced]`/`[NarrativeSummary]`. |
 | `NarrativeTrace.Runtime` | Core | Capture engine (`SyncNarrativeContext`, `AsyncNarrativeContext`), concurrency groups, event pipeline, JSON/chapter exporters. |
-| `NarrativeTrace.Proxy` | Runtime | `NarrativeTraceProxy`, `NarrativeInterceptor`, `[Traced]`; reads the Core annotations. Depends on `Runtime` (not `Core` directly) *(since 0.1.5)*. |
+| `NarrativeTrace.Proxy` | Runtime | `NarrativeTraceProxy`, `NarrativeInterceptor`, `[Traced]`; reads the Core annotations. Depends on `Runtime` (not `Core` directly). |
 | `NarrativeTrace.DependencyInjection` | Core, Proxy, Runtime | `AddNarrativeTracing` namespace auto-wrap. |
 | `NarrativeTrace.AspNetCore` | Core, Runtime, Proxy | Per-request middleware, `ITraceExporter`, request/user context. |
 | `NarrativeTrace.Logging` | Core | `Microsoft.Extensions.Logging` bridge. |
@@ -251,7 +251,7 @@ sorted by signature, and partitions roots the same way as children — work that
 outlived its caller is a root, and its capture order is the scheduler's choice
 rather than the code's, so a committed baseline must not pin it.
 
-**Test-loop feedback** *(since 0.1.5)* — the `.nt` file on disk is
+**Test-loop feedback** — the `.nt` file on disk is
 the **last-green baseline**: `TraceArtifactWriter.Write` advances it only on a
 green write (`failed: false`), otherwise it returns the scenario's
 `ScenarioDelta` (`New`/`Unchanged`/`Changed`, with a per-signature call-count
@@ -281,7 +281,7 @@ The interceptor caches per-method metadata (names, redaction set,
 narration/error templates), captures parameters (respecting the tracing
 level and redaction), records return values or exceptions, and unwraps
 `TargetInvocationException` so the original exception propagates.
-`ProxyOptions.Redaction` *(since 0.1.5)* threads a custom
+`ProxyOptions.Redaction` threads a custom
 `RedactionPolicy` into this proxy's own renders, replacing (not widening)
 the default name-based decision.
 
@@ -358,7 +358,7 @@ values are captured only at `Detail`.
 
 - `NARRATIVETRACE_LEVEL` (default `Detail`)
 - `NARRATIVETRACE_OUTPUT` (`true`/`false`/`1`/`0`, default `true` — on by
-  default *(since 0.1.5)*; only an explicit `false`/`0` opts out)
+  default; only an explicit `false`/`0` opts out)
 - `NARRATIVETRACE_OUTPUT_DIR` (default `TestResults/narrativetrace`, the
   ephemeral, already-gitignored `.NET` test-output convention)
 - `NARRATIVETRACE_FORMAT` (`Markdown`/`Text`/`Prose`/`Json`, default `Markdown`)

@@ -10,17 +10,16 @@
 #   kind                entry-point | reflectable-default | probed-default | config-shape
 #   page                "<doc path>#<anchor>" — the sentence this entry backs
 #   claim               one human sentence
-#   since               the version the claim first holds (x.y.z)
 #   documented_default  (reflectable-default, probed-default) the exact observed value expected
 #   expected_effect     (config-shape) same role, named the way the design note spells it
 #   probe               source file (repo-relative) implementing the check
 #   coordinate          (entry-point only) NuGet package id
 #   registry            (entry-point only) nuget-org (default)
 #
-# `since` exempts an entry from the nightly gate only while it is LATER than the version actually
-# installed that run (docs-vs-published-gate §5.1 ruling 1) — never keyed on this repo's own
-# Directory.Build.props version. ContractLint (per commit, no network) validates this file's shape;
-# ContractCheck (nightly, registry-backed) runs contract-probe/ against it.
+# Every entry describes the code it is committed with (owner ruling 2026-09-24): there is no
+# version field. ContractLint (per commit, no network) validates this file's shape; ContractCheck
+# (nightly, registry-backed) reads the contract AT THE TAG it installs and runs contract-probe/
+# against that same artifact, so claim and package always come from one commit.
 version_source: "Directory.Build.props#VersionPrefix"
 entries:
   # ---- entry points: does the package resolve at all, on the real registry -------------------
@@ -30,7 +29,6 @@ entries:
     coordinate: "NarrativeTrace.Core"
     page: "documentation/guides/installation.md#packages"
     claim: "NarrativeTrace.Core resolves on nuget.org at the installed version"
-    since: "0.1.0"
     documented_default: "PRESENT"
     probe: "contract-probe/Probes/EntryPointProbe.cs"
 
@@ -40,7 +38,6 @@ entries:
     coordinate: "NarrativeTrace.Runtime"
     page: "documentation/guides/installation.md#packages"
     claim: "NarrativeTrace.Runtime resolves on nuget.org at the installed version"
-    since: "0.1.0"
     documented_default: "PRESENT"
     probe: "contract-probe/Probes/EntryPointProbe.cs"
 
@@ -50,7 +47,6 @@ entries:
     coordinate: "NarrativeTrace.Proxy"
     page: "documentation/guides/installation.md#packages"
     claim: "NarrativeTrace.Proxy resolves on nuget.org at the installed version"
-    since: "0.1.0"
     documented_default: "PRESENT"
     probe: "contract-probe/Probes/EntryPointProbe.cs"
 
@@ -60,23 +56,19 @@ entries:
     coordinate: "NarrativeTrace.Logging"
     page: "documentation/guides/installation.md#packages"
     claim: "NarrativeTrace.Logging resolves on nuget.org at the installed version"
-    since: "0.1.0"
     documented_default: "PRESENT"
     probe: "contract-probe/Probes/EntryPointProbe.cs"
 
   # doctor verb: a full behavioral probe would need a contract-probe capable of exercising a
   # packed dotnet tool, not just a restored library — out of scope here (the commit that added the
   # verb noted this at the time). This is the honest, expressible slice of the same claim: the
-  # package the verb ships in actually resolves at the release version. Naturally
-  # not-applicable-before-since today (installed max is 0.1.3; the doctor verb itself is
-  # unreleased) — that is the correct, not a degraded, verdict until 0.1.5 actually publishes.
+  # package the verb ships in actually resolves at the release version.
   - id: entry-point-cli
     kind: entry-point
     registry: nuget-org
     coordinate: "NarrativeTrace.Cli"
     page: "documentation/guides/installation.md#validate-installation"
     claim: "NarrativeTrace.Cli (carrying the doctor verb) resolves on nuget.org at the installed version"
-    since: "0.1.5"
     documented_default: "PRESENT"
     probe: "contract-probe/Probes/EntryPointProbe.cs"
 
@@ -85,7 +77,6 @@ entries:
     kind: reflectable-default
     page: "documentation/guides/installation.md#configure-trace-output"
     claim: "NARRATIVETRACE_OUTPUT defaults to true — ConfigResolver.Resolve().Output is true with no variable set"
-    since: "0.1.5"
     documented_default: "true"
     probe: "contract-probe/Probes/OutputDefaultProbe.cs"
 
@@ -93,7 +84,6 @@ entries:
     kind: reflectable-default
     page: "documentation/guides/configuration.md#2-environment-variables-configresolver"
     claim: "NARRATIVETRACE_APPROVAL defaults to false — ConfigResolver.Resolve().Approval is false with no variable set"
-    since: "0.1.5"
     documented_default: "false"
     probe: "contract-probe/Probes/ApprovalDefaultProbe.cs"
 
@@ -102,7 +92,6 @@ entries:
     kind: probed-default
     page: "documentation/privacy-and-redaction.md#redaction-surface-by-surface"
     claim: "NarrativeTraceProxy.Create<T> with new ProxyOptions(Redaction: ...) replaces the default redaction decision for that proxy"
-    since: "0.1.5"
     documented_default: "true"
     probe: "contract-probe/Probes/ProxyOptionsRedactionProbe.cs"
 
@@ -110,7 +99,6 @@ entries:
     kind: probed-default
     page: "documentation/guides/annotations.md#nottraced"
     claim: "[NotTraced] on a method throws InvalidOperationException at proxy-creation time, naming the attribute and the offending method"
-    since: "0.1.5"
     documented_default: "true"
     probe: "contract-probe/Probes/NotTracedOnMethodRejectedProbe.cs"
 
@@ -118,7 +106,6 @@ entries:
     kind: probed-default
     page: "documentation/guides/annotations.md#nottraced"
     claim: "a [Narrated] template resolved on a proxy built with a custom ProxyOptions.Redaction renders a redacted placeholder for a path that policy denies"
-    since: "0.1.5"
     documented_default: "true"
     probe: "contract-probe/Probes/TemplatesHonourRedactionProbe.cs"
 
@@ -126,7 +113,6 @@ entries:
     kind: probed-default
     page: "documentation/privacy-and-redaction.md#guarantees"
     claim: "a throwing [NarrativeSummary] member degrades to a typed <error: TypeName> placeholder — the exception's message is excluded"
-    since: "0.1.5"
     documented_default: "<error: InvalidOperationException>"
     probe: "contract-probe/Probes/TypedErrorMarkerProbe.cs"
 
@@ -134,7 +120,6 @@ entries:
     kind: probed-default
     page: "documentation/privacy-and-redaction.md#guarantees"
     claim: "a class exposing public state is rendered by reflecting over its members — a hand-written ToString() that interpolates a denied field is never reached"
-    since: "0.1.0"
     documented_default: "field-walked-not-tostring"
     probe: "contract-probe/Probes/NativeStringificationNotTrustedProbe.cs"
 
@@ -142,7 +127,6 @@ entries:
     kind: probed-default
     page: "documentation/privacy-and-redaction.md#guarantees"
     claim: "a platform scalar type (decimal) renders via its own value representation rather than being field-walked"
-    since: "0.1.0"
     documented_default: "own-representation-used"
     probe: "contract-probe/Probes/PlatformTypeCarveoutProbe.cs"
 
@@ -150,7 +134,6 @@ entries:
     kind: reflectable-default
     page: "documentation/structural-trace-format.md#artifact-identity-cross-platform"
     claim: "two invocations of the same scenario differ by a 1-based invocation index suffix, never by a display-name label alone"
-    since: "0.1.5"
     documented_default: "index-suffixed"
     probe: "contract-probe/Probes/ReflectablePerInvocationIdentityProbe.cs"
 
@@ -159,7 +142,6 @@ entries:
     kind: config-shape
     page: "documentation/sixty-seconds.md#1-new-console-app-add-the-package"
     claim: "NarrativeTrace.Proxy's published .nuspec depends on NarrativeTrace.Runtime, which depends on NarrativeTrace.Core — one dotnet add package resolves the whole chain"
-    since: "0.1.5"
     expected_effect: "true"
     probe: "contract-probe/Probes/OnePackageInstallProbe.cs"
 
@@ -167,7 +149,6 @@ entries:
     kind: config-shape
     page: "documentation/sixty-seconds.md#send-it-to-your-logger"
     claim: "TraceLogExporter.ExportToLogger replays a captured tree onto an ILogger, one Information-level record per node"
-    since: "0.1.0"
     expected_effect: "true"
     probe: "contract-probe/Probes/TraceLogExporterProbe.cs"
 
@@ -175,7 +156,6 @@ entries:
     kind: probed-default
     page: "documentation/guides/configuration.md#7-logging-bridge-microsoftextensionslogging"
     claim: "the console suite footer names the run: a \"run: <phrase>\" line"
-    since: "0.1.5"
     documented_default: "true"
     probe: "contract-probe/Probes/RunNameConsoleFooterProbe.cs"
 
@@ -183,18 +163,15 @@ entries:
     kind: probed-default
     page: "documentation/guides/configuration.md#7-logging-bridge-microsoftextensionslogging"
     claim: "manifest.json carries a top-level run object (id, name) naming the run it belongs to"
-    since: "0.1.5"
     documented_default: "true"
     probe: "contract-probe/Probes/RunNameManifestFieldProbe.cs"
 
-  # The commit that added traceparent adoption deliberately shipped without these: "a properly
-  # verified probe against the published package belongs with 0.1.5 release prep rather than this
-  # change." This is that release prep.
+  # The commit that added traceparent adoption deliberately shipped without these: a properly
+  # verified probe against the published package belongs with release prep rather than that change.
   - id: probed-initial-traceparent-seeds-context
     kind: probed-default
     page: "documentation/guides/configuration.md#traceparent-seeding"
     claim: "new NarrativeTraceConfig(initialTraceparent: Traceparent.Parse(...)) seeds a context's CurrentTraceId with the parsed trace id"
-    since: "0.1.5"
     documented_default: "true"
     probe: "contract-probe/Probes/InitialTraceparentSeedsContextProbe.cs"
 
@@ -202,7 +179,6 @@ entries:
     kind: probed-default
     page: "documentation/guides/configuration.md#4-aspnet-core"
     claim: "NarrativeTraceMiddleware adopts an inbound traceparent request header automatically, continuing the caller's trace"
-    since: "0.1.5"
     documented_default: "true"
     probe: "contract-probe/Probes/MiddlewareAdoptsTraceparentProbe.cs"
 
@@ -210,6 +186,5 @@ entries:
     kind: probed-default
     page: "documentation/guides/configuration.md#8-two-dials-two-paths"
     claim: "a logger's own minimum level (even set so every level is disabled) never affects what CaptureTrace() returns — only TracingLevel does"
-    since: "0.1.5"
     documented_default: "true"
     probe: "contract-probe/Probes/LoggerLevelDoesNotAffectCaptureProbe.cs"

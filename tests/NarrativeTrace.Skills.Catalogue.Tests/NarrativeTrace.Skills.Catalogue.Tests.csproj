@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.msbuild" Version="6.0.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/NarrativeTrace.Skills.Catalogue/NarrativeTrace.Skills.Catalogue.csproj" />
+    <!-- The Tier B eval runner (Phase 3 .NET milestone 0): a standalone, out-of-solution project
+         (like contract-probe/), unit-tested here — the skills-evals init-prompt drift test already
+         lives in this project, so its runner belongs here too. Its assembly is excluded from this
+         project's coverage Include filter ([NarrativeTrace.Skills.Catalogue]*), so it adds no
+         coverage gate. -->
+    <ProjectReference Include="../../skills-evals/runner/NarrativeTrace.SkillsEvalRunner.csproj" />
+  </ItemGroup>
+</Project>

@@ -8,7 +8,7 @@ namespace NarrativeTrace.Core;
 /// <summary>
 /// Strips a leading license-header comment block a publish-time stamp adds to a source file — the
 /// one piece of logic every place that embeds a real source file verbatim (the documentation
-/// build's own <c>snippet-check</c>, and <c>NarrativeTrace.Skills</c>'s <c>SnippetResolver</c>)
+/// build's own <c>snippet-check</c>, and <c>NarrativeTrace.Skills.Catalogue</c>'s <c>SnippetResolver</c>)
 /// must agree on, so a file that reads one way in this checkout and another way in the staged
 /// public snapshot never makes an embedded copy quietly drift the moment it is published.
 /// </summary>

@@ -12,7 +12,7 @@ namespace NarrativeTrace.ContractProbe;
 /// the single observed string the named probe must produce for the claim to hold.
 /// </summary>
 internal sealed record ContractEntry(
-    string Id, string Kind, string Page, string Claim, string Since, string Expect,
+    string Id, string Kind, string Page, string Claim, string Expect,
     string Probe, string? Coordinate, string? Registry);
 
 /// <summary>
@@ -38,7 +38,7 @@ internal static class ContractYaml
             ?? throw new InvalidOperationException($"entry \"{Field("id")}\": no documented_default/expected_effect");
 
         return new ContractEntry(
-            Field("id")!, Field("kind")!, Field("page")!, Field("claim")!, Field("since")!, expect,
+            Field("id")!, Field("kind")!, Field("page")!, Field("claim")!, expect,
             Field("probe")!, Field("coordinate"), Field("registry"));
     }
 }

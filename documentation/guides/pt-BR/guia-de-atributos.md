@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/annotations.md blob 8e8081d83657 | translated: 2026-09-18 | reviewed: - -->
+<!-- source: documentation/guides/annotations.md blob a704c9cf3b8a | translated: 2026-09-18 | reviewed: - -->
 # NarrativeTrace .NET — Guia de atributos
 
 [English](../annotations.md) | [Español](../es/guia-de-atributos.md) | **Português** | [简体中文](../zh-CN/特性指南.md)
@@ -140,8 +140,8 @@ public sealed class Payment
 de "a chamada inteira fica oculta" — ele sempre nomeia um parâmetro, uma
 propriedade ou um componente de record, nunca o método em si. Colocá-lo
 em um método compila, mas um proxy criado sobre uma interface que o faz
-lança `InvalidOperationException` no momento da criação do proxy *(desde
-0.1.5, não publicado)*, nomeando o atributo, o método afetado e a correção:
+lança `InvalidOperationException` no momento da criação do proxy, nomeando
+o atributo, o método afetado e a correção:
 
 ```csharp
 public interface IAccountService
@@ -168,8 +168,7 @@ você precisar do valor em uma narrativa, remova `[NotTraced]` da
 propriedade — essa remoção é a decisão deliberada e revisável, e aparece
 no diff.
 
-**Os templates respeitam a própria política de ocultação do proxy**
-*(since 0.1.5)*: um template `[Narrated]`/`[OnError]`
+**Os templates respeitam a própria política de ocultação do proxy**: um template `[Narrated]`/`[OnError]`
 resolvido em um proxy construído com um `new ProxyOptions(Redaction: ...)`
 personalizado consulta essa mesma política nos dois eixos acima — um
 placeholder simples como `{password}` e um caminho como

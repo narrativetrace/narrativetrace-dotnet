@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Licensed under the Business Source License 1.1 (see LICENSE); Change Date: four years from publication; Change License: Apache-2.0
 // Copyright (c) 2026 Empower Agile
+using NarrativeTrace.SkillsDevTool;
 using Xunit;
 
 namespace NarrativeTrace.Cli.Tests;
@@ -69,6 +70,55 @@ public sealed class SkillsLintCommandTests : IDisposable
         var exit = SkillsLintCommand.Run(_root, _out, _err);
 
         Assert.Equal(1, exit);
+    }
+
+    [Fact]
+    public void Fails_when_a_carrier_claude_page_is_hand_edited()
+    {
+        SkillsRenderCommand.Run(_root, _out, _err);
+        var path = Path.Combine(_root, "src", "NarrativeTrace.Skills", "skills", "claude", "narrativetrace-doctor", "SKILL.md");
+        File.AppendAllText(path, "\nhand-edited\n");
+
+        var exit = SkillsLintCommand.Run(_root, _out, _err);
+
+        Assert.Equal(1, exit);
+    }
+
+    [Fact]
+    public void Fails_when_a_carrier_agents_page_is_hand_edited()
+    {
+        SkillsRenderCommand.Run(_root, _out, _err);
+        var path = Path.Combine(_root, "src", "NarrativeTrace.Skills", "skills", "agents", "narrativetrace-doctor", "SKILL.md");
+        File.AppendAllText(path, "\nhand-edited\n");
+
+        var exit = SkillsLintCommand.Run(_root, _out, _err);
+
+        Assert.Equal(1, exit);
+    }
+
+    [Fact]
+    public void Fails_when_the_carrier_catalogue_json_is_hand_edited()
+    {
+        SkillsRenderCommand.Run(_root, _out, _err);
+        var path = Path.Combine(_root, "src", "NarrativeTrace.Skills", "skills", "catalogue.json");
+        File.WriteAllText(path, "{}");
+
+        var exit = SkillsLintCommand.Run(_root, _out, _err);
+
+        Assert.Equal(1, exit);
+    }
+
+    [Fact]
+    public void Fails_when_a_stray_file_sits_in_the_carrier()
+    {
+        SkillsRenderCommand.Run(_root, _out, _err);
+        var strayPath = Path.Combine(_root, "src", "NarrativeTrace.Skills", "skills", "stray.txt");
+        File.WriteAllText(strayPath, "not part of the carrier\n");
+
+        var exit = SkillsLintCommand.Run(_root, _out, _err);
+
+        Assert.Equal(1, exit);
+        Assert.Contains("stray", _err.ToString(), StringComparison.Ordinal);
     }
 
     private void SeedFixtureFiles()

@@ -24,6 +24,14 @@
     <ProjectReference Include="../../src/NarrativeTrace.Observability/NarrativeTrace.Observability.csproj" />
     <ProjectReference Include="../../src/NarrativeTrace.AspNetCore/NarrativeTrace.AspNetCore.csproj" />
     <ProjectReference Include="../../src/NarrativeTrace.Diagrams/NarrativeTrace.Diagrams.csproj" />
+    <!-- The shipped CLI, so an arch test can assert its reference closure carries no catalogue
+         assembly (Phase 3 Q3): that is what keeps NarrativeTrace.Skills.Catalogue.dll out of the
+         tool's PackAsTool package. -->
+    <ProjectReference Include="../../src/NarrativeTrace.Cli/NarrativeTrace.Cli.csproj" />
+    <!-- The zero-dependency tooling library (doctor + installer, Phase 3 D3), so an arch test
+         can assert it never references the catalogue project — the installer reads rendered
+         bytes, it must never render (the bytes installed must be the bytes drift-tested). -->
+    <ProjectReference Include="../../src/NarrativeTrace.Tooling/NarrativeTrace.Tooling.csproj" />
     <ProjectReference Include="../../src/NarrativeTrace.Testing.Xunit/NarrativeTrace.Testing.Xunit.csproj" />
     <ProjectReference Include="../../src/NarrativeTrace.Testing.NUnit/NarrativeTrace.Testing.NUnit.csproj" />
   </ItemGroup>

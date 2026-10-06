@@ -58,6 +58,40 @@
            Text="NarrativeTrace: invalid NarrativeTraceClarityGate '$(NarrativeTraceClarityGate)'. Expected true or false." />
   </Target>
 
+  <!--
+    Keep an already-installed set of agent skills current on build (design D8, .NET only).
+    A build may REFRESH what `init` put there; it must never START an install, so this shells
+    out to the CLI's hidden refresh mode of `init` (RefreshPlanner: only rewrites of pages and
+    sections that already carry our provenance, never a create). NOTE: an XML comment cannot
+    contain a double hyphen, so the flag names below are written in prose, not as literals.
+
+    Gating, all three required so a project that never ran `init` never invokes the tool:
+      - the opt-out property NarrativeTraceRefreshSkills is not false (default true in the .props).
+      - The sentinel skill page is found upward from the project directory. MSBuild's
+        GetDirectoryNameOfFileAbove accepts this sub-path and returns the directory that holds
+        `.agents/` (empty string when there is none), verified 2026-09-26 (GetPathOfFileAbove,
+        by contrast, rejects a sub-path). That directory is the install root passed as the dir arg.
+      - Outer build only: `TargetFrameworks == '' or TargetFramework == ''` runs the refresh
+        exactly once, in a single-framework build or in a cross-targeting project's outer build,
+        but never in each inner per-framework build.
+
+    Warn and continue when the tool is absent from PATH: ContinueOnError="WarnAndContinue" turns a
+    missing `dotnet-narrativetrace` into one warning, never a broken build. The tool prints the one
+    line naming what it rewrote (or "0 applied" when nothing is stale, so a current install is silent
+    of any change). Not in NarrativeTrace.Proxy: a runtime library must not inject build targets.
+  -->
+  <PropertyGroup>
+    <_NarrativeTraceSkillsRoot>$([MSBuild]::GetDirectoryNameOfFileAbove('$(MSBuildProjectDirectory)', '.agents/skills/narrativetrace-doctor/SKILL.md'))</_NarrativeTraceSkillsRoot>
+  </PropertyGroup>
+  <Target Name="_NarrativeTraceRefreshSkills"
+          BeforeTargets="Build"
+          Condition="'$(NarrativeTraceRefreshSkills)' == 'true'
+                     and ('$(TargetFrameworks)' == '' or '$(TargetFramework)' == '')
+                     and '$(_NarrativeTraceSkillsRoot)' != ''">
+    <Exec Command="$(_NarrativeTraceCli) init --refresh --dir &quot;$(_NarrativeTraceSkillsRoot)&quot;"
+          ContinueOnError="WarnAndContinue" />
+  </Target>
+
   <!-- Pass NARRATIVETRACE_* to the test host when trace output is requested. -->
   <Target Name="_NarrativeTraceExportEnv"
           BeforeTargets="VSTest"

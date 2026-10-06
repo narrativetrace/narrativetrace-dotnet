@@ -190,6 +190,68 @@ nothing else changes. See the [Installation Guide](guides/installation.md) for
 `NarrativeTrace.Logging`'s other entry points (`LoggingNarrativeContext` for
 live per-call logging, `AddNarrativeLogging()` for DI).
 
+## Prove redaction
+
+NarrativeTrace redacts by parameter name, on by default, in every shipped integration — no
+`[NotTraced]`, no config. Add one test that proves it, in the same project — not a separate
+test project: the `dotnet-narrativetrace doctor` CLI only scans the directory it runs in, so a
+sibling test project would go unseen.
+
+```bash
+dotnet add package Microsoft.NET.Test.Sdk
+dotnet add package xunit
+dotnet add package xunit.runner.visualstudio
+dotnet add package NarrativeTrace.Testing.Xunit
+```
+
+<!-- snippet: tests/NarrativeTrace.Examples.SixtySeconds.Tests/RedactionQuickstartTests.cs -->
+```csharp
+using NarrativeTrace.Core;
+using NarrativeTrace.Proxy;
+using NarrativeTrace.TestingXunit;
+using Xunit;
+
+namespace NarrativeTrace.Examples.SixtySeconds.Tests;
+
+public sealed class RedactionQuickstartTests
+{
+    [Fact]
+    public void Redacts_a_deny_listed_parameter()
+    {
+        using var narrative = new NarrativeFixture();
+
+        narrative.Run("pay with a deny-listed parameter", context =>
+        {
+            var account = NarrativeTraceProxy.Create<IAccountService>(new AccountService(), context);
+            account.Pay("POL-123", "tok-super-secret-xyz");
+        });
+
+        var rendered = IndentedTextRenderer.Render(narrative.CaptureTrace());
+        Assert.Contains("paymentToken: [REDACTED]", rendered);
+        Assert.DoesNotContain("tok-super-secret-xyz", rendered);
+    }
+}
+
+public interface IAccountService
+{
+    string Pay(string policyId, string paymentToken);
+}
+
+public sealed class AccountService : IAccountService
+{
+    public string Pay(string policyId, string paymentToken) => $"paid:{policyId}";
+}
+```
+<!-- /snippet -->
+
+```bash
+dotnet test
+```
+
+The deny-list matches by substring, case-insensitively — naming a parameter `paymentToken` is
+enough, no attribute required. See [Privacy and Redaction](privacy-and-redaction.md) for the
+full 26-pattern list and what outranks it.
+
 ## Next
 
 - **Use it in your tests, or wire it into DI / ASP.NET Core** —

@@ -30,10 +30,25 @@
     <PackageReference Include="System.Reflection.MetadataLoadContext" Version="9.0.0" />
   </ItemGroup>
   <ItemGroup>
+    <!-- The carrier, embedded byte-identically from the SAME physical files the published
+         NarrativeTrace.Skills package packs as content (Phase 3 D1) — one location, two
+         consumers, so the two carrier homes cannot drift from each other. Logical names use the
+         NarrativeTrace.Skills/ prefix matching Carrier.CarrierRoot in NarrativeTrace.Tooling.Init,
+         read through the assembly's own manifest resources, never a path (milestone 3's reader).
+         No ProjectReference to NarrativeTrace.Skills: these are raw files on disk, not the
+         compiled assembly, which this tool's package must never carry (CliPackagingTests). The
+         Replace('\', '/') keeps the logical name forward-slash on every OS this repo builds on —
+         %(RecursiveDir) uses the platform separator, but the logical name is a hardcoded C#
+         string constant on the reading side and must match byte-for-byte regardless of build OS. -->
+    <EmbeddedResource Include="../NarrativeTrace.Skills/skills/**/*">
+      <LogicalName>NarrativeTrace.Skills/$([System.String]::Copy('%(RecursiveDir)').Replace('\', '/'))%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../NarrativeTrace.Core/NarrativeTrace.Core.csproj" />
     <ProjectReference Include="../NarrativeTrace.Clarity/NarrativeTrace.Clarity.csproj" />
     <ProjectReference Include="../NarrativeTrace.Glossary/NarrativeTrace.Glossary.csproj" />
-    <ProjectReference Include="../NarrativeTrace.Skills/NarrativeTrace.Skills.csproj" />
+    <ProjectReference Include="../NarrativeTrace.Tooling/NarrativeTrace.Tooling.csproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="NarrativeTrace.Cli.Tests" />

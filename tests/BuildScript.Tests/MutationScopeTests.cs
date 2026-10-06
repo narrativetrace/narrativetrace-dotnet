@@ -88,7 +88,13 @@ public sealed class MutationScopeTests
     [Fact]
     public void No_configured_test_project_spawns_its_own_dotnet_process()
     {
-        string[] spawnMarkers = ["Process.Start", "ProcessTasks", "\"dotnet\"", "dotnet run", "dotnet test"];
+        // The process-API markers catch every real spawn: you cannot start a process in .NET without
+        // Process.Start, a ProcessStartInfo, or NUKE's ProcessTasks. The command-string markers catch a
+        // dotnet subcommand string. A bare "dotnet" token was dropped: it false-matched a data literal
+        // (the catalogue's own runtime slug "dotnet" in NarrativeTrace.Tooling.Tests), which is not a
+        // spawn — and a real spawn of the dotnet executable always carries one of the API markers too.
+        string[] spawnMarkers =
+            ["Process.Start", "ProcessStartInfo", "ProcessTasks", "dotnet run", "dotnet test"];
 
         var offenders = MutationAccounting.ConfigFiles(RepositoryPath.Root())
             .SelectMany(TestProjectDirectories)

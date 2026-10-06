@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/annotations.md blob 8e8081d83657 | translated: 2026-09-18 | reviewed: - -->
+<!-- source: documentation/guides/annotations.md blob a704c9cf3b8a | translated: 2026-09-18 | reviewed: - -->
 # NarrativeTrace .NET — Guía de atributos
 
 [English](../annotations.md) | **Español** | [Português](../pt-BR/guia-de-atributos.md) | [简体中文](../zh-CN/特性指南.md)
@@ -140,7 +140,7 @@ significado de "toda la llamada queda oculta" — siempre nombra un
 parámetro, una propiedad o un componente de record, nunca el método en sí.
 Ponerlo sobre un método compila, pero un proxy creado sobre una
 interfaz que lo hace lanza `InvalidOperationException` en el momento de
-crear el proxy *(desde 0.1.5, sin publicar)*, nombrando el atributo, el
+crear el proxy, nombrando el atributo, el
 método afectado y la solución:
 
 ```csharp
@@ -168,8 +168,7 @@ necesitas el valor en una narración, quita `[NotTraced]` de la propiedad;
 esa eliminación es la decisión deliberada y revisable, y queda a la vista
 en el diff.
 
-**Las plantillas respetan la propia política de ocultación del proxy**
-*(since 0.1.5)*: una plantilla `[Narrated]`/`[OnError]`
+**Las plantillas respetan la propia política de ocultación del proxy**: una plantilla `[Narrated]`/`[OnError]`
 resuelta en un proxy construido con un `new ProxyOptions(Redaction: ...)`
 personalizado consulta esa misma política en los dos ejes de arriba — un
 marcador de posición desnudo como `{password}` y una ruta como

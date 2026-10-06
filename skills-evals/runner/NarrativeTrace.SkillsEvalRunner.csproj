@@ -1,0 +1,27 @@
+<!-- skills-evals runner: a STANDALONE, non-packable .NET console project (Phase 3 .NET milestone 0,
+     D13 as ruled 2026-09-25), never included by NarrativeTrace.sln, mirroring skills-devtool/ and
+     contract-probe/. It is the Tier B trial runner: scaffold a case's fixture into a scratch temp
+     directory, drive the agent CLI through argv (never a shell), run the case's graders/verify.sh,
+     and append one row to skills-evals/ledger/runs.jsonl — the same shape as the Python/Java
+     reference runners. It ProjectReferences NarrativeTrace.Skills.Catalogue only for the typed
+     catalogue the promotion matrix enumerates. Its classes are unit-tested by
+     tests/NarrativeTrace.Skills.Catalogue.Tests, which references this project, so they stay under
+     the solution's analyzers without shipping. -->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>NarrativeTrace.SkillsEvals</RootNamespace>
+    <AssemblyName>NarrativeTrace.SkillsEvalRunner</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/NarrativeTrace.Skills.Catalogue/NarrativeTrace.Skills.Catalogue.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- net10.0 only, on purpose: the doctor and installer render JSON through the
+         in-box System.Text.Json and read the filesystem through the in-box BCL, so the
+         library carries ZERO package references. A netstandard2.0 target would drag in
+         the System.Text.Json NuGet package for that framework and break that promise —
+         the whole point of a "tooling library with no dependencies" (design D3, as
+         changed 2026-09-25). The one consumer that needs it, the CLI, is net10.0. -->
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <RootNamespace>NarrativeTrace.Tooling</RootNamespace>
+    <PackageId>NarrativeTrace.Tooling</PackageId>
+    <!-- The tooling surface (doctor + installer) ships permissively, like the CLI that
+         launches it and the rest of this product family's "open" category. Apache-2.0 is
+         OSI-approved, so it is a valid PackageLicenseExpression with no bundled license
+         FILE — which is why this clears the inherited PackageLicenseFile rather than
+         pointing it at a second file. Mirrors NarrativeTrace.Cli exactly. -->
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageLicenseFile></PackageLicenseFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Overrides Directory.Build.props' repo-wide BSL LICENSE item: this package's license is
+         Apache-2.0 above, expressed via metadata, not a bundled BSL file. -->
+    <None Remove="$(MSBuildThisFileDirectory)../../LICENSE" />
+    <None Include="$(MSBuildThisFileDirectory)../../LICENSE-APACHE" Pack="true" PackagePath=""
+          Visible="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="NarrativeTrace.Tooling.Tests" />
+  </ItemGroup>
+</Project>

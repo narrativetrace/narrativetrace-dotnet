@@ -1,12 +1,36 @@
-<!-- source: README.md blob 28caafe49aac | translated: 2026-09-20 | reviewed: - -->
+<!-- source: README.md blob dd9c9e8c48c9 | translated: 2026-09-26 | reviewed: - -->
 # NarrativeTrace .NET
 
 [English](README.md) | [Español](LEAME.md) | **Português** | [简体中文](自述文件.md)
 
 ## Comece aqui
 
-[Veja um trace em 60 segundos](documentation/pt-BR/sessenta-segundos.md)
-— um aplicativo de console, uma execução, e o trace está no seu terminal.
+- [Veja um trace em 60 segundos](documentation/pt-BR/sessenta-segundos.md)
+  — um aplicativo de console, uma execução, e o trace está no seu terminal.
+- Trabalhando com um agente de IA? Cole isto:
+
+```
+Set up NarrativeTrace in this project and show me its first trace.
+1. Read https://narrativetrace.ai/dotnet/llms.txt first. It carries the install block and the
+known traps. Do not guess versions or artifact names.
+2. If this directory has no project yet, create the smallest console app that
+llms.txt's "Install and first trace" block describes. Otherwise work inside the existing
+project and trace one real service boundary.
+3. Install the CLI the way llms.txt shows, then run `dotnet tool run dotnet-narrativetrace
+init --dry-run` and show me the diff. It installs the NarrativeTrace agent skills into this
+project and adds a marked section to AGENTS.md. Run it for real only after I have seen the
+diff.
+4. If the `add-narrative-tracing` skill is now available, follow it. Otherwise follow the
+"Install and first trace (copy this)" block in llms.txt.
+5. Add one test that traces a call with a deny-listed parameter and asserts the trace shows
+`[REDACTED]` for it.
+6. Run the program, then run the doctor (`dotnet tool run dotnet-narrativetrace doctor`).
+Paste the trace and the doctor report, explain the trace in two sentences, and list exactly
+what changed in the project.
+Rules: never disable redaction; do not commit `.received.nt` files; run
+everything in the foreground and read the output before you report; if you cannot fetch URLs,
+say so and I will paste llms.txt.
+```
 
 ## Demo
 
@@ -254,7 +278,7 @@ public class OrderTests : IClassFixture<NarrativeFixture>
 narradas automaticamente no teardown via `TestContext`.
 
 Ambos escrevem arquivos reais em disco por padrão, sem nenhuma opção para
-ativar *(since 0.1.5)*:
+ativar:
 `TestResults/narrativetrace/traces/<Class>/<slug>.md`, um `.json`
 irmão, um diagrama `.mmd` e um `.nt` sem valores — no diretório efêmero e
 ignorado pelo Git que o `dotnet test` já trata como saída descartável.
@@ -556,7 +580,7 @@ Indo mais fundo:
 - [Guia de funcionalidades](documentation/feature-guide.md) (em inglês) — tabela de status oficial (Free/Pro/In development/Planned) para cada funcionalidade, com o código por trás de cada linha já publicada
 - [Ferramental de segurança](documentation/security-tooling.md) (em inglês) — o conjunto de scanners e o que faz gate do build vs. o que roda por agendamento
 - [Testes de segurança](documentation/security-testing.md) (em inglês) — a suíte de fuzzing/propriedades espelhada em toda implementação do NarrativeTrace
-- [Skills de agente](documentation/agent-skills.md) (em inglês) — as skills `narrativetrace-doctor` e `add-narrative-tracing` para o Claude Code e o Codex CLI *(Codex since 0.1.5, unreleased)*, geradas a partir de um catálogo tipado
+- [Skills de agente](documentation/agent-skills.md) (em inglês) — as skills `narrativetrace-doctor` e `add-narrative-tracing` para o Claude Code e o Codex CLI, geradas a partir de um catálogo tipado
 
 Para consumidores de IA: [`llms.txt`](documentation/guides/llms.txt) e
 [`llms-full.md`](documentation/guides/llms-full.md).
@@ -778,7 +802,7 @@ roadmap.
 
 ## Status
 
-A versão 0.1.0 está publicada — os pacotes estão no NuGet. O pipeline de
+Os pacotes estão no NuGet. O pipeline de
 captura, o schema JSON canônico, o modelo de atributos de duas camadas, o ciclo
 de vida do ASP.NET Core, a conexão de DI, o OpenTelemetry (lote + ao vivo), o
 ferramental de clareza + CLI, as integrações com frameworks de teste e os

@@ -2,7 +2,8 @@
 // Licensed under the Business Source License 1.1 (see LICENSE); Change Date: four years from publication; Change License: Apache-2.0
 // Copyright (c) 2026 Empower Agile
 using System.Globalization;
-using NarrativeTrace.Cli.Doctor;
+using NarrativeTrace.Cli.Init;
+using NarrativeTrace.Tooling.Doctor;
 
 namespace NarrativeTrace.Cli;
 
@@ -21,6 +22,12 @@ public static class CliRunner
             return Usage(error);
         }
 
+        if (args[0] is "--help" or "-h")
+        {
+            output.Write(UsageText);
+            return 0;
+        }
+
         return args[0] switch
         {
             "clarity-scan" => RunClarityScan(args, output, error),
@@ -28,29 +35,14 @@ public static class CliRunner
             "clarity-check" => RunClarityCheck(args, output, error),
             "glossary" => RunGlossary(args, output, error),
             "doctor" => RunDoctor(args, output, error),
-            "skills" => RunSkills(args, output, error),
+            "init" => InitCommand.Run(true, Rest(args), output, error),
+            "uninstall" => InitCommand.Run(false, Rest(args), output, error),
             _ => UnknownVerb(args[0], error),
         };
     }
 
-    private static int RunSkills(string[] args, TextWriter output, TextWriter error)
-    {
-        var dir = GetOption(args, "--dir") ?? Directory.GetCurrentDirectory();
-        var sub = args.Length > 1 ? args[1] : null;
-        return sub switch
-        {
-            "render" => SkillsRenderCommand.Run(dir, output, error),
-            "lint" => SkillsLintCommand.Run(dir, output, error),
-            "replay" => SkillsReplayCommand.Run(dir, output, error),
-            _ => SkillsUsage(error),
-        };
-    }
-
-    private static int SkillsUsage(TextWriter error)
-    {
-        error.WriteLine("error: skills requires a sub-command: render | lint | replay");
-        return 2;
-    }
+    /// <summary>The arguments after the verb, the slice each command parses.</summary>
+    private static string[] Rest(string[] args) => args[1..];
 
     private static int RunGlossary(string[] args, TextWriter output, TextWriter error)
     {
@@ -62,7 +54,8 @@ public static class CliRunner
     {
         var json = HasFlag(args, "--json");
         var dir = GetOption(args, "--dir") ?? Directory.GetCurrentDirectory();
-        return DoctorCommand.Run(dir, Environment.GetEnvironmentVariable, json, output, error);
+        return DoctorCommand.Run(
+            dir, Environment.GetEnvironmentVariable, () => CarrierLocator.Open(null), json, output, error);
     }
 
     private static int RunClarityCheck(string[] args, TextWriter output, TextWriter error)
@@ -150,16 +143,22 @@ public static class CliRunner
 
     private static int Usage(TextWriter error)
     {
-        error.WriteLine(
-            "usage: dotnet-narrativetrace <command>" + Environment.NewLine +
-            "  clarity-scan      --assembly <path> [--output-dir <dir>] " +
-            "[--format both|md|json]" + Environment.NewLine +
-            "  clarity-aggregate --input-dir <dir> [--output-dir <dir>]" + Environment.NewLine +
-            "  clarity-check     --results <path> [--min-score <x>] " +
-            "[--max-high-issues <n>] [--warn-only]" + Environment.NewLine +
-            "  glossary          [--file <glossary.json>]" + Environment.NewLine +
-            "  doctor            [--json] [--dir <path>]" + Environment.NewLine +
-            "  skills            render|lint|replay [--dir <path>]");
+        error.WriteLine(UsageText);
         return 2;
     }
+
+    private static readonly string UsageText =
+        "usage: dotnet-narrativetrace <command>" + Environment.NewLine +
+        "  clarity-scan      --assembly <path> [--output-dir <dir>] " +
+        "[--format both|md|json]" + Environment.NewLine +
+        "  clarity-aggregate --input-dir <dir> [--output-dir <dir>]" + Environment.NewLine +
+        "  clarity-check     --results <path> [--min-score <x>] " +
+        "[--max-high-issues <n>] [--warn-only]" + Environment.NewLine +
+        "  glossary          [--file <glossary.json>]" + Environment.NewLine +
+        "  doctor            [--json] [--dir <path>]" + Environment.NewLine +
+        "  init              [--dry-run] [--write-existing] [--force] [--only skills|agents-md]" +
+        Environment.NewLine +
+        "                    [--vendor claude|none] [--from <carrier>] [--dir <path>] [--json]" +
+        Environment.NewLine +
+        "  uninstall         [--dry-run] [--only skills|agents-md] [--dir <path>] [--json]";
 }

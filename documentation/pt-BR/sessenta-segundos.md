@@ -1,4 +1,4 @@
-<!-- source: documentation/sixty-seconds.md blob 70186c49812a | translated: 2026-09-16 | reviewed: - -->
+<!-- source: documentation/sixty-seconds.md blob 077e0be6a5ef | translated: 2026-09-25 | reviewed: - -->
 # Veja um trace em 60 segundos
 
 [English](../sixty-seconds.md) | [Español](../es/sesenta-segundos.md) | **Português** | [简体中文](../zh-CN/60秒.md)
@@ -190,6 +190,67 @@ muda. Veja o [Guia de instalação](../guides/pt-BR/guia-de-instalacao.md)
 para os outros pontos de entrada do `NarrativeTrace.Logging`
 (`LoggingNarrativeContext` para logging ao vivo por chamada,
 `AddNarrativeLogging()` para DI).
+
+## Prove a ocultação
+
+O NarrativeTrace oculta por nome de parâmetro, ativado por padrão, em toda integração
+distribuída — sem `[NotTraced]`, sem configuração. Adicione um teste que prove isso, no mesmo
+projeto — não em um projeto de testes separado: a CLI `dotnet-narrativetrace doctor` só
+analisa o diretório em que é executada, então um projeto de testes irmão passaria despercebido.
+
+```bash
+dotnet add package Microsoft.NET.Test.Sdk
+dotnet add package xunit
+dotnet add package xunit.runner.visualstudio
+dotnet add package NarrativeTrace.Testing.Xunit
+```
+
+```csharp
+using NarrativeTrace.Core;
+using NarrativeTrace.Proxy;
+using NarrativeTrace.TestingXunit;
+using Xunit;
+
+namespace NarrativeTrace.Examples.SixtySeconds.Tests;
+
+public sealed class RedactionQuickstartTests
+{
+    [Fact]
+    public void Redacts_a_deny_listed_parameter()
+    {
+        using var narrative = new NarrativeFixture();
+
+        narrative.Run("pay with a deny-listed parameter", context =>
+        {
+            var account = NarrativeTraceProxy.Create<IAccountService>(new AccountService(), context);
+            account.Pay("POL-123", "tok-super-secret-xyz");
+        });
+
+        var rendered = IndentedTextRenderer.Render(narrative.CaptureTrace());
+        Assert.Contains("paymentToken: [REDACTED]", rendered);
+        Assert.DoesNotContain("tok-super-secret-xyz", rendered);
+    }
+}
+
+public interface IAccountService
+{
+    string Pay(string policyId, string paymentToken);
+}
+
+public sealed class AccountService : IAccountService
+{
+    public string Pay(string policyId, string paymentToken) => $"paid:{policyId}";
+}
+```
+
+```bash
+dotnet test
+```
+
+A lista de bloqueio compara por substring, sem diferenciar maiúsculas de minúsculas — nomear um
+parâmetro `paymentToken` já basta, sem precisar de nenhum atributo. Veja
+[Privacidade e ocultação](privacidade-e-ocultacao.md) para a lista completa de 26 padrões e o
+que tem prioridade sobre ela.
 
 ## Próximos passos
 

@@ -3,6 +3,7 @@
 // Copyright (c) 2026 Empower Agile
 using NarrativeTrace.Skills;
 using NarrativeTrace.Skills.Catalogue;
+using NarrativeTrace.SkillsDevTool;
 using Xunit;
 
 namespace NarrativeTrace.Cli.Tests;

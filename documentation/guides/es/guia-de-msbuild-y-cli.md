@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/msbuild-cli.md blob 71b2fc609a6e | translated: 2026-09-17 | reviewed: 2026-09-03 -->
+<!-- source: documentation/guides/msbuild-cli.md blob 68922a18369f | translated: 2026-09-26 | reviewed: 2026-09-03 -->
 # NarrativeTrace .NET — Guía de MSBuild y CLI
 
 [English](../msbuild-cli.md) | **Español** | [Português](../pt-BR/guia-de-msbuild-e-cli.md) | [简体中文](../zh-CN/MSBuild与CLI指南.md)
@@ -36,6 +36,40 @@ restaurada desde un manifiesto local antes de ejecutar `ClarityScan` /
 desconocido — la herramienta imprime el uso y sale con `2`. Las opciones se
 parsean como pares `--nombre valor` (los flags como `--warn-only` no llevan
 valor).
+
+### `init` y `uninstall`
+
+Copia las dos habilidades de agente en `.agents/skills/` (y también en `.claude/skills/` en
+cuanto detecta `.claude/` o `CLAUDE.md`) y escribe una sección marcada en `AGENTS.md`;
+`uninstall` elimina exactamente lo que `init` escribió y nada más. Cero red — el portador viaja
+dentro de este paquete.
+
+```bash
+dotnet tool run dotnet-narrativetrace init --dry-run
+dotnet tool run dotnet-narrativetrace init
+dotnet tool run dotnet-narrativetrace uninstall
+```
+
+| Opción | Significado |
+|---|---|
+| `--dry-run` | Muestra el plan y el diff unificado. No escribe nada, siempre sale con `0`. |
+| `--write-existing` | Permiso para tocar un `AGENTS.md` o `CLAUDE.md` que ya exista. |
+| `--force` | Permiso para sobrescribir un directorio de habilidad que pertenece a otra persona. |
+| `--only <half>` | `skills` \| `agents-md`. Ambas mitades por defecto. |
+| `--vendor <vendor>` | `claude` \| `none`. Detectado del proyecto por defecto. |
+| `--from <carrier>` | Un directorio, un `.nupkg`, o una coordenada `Id/Version` ya presente en la caché local de NuGet. El portador incluido en esta CLI por defecto. |
+| `--dir <path>` | El directorio del proyecto. El directorio actual por defecto. |
+| `--json` | Salida legible por máquina en lugar de texto para humanos. |
+
+Códigos de salida:
+
+| Código | Cuándo |
+|---|---|
+| `0` | Aplicado, o un dry run — un dry run siempre sale con `0`. |
+| `1` | Se rechazó al menos una acción (un `AGENTS.md`/`CLAUDE.md` ya existente que `init` no toca sin `--write-existing`, o un directorio de habilidad que pertenece a otra persona sin `--force`), o no se pudo leer el portador o el directorio del proyecto. |
+| `2` | No se pudo parsear la línea de comandos. |
+
+Consulta las [habilidades de agente](../../agent-skills.md) para ver qué se escribe y por qué.
 
 ### `clarity-scan`
 
@@ -131,7 +165,7 @@ Añade el paquete solo de build. `PrivateAssets="all"` lo mantiene fuera de
 las dependencias transitivas de tu paquete:
 
 ```xml
-<PackageReference Include="NarrativeTrace.MSBuild" Version="0.1.5"
+<PackageReference Include="NarrativeTrace.MSBuild" Version="0.2.0"
                   PrivateAssets="all" />
 ```
 
@@ -151,6 +185,7 @@ toda la lógica de umbrales vive en la CLI.
 | `ClarityMinScore` | `0.0` | Se reenvía a `clarity-check --min-score`. |
 | `ClarityMaxHighIssues` | `2147483647` | Se reenvía a `clarity-check --max-high-issues`. |
 | `ClarityWarnOnly` | `false` | Con `true`, reenvía `--warn-only` (los fallos de la puerta pasan a ser advertencias). |
+| `NarrativeTraceRefreshSkills` | `true` | Con `false`, omite por completo la actualización automática de habilidades descrita más abajo. |
 
 Los valores inválidos de `NarrativeTraceLevel`, `NarrativeTraceFormat` o
 `NarrativeTraceClaritySource` fallan el build **pronto** (vía el target
@@ -172,6 +207,7 @@ silencio al host de pruebas.
 | `ClarityScan` | `Build` | `clarity-scan --assembly $(TargetPath) --output-dir $(NarrativeTraceOutputDir)` |
 | `ClarityAggregate` | — | `clarity-aggregate --input-dir $(NarrativeTraceOutputDir) --output-dir $(NarrativeTraceOutputDir)` |
 | `ClarityCheck` | `ClarityScan` o `ClarityAggregate` (según `NarrativeTraceClaritySource`) | `clarity-check --results … --min-score … --max-high-issues … [--warn-only]` |
+| `_NarrativeTraceRefreshSkills` | `Build` (antes, solo en el build externo) | Actualiza las páginas de habilidades de agente ya instaladas y la sección de `AGENTS.md` — nunca las crea |
 
 Ejecuta la puerta como parte de un build:
 
@@ -202,6 +238,27 @@ build, MSBuild compara marcas de tiempo y **omite por completo la nueva
 comprobación cuando `clarity-results.json` no ha cambiado** — así un
 proyecto sin cambios no paga la puerta dos veces. Borra el stamp (o el
 directorio de salida) para forzar una nueva comprobación.
+
+### Actualización de las habilidades de agente instaladas en el build
+
+Una vez que un proyecto ha ejecutado `init` (arriba) al menos una vez, `NarrativeTrace.MSBuild`
+mantiene actualizadas las páginas de habilidades de agente instaladas y la sección de `AGENTS.md`
+en cada build externo — nunca las crea, así que un proyecto que nunca ha ejecutado `init` nunca
+invoca la herramienta. `_NarrativeTraceRefreshSkills` se ejecuta con `BeforeTargets="Build"`,
+condicionado de tres formas:
+
+- **La página centinela.** `.agents/skills/narrativetrace-doctor/SKILL.md` debe encontrarse hacia
+  arriba desde el directorio del proyecto (`GetDirectoryNameOfFileAbove`) — la única señal que
+  busca el target antes de invocar nada.
+- **Solo en el build externo.** Los builds internos por cada TFM de un proyecto multi-target se
+  omiten; la actualización se ejecuta una sola vez.
+- **La forma de desactivarlo.** Define `NarrativeTraceRefreshSkills=false` para desactivarlo por
+  completo.
+
+Cuando se ejecuta, reemplaza solo los bloques y las páginas que el propio `init` de esta
+implementación escribió — el equivalente a la forma que aplica cambios de `init --dry-run`,
+acotada al contenido ya instalado — e imprime una línea indicando qué reescribió. Si falta
+`dotnet-narrativetrace` en el `PATH`, avisa una vez y continúa; nunca hace fallar el build.
 
 ### Salida de trazas hacia el host de pruebas
 

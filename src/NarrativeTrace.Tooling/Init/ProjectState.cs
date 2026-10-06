@@ -1,0 +1,160 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Licensed under the Business Source License 1.1 (see LICENSE); Change Date: four years from publication; Change License: Apache-2.0
+// Copyright (c) 2026 Empower Agile
+using System.Collections.ObjectModel;
+
+namespace NarrativeTrace.Tooling.Init;
+
+/// <summary>
+/// A read-only snapshot of a consumer project: everything the installer's decisions depend on, read
+/// once and never read again.
+/// </summary>
+/// <remarks>
+/// <para>INTENT: makes the planner a pure function. Every "does this file exist", "is this directory
+/// ours", "where do traces land" question is answered here, so a plan can be computed, printed as a
+/// diff, reviewed, and only then applied — with no chance of the answer changing between the diff and
+/// the write.</para>
+/// <para>Built two ways: <see cref="ProjectStateReader"/> walks a real directory; a test builds one
+/// directly with <see cref="Builder"/>, which is why every planner case is a unit test with no disk
+/// at all. Contents are kept byte for byte — line endings, byte-order mark, missing final newline and
+/// all. The planner's edits are expressed against exactly these bytes.</para>
+/// </remarks>
+public sealed class ProjectState
+{
+    /// <summary>Where rendered traces land when a project says nothing else.</summary>
+    public const string DefaultOutputDirectory = "TestResults/narrativetrace";
+
+    private readonly string? _agentsMd;
+    private readonly string? _claudeMd;
+
+    private ProjectState(Builder builder)
+    {
+        _agentsMd = builder.AgentsMdContent;
+        _claudeMd = builder.ClaudeMdContent;
+        HasClaudeDirectory = builder.ClaudeDirectory;
+        InstalledSkills = new ReadOnlyCollection<InstalledSkill>([.. builder.InstalledSkillsList]);
+        MarkedRuleFiles = new ReadOnlyDictionary<string, string>(
+            new Dictionary<string, string>(builder.MarkedRuleFilesMap, StringComparer.Ordinal));
+        OutputDirectory = builder.OutputDirectoryValue;
+        ResolvedFamilyVersion = builder.ResolvedFamilyVersionValue;
+        if (!Invariant())
+        {
+            throw new ArgumentException("a project state must describe one path once");
+        }
+    }
+
+    /// <summary>Starts building an untouched-project snapshot.</summary>
+    public static Builder NewBuilder() => new();
+
+    /// <summary>The project's <c>AGENTS.md</c>, byte for byte, or <see langword="null"/> when it has none.</summary>
+    public string? AgentsMd => _agentsMd;
+
+    /// <summary>The project's <c>CLAUDE.md</c>, byte for byte, or <see langword="null"/> when it has none.</summary>
+    public string? ClaudeMd => _claudeMd;
+
+    /// <summary>Whether the vendor directory exists — one half of the vendor-detection rule.</summary>
+    public bool HasClaudeDirectory { get; }
+
+    /// <summary>Every skill directory found under either install root, in read order.</summary>
+    public IReadOnlyList<InstalledSkill> InstalledSkills { get; }
+
+    /// <summary>
+    /// Vendor rule files that already carry our markers, by project-relative path. The installer
+    /// never CREATES one of these; it keeps an existing block up to date.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> MarkedRuleFiles { get; }
+
+    /// <summary>Where this project's rendered traces land, detected or <see cref="DefaultOutputDirectory"/>.</summary>
+    public string OutputDirectory { get; }
+
+    /// <summary>
+    /// The NarrativeTrace family version the project resolves (its <c>PackageReference</c> versions),
+    /// or <see langword="null"/> when none can be determined — the input to the version guard (D4).
+    /// </summary>
+    public string? ResolvedFamilyVersion { get; }
+
+    /// <summary>The skill directory at one flavour's path, or <see langword="null"/> when nothing is there.</summary>
+    public InstalledSkill? InstalledSkill(SkillFlavour flavour, string name) =>
+        InstalledSkills.FirstOrDefault(
+            skill => skill.Flavour == flavour && string.Equals(skill.Name, name, StringComparison.Ordinal));
+
+    /// <summary>No path is described twice: one snapshot entry per (flavour, name).</summary>
+    internal bool Invariant()
+    {
+        var distinct = InstalledSkills
+            .Select(skill => skill.Flavour + "/" + skill.Name)
+            .Distinct(StringComparer.Ordinal)
+            .Count();
+        return distinct == InstalledSkills.Count && !string.IsNullOrWhiteSpace(OutputDirectory);
+    }
+
+    /// <summary>Assembles a snapshot; every field has the "untouched project" default.</summary>
+    public sealed class Builder
+    {
+        internal string? AgentsMdContent { get; private set; }
+
+        internal string? ClaudeMdContent { get; private set; }
+
+        internal bool ClaudeDirectory { get; private set; }
+
+        internal List<InstalledSkill> InstalledSkillsList { get; } = [];
+
+        internal Dictionary<string, string> MarkedRuleFilesMap { get; } = new(StringComparer.Ordinal);
+
+        internal string OutputDirectoryValue { get; private set; } = DefaultOutputDirectory;
+
+        internal string? ResolvedFamilyVersionValue { get; private set; }
+
+        /// <summary>Sets the project's <c>AGENTS.md</c> content.</summary>
+        public Builder AgentsMd(string content)
+        {
+            AgentsMdContent = content;
+            return this;
+        }
+
+        /// <summary>Sets the project's <c>CLAUDE.md</c> content.</summary>
+        public Builder ClaudeMd(string content)
+        {
+            ClaudeMdContent = content;
+            return this;
+        }
+
+        /// <summary>Records whether the vendor directory is present.</summary>
+        public Builder HasClaudeDirectory(bool present)
+        {
+            ClaudeDirectory = present;
+            return this;
+        }
+
+        /// <summary>Adds one installed skill to the snapshot.</summary>
+        public Builder AddInstalledSkill(InstalledSkill skill)
+        {
+            InstalledSkillsList.Add(skill);
+            return this;
+        }
+
+        /// <summary>Records a vendor rule file that already carries our markers.</summary>
+        public Builder MarkedRuleFile(string relativePath, string content)
+        {
+            MarkedRuleFilesMap[relativePath] = content;
+            return this;
+        }
+
+        /// <summary>Sets where rendered traces land.</summary>
+        public Builder OutputDirectory(string directory)
+        {
+            OutputDirectoryValue = directory;
+            return this;
+        }
+
+        /// <summary>Sets the NarrativeTrace family version the project resolves (the version guard's input).</summary>
+        public Builder ResolvedFamilyVersion(string? version)
+        {
+            ResolvedFamilyVersionValue = version;
+            return this;
+        }
+
+        /// <summary>Builds the immutable snapshot.</summary>
+        public ProjectState Build() => new(this);
+    }
+}

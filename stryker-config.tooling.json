@@ -1,0 +1,21 @@
+{
+  "stryker-config": {
+    "project": "src/NarrativeTrace.Tooling/NarrativeTrace.Tooling.csproj",
+    "test-projects": [
+      "tests/NarrativeTrace.Tooling.Tests/NarrativeTrace.Tooling.Tests.csproj"
+    ],
+    "mutate": [
+      "**/*.cs"
+    ],
+    "reporters": ["progress", "html", "json"],
+    "thresholds": { "high": 90, "low": 80, "break": 80 },
+    "concurrency": 4
+  },
+  "break-ratchet": {
+    "recorded": "2026-09-26",
+    "measured": 80.73,
+    "break-target": 85,
+    "gap": 5,
+    "note": "Phase 3 D3 tooling library (doctor + installer). break is the floor of the measured score (80.73 -> 80); a ratchet, never lowered below the last recorded floor — see mutation-ratchet.json and MutationRatchetTests. 192 survivors, 873 killed, 7 timeouts across 1,072 tested mutants; largest survivor clusters are in the doctor's snapshot builder and the JSON/text rendering. Raise toward the 85 break-target as survivors are killed."
+  }
+}

@@ -140,6 +140,7 @@ public sealed class MutationAccountingTests
             new HashSet<string>
             {
                 "NarrativeTrace.Core", "NarrativeTrace.Clarity", "NarrativeTrace.Glossary", "NarrativeTrace.Proxy",
+                "NarrativeTrace.Tooling",
             },
             tested);
     }

@@ -19,5 +19,12 @@
     "break-target": 85,
     "gap": 7,
     "note": "35 survivors: NarrationResolver (21), NarrativeInterceptor (8), NarrativeTraceProxy (6) — TODO §35. Score floored to an integer (measured 78.20) — Stryker's own thresholds schema is int?, never double? (nightly 2026-09-19, B-40); the exact measured value lives in stryker-config.proxy.json's break-ratchet.measured."
+  },
+  "tooling": {
+    "score": 80,
+    "recorded": "2026-09-26",
+    "break-target": 85,
+    "gap": 5,
+    "note": "Phase 3 D3 tooling library (doctor + installer), first measured run. 192 survivors, 873 killed, 7 timeouts of 1,072 tested mutants. Score floored to an integer (measured 80.73) — Stryker's own thresholds schema is int?, never double? (nightly 2026-09-19, B-40); the exact measured value lives in stryker-config.tooling.json's break-ratchet.measured."
   }
 }

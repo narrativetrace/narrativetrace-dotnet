@@ -9,26 +9,22 @@ var options = Args.Parse(args);
 var entries = ContractYaml.Read(options.ContractPath);
 
 var holds = 0;
-var notApplicable = 0;
 var fails = 0;
 var jsonEntries = new List<string>();
 
 foreach (var entry in entries)
 {
     var (verdict, detail) = Evaluate(entry, options);
-    switch (verdict)
-    {
-        case "not-applicable-before-since": notApplicable++; break;
-        case "holds": holds++; break;
-        default: fails++; break;
-    }
+    if (verdict == "holds")
+        holds++;
+    else
+        fails++;
 
     Console.WriteLine(string.Format(CultureInfo.InvariantCulture, "{0,-45} {1,-30} {2}", entry.Id, verdict, detail));
     jsonEntries.Add(JsonEntry(entry, verdict, detail));
 }
 
-var summary = $"{holds} holds, {notApplicable} not-applicable-before-since, {fails} fails "
-    + $"(installed version {options.Version})";
+var summary = $"{holds} holds, {fails} fails (installed version {options.Version})";
 Console.WriteLine();
 Console.WriteLine(summary);
 
@@ -36,17 +32,16 @@ if (options.OutPath is not null)
 {
     var json = "{\"version\":\"" + Escape(options.Version) + "\",\"entries\":["
         + string.Join(",", jsonEntries) + "],\"summary\":{\"holds\":" + holds
-        + ",\"notApplicableBeforeSince\":" + notApplicable + ",\"fails\":" + fails + "}}";
+        + ",\"fails\":" + fails + "}}";
     File.WriteAllText(options.OutPath, json);
 }
 
 return fails > 0 ? 1 : 0;
 
+// Every entry is checked at the installed version — main IS the published code (the snapshot and
+// the artifacts go out from one commit), so a claim can never be "not applicable yet".
 (string Verdict, string Detail) Evaluate(ContractEntry entry, Args opts)
 {
-    if (!Versions.IsApplicable(entry.Since, opts.Version))
-        return ("not-applicable-before-since", $"since {entry.Since} is later than installed {opts.Version}");
-
     var observed = Observe(entry, opts);
     return observed == entry.Expect
         ? ("holds", $"observed \"{observed}\"")
@@ -57,7 +52,7 @@ string FailureMessage(ContractEntry entry, string installedVersion, string obser
 {
     var coordinate = entry.Coordinate ?? entry.Id;
     return "documentation/contract.yaml: " + entry.Id + " documented default \"" + entry.Expect
-        + "\" (since " + entry.Since + ") but " + coordinate + " " + installedVersion
+        + "\" but " + coordinate + " " + installedVersion
         + " (published) reads \"" + observed + "\"";
 }
 
@@ -94,7 +89,7 @@ string ObserveNewer(ContractEntry entry) => entry.Id switch
 };
 
 string JsonEntry(ContractEntry entry, string verdict, string detail) =>
-    "{\"id\":\"" + Escape(entry.Id) + "\",\"kind\":\"" + Escape(entry.Kind) + "\",\"since\":\""
-        + Escape(entry.Since) + "\",\"verdict\":\"" + verdict + "\",\"detail\":\"" + Escape(detail) + "\"}";
+    "{\"id\":\"" + Escape(entry.Id) + "\",\"kind\":\"" + Escape(entry.Kind)
+        + "\",\"verdict\":\"" + verdict + "\",\"detail\":\"" + Escape(detail) + "\"}";
 
 string Escape(string value) => value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);

@@ -1,4 +1,4 @@
-<!-- source: documentation/what-to-commit.md blob a2493fb90dbe | translated: 2026-09-13 | reviewed: - -->
+<!-- source: documentation/what-to-commit.md blob 106f3700cfd9 | translated: 2026-09-26 | reviewed: - -->
 # Qué incluir en el commit
 
 [English](../what-to-commit.md) | **Español** | [Português](../pt-BR/o-que-incluir-no-commit.md) | [简体中文](../zh-CN/应提交的内容.md)
@@ -15,9 +15,9 @@ writers de esta implementación realmente producen, no asumido.
 | `<output-dir>/traces/<Class>/<slug>.md` | No | Se regenera en cada ejecución; la traza legible por humanos de una prueba. |
 | `<output-dir>/traces/<Class>/<slug>.json` | No | La misma traza como documento de capítulo JSON — se regenera en cada ejecución. |
 | `<output-dir>/diagrams/<Class>/<slug>.mmd` | No | Diagrama de secuencia Mermaid que la acompaña — se regenera en cada ejecución. |
-| `<output-dir>/manifest.json` | No | Se regenera en cada ejecución; su objeto `run` de nivel superior (`id`, `name` — la frase de tres palabras propia de la ejecución) nombra *esta ejecución*, no un escenario, así que cambia en cada ejecución aunque nada más cambie *(since 0.1.5)*. |
-| `<output-dir>/structural/<Class>/<slug>.nt` | No | Traza estructural sin valores (nombres, jerarquía, tipo de resultado únicamente). El archivo en disco es la **última línea base correcta (last green)** *(since 0.1.5)*: una ejecución en verde la hace avanzar, una que no está en verde se compara contra ella (la línea "Since last green" del resumen de la suite, el delta del informe de fallo) pero nunca la sobrescribe. Sigue sin ser algo para hacer commit — consulta [Formato de traza estructural](../structural-trace-format.md) para la contraparte con commit. |
-| `<approved-dir>/<Class>/<slug>.approved.nt` | **Sí**, si el [modo de aprobación](../structural-trace-format.md) está activado | *(since 0.1.5)* La traza de aprobación revisada — `NARRATIVETRACE_APPROVED_DIR` (por defecto `narratives`), actívalo con `NARRATIVETRACE_APPROVAL=true`. Este es el único archivo de esta tabla que es una decisión deliberada, no una salida. |
+| `<output-dir>/manifest.json` | No | Se regenera en cada ejecución; su objeto `run` de nivel superior (`id`, `name` — la frase de tres palabras propia de la ejecución) nombra *esta ejecución*, no un escenario, así que cambia en cada ejecución aunque nada más cambie. |
+| `<output-dir>/structural/<Class>/<slug>.nt` | No | Traza estructural sin valores (nombres, jerarquía, tipo de resultado únicamente). El archivo en disco es la **última línea base correcta (last green)**: una ejecución en verde la hace avanzar, una que no está en verde se compara contra ella (la línea "Since last green" del resumen de la suite, el delta del informe de fallo) pero nunca la sobrescribe. Sigue sin ser algo para hacer commit — consulta [Formato de traza estructural](../structural-trace-format.md) para la contraparte con commit. |
+| `<approved-dir>/<Class>/<slug>.approved.nt` | **Sí**, si el [modo de aprobación](../structural-trace-format.md) está activado | La traza de aprobación revisada — `NARRATIVETRACE_APPROVED_DIR` (por defecto `narratives`), actívalo con `NARRATIVETRACE_APPROVAL=true`. Este es el único archivo de esta tabla que es una decisión deliberada, no una salida. |
 | `<approved-dir>/<Class>/<slug>.received.nt` | No | Se escribe cuando la aprobación no coincide, o cuando aún no existe una traza aprobada. Revísalo, ejecuta `./build.sh Approve` para promoverlo (o renómbralo a mano), y deja que la promoción lo elimine — nunca hagas commit de la traza recibida en sí. |
 | `<output-dir>/traces/<Class>/<slug>.canonical.json` | No | Fixture de conformidad opcional (`NARRATIVETRACE_CANONICAL_JSON=true`), pensado para probar el propio NarrativeTrace contra el esquema canónico — no algo que un proyecto de aplicación necesite conservar. |
 | `<output-dir>/traces/<Class>/<slug>.structural.json` | No | Array de entradas sin valores, opcional (`NARRATIVETRACE_STRUCTURAL_JSON=true`) — mismo razonamiento que `.canonical.json`. |
@@ -27,10 +27,12 @@ writers de esta implementación realmente producen, no asumido.
 | `glossary.json` | **Sí**, si usas la recolección del glosario | Consulta abajo — este es el único artefacto que esta implementación trata como un archivo revisado y curado a mano. |
 | `glossary.md` | **Sí**, junto a `glossary.json` | Renderizado legible por humanos del mismo archivo, reescrito solo cuando cambian los bytes del JSON (anti-churn). |
 | `<output-dir>/glossary-usage.json` | No | Estadísticas de uso volátiles por ejecución — se regenera, no se cura. |
-| `.claude/skills/<segmento>/SKILL.md` | **Sí** | Regenerado por `dotnet run --project src/NarrativeTrace.Cli -- skills render` a partir del catálogo tipado de skills, pero se commitea igualmente: debe publicarse exactamente en la ruta donde Claude Code lo descubre. `skills lint` falla el build si difiere de una renderización reciente. |
+| `.claude/skills/<segmento>/SKILL.md` | **Sí** | Regenerado por `dotnet run --project skills-devtool -- render` a partir del catálogo tipado de skills, pero se commitea igualmente: debe publicarse exactamente en la ruta donde Claude Code lo descubre. El verbo `lint` falla el build si difiere de una renderización reciente. |
 | La sección `<!-- narrativetrace:skills:start -->` … `<!-- narrativetrace:skills:end -->` de `AGENTS.md` | **Sí** | Mismo renderizador, insertado en el archivo en el mismo lugar — commitea el archivo completo, no solo la sección. |
+| `.agents/skills/<name>/SKILL.md` / `.claude/skills/<name>/SKILL.md` escritos por `dotnet tool run dotnet-narrativetrace init` en **tu propio** proyecto | **Sí** | Cada página lleva una línea de procedencia `<!-- installed by narrativetrace init from NarrativeTrace.Skills/<version> -->` justo después de su frontmatter — eso es lo que permite que un `init`/`uninstall` posterior distinga una página que él mismo escribió de una que puso otra persona. Haz commit de ella como de cualquier otro archivo del proyecto. |
+| La sección `<!-- narrativetrace:start <coordinate> -->` … `<!-- narrativetrace:end -->` del `AGENTS.md` de tu proyecto, escrita por `init` | **Sí** | Mismo convenio de bloque marcado que la propia sección de este repositorio, dos filas más arriba — commitea el archivo completo, no solo la sección. `uninstall` elimina exactamente este bloque (y la única línea `@AGENTS.md` que añadió a un `CLAUDE.md` existente), nunca nada más. |
 
-La escritura de trazas está **activada por defecto** *(since 0.1.5)* (define
+La escritura de trazas está **activada por defecto** (define
 `NARRATIVETRACE_OUTPUT=false` para desactivarla); `<output-dir>` por
 defecto es `./TestResults/narrativetrace` cuando `NARRATIVETRACE_OUTPUT_DIR`
 no está definido — la convención de `.NET` que `dotnet test

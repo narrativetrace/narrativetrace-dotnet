@@ -14,6 +14,8 @@
              Link="TranslationCheckSupport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/SnippetCheckSupport.cs"
              Link="SnippetCheckSupport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/VersionLiteralSupport.cs"
+             Link="VersionLiteralSupport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/DemoWiringSupport.cs"
              Link="DemoWiringSupport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/TestProjectSelection.cs"
@@ -66,10 +68,6 @@
              Link="VerifyAllSecurityParsing.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/BenchmarkGate.cs"
              Link="BenchmarkGate.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)../../build/PublishedVersionSupport.cs"
-             Link="PublishedVersionSupport.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)../../build/UnreleasedMarkerSupport.cs"
-             Link="UnreleasedMarkerSupport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/DuplicationReportSupport.cs"
              Link="DuplicationReportSupport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/DuplicationCheckSupport.cs"

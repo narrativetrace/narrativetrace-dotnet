@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/installation.md blob dbf214f1c5ea | translated: 2026-09-17 | reviewed: - -->
+<!-- source: documentation/guides/installation.md blob 26cf2ca8ea0c | translated: 2026-09-26 | reviewed: - -->
 # NarrativeTrace .NET — Guía de instalación
 
 [English](../installation.md) | **Español** | [Português](../pt-BR/guia-de-instalacao.md) | [简体中文](../zh-CN/安装指南.md)
@@ -25,18 +25,18 @@ id. Empieza por el mínimo y añade solo lo que necesites.
 
 ```xml
 <!-- Mínimo: captura + renderizado -->
-<PackageReference Include="NarrativeTrace.Proxy" Version="0.1.5" />
+<PackageReference Include="NarrativeTrace.Proxy" Version="0.2.0" />
 ```
 
 `NarrativeTrace.Proxy` depende de `.Runtime`, que depende de `.Core` — un
 solo `dotnet add package NarrativeTrace.Proxy` restaura los tres, y sus
 tipos (`SyncNarrativeContext`, `IndentedTextRenderer`, …) quedan
-disponibles para que los uses directamente *(since 0.1.5)*.
+disponibles para que los uses directamente.
 
 | Paquete | Cuándo añadirlo |
 |---|---|
-| `NarrativeTrace.Core` | Siempre — modelo de trazas, `INarrativeContext`, configuración, ocultación, renderizadores Markdown/Prose/texto y los atributos `[Narrated]`/`[OnError]`/`[NotTraced]`/`[NarrativeSummary]` (namespace `NarrativeTrace.Core.Annotation`). `.Runtime` lo trae de forma transitiva *(since 0.1.5)*. |
-| `NarrativeTrace.Runtime` | Siempre — el motor de captura (`SyncNarrativeContext`, `AsyncNarrativeContext`, exportadores JSON/de capítulos). `.Proxy` lo trae de forma transitiva *(since 0.1.5)*. |
+| `NarrativeTrace.Core` | Siempre — modelo de trazas, `INarrativeContext`, configuración, ocultación, renderizadores Markdown/Prose/texto y los atributos `[Narrated]`/`[OnError]`/`[NotTraced]`/`[NarrativeSummary]` (namespace `NarrativeTrace.Core.Annotation`). `.Runtime` lo trae de forma transitiva. |
+| `NarrativeTrace.Runtime` | Siempre — el motor de captura (`SyncNarrativeContext`, `AsyncNarrativeContext`, exportadores JSON/de capítulos). `.Proxy` lo trae de forma transitiva. |
 | `NarrativeTrace.Proxy` | Tracing de interfaces vía `DispatchProxy`, más la sobrescritura de nombres de parámetros `[Traced]`, específica del proxy, y `ProxyOptions.Redaction` (una `RedactionPolicy` personalizada para las capturas de ese proxy — consulta [Configuración §6](guia-de-configuracion.md#6-ocultación)). |
 | `NarrativeTrace.DependencyInjection` | `AddNarrativeTracing` — envoltura automática de los servicios con interfaz que coinciden por namespace en el contenedor de MS.DI. |
 | `NarrativeTrace.AspNetCore` | Middleware con ciclo de vida de trazas por petición para ASP.NET Core. |
@@ -203,7 +203,7 @@ Añade el paquete solo de build para ejecutar la puerta de claridad como
 parte de tu build:
 
 ```xml
-<PackageReference Include="NarrativeTrace.MSBuild" Version="0.1.5"
+<PackageReference Include="NarrativeTrace.MSBuild" Version="0.2.0"
                   PrivateAssets="all" />
 ```
 
@@ -228,7 +228,7 @@ Los valores inválidos degradan al valor por defecto en lugar de lanzar
 una excepción, así que una configuración incorrecta nunca rompe la
 captura. El parseo del nivel es tolerante a mayúsculas y puntuación
 (`detail`, `DETAIL`, `Detail` resuelven todos). `NARRATIVETRACE_OUTPUT`
-está activada por defecto *(since 0.1.5)* — el fixture de
+está activada por defecto — el fixture de
 xUnit y la base de NUnit
 escriben los artefactos por prueba en `TestResults/narrativetrace/`
 (efímero, ya ignorado por Git gracias a la convención `TestResults/` de
@@ -249,7 +249,7 @@ Console.WriteLine(IndentedTextRenderer.Render(context.CaptureTrace()));
 Deberías ver una narrativa anidada con el nombre del método, los valores
 de los parámetros y el valor de retorno.
 
-O deja que la CLI diagnostique la instalación por ti *(since 0.1.5)* — de solo lectura, sin red, sin mutación:
+O deja que la CLI diagnostique la instalación por ti — de solo lectura, sin red, sin mutación:
 
 ```bash
 dotnet tool install --global NarrativeTrace.Cli
@@ -257,7 +257,12 @@ dotnet-narrativetrace doctor
 ```
 
 Cada hallazgo lleva un id estable, una solución y un enlace a esta
-documentación; añade `--json` para obtener salida legible por máquina.
+documentación; añade `--json` para obtener salida legible por máquina. Una
+comprobación, `config.skills-installed`, confirma que las
+[habilidades de agente](../../agent-skills.md) bajo `.agents/skills/` están
+instaladas y actualizadas con la versión de NarrativeTrace que este proyecto
+resuelve — ejecuta `dotnet tool run dotnet-narrativetrace init --dry-run`
+para ver qué instalaría.
 
 ## Véase también
 

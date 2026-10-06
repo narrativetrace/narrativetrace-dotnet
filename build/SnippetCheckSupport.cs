@@ -445,7 +445,7 @@ internal static class SnippetCheckSupport
     }
 
     // StripLicenseHeader/LeadingCommentBlockEnd moved to NarrativeTrace.Core.LicenseHeaderStripper
-    // (2026-09-13): NarrativeTrace.Skills's own SnippetResolver needs the identical stripping
+    // (2026-09-13): NarrativeTrace.Skills.Catalogue's own SnippetResolver needs the identical stripping
     // logic (a rendered SKILL.md page embeds a real source file verbatim too, and hits the exact
     // same publish-time-header drift), so this is now the one shared implementation both call —
     // never a second copy of the same algorithm. See that class's own remarks for the full

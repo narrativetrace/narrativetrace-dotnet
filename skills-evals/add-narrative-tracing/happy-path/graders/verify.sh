@@ -8,7 +8,7 @@
 # copy of the fixture, after the agent's turn ends.
 set -euo pipefail
 
-: "${PROJECT_DIR:?PROJECT_DIR must point at the trial's fixture copy}"
+: "${PROJECT_DIR:?PROJECT_DIR must point at the trial fixture copy}"
 
 cd "$PROJECT_DIR"
 

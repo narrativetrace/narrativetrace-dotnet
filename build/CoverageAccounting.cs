@@ -83,7 +83,11 @@ internal static class CoverageAccounting
         ["NarrativeTrace.Proxy.Tests"] = new(94, "[NarrativeTrace.Proxy]*"),
         // Measured 97.59% line 2026-09-13 (the doctor/add-narrative-tracing skill catalogue +
         // renderers), rounded down.
-        ["NarrativeTrace.Skills.Tests"] = new(95, "[NarrativeTrace.Skills]*"),
+        ["NarrativeTrace.Skills.Catalogue.Tests"] = new(95, "[NarrativeTrace.Skills.Catalogue]*"),
+        // The tooling library (doctor + installer, Phase 3 D3). The doctor moved here wholesale
+        // from the CLI with its own well-covered test suite; 97.9% line measured 2026-09-26 after
+        // the move, rounded down.
+        ["NarrativeTrace.Tooling.Tests"] = new(97, "[NarrativeTrace.Tooling]*"),
         ["NarrativeTrace.Testing.NUnit.Tests"] = new(86, "[NarrativeTrace.Testing.NUnit]*"),
         ["NarrativeTrace.Testing.Xunit.Tests"] = new(88, "[NarrativeTrace.Testing.Xunit]*"),
 

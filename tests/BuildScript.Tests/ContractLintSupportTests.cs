@@ -8,7 +8,9 @@ namespace Build.Tests;
 
 /// <summary>
 /// Covers the machinery behind the <c>ContractLint</c> build target — docs-vs-published-gate §2:
-/// <c>documentation/contract.yaml</c>'s schema, anchors and since-marker coverage, all offline.
+/// <c>documentation/contract.yaml</c>'s schema and anchors, all offline. Every entry describes the
+/// code it ships with (owner ruling 2026-09-24): there is no <c>since</c> field and no coverage
+/// link to since-markers — a since-marker anywhere is caught by <see cref="VersionLiteralSupport"/>.
 /// </summary>
 public sealed class ContractLintSupportTests : IDisposable
 {
@@ -89,7 +91,6 @@ public sealed class ContractLintSupportTests : IDisposable
             coordinate: "NarrativeTrace.Core"
             page: "documentation/foo.md#some-anchor"
             claim: "NarrativeTrace.Core resolves on nuget.org"
-            since: "0.1.0"
             documented_default: "PRESENT"
             probe: "contract-probe/Probe.cs"
         """;
@@ -114,7 +115,6 @@ public sealed class ContractLintSupportTests : IDisposable
             kind: config-shape
             page: "documentation/foo.md#some-anchor"
             claim: "a documented shape produces an effect"
-            since: "0.1.0"
             expected_effect: "true"
             probe: "contract-probe/Probe.cs"
         """;
@@ -131,6 +131,19 @@ public sealed class ContractLintSupportTests : IDisposable
     }
 
     [Fact]
+    public void Parse_ignores_a_legacy_since_field_from_an_older_release()
+    {
+        // An older release shipped a contract carrying a since: field this reader no longer names,
+        // and one can still be sitting in a working tree or a consumer's checkout. A key that is
+        // not asked for is simply not read — never a crash, and never a reason to refuse the file.
+        var file = Write("contract.yaml", ContractYaml(ValidEntryPointEntry.Replace(
+            "    documented_default: \"PRESENT\"",
+            "    since: \"0.1.0\"\n    documented_default: \"PRESENT\"")));
+
+        Assert.Equal("entry-point-core", Assert.Single(ContractLintSupport.Parse(file).Entries).Id);
+    }
+
+    [Fact]
     public void Parse_throws_on_an_unknown_kind()
     {
         var file = Write(
@@ -140,7 +153,6 @@ public sealed class ContractLintSupportTests : IDisposable
                 kind: not-a-real-kind
                 page: "documentation/foo.md#anchor"
                 claim: "x"
-                since: "0.1.0"
                 documented_default: "x"
                 probe: "contract-probe/Probe.cs"
             """));
@@ -159,7 +171,6 @@ public sealed class ContractLintSupportTests : IDisposable
                 kind: reflectable-default
                 page: "documentation/foo.md#anchor"
                 claim: "x"
-                since: "0.1.0"
                 probe: "contract-probe/Probe.cs"
             """));
 
@@ -177,7 +188,6 @@ public sealed class ContractLintSupportTests : IDisposable
                 kind: entry-point
                 page: "documentation/foo.md#anchor"
                 claim: "x"
-                since: "0.1.0"
                 documented_default: "PRESENT"
                 probe: "contract-probe/Probe.cs"
             """));
@@ -200,7 +210,7 @@ public sealed class ContractLintSupportTests : IDisposable
         var file = Write("documentation/contract.yaml", ContractYaml(ValidEntryPointEntry));
         var document = ContractLintSupport.Parse(file);
 
-        var problems = ContractLintSupport.Lint(_repo, document, new HashSet<string>());
+        var problems = ContractLintSupport.Lint(_repo, document);
 
         Assert.Empty(problems);
     }
@@ -218,7 +228,7 @@ public sealed class ContractLintSupportTests : IDisposable
                     "claim: \"a different claim\"")));
         var document = ContractLintSupport.Parse(file);
 
-        var problems = ContractLintSupport.Lint(_repo, document, new HashSet<string>());
+        var problems = ContractLintSupport.Lint(_repo, document);
 
         Assert.Contains(problems, p => p.Contains("duplicate entry id", StringComparison.Ordinal));
     }
@@ -233,23 +243,9 @@ public sealed class ContractLintSupportTests : IDisposable
         var file = Write("documentation/contract.yaml", ContractYaml(ValidEntryPointEntry, second));
         var document = ContractLintSupport.Parse(file);
 
-        var problems = ContractLintSupport.Lint(_repo, document, new HashSet<string>());
+        var problems = ContractLintSupport.Lint(_repo, document);
 
         Assert.Contains(problems, p => p.Contains("make the same claim", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void Lint_reports_a_malformed_since_version()
-    {
-        GivenProbeAndPage("contract-probe/Probe.cs", "documentation/foo.md", "## Some Anchor");
-        var file = Write(
-            "documentation/contract.yaml",
-            ContractYaml(ValidEntryPointEntry.Replace("since: \"0.1.0\"", "since: \"latest\"")));
-        var document = ContractLintSupport.Parse(file);
-
-        var problems = ContractLintSupport.Lint(_repo, document, new HashSet<string>());
-
-        Assert.Contains(problems, p => p.Contains("not a real version string", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -259,7 +255,7 @@ public sealed class ContractLintSupportTests : IDisposable
         var file = Write("documentation/contract.yaml", ContractYaml(ValidEntryPointEntry));
         var document = ContractLintSupport.Parse(file);
 
-        var problems = ContractLintSupport.Lint(_repo, document, new HashSet<string>());
+        var problems = ContractLintSupport.Lint(_repo, document);
 
         Assert.Contains(problems, p => p.Contains("does not exist", StringComparison.Ordinal) && p.Contains("probe", StringComparison.Ordinal));
     }
@@ -271,7 +267,7 @@ public sealed class ContractLintSupportTests : IDisposable
         var file = Write("documentation/contract.yaml", ContractYaml(ValidEntryPointEntry));
         var document = ContractLintSupport.Parse(file);
 
-        var problems = ContractLintSupport.Lint(_repo, document, new HashSet<string>());
+        var problems = ContractLintSupport.Lint(_repo, document);
 
         Assert.Contains(problems, p => p.Contains("page", StringComparison.Ordinal) && p.Contains("does not exist", StringComparison.Ordinal));
     }
@@ -283,143 +279,17 @@ public sealed class ContractLintSupportTests : IDisposable
         var file = Write("documentation/contract.yaml", ContractYaml(ValidEntryPointEntry));
         var document = ContractLintSupport.Parse(file);
 
-        var problems = ContractLintSupport.Lint(_repo, document, new HashSet<string>());
+        var problems = ContractLintSupport.Lint(_repo, document);
 
         Assert.Contains(problems, p => p.Contains("anchor \"#some-anchor\" not found", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void Lint_reports_an_unreleased_marker_version_with_no_covering_entry()
-    {
-        GivenProbeAndPage("contract-probe/Probe.cs", "documentation/foo.md", "## Some Anchor");
-        var file = Write("documentation/contract.yaml", ContractYaml(ValidEntryPointEntry));
-        var document = ContractLintSupport.Parse(file);
-
-        var problems = ContractLintSupport.Lint(_repo, document, new HashSet<string> { "0.9.9" });
-
-        Assert.Contains(problems, p => p.Contains("since: \"0.9.9\"", StringComparison.Ordinal));
-    }
-
-    // ---- HeadingsWithSinceMarker -------------------------------------------------------------
-    // owner ruling 2026-09-16: a since-marker in a heading moves the heading's own GitHub anchor
-    // slug the instant a release settles, breaking every page#anchor pointer aimed at it.
-
-    [Fact]
-    public void HeadingsWithSinceMarker_flags_a_since_marker_in_a_heading()
-    {
-        Write("documentation/foo.md", "# Title\n\n## Traceparent seeding *(since 0.2.0)*\n\nSome text.\n");
-
-        var hits = ContractLintSupport.HeadingsWithSinceMarker(_repo);
-
-        Assert.Contains(hits, h => h.StartsWith("documentation/foo.md:3:", StringComparison.Ordinal));
-        Assert.Contains(hits, h => h.Contains("since-markers belong in the body", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void HeadingsWithSinceMarker_ignores_a_since_marker_in_the_body()
-    {
-        Write(
-            "documentation/foo.md",
-            "# Title\n\n## Traceparent seeding\n\n*(since 0.2.0)* Some text.\n");
-
-        var hits = ContractLintSupport.HeadingsWithSinceMarker(_repo);
-
-        Assert.Empty(hits);
-    }
-
-    [Fact]
-    public void HeadingsWithSinceMarker_flags_a_translated_mirror_heading()
-    {
-        Write(
-            "documentation/es/foo.md",
-            "<!-- source: documentation/foo.md blob 0123456789ab | translated: 2026-09-16 -->\n"
-                + "# Título\n\n## Siembra de traceparent *(since 0.2.0)*\n\nTexto.\n");
-
-        var hits = ContractLintSupport.HeadingsWithSinceMarker(_repo);
-
-        Assert.Contains(hits, h => h.StartsWith("documentation/es/foo.md:4:", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void HeadingsWithSinceMarker_flags_a_root_readme_mirror_heading()
-    {
-        Write("README.md", "# NarrativeTrace\n");
-        Write(
-            "README.es.md",
-            "<!-- source: README.md blob 0123456789ab | translated: 2026-09-16 -->\n"
-                + "# NarrativeTrace\n\n## Siembra de traceparent *(since 0.2.0)*\n");
-
-        var hits = ContractLintSupport.HeadingsWithSinceMarker(_repo);
-
-        Assert.Contains(hits, h => h.StartsWith("README.es.md:4:", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void HeadingsWithSinceMarker_ignores_a_non_mirror_root_markdown_file()
-    {
-        Write("CHANGELOG.md", "# Changelog\n\n## 0.2.0 *(since 0.2.0)*\n");
-
-        var hits = ContractLintSupport.HeadingsWithSinceMarker(_repo);
-
-        Assert.Empty(hits);
-    }
-
-    [Fact]
-    public void HeadingsWithSinceMarker_finds_nothing_in_the_real_repository_tree()
-    {
-        var realRepoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../"));
-
-        var hits = ContractLintSupport.HeadingsWithSinceMarker(realRepoRoot);
-
-        Assert.Empty(hits);
-    }
-
-    [Fact]
-    public void Lint_is_satisfied_when_any_entry_covers_a_marker_version()
-    {
-        GivenProbeAndPage("contract-probe/Probe.cs", "documentation/foo.md", "## Some Anchor");
-        var file = Write("documentation/contract.yaml", ContractYaml(ValidEntryPointEntry));
-        var document = ContractLintSupport.Parse(file);
-
-        var problems = ContractLintSupport.Lint(_repo, document, new HashSet<string> { "0.1.0" });
-
-        Assert.Empty(problems);
     }
 
     // ---- ContractDecisionSupport --------------------------------------------------------------
 
     private static ContractEntry Entry(
-        string id = "id", ContractKind kind = ContractKind.ProbedDefault, string since = "0.1.0",
+        string id = "id", ContractKind kind = ContractKind.ProbedDefault,
         string expect = "true", string? coordinate = null) =>
-        new(id, kind, "documentation/foo.md#anchor", "a claim", since, expect, "contract-probe/Probe.cs", coordinate);
-
-    [Fact]
-    public void IsApplicable_is_true_when_since_equals_installed()
-    {
-        Assert.True(ContractDecisionSupport.IsApplicable("0.1.4", "0.1.4"));
-    }
-
-    [Fact]
-    public void IsApplicable_is_true_when_since_is_earlier_than_installed()
-    {
-        Assert.True(ContractDecisionSupport.IsApplicable("0.1.0", "0.1.4"));
-    }
-
-    [Fact]
-    public void IsApplicable_is_false_when_since_is_later_than_installed()
-    {
-        Assert.False(ContractDecisionSupport.IsApplicable("0.2.0", "0.1.4"));
-    }
-
-    [Fact]
-    public void Decide_reports_not_applicable_before_since_and_never_compares_observed()
-    {
-        var entry = Entry(since: "0.2.0", expect: "true");
-
-        var outcome = ContractDecisionSupport.Decide(entry, "0.1.4", observed: null);
-
-        Assert.Equal(ContractVerdict.NotApplicableBeforeSince, outcome.Verdict);
-    }
+        new(id, kind, "documentation/foo.md#anchor", "a claim", expect, "contract-probe/Probe.cs", coordinate);
 
     [Fact]
     public void Decide_holds_when_observed_matches_expect()
@@ -432,9 +302,9 @@ public sealed class ContractLintSupportTests : IDisposable
     }
 
     [Fact]
-    public void Decide_fails_when_observed_differs_from_expect_and_names_all_four_facts()
+    public void Decide_fails_when_observed_differs_from_expect_and_names_the_facts()
     {
-        var entry = Entry(id: "narrativetrace-output", since: "0.2.2", expect: "true", coordinate: "NarrativeTrace.Core");
+        var entry = Entry(id: "narrativetrace-output", expect: "true", coordinate: "NarrativeTrace.Core");
 
         var outcome = ContractDecisionSupport.Decide(entry, "0.2.2", observed: "false");
 
@@ -459,9 +329,8 @@ public sealed class ContractLintSupportTests : IDisposable
     // ---- The four historical instances (docs-vs-published-gate §3) --------------------------
     // Each fixture proves the DECISION LOGIC would have fired: a contract entry shaped like the
     // real defect, paired with the probe result the real defect would have produced, run through
-    // the exact Decide() ContractCheck uses. These are not re-runs of history (the defects
-    // described in the design note are hypothetical for this port); they pin the class of bug so a
-    // regression of the same shape is caught by this logic again, offline, without a release.
+    // the exact Decide() ContractCheck uses. These pin the class of bug so a regression of the
+    // same shape is caught by this logic again, offline, without a release.
 
     [Fact]
     public void Row2_a_doc_cited_coordinate_that_does_not_resolve_would_have_failed()
@@ -469,7 +338,7 @@ public sealed class ContractLintSupportTests : IDisposable
         // "docs cite a coordinate, the registry serves something else": an entry-point whose
         // coordinate does not actually resolve at the version under test reads as MISSING, never
         // silently PRESENT.
-        var row2 = Entry(id: "entry-point-proxy", kind: ContractKind.EntryPoint, since: "0.1.0", expect: "PRESENT", coordinate: "NarrativeTrace.Proxy");
+        var row2 = Entry(id: "entry-point-proxy", kind: ContractKind.EntryPoint, expect: "PRESENT", coordinate: "NarrativeTrace.Proxy");
 
         var outcome = ContractDecisionSupport.Decide(row2, "0.2.0", observed: "MISSING");
 
@@ -479,7 +348,7 @@ public sealed class ContractLintSupportTests : IDisposable
     [Fact]
     public void Row3_a_documented_default_the_published_artifact_does_not_honour_would_have_failed()
     {
-        var row3 = Entry(id: "output-default", kind: ContractKind.ReflectableDefault, since: "0.1.1", expect: "true");
+        var row3 = Entry(id: "output-default", kind: ContractKind.ReflectableDefault, expect: "true");
 
         var outcome = ContractDecisionSupport.Decide(row3, "0.1.1", observed: "false");
 
@@ -493,7 +362,7 @@ public sealed class ContractLintSupportTests : IDisposable
     {
         // The doc author believed the config was already on; probing the PUBLISHED package
         // directly (never what the commit believed) is what catches it regardless of intent.
-        var row4 = Entry(id: "proxy-options-redaction", kind: ContractKind.ProbedDefault, since: "0.1.3", expect: "true");
+        var row4 = Entry(id: "proxy-options-redaction", kind: ContractKind.ProbedDefault, expect: "true");
 
         var outcome = ContractDecisionSupport.Decide(row4, "0.1.3", observed: "false");
 
@@ -504,7 +373,7 @@ public sealed class ContractLintSupportTests : IDisposable
     public void Row5_a_documented_config_shape_with_no_observable_effect_would_have_failed()
     {
         // The documented shape, applied to the published package, produces no such effect.
-        var row5 = Entry(id: "trace-object-methods", kind: ContractKind.ConfigShape, since: "0.1.1", expect: "return value redacted");
+        var row5 = Entry(id: "trace-object-methods", kind: ContractKind.ConfigShape, expect: "return value redacted");
 
         var outcome = ContractDecisionSupport.Decide(row5, "0.1.1", observed: "no effect");
 

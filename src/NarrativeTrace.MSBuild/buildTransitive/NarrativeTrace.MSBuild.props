@@ -15,5 +15,10 @@
     <ClarityMinScore Condition="'$(ClarityMinScore)' == ''">0.0</ClarityMinScore>
     <ClarityMaxHighIssues Condition="'$(ClarityMaxHighIssues)' == ''">2147483647</ClarityMaxHighIssues>
     <ClarityWarnOnly Condition="'$(ClarityWarnOnly)' == ''">false</ClarityWarnOnly>
+    <!-- Whether a build keeps an already-installed set of NarrativeTrace agent skills current
+         (design D8). Opt out with NarrativeTraceRefreshSkills=false. A project that never ran
+         `dotnet-narrativetrace init` has no skills to refresh and never invokes the tool — the
+         target below is additionally gated on the sentinel skill page existing. -->
+    <NarrativeTraceRefreshSkills Condition="'$(NarrativeTraceRefreshSkills)' == ''">true</NarrativeTraceRefreshSkills>
   </PropertyGroup>
 </Project>
