@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/installation.md blob 26cf2ca8ea0c | translated: 2026-09-26 | reviewed: - -->
+<!-- source: documentation/guides/installation.md blob 35419d854a04 | translated: 2026-10-09 | reviewed: - -->
 # NarrativeTrace .NET — Guia de instalação
 
 [English](../installation.md) | [Español](../es/guia-de-instalacion.md) | **Português** | [简体中文](../zh-CN/安装指南.md)
@@ -25,7 +25,7 @@ Comece com o mínimo e adicione apenas o que você precisar.
 
 ```xml
 <!-- Mínimo: captura + renderização -->
-<PackageReference Include="NarrativeTrace.Proxy" Version="0.2.0" />
+<PackageReference Include="NarrativeTrace.Proxy" Version="0.3.0" />
 ```
 
 `NarrativeTrace.Proxy` depende de `.Runtime`, que depende de `.Core` — um
@@ -191,8 +191,9 @@ um assembly compilado — sem precisar rodar testes:
 ```bash
 dotnet tool install --global NarrativeTrace.Cli
 
-dotnet-narrativetrace clarity-scan --assembly bin/Release/net10.0/MyApp.dll
-dotnet-narrativetrace clarity-check --results clarity-results.json --min-score 0.80 --max-high-issues 0
+dotnet-narrativetrace clarity-scan --assembly bin/Release/net10.0/MyApp.dll \
+    --output-dir narrativetrace
+dotnet-narrativetrace clarity-check --results narrativetrace/clarity-scan-results.json --min-score 0.80 --max-high-issues 0
 ```
 
 Consulte o [Guia de clareza](guia-de-clareza.md) para o modelo de
@@ -204,7 +205,7 @@ Adicione o pacote somente de build para executar o quality gate de
 clareza como parte do seu build:
 
 ```xml
-<PackageReference Include="NarrativeTrace.MSBuild" Version="0.2.0"
+<PackageReference Include="NarrativeTrace.MSBuild" Version="0.3.0"
                   PrivateAssets="all" />
 ```
 

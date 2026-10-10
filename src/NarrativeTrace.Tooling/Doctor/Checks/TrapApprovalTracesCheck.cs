@@ -36,7 +36,7 @@ public static class TrapApprovalTracesCheck
             Id,
             $"{received.Count} stale received trace(s) found: {string.Join(", ", received)}",
             "Review each *.received.nt diff against its *.approved.nt baseline, then run " +
-            "./build.sh Approve to promote it, or delete it if the change was wrong — never " +
+            "dotnet tool run dotnet-narrativetrace approve to promote it, or delete it if the change was wrong — never " +
             "commit a *.received.nt file.",
             DoctorDocUrls.StructuralTraceFormat);
     }

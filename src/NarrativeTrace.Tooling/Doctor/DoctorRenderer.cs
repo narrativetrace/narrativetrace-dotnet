@@ -12,6 +12,8 @@ namespace NarrativeTrace.Tooling.Doctor;
 /// </summary>
 public static class DoctorRenderer
 {
+    private const string FixIndent = "            ";
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
@@ -41,7 +43,7 @@ public static class DoctorRenderer
             CultureInfo.InvariantCulture, $"[{mark}] {finding.Id}: {finding.Message}");
         if (!finding.Passed)
         {
-            builder.AppendLine(CultureInfo.InvariantCulture, $"       fix: {finding.Fix}");
+            builder.AppendLine(CultureInfo.InvariantCulture, $"       fix: {IndentContinuation(finding.Fix)}");
             if (finding.Skill is not null)
             {
                 builder.AppendLine(CultureInfo.InvariantCulture, $"       skill: {finding.Skill}");
@@ -49,6 +51,26 @@ public static class DoctorRenderer
 
             builder.AppendLine(CultureInfo.InvariantCulture, $"       see: {finding.DocUrl}");
         }
+    }
+
+    /// <summary>
+    /// A multi-line fix (a framework fix ends in its wiring snippet) with every continuation line
+    /// indented under the label and a trailing newline dropped; a blank or whitespace-only line renders empty.
+    /// </summary>
+    private static string IndentContinuation(string fix)
+    {
+        var lines = fix.TrimEnd('\n').Split('\n');
+        return string.Join('\n', lines.Select((line, i) => ContinuationLine(line, isFirst: i == 0)));
+    }
+
+    private static string ContinuationLine(string line, bool isFirst)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+        {
+            return string.Empty;
+        }
+
+        return isFirst ? line : FixIndent + line;
     }
 
     /// <summary>Renders the report as indented JSON.</summary>

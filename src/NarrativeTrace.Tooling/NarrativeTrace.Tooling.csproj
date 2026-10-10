@@ -28,6 +28,12 @@
           Visible="false" />
   </ItemGroup>
   <ItemGroup>
+    <!-- The framework table's wiring lines, written by SnippetSync from compiled fixtures and read by
+         the doctor at run time (WiringSnippets) — the package carries them, no repository needed. -->
+    <EmbeddedResource Include="Frameworks/wiring-snippets.md"
+                      LogicalName="NarrativeTrace.Tooling.Frameworks.wiring-snippets.md" />
+  </ItemGroup>
+  <ItemGroup>
     <InternalsVisibleTo Include="NarrativeTrace.Tooling.Tests" />
   </ItemGroup>
 </Project>

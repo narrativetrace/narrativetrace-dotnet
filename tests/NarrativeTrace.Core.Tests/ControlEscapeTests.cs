@@ -92,4 +92,14 @@ public class ControlEscapeTests
             Assert.Null(exception);
         }
     }
+
+    [Theory]
+    [InlineData("a\u2028b", "a\\u2028b")]
+    [InlineData("a\u2029b", "a\\u2029b")]
+    public void Unicode_line_and_paragraph_separators_map_to_unicode_escapes(string raw, string escaped)
+    {
+        // Not controls, but line terminators to JavaScript, many regex engines
+        // and log viewers: a raw one forges a line exactly as \n does.
+        Assert.Equal(escaped, ControlEscape.Sanitize(raw));
+    }
 }

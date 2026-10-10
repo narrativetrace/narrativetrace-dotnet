@@ -17,18 +17,19 @@ namespace NarrativeTrace.Diagrams;
 /// statement and starts a new one the engine parses as a directive —
 /// Mermaid <c>click</c> interactions, PlantUML <c>!include</c>/<c>
 /// !includeurl</c> preprocessor directives (SSRF / local-file read).
-/// Folding every control character to a space is toolchain-independent
+/// Folding every control character and line separator to a space is toolchain-independent
 /// and keeps the whole rendered value on one physical line.
 /// </remarks>
 internal static class DiagramText
 {
     /// <summary>
-    /// Folds every control character in <paramref name="text"/> to a space so
-    /// the value stays on a single physical line of message text.
+    /// Folds every control character and Unicode line separator in
+    /// <paramref name="text"/> to a space so the value stays on a single
+    /// physical line of message text.
     /// </summary>
     /// <param name="text">The rendered trace value to sanitize.</param>
     /// <returns>
-    /// <paramref name="text"/> with each control character replaced by a
+    /// <paramref name="text"/> with each control character and Unicode line separator replaced by a
     /// space; all other characters are preserved verbatim.
     /// </returns>
     public static string Message(string text)
@@ -36,11 +37,22 @@ internal static class DiagramText
         var sb = new StringBuilder(text.Length);
         foreach (var c in text)
         {
-            sb.Append(char.IsControl(c) ? ' ' : c);
+            sb.Append(EndsALine(c) ? ' ' : c);
         }
 
         return sb.ToString();
     }
+
+    /// <summary>
+    /// True for a character that ends or splits a line for some consumer of the diagram: a control
+    /// (CR, LF, NUL, U+0085) or U+2028/U+2029.
+    /// </summary>
+    /// <remarks>
+    /// U+2028/U+2029 are not controls, yet JavaScript (Mermaid's own runtime), regex engines and
+    /// most viewers treat both as line terminators, so one inside a name splits a statement. They
+    /// fold to a space exactly as a newline does (Java nightly fuzz find, 2026-10-10).
+    /// </remarks>
+    private static bool EndsALine(char c) => char.IsControl(c) || c is '\u2028' or '\u2029';
 
     private const int MaxIdentifierLength = 100;
 
@@ -52,7 +64,7 @@ internal static class DiagramText
     /// <remarks>
     /// Unlike a rendered value, metadata is never quoted at every use site
     /// (an arrow line emits a method name and parameter names bare), so this
-    /// goes further than <see cref="Message"/>: control characters are
+    /// goes further than <see cref="Message"/>: control characters and line separators are
     /// folded to a space (as in <see cref="Message"/>), a literal quote
     /// becomes an apostrophe (neither grammar can escape a quote
     /// <em>inside</em> a quoted name — the character must stop being a

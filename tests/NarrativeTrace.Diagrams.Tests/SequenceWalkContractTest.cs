@@ -62,6 +62,7 @@ public class SequenceWalkContractTest
         SequenceWalk.RenderCalls(roots, counting, className => DiagramLabel.Identifier(className), sb);
 
         Assert.Equal(nodeCount, counting.CallArrows);
+        Assert.Equal(nodeCount, counting.SpanNotes);
         Assert.Equal(nodeCount, counting.Outcomes);
     }
 
@@ -145,6 +146,14 @@ public class SequenceWalkContractTest
         public int CallArrows { get; private set; }
 
         public int Outcomes { get; private set; }
+
+        public int SpanNotes { get; private set; }
+
+        public string SpanNote(DiagramLabel target, DiagramLabel spanId)
+        {
+            SpanNotes++;
+            return inner.SpanNote(target, spanId);
+        }
 
         public string Header => inner.Header;
 

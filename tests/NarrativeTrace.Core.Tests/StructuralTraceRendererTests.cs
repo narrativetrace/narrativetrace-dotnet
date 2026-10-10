@@ -49,6 +49,44 @@ public sealed class StructuralTraceRendererTests
     }
 
     [Fact]
+    public void Every_call_line_opens_with_its_span_id_after_the_indent()
+    {
+        var discount = new TraceNode(
+            new MethodSignature("DiscountEngine", "Calculate", []),
+            new Returned("0.15"), [], 0, 0, Fork("pool-1-thread-1", 21));
+        var stock = new TraceNode(
+            new MethodSignature("StockService", "Check", []),
+            new Returned("true"), [], 0, 0, Fork("pool-1-thread-2", 22));
+        var launcher = new TraceNode(
+            new MethodSignature("NotificationService", "fire-and-forget", []),
+            new Incomplete(), [], 0, 0, Background("fire-and-forget"));
+        var send = new TraceNode(
+            new MethodSignature("NotificationService", "Send", []),
+            new Returned(null), [], 0, 0, Background("Send"));
+        var charge = new TraceNode(
+            new MethodSignature("PaymentGateway", "Charge", [Param("amount", "1")]),
+            new Returned(null), [], 0);
+        var checkout = new TraceNode(
+            new MethodSignature("CheckoutService", "Complete", []),
+            new Returned(null), [stock, discount, charge, launcher, send], 0);
+        var audit = new TraceNode(
+            new MethodSignature("AuditLog", "Record", []), new Returned(null), [], 0);
+
+        var result = StructuralTraceRenderer.Render(TreeOf(checkout, audit));
+
+        Assert.Equal(
+            "#1 - CheckoutService.Complete()\n"
+            + "  ~ fork [2]\n"
+            + "    #1.1 - DiscountEngine.Calculate() → value\n"
+            + "    #1.2 - StockService.Check() → value\n"
+            + "  #1.3 - PaymentGateway.Charge(amount)\n"
+            + "  #1.4 ~ fire-and-forget\n"
+            + "    #1.4.1 - NotificationService.Send()\n"
+            + "#2 - AuditLog.Record()\n",
+            result);
+    }
+
+    [Fact]
     public void Leaf_call_renders_names_and_outcome_kind_without_values()
     {
         var node = new TraceNode(
@@ -62,7 +100,7 @@ public sealed class StructuralTraceRendererTests
         var result = StructuralTraceRenderer.Render(TreeOf(node));
 
         Assert.Equal(
-            "- OrderService.PlaceOrder(customerId, quantity) → value\n",
+            "#1 - OrderService.PlaceOrder(customerId, quantity) → value\n",
             result);
         Assert.DoesNotContain("C-123", result, StringComparison.Ordinal);
         Assert.DoesNotContain("412", result, StringComparison.Ordinal);
@@ -80,7 +118,7 @@ public sealed class StructuralTraceRendererTests
         var result = StructuralTraceRenderer.Render(TreeOf(node));
 
         Assert.Equal(
-            "- PaymentGateway.Charge() !! InvalidOperationException\n", result);
+            "#1 - PaymentGateway.Charge() !! InvalidOperationException\n", result);
         Assert.DoesNotContain("4111", result, StringComparison.Ordinal);
     }
 
@@ -92,7 +130,7 @@ public sealed class StructuralTraceRendererTests
 
         var result = StructuralTraceRenderer.Render(TreeOf(node));
 
-        Assert.Equal("- Svc.Hang() ?? incomplete\n", result);
+        Assert.Equal("#1 - Svc.Hang() ?? incomplete\n", result);
     }
 
     [Fact]
@@ -106,7 +144,7 @@ public sealed class StructuralTraceRendererTests
 
         var result = StructuralTraceRenderer.Render(TreeOf(node));
 
-        Assert.Equal("- AuditSink.Record(entry)\n", result);
+        Assert.Equal("#1 - AuditSink.Record(entry)\n", result);
     }
 
     [Fact]
@@ -128,9 +166,9 @@ public sealed class StructuralTraceRendererTests
         var result = StructuralTraceRenderer.Render(TreeOf(parent));
 
         Assert.Equal(
-            "- TripSettlementService.RecordExpense(tripName)\n"
-            + "  - ExpenseValidator.EnsureValid(expense)\n"
-            + "  - TripLedger.RecordExpense()\n",
+            "#1 - TripSettlementService.RecordExpense(tripName)\n"
+            + "  #1.1 - ExpenseValidator.EnsureValid(expense)\n"
+            + "  #1.2 - TripLedger.RecordExpense()\n",
             result);
     }
 
@@ -154,10 +192,10 @@ public sealed class StructuralTraceRendererTests
         var result = StructuralTraceRenderer.Render(TreeOf(parent));
 
         Assert.Equal(
-            "- CheckoutService.Quote() → value\n"
+            "#1 - CheckoutService.Quote() → value\n"
             + "  ~ fork [2]\n"
-            + "    - DiscountEngine.Calculate() → value\n"
-            + "    - StockService.Check() → value\n",
+            + "    #1.1 - DiscountEngine.Calculate() → value\n"
+            + "    #1.2 - StockService.Check() → value\n",
             result);
         Assert.DoesNotContain("pool-1", result, StringComparison.Ordinal);
     }
@@ -179,9 +217,9 @@ public sealed class StructuralTraceRendererTests
         var result = StructuralTraceRenderer.Render(TreeOf(parent));
 
         Assert.Equal(
-            "- CheckoutService.Complete()\n"
-            + "  ~ fire-and-forget\n"
-            + "    - NotificationService.Send()\n",
+            "#1 - CheckoutService.Complete()\n"
+            + "  #1.1 ~ fire-and-forget\n"
+            + "    #1.1.1 - NotificationService.Send()\n",
             result);
         Assert.DoesNotContain("pool-9", result, StringComparison.Ordinal);
     }
@@ -199,7 +237,7 @@ public sealed class StructuralTraceRendererTests
         Assert.Equal(
             "scenario: Weekend trip settles with three transfers\n"
             + "\n"
-            + "- Svc.Run()\n",
+            + "#1 - Svc.Run()\n",
             result);
     }
 
@@ -233,7 +271,7 @@ public sealed class StructuralTraceRendererTests
         var result = StructuralTraceRenderer.Render(TreeOf(node));
 
         Assert.Equal(
-            "- LoginService.Authenticate(password) → value\n", result);
+            "#1 - LoginService.Authenticate(password) → value\n", result);
         Assert.DoesNotContain("hunter2", result, StringComparison.Ordinal);
         Assert.DoesNotContain(
             RedactionPolicy.Marker, result, StringComparison.Ordinal);
@@ -252,7 +290,7 @@ public sealed class StructuralTraceRendererTests
 
         var result = StructuralTraceRenderer.Render(TreeOf(node));
 
-        Assert.Equal("- Svc.Run() !! InvalidOperationException\n", result);
+        Assert.Equal("#1 - Svc.Run() !! InvalidOperationException\n", result);
     }
 
     [Fact]
@@ -267,7 +305,7 @@ public sealed class StructuralTraceRendererTests
             TreeOf(node), "scen\nario");
 
         Assert.Equal(
-            "scenario: scen\\nario\n\n- Ord\\ner.Pl\\tace(cu\\u001bst)\n",
+            "scenario: scen\\nario\n\n#1 - Ord\\ner.Pl\\tace(cu\\u001bst)\n",
             result);
     }
 
@@ -292,7 +330,7 @@ public sealed class StructuralTraceRendererTests
 
         var result = StructuralTraceRenderer.Render(TreeOf(first, second));
 
-        Assert.Equal("- Zed.Last()\n- Abe.First()\n", result);
+        Assert.Equal("#1 - Zed.Last()\n#2 - Abe.First()\n", result);
     }
 
     [Fact]
@@ -311,7 +349,7 @@ public sealed class StructuralTraceRendererTests
         var result = StructuralTraceRenderer.Render(TreeOf(parent));
 
         Assert.Equal(
-            "- Svc.Run()\n  ~ fork [2]\n    - Repo.Load()\n    - Repo.Save()\n",
+            "#1 - Svc.Run()\n  ~ fork [2]\n    #1.1 - Repo.Load()\n    #1.2 - Repo.Save()\n",
             result);
     }
 
@@ -331,7 +369,7 @@ public sealed class StructuralTraceRendererTests
         var result = StructuralTraceRenderer.Render(TreeOf(parent));
 
         Assert.Equal(
-            "- Svc.Run()\n  ~ async [2]\n    - Audit.Record()\n    - Email.Send()\n",
+            "#1 - Svc.Run()\n  ~ async [2]\n    #1.1 - Audit.Record()\n    #1.2 - Email.Send()\n",
             result);
     }
 
@@ -353,7 +391,7 @@ public sealed class StructuralTraceRendererTests
             TreeOf(sequential, second, first));
 
         Assert.Equal(
-            "- Svc.Run()\n~ async [2]\n  - Audit.Record()\n  - Email.Send()\n",
+            "#1 - Svc.Run()\n~ async [2]\n  #2 - Audit.Record()\n  #3 - Email.Send()\n",
             result);
     }
 
@@ -371,8 +409,8 @@ public sealed class StructuralTraceRendererTests
             TreeOf(fromFirstCall, fromSecondCall));
 
         Assert.Equal(
-            "~ async [1]\n  - Audit.Record()\n"
-            + "~ async [1]\n  - Email.Send()\n",
+            "~ async [1]\n  #1 - Audit.Record()\n"
+            + "~ async [1]\n  #2 - Email.Send()\n",
             result);
     }
 
@@ -385,7 +423,7 @@ public sealed class StructuralTraceRendererTests
 
         var result = StructuralTraceRenderer.Render(TreeOf(member));
 
-        Assert.Equal("~ fork [1]\n  - Repo.Load()\n", result);
+        Assert.Equal("~ fork [1]\n  #1 - Repo.Load()\n", result);
     }
 
     [Fact]
@@ -416,7 +454,7 @@ public sealed class StructuralTraceRendererTests
             new MethodSignature("Svc", "Run", []), new Threw(null), [], 0);
 
         Assert.Equal(
-            "- Svc.Run()\n", StructuralTraceRenderer.Render(TreeOf(node)));
+            "#1 - Svc.Run()\n", StructuralTraceRenderer.Render(TreeOf(node)));
     }
 
     [Fact]
@@ -431,7 +469,7 @@ public sealed class StructuralTraceRendererTests
 
         var result = StructuralTraceRenderer.Render(TreeOf(parent));
 
-        Assert.Equal("- Svc.Run()\n  ~ fire-and-forget\n", result);
+        Assert.Equal("#1 - Svc.Run()\n  #1.1 ~ fire-and-forget\n", result);
     }
 
     [Fact]
@@ -449,8 +487,8 @@ public sealed class StructuralTraceRendererTests
         var result = StructuralTraceRenderer.Render(TreeOf(parent));
 
         Assert.Equal(
-            "- Svc.Run()\n  ~ fork [1]\n    - Pricing.Quote() → value\n"
-            + "      - Repo.Query() → value\n",
+            "#1 - Svc.Run()\n  ~ fork [1]\n    #1.1 - Pricing.Quote() → value\n"
+            + "      #1.1.1 - Repo.Query() → value\n",
             result);
     }
 

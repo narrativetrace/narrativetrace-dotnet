@@ -1,0 +1,7 @@
+{
+  "fixture": "skills-evals/fixtures/feedback-false-positive",
+  "turns": {
+    "2": "I haven't decided about filing yet. Finish the report and let me read it first.",
+    "3": "yes, file it"
+  }
+}

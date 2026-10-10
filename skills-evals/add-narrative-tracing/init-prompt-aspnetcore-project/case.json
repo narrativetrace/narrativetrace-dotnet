@@ -1,0 +1,6 @@
+{
+  "fixture": "skills-evals/fixtures/aspnetcore-project",
+  "turns": {
+    "2": "I have seen the diff. Run init for real now, then carry on with the setup."
+  }
+}

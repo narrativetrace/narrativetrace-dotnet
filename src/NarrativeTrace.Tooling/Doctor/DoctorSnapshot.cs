@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Licensed under the Business Source License 1.1 (see LICENSE); Change Date: four years from publication; Change License: Apache-2.0
 // Copyright (c) 2026 Empower Agile
+using NarrativeTrace.Tooling.Frameworks;
 using NarrativeTrace.Tooling.Init;
 
 namespace NarrativeTrace.Tooling.Doctor;
@@ -20,7 +21,10 @@ namespace NarrativeTrace.Tooling.Doctor;
 /// <c>NARRATIVETRACE_*</c> environment variables, by name. Absent keys mean
 /// unset — never guess a default here; each check applies its own.
 /// </param>
-/// <param name="ProjectFiles">Every <c>*.csproj</c> under <see cref="Cwd"/>, path to content.</param>
+/// <param name="ProjectFiles">
+/// Every MSBuild project manifest under <see cref="Cwd"/> — <c>*.csproj</c>, <c>*.fsproj</c>,
+/// <c>*.vbproj</c>, <c>Directory.Build.props</c> and <c>Directory.Build.targets</c> — path to content.
+/// </param>
 /// <param name="SourceFiles">Every <c>*.cs</c> under <see cref="Cwd"/> (bounded walk), path to content.</param>
 /// <param name="OutputFiles">Files under the configured trace-output directory, path to content.</param>
 /// <param name="ApprovedDirFiles">Files under the configured approval-trace directory, path to content.</param>
@@ -56,4 +60,29 @@ public sealed record DoctorSnapshot(
     IReadOnlyDictionary<string, string> InstalledPackages,
     IReadOnlyList<InstalledSkill> InstalledSkills,
     IReadOnlyList<string> CarrierCatalogueSkills,
-    string? ProjectResolvedFamilyVersion);
+    string? ProjectResolvedFamilyVersion)
+{
+    /// <summary>
+    /// Every <c>*.runsettings</c> under <see cref="Cwd"/>, path to content — where a test run's
+    /// environment variables (approval mode among them) are set for <c>dotnet test</c>. Empty by
+    /// default, so a snapshot built without it reads as "no run settings".
+    /// </summary>
+    public IReadOnlyDictionary<string, string> RunSettingsFiles { get; init; } =
+        new Dictionary<string, string>();
+
+    /// <summary>
+    /// Every project manifest's text, each stripped of its own comments and CDATA sections, then joined
+    /// — what a framework-table marker or a package reference is looked for in. Stripped one file at a
+    /// time, so an unterminated comment in one manifest cannot hide a reference in the next.
+    /// </summary>
+    public string ManifestText() =>
+        string.Join("\n", ProjectFiles.Values.Select(ManifestPatterns.WithoutCommentsAndCData));
+
+    /// <summary>
+    /// Every source file's text with its C# comments removed — what wiring evidence is looked for in,
+    /// so commented-out wiring is not wiring. String literals stay: a source name such as
+    /// <c>AddSource("NarrativeTrace")</c> is evidence only inside one.
+    /// </summary>
+    public IReadOnlyList<string> SourceTexts() =>
+        SourceFiles.Values.Select(CSharpSource.WithoutComments).ToList();
+}

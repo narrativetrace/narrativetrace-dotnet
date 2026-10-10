@@ -15,7 +15,8 @@ namespace NarrativeTrace.SkillsEvals;
 /// lifecycle and progress lines. Every decision worth a unit test lives in an injectable class it
 /// only calls (<see cref="RepoRoot"/>, <see cref="AgentArgv"/>, <see cref="EvalTrial"/>,
 /// <see cref="SporadicPolicy"/>, <see cref="CaseFixture"/>, <see cref="QuotaMarkdown"/>,
-/// <see cref="TierPrecondition"/>, <see cref="Platforms"/>, <see cref="RunLedgerRow"/>), so it
+/// <see cref="TierPrecondition"/>, <see cref="Platforms"/>, <see cref="RunLedgerRow"/>,
+/// <see cref="CaseTurns"/>, <see cref="AgentTurns"/>, <see cref="TrialEnvironment"/>), so it
 /// carries no test of its own — the same reason the reference runners' entry points do not.</para>
 /// </summary>
 public static class EvalRunner
@@ -40,6 +41,10 @@ public static class EvalRunner
     /// <summary>Repo-relative paths a run resolves once and threads through the trial loop.</summary>
     private sealed record Paths(string RepoRoot, string RunsPath, string QuotaPath, string CaseDir);
 
+    /// <summary>What one case is: its paths, its fixture, its first prompt, its scripted replies and its registry.</summary>
+    private sealed record TrialPlan(
+        EvalRunnerArgs Args, Paths Paths, string FixtureDir, string Prompt, IReadOnlyList<string> Replies, RegistryPreStep? PreStep);
+
     private static int RunTrials(EvalRunnerArgs args, TextWriter output, TextWriter error)
     {
         var repoRoot = RepoRoot.Locate();
@@ -61,24 +66,39 @@ public static class EvalRunner
 
     private static int DriveTrials(EvalRunnerArgs args, Paths paths, string prompt, TextWriter output)
     {
-        var fixtureDir = Path.Combine(paths.RepoRoot, CaseFixture.FixtureFor(paths.CaseDir));
-        var agentCommand = args.AgentCommand ?? args.Platform.PresetAgentCommand(args.Model, args.Skill);
-        LogWhenNoAgentCommand(agentCommand, output);
+        var plan = new TrialPlan(
+            args, paths, Path.Combine(paths.RepoRoot, CaseFixture.FixtureFor(paths.CaseDir)), prompt,
+            CaseTurns.ScriptedRepliesFor(paths.CaseDir), CaseRegistry.RegistryFor(paths.CaseDir));
+        LogTheConversationsShape(plan, output);
 
-        var trial = new EvalTrial(EvalTrial.RealProcess, () => DateTimeOffset.UtcNow, paths.RunsPath);
         var sessionSpend = new List<QuotaSpendRow>();
         for (var t = 1; t <= args.Trials; t++)
         {
-            RunOneTrial(trial, args, paths, fixtureDir, prompt, agentCommand, t, sessionSpend, output);
+            RunOneTrial(plan, t, sessionSpend, output);
         }
 
         return 0;
     }
 
-    private static void RunOneTrial(
-        EvalTrial trial, EvalRunnerArgs args, Paths paths, string fixtureDir, string prompt,
-        string? agentCommand, int t, List<QuotaSpendRow> sessionSpend, TextWriter output)
+    /// <summary>
+    /// What drives one trial of this case: the platform's templates, the case's turns, and a session
+    /// id of this TRIAL's own — so three trials of a multi-turn case are three conversations rather
+    /// than one long one.
+    /// </summary>
+    private static AgentTurns TurnsFor(TrialPlan plan) =>
+        AgentTurns.Of(
+            plan.Args.Platform, plan.Args.Model, plan.Args.Skill, plan.Args.AgentCommand, plan.Prompt, plan.Replies,
+            Guid.NewGuid().ToString());
+
+    /// <summary>The one line that tells an operator whether the case they named is the conversation they meant.</summary>
+    private static void LogTheConversationsShape(TrialPlan plan, TextWriter output) =>
+        output.WriteLine(plan.Replies.Count == 0
+            ? "one turn: the case's prompt.md"
+            : $"{plan.Replies.Count + 1} turns: the case's prompt.md, then [{string.Join(" | ", plan.Replies)}]");
+
+    private static void RunOneTrial(TrialPlan plan, int t, List<QuotaSpendRow> sessionSpend, TextWriter output)
     {
+        var (args, paths) = (plan.Args, plan.Paths);
         if (args.Platform.IsSporadic())
         {
             SporadicPolicy.BeforeTrial(
@@ -86,8 +106,7 @@ public static class EvalRunner
                 MergedQuotaLedger(paths.QuotaPath, sessionSpend), DateOnly.FromDateTime(DateTime.UtcNow));
         }
 
-        var scratch = Directory.CreateTempSubdirectory("nt-eval-").FullName;
-        var pass = RunInScratch(trial, args, paths, fixtureDir, prompt, agentCommand, t, scratch);
+        var pass = RunInScratch(plan, t, output);
         output.WriteLine($"trial {t}/{args.Trials}: {(pass ? "pass" : "fail")}");
         if (args.Platform.IsSporadic())
         {
@@ -95,26 +114,73 @@ public static class EvalRunner
         }
     }
 
-    private static bool RunInScratch(
-        EvalTrial trial, EvalRunnerArgs args, Paths paths, string fixtureDir, string prompt,
-        string? agentCommand, int t, string scratch)
+    /// <summary>
+    /// One trial, in two throwaway directories outside every repository tree: the scratch project
+    /// the agent works in, and a work directory holding the trial's evidence, its stand-ins, the
+    /// isolated vendor-tool configuration EVERY trial runs against and — for a registry case — the
+    /// staged snapshot. Both are deleted when the trial ends; every trial's evidence is copied out
+    /// first (<see cref="EvidenceDirectory"/>), because a red row nobody can diagnose is the one
+    /// outcome a harness whose rows cost real requests cannot afford, and a green one nobody can read
+    /// proves less than it claims.
+    /// </summary>
+    private static bool RunInScratch(TrialPlan plan, int t, TextWriter output)
     {
+        var scratch = Directory.CreateTempSubdirectory("nt-eval-").FullName;
+        var work = Directory.CreateTempSubdirectory("nt-eval-work-").FullName;
         try
         {
-            return trial.Run(args, paths.RepoRoot, fixtureDir, paths.CaseDir, scratch, prompt, agentCommand, t);
+            return RunRecorded(plan, t, scratch, work, output);
         }
         finally
         {
             TryDelete(scratch);
+            TryDelete(work);
         }
     }
 
-    private static void LogWhenNoAgentCommand(string? agentCommand, TextWriter output)
+    private static bool RunRecorded(TrialPlan plan, int t, string scratch, string work, TextWriter output)
     {
-        if (agentCommand is null)
+        var environment = TrialEnvironment.Under(work, plan.Paths.RepoRoot);
+        SeedTheLogin(work, output);
+        output.WriteLine($"transcript: {environment.Transcript()}");
+        var trial = new EvalTrial(
+            EvalTrial.RealProcess, () => DateTimeOffset.UtcNow, plan.Paths.RunsPath,
+            DeliveryFor(plan.PreStep, work, output), environment);
+        var pass = trial.Run(
+            plan.Args, plan.Paths.RepoRoot, plan.FixtureDir, plan.Paths.CaseDir, scratch, TurnsFor(plan), t);
+        var kept = EvidenceDirectory.For(
+            plan.Paths.RepoRoot, plan.Args.Skill, plan.Args.CaseName, t, pass, DateTimeOffset.UtcNow);
+        output.WriteLine($"evidence kept: {environment.KeepEvidenceUnder(kept)}");
+        return pass;
+    }
+
+    /// <summary>A registry case's own delivery, in the work directory its isolated configuration lives in.</summary>
+    private static RegistryDelivery DeliveryFor(RegistryPreStep? preStep, string work, TextWriter output)
+    {
+        if (preStep is null)
         {
-            output.WriteLine("(no agent command — skipping the agent step, grading the fixture as-is)");
+            return RegistryDelivery.None();
         }
+
+        output.WriteLine($"registry pre-step: {preStep.Value.Id()}");
+        return RegistryDelivery.Through(preStep.Value, work);
+    }
+
+    /// <summary>
+    /// The throwaway configuration EVERY trial runs against, carrying the one thing a fresh one
+    /// cannot do without: the subscription login. Said out loud, because a trial with no login does
+    /// not fail here — it fails three steps later when the agent answers "Not logged in", a long way
+    /// from the cause.
+    /// </summary>
+    private static void SeedTheLogin(string work, TextWriter output)
+    {
+        var realConfig = IsolatedAgentConfig.RealConfigDir();
+        var seeded = IsolatedAgentConfig.SeedLogin(realConfig, work);
+        output.WriteLine(
+            $"isolated agent configuration under {IsolatedAgentConfig.ConfigDir(work)}"
+            + (seeded
+                ? $" (subscription login seeded from {realConfig})"
+                : $" (NO login found in {realConfig} — the agent may refuse to start)"));
     }
 
     private static QuotaLedger MergedQuotaLedger(string quotaPath, List<QuotaSpendRow> sessionSpend)

@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/clarity.md blob 6910fbf8f013 | translated: 2026-08-30 | reviewed: 2026-09-03 -->
+<!-- source: documentation/guides/clarity.md blob 73892c06590c | translated: 2026-10-09 | reviewed: - -->
 # NarrativeTrace .NET — Guía de claridad
 
 [English](../clarity.md) | **Español** | [Português](../pt-BR/guia-de-clareza.md) | [简体中文](../zh-CN/清晰度指南.md)
@@ -217,13 +217,20 @@ La claridad pasa a ser una *puerta*, no una sugerencia, mediante la CLI
 envuelve).
 
 ```bash
-# 1. Escanea un ensamblado compilado hacia clarity-results.json:
-dotnet-narrativetrace clarity-scan --assembly bin/Release/net10.0/MyApp.dll
+# 1. Escanea un ensamblado compilado hacia narrativetrace/clarity-scan-results.json:
+dotnet-narrativetrace clarity-scan --assembly bin/Release/net10.0/MyApp.dll \
+    --output-dir narrativetrace
 
 # 2. Falla el build por debajo de un umbral o por encima de un presupuesto de incidencias HIGH:
-dotnet-narrativetrace clarity-check --results clarity-results.json \
+dotnet-narrativetrace clarity-check --results narrativetrace/clarity-scan-results.json \
     --min-score 0.80 --max-high-issues 0
 ```
+
+Para un primer informe o un umbral que se resuelve nombre por nombre, usa la habilidad
+[`add-narrativetrace-clarity`](../../agent-skills.md#add-narrativetrace-clarity) (solo en inglés).
+Ejecuta `clarity-scan` y `clarity-check` con la herramienta local, lee ambos informes, renombra según
+las sugerencias del informe y repite hasta que el umbral termina con `0`. Un informe ausente o vacío
+es un problema de configuración para `narrativetrace-doctor`.
 
 Códigos de salida de `clarity-check`: `0` correcto (o `--warn-only`), `1`
 fallo de la puerta, `2` error de uso / resultados mal formados. Si falta

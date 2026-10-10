@@ -19,6 +19,18 @@ namespace NarrativeTrace.Tooling.Init;
 public static class PlanRenderer
 {
     /// <summary>
+    /// What the plan and the report say about a page that was already ours in everything but a line.
+    /// </summary>
+    /// <remarks>
+    /// Quoted verbatim by <c>documentation/agent-skills.md</c>'s "From a registry" section (rule 8,
+    /// docs as tests) — the marker pair below is that embed's source, never typed into the page.
+    /// </remarks>
+    // snippet:begin adoptedNote
+    private const string Adopted =
+        "adopted: identical to this carrier's page, so only the provenance line is added";
+    // snippet:end adoptedNote
+
+    /// <summary>
     /// The whole of what a caller shows for a plan it has NOT applied: the JSON envelope, or the
     /// summary followed by the unified diff — both, because the summary alone says nothing about what
     /// would change and the diff alone says nothing when there is nothing to change.
@@ -50,7 +62,7 @@ public static class PlanRenderer
             .Append(plan.Refusals().Count).Append(" refusal(s)\n\n");
         foreach (var action in plan.Actions)
         {
-            output.Append(Pad(action.Kind)).Append(action.Path).Append(Reason(action)).Append('\n');
+            output.Append(Pad(action.Kind)).Append(action.Path).Append(Note(action)).Append('\n');
         }
 
         return output.ToString();
@@ -69,7 +81,7 @@ public static class PlanRenderer
             output.Append(Pad(result.ActionStatus == ExecutionReport.Status.Applied ? "applied" : "refused"))
                 .Append(Pad(result.Action.Kind))
                 .Append(result.Action.Path)
-                .Append(result.Detail.Length == 0 ? "" : " — " + result.Detail)
+                .Append(result.Detail.Length == 0 ? Note(result.Action) : " — " + result.Detail)
                 .Append('\n');
         }
 
@@ -147,8 +159,25 @@ public static class PlanRenderer
     private static string Describe(Action action) =>
         action is Refuse refusal ? "refused: " + refusal.Reason : action.Kind;
 
-    private static string Reason(Action action) =>
-        action is Refuse refusal ? " — " + refusal.Reason : "";
+    /// <summary>
+    /// What a line says after the path: why a refusal refused, or — for an adoption — that nothing of
+    /// anybody's was overwritten. Asked by BOTH the plan's text and the report's, because an adoption a
+    /// person only sees in a preview is an adoption they were never told about.
+    /// </summary>
+    private static string Note(Action action)
+    {
+        if (action is Refuse refusal)
+        {
+            return " — " + refusal.Reason;
+        }
+
+        if (action is ReplaceLink replacement)
+        {
+            return " — replaces the symbolic link " + replacement.Link + " → " + replacement.Target;
+        }
+
+        return action is AdoptPage ? " — " + Adopted : "";
+    }
 
     private static string Pad(string word) =>
         word.Length >= 8 ? word + " " : (word + "        ")[..8];

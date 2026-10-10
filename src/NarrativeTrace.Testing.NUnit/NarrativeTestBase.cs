@@ -155,7 +155,8 @@ public abstract class NarrativeTestBase
         {
             NarrativeApproval.Verify(
                 tree, identity.StructuralScenario(displayName),
-                NarrativeApproval.ApprovedFile(_output.ApprovedDir, identity));
+                NarrativeApproval.ApprovedFile(
+                    _output.ApprovedDirectoryFrom(Directory.GetCurrentDirectory()), identity));
             return null;
         }
         catch (NarrativeApprovalException ex)

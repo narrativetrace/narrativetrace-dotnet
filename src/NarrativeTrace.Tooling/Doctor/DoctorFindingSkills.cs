@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Licensed under the Business Source License 1.1 (see LICENSE); Change Date: four years from publication; Change License: Apache-2.0
 // Copyright (c) 2026 Empower Agile
+using NarrativeTrace.Tooling.Frameworks;
+
 namespace NarrativeTrace.Tooling.Doctor;
 
 /// <summary>
@@ -10,18 +12,20 @@ namespace NarrativeTrace.Tooling.Doctor;
 /// <remarks>
 /// <para>INTENT: a finding tells a person what is wrong and how to fix it; an agent with the skills
 /// installed can also be told WHICH tested procedure to follow next, by name, instead of improvising
-/// one. That mapping belongs in one greppable place, not sprinkled across twelve checks where a new
+/// one. That mapping belongs in one greppable place, not sprinkled across sixteen checks where a new
 /// check can quietly ship without anybody deciding.</para>
 /// <para><b>@llmNote</b> The rule behind the table: a check that fires because the INSTALL is
 /// incomplete points at <c>add-narrative-tracing</c> (it owns the dependency block, the interface
 /// requirement for <c>NarrativeTraceProxy.Create&lt;T&gt;</c>, and the version-skew notes); a check
 /// that fires on an already-wired project behaving wrongly points at <c>narrativetrace-doctor</c>
-/// (its steps own proving redaction, reading a rendered trace, and the approval-trace flow). Two ids
+/// (its steps own proving redaction, reading a rendered trace, and the approval-trace flow). Approval
+/// mode switched off under committed baselines points at <c>narrativetrace-verify</c>, whose pin step
+/// is where the switch is thrown. Two ids
 /// carry NO skill, and that is a decision rather than an omission: no skill upgrades a target
 /// framework, and no skill can install the skills.</para>
 /// <para><b>@llmNote</b> Keyed on the id LITERALS rather than each check's own <c>Id</c> constant on
 /// purpose: <c>NarrativeTrace.Tooling.Doctor.Checks</c> already depends on this namespace (through
-/// <see cref="DoctorFinding"/>), so importing the checks back here to read twelve constants would
+/// <see cref="DoctorFinding"/>), so importing the checks back here to read their constants would
 /// close a namespace cycle.</para>
 /// </remarks>
 public static class DoctorFindingSkills
@@ -32,17 +36,23 @@ public static class DoctorFindingSkills
     /// <summary>The skill a wired-but-misbehaving project follows: diagnosis, read-only.</summary>
     internal const string NarrativeTraceDoctor = "narrativetrace-doctor";
 
+    /// <summary>
+    /// The skill that reads what a change did and pins it: its pin step turns approval mode on and
+    /// promotes the first baselines behind the user's yes.
+    /// </summary>
+    internal const string NarrativeTraceVerify = "narrativetrace-verify";
+
     private static readonly Dictionary<string, string> ById = new(StringComparer.Ordinal)
     {
         ["toolchain.package-versions-aligned"] = AddNarrativeTracing,
         ["toolchain.companion-packages"] = AddNarrativeTracing,
         ["config.output-env"] = NarrativeTraceDoctor,
-        ["config.registration-pair"] = AddNarrativeTracing,
         ["config.appsettings-keys"] = NarrativeTraceDoctor,
         ["trap.silent-sink"] = NarrativeTraceDoctor,
         ["trap.proxy-interface"] = AddNarrativeTracing,
         ["trap.redaction-proof"] = NarrativeTraceDoctor,
         ["trap.approval-traces"] = NarrativeTraceDoctor,
+        ["config.approval-mode"] = NarrativeTraceVerify,
         ["trap.llms-before-you-start"] = AddNarrativeTracing,
     };
 
@@ -59,6 +69,14 @@ public static class DoctorFindingSkills
     };
 
     /// <summary>
+    /// Every framework-table wiring check id (<c>config.registration-pair</c> and each
+    /// <c>config.&lt;framework&gt;-*</c>): an incomplete install, fixed by the install skill — whose
+    /// framework step is the one that runs the doctor and applies these fixes. Derived from the table
+    /// rather than listed, so a new row cannot ship unclassified.
+    /// </summary>
+    private static readonly HashSet<string> FrameworkWiringChecks = new(FrameworkTable.WiringCheckIds(), StringComparer.Ordinal);
+
+    /// <summary>
     /// The catalogue skill that fixes this class of finding, or <see langword="null"/> when none does.
     /// </summary>
     /// <remarks>
@@ -66,8 +84,17 @@ public static class DoctorFindingSkills
     /// inside <see cref="DoctorFinding"/>'s <c>Pass</c>/<c>Fail</c> factories, so a lookup failure here
     /// must never be what a caller sees instead of whatever a null or unrecognized id does elsewhere.
     /// </remarks>
-    public static string? ForCheck(string? id) => id is not null && ById.TryGetValue(id, out var skill) ? skill : null;
+    public static string? ForCheck(string? id)
+    {
+        if (id is null)
+        {
+            return null;
+        }
+
+        return FrameworkWiringChecks.Contains(id) ? AddNarrativeTracing : ById.GetValueOrDefault(id);
+    }
 
     /// <summary>Whether the table has a decision — a skill or a deliberate none — for this check id.</summary>
-    public static bool Knows(string? id) => id is not null && (ById.ContainsKey(id) || NoSkill.Contains(id));
+    public static bool Knows(string? id) =>
+        id is not null && (ById.ContainsKey(id) || NoSkill.Contains(id) || FrameworkWiringChecks.Contains(id));
 }

@@ -2,7 +2,7 @@
 name: narrativetrace-doctor
 description: "Diagnoses a NarrativeTrace .NET install without changing anything: runs the doctor CLI and explains every failing check and its fix — including whether the NarrativeTrace agent skills are installed and current — proves redaction with a real test, opens the newest rendered trace before trusting any assertion against it, and — flagged unstudied — walks an approval-trace diff. Use when traces aren't appearing, output looks wrong, a value that should be redacted shows up in a trace, tests pass but the trace looks off, or someone asks \"why isn't NarrativeTrace working\", \"is my NarrativeTrace install broken\", \"run narrativetrace doctor\", \"check my NarrativeTrace setup\", or \"diagnose narrative trace\"."
 when_to_use: "A NarrativeTrace install already exists in the project and something needs diagnosing — no traces are appearing, a check is failing, or a value that should be redacted appears in output."
-allowed-tools: dotnet, git
+allowed-tools: Bash(dotnet *), Bash(git *)
 ---
 
 # narrativetrace-doctor
@@ -48,6 +48,7 @@ dotnet tool run dotnet-narrativetrace doctor --json
 ## Always
 - Run the doctor CLI before hand-diagnosing a NarrativeTrace problem (the checks are tested and stable-ided; guessing re-derives what a check already verified)
 - Read the newest rendered file under the output directory before asserting against it (a stale or wrong-directory trace makes any assertion against it meaningless)
+- If a check is wrong, or its fix does not work, report it with the narrativetrace-feedback skill (a wrong finding costs every project that hits it until somebody says so, and that skill shows you the whole report and files nothing without your answer)
 
 ## Never
 - Never commit a *.received.nt file (it is an unreviewed diff, not a baseline — committing it hides the question it was raised to ask)

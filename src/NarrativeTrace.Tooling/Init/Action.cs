@@ -96,6 +96,43 @@ public sealed record ReplaceBlock : FileEdit
     public override string Kind => "replace";
 }
 
+/// <summary>
+/// Stamps a page a registry installed, because it already IS this carrier's page in every byte but
+/// the provenance line.
+/// </summary>
+/// <remarks>
+/// A separate kind from <see cref="ReplaceBlock"/> so that the plan, the diff and the report all say
+/// "adopted" rather than "replaced": a person reading it needs to know that nothing of theirs was
+/// overwritten, which is also why adoption needs no <c>--force</c>. <see cref="Adoption"/> owns the
+/// rule about which page qualifies.
+/// </remarks>
+public sealed record AdoptPage : FileEdit
+{
+    /// <summary>An adoption carrying the page's text <paramref name="before"/> and <paramref name="after"/> it is stamped.</summary>
+    public AdoptPage(string path, string before, string after)
+        : base(path)
+    {
+        Actions.RequireText(before);
+        Actions.RequireText(after);
+        if (before.Length == 0)
+        {
+            throw new ArgumentException("there is nothing to adopt where there is no page");
+        }
+
+        Before = before;
+        After = after;
+    }
+
+    /// <inheritdoc/>
+    public override string Before { get; }
+
+    /// <inheritdoc/>
+    public override string After { get; }
+
+    /// <inheritdoc/>
+    public override string Kind => "adopt";
+}
+
 /// <summary>Adds the managed block to the end of an existing file, after one blank line.</summary>
 public sealed record AppendBlock : FileEdit
 {
@@ -167,6 +204,61 @@ public sealed record DeleteFile : FileEdit
 
     /// <inheritdoc/>
     public override string Kind => "delete";
+}
+
+/// <summary>
+/// Replaces a symbolic link with a real path of the project's own, holding this flavour's page.
+/// </summary>
+/// <remarks>
+/// <see cref="Before"/> is empty on purpose. The link is deleted first, so nothing this PATH used to
+/// reach survives here — and what it pointed at is left exactly as it was, which is the whole point:
+/// after <c>npx skills add</c> the vendor path links to the open-standard page, and a diff showing
+/// that page's text here would read as an edit to somebody else's file.
+/// </remarks>
+public sealed record ReplaceLink : FileEdit
+{
+    /// <summary>A replacement of the <paramref name="link"/> that reached <paramref name="target"/> with the real <paramref name="page"/> holding <paramref name="content"/>.</summary>
+    public ReplaceLink(string link, string page, string target, string content)
+        : base(page)
+    {
+        Link = Actions.RequireProjectRelative(link);
+        Actions.RequireText(content);
+        if (string.IsNullOrWhiteSpace(target))
+        {
+            throw new ArgumentException("replacing a link names what it pointed at");
+        }
+
+        if (content.Length == 0)
+        {
+            throw new ArgumentException("a link is replaced by a page, never by an empty file");
+        }
+
+        if (!(Path == Link || Path.StartsWith(Link + "/", StringComparison.Ordinal)))
+        {
+            throw new ArgumentException(Path + " is not behind the link " + Link);
+        }
+
+        Target = target;
+        Content = content;
+    }
+
+    /// <summary>Where the symbolic link itself sits — the skill's directory, or its page.</summary>
+    public string Link { get; }
+
+    /// <summary>What the link pointed at, for the line a person reads.</summary>
+    public string Target { get; }
+
+    /// <summary>The flavour's rendered page, already stamped — what the real path is created with.</summary>
+    public string Content { get; }
+
+    /// <inheritdoc/>
+    public override string Before => "";
+
+    /// <inheritdoc/>
+    public override string After => Content;
+
+    /// <inheritdoc/>
+    public override string Kind => "replace-link";
 }
 
 /// <summary>

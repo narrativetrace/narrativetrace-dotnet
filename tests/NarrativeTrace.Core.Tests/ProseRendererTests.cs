@@ -261,7 +261,7 @@ public class ProseRendererTests
         var result = ProseRenderer.Render(tree);
 
         Assert.Contains(
-            "In the background:", result);
+            "In the background (#1.1):", result);
     }
 
     [Fact]
@@ -281,7 +281,7 @@ public class ProseRendererTests
 
         var result = ProseRenderer.Render(tree);
 
-        Assert.Contains("In the background:", result);
+        Assert.Contains("In the background (#1.1):", result);
         Assert.Contains(
             "(launched, result not captured).", result);
     }

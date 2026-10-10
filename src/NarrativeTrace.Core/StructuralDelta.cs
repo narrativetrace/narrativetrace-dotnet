@@ -10,10 +10,11 @@ namespace NarrativeTrace.Core;
 /// <remarks>
 /// INTENT: The comparison engine for the test-loop feedback surfaces — the
 /// post-run console delta line, the failure delta against the last green
-/// artifact, and approval-mode verification. Sameness is byte (ordinal)
-/// equality of the artifact: the renderer is deterministic, so
-/// byte-identical means behaviorally identical, and any difference is real
-/// change worth surfacing.
+/// artifact, and approval-mode verification. Sameness is equality of the
+/// artifact's lines with span ids (<see cref="SpanPath"/>) set aside: the
+/// renderer is deterministic, so the same lines mean the same behavior, and
+/// any difference is real change worth surfacing. A baseline written before
+/// span ids existed, or checked out with CRLF line endings, still compares.
 /// </remarks>
 public sealed class StructuralDelta
 {
@@ -24,7 +25,7 @@ public sealed class StructuralDelta
     {
         _baseline = baseline;
         _current = current;
-        Unchanged = string.Equals(baseline, current, StringComparison.Ordinal);
+        Unchanged = string.Equals(WithoutIds(baseline), WithoutIds(current), StringComparison.Ordinal);
     }
 
     /// <summary>Compares a baseline artifact (last green or approved) against the current one.</summary>
@@ -47,7 +48,11 @@ public sealed class StructuralDelta
         return new StructuralDelta(baseline, current);
     }
 
-    /// <summary>True iff the two artifacts are byte-identical — the scenario's structure did not change.</summary>
+    /// <summary>
+    /// True iff the two artifacts have the same lines once span ids, line
+    /// terminators and a final newline are set aside — the scenario's
+    /// structure did not change.
+    /// </summary>
     public bool Unchanged { get; }
 
     /// <summary>
@@ -87,7 +92,32 @@ public sealed class StructuralDelta
     /// </summary>
     public string Diff()
     {
-        return Unchanged ? string.Empty : LineDiff.Unified(_baseline, _current);
+        return Unchanged
+            ? string.Empty
+            : LineDiff.Unified(_baseline, _current, SpanPath.Strip, ContextLine);
+    }
+
+    /// <summary>
+    /// An unchanged line as the current document prints it, citing the
+    /// baseline's id when an insertion or removal earlier in the list shifted
+    /// it: <c>#1.3 - A.B()  (was #1.2)</c>. A baseline written before span ids
+    /// existed has none to cite.
+    /// </summary>
+    private static string ContextLine(string was, string now)
+    {
+        var wasId = SpanPath.Of(was);
+        return wasId is null || wasId == SpanPath.Of(now) ? now : now + "  (was " + wasId + ")";
+    }
+
+    /// <summary>
+    /// The document's lines with every span id removed, joined by LF — the
+    /// form sameness is decided on. Ids are derived from position and carry no
+    /// behavior of their own; line terminators and a final newline are
+    /// encoding, not structure.
+    /// </summary>
+    private static string WithoutIds(string document)
+    {
+        return string.Join("\n", LineDiff.ToLines(document).Select(SpanPath.Strip));
     }
 
     private static void Accumulate(
@@ -113,7 +143,7 @@ public sealed class StructuralDelta
     {
         foreach (var line in LineDiff.ToLines(document))
         {
-            var trimmed = line.TrimStart();
+            var trimmed = SpanPath.Strip(line).TrimStart();
             if (trimmed.StartsWith("- ", StringComparison.Ordinal))
             {
                 yield return SignatureOf(trimmed);

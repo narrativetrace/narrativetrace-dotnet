@@ -84,7 +84,8 @@ public static class YamlEscape
         foreach (var c in value)
         {
             if (c is ':' or '#' or '"' or '\\'
-                || char.IsControl(c) || char.IsSurrogate(c))
+                || char.IsControl(c) || char.IsSurrogate(c)
+                || ControlEscape.IsLineSeparator(c))
             {
                 return true;
             }
@@ -126,7 +127,7 @@ public static class YamlEscape
             case '\t': sb.Append("\\t"); return i + 1;
         }
 
-        if (char.IsControl(c))
+        if (char.IsControl(c) || ControlEscape.IsLineSeparator(c))
         {
             AppendHexEscape(sb, c);
             return i + 1;

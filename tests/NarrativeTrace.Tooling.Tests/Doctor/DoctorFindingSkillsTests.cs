@@ -23,6 +23,7 @@ public sealed class DoctorFindingSkillsTests
     [InlineData("trap.proxy-interface", "add-narrative-tracing")]
     [InlineData("trap.redaction-proof", "narrativetrace-doctor")]
     [InlineData("trap.approval-traces", "narrativetrace-doctor")]
+    [InlineData("config.approval-mode", "narrativetrace-verify")]
     [InlineData("trap.llms-before-you-start", "add-narrative-tracing")]
     public void Names_the_skill_that_fixes_each_finding_class(string id, string skill)
     {
@@ -37,6 +38,18 @@ public sealed class DoctorFindingSkillsTests
     {
         Assert.Null(DoctorFindingSkills.ForCheck(id));
         Assert.True(DoctorFindingSkills.Knows(id));
+    }
+
+    /// <summary>
+    /// The table decides only for the short form: a finding built with the canonical constructor may
+    /// point at any catalogue skill, the clarity skill included.
+    /// </summary>
+    [Fact]
+    public void A_canonical_construction_may_point_at_the_clarity_skill()
+    {
+        var finding = new DoctorFinding("trap.silent-sink", true, "message", "", "https://x", "add-narrativetrace-clarity");
+
+        Assert.Equal("add-narrativetrace-clarity", finding.Skill);
     }
 
     [Fact]

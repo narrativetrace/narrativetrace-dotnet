@@ -41,8 +41,47 @@ public sealed class PlatformTests
         var command = Platform.Claude.PresetAgentCommand("haiku", "add-narrative-tracing");
 
         Assert.Equal(
-            "claude -p \"{prompt}\" --model haiku --allowed-tools \"Bash,Read,Edit,Write,WebFetch\"",
+            "claude -p \"{prompt}\" --model haiku --allowed-tools \"Bash,Read,Edit,Write,WebFetch,Skill\""
+            + " --output-format stream-json --verbose",
             command);
+    }
+
+    /// <summary>
+    /// A grader has to read the agent's TOOL CALLS, not only its closing text: a URL a command
+    /// printed and a URL typed into a reply are the same event to a gate that must see neither
+    /// before the approval turn. <c>--verbose</c> is load-bearing — without it this CLI exits 1
+    /// having written nothing at all.
+    /// </summary>
+    [Fact]
+    public void The_claude_preset_streams_machine_readable_events_with_verbose()
+    {
+        var command = Platform.Claude.PresetAgentCommand("claude-haiku-5-5", "narrativetrace-feedback");
+
+        Assert.EndsWith("--output-format stream-json --verbose", command, StringComparison.Ordinal);
+    }
+
+    /// <summary>The same sandbox, tools and format as one turn — differing only in being one conversation.</summary>
+    [Fact]
+    public void Claude_opens_a_conversation_with_a_session_id_and_resumes_the_same_one()
+    {
+        var single = Platform.Claude.PresetAgentCommand("m", "narrativetrace-feedback");
+
+        Assert.Equal(single + " --session-id {session}", Platform.Claude.PresetFirstTurnCommand("m", "narrativetrace-feedback"));
+        Assert.Equal(single + " --resume {session}", Platform.Claude.PresetResumedTurnCommand("m", "narrativetrace-feedback"));
+    }
+
+    /// <summary>
+    /// Empty for BOTH halves: a platform that could open a conversation but not resume it would run
+    /// its "second turn" as a fresh session with no memory of the draft, where "nothing was filed"
+    /// is true for a reason that has nothing to do with the gate under test.
+    /// </summary>
+    [Theory]
+    [InlineData(Platform.Codex)]
+    [InlineData(Platform.Gemini)]
+    public void A_platform_whose_resume_flags_were_never_verified_offers_neither_half(Platform platform)
+    {
+        Assert.Null(platform.PresetFirstTurnCommand("m", "narrativetrace-feedback"));
+        Assert.Null(platform.PresetResumedTurnCommand("m", "narrativetrace-feedback"));
     }
 
     [Fact]

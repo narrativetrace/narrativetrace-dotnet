@@ -79,14 +79,5 @@ public sealed class SkillsDevToolRunnerTests : IDisposable
         Assert.Contains("problem", _out.ToString(), StringComparison.Ordinal);
     }
 
-    private void SeedFixtureFiles()
-    {
-        var fixtureDir = Path.Combine(_root, "examples", "NarrativeTrace.Examples.SixtySeconds");
-        Directory.CreateDirectory(fixtureDir);
-        File.WriteAllText(Path.Combine(fixtureDir, "Program.cs"), "// program\n");
-
-        var withLoggerDir = Path.Combine(_root, "examples", "NarrativeTrace.Examples.SixtySeconds.WithLogger");
-        Directory.CreateDirectory(withLoggerDir);
-        File.WriteAllText(Path.Combine(withLoggerDir, "Program.cs"), "// with logger\n");
-    }
+    private void SeedFixtureFiles() => SkillListingSeed.Seed(_root);
 }

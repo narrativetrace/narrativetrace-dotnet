@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Licensed under the Business Source License 1.1 (see LICENSE); Change Date: four years from publication; Change License: Apache-2.0
 // Copyright (c) 2026 Empower Agile
+using Xunit;
+
 namespace Build.Tests;
 
 /// <summary>
@@ -23,4 +25,14 @@ internal static class RepositoryPath
         return dir?.FullName ?? throw new InvalidOperationException(
             "NarrativeTrace.sln not found above " + AppContext.BaseDirectory);
     }
+
+    /// <summary>
+    /// Skips the calling <see cref="SkippableFactAttribute"/> test when a repository path the
+    /// public snapshot strips (see <c>.publishignore</c>) is absent — the fixture-precondition rule.
+    /// </summary>
+    /// <param name="relativePath">Slash-separated path below <see cref="Root"/>.</param>
+    internal static void SkipUnlessPresent(string relativePath) =>
+        Skip.IfNot(
+            File.Exists(Path.Combine(Root(), relativePath)),
+            $"{relativePath} is stripped from the public snapshot");
 }

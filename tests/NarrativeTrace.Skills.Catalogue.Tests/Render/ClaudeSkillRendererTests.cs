@@ -39,7 +39,27 @@ public sealed class ClaudeSkillRendererTests
 
         Assert.Contains("description: \"Does a thing.\"", rendered, StringComparison.Ordinal);
         Assert.Contains("when_to_use: \"When a thing needs doing.\"", rendered, StringComparison.Ordinal);
-        Assert.Contains("allowed-tools: dotnet, git", rendered, StringComparison.Ordinal);
+        Assert.Contains("allowed-tools: Bash(dotnet *), Bash(git *)", rendered, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_skill_declaring_no_allowed_tools_renders_no_allowed_tools_line()
+    {
+        var rendered = ClaudeSkillRenderer.Render(Simple with { AllowedTools = [] }, TestPaths.RepoRoot());
+
+        Assert.DoesNotContain("allowed-tools", rendered, StringComparison.Ordinal);
+        Assert.Contains("when_to_use:", rendered, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_step_with_no_commands_renders_a_heading_and_no_empty_code_block()
+    {
+        var skill = Simple with { Steps = [new SkillStep("Ask once", new CommandStep([]), Verify: "asked")] };
+
+        var rendered = ClaudeSkillRenderer.Render(skill, TestPaths.RepoRoot());
+
+        Assert.Contains("## 1. Ask once\n\n**verify:** asked", rendered, StringComparison.Ordinal);
+        Assert.DoesNotContain("```bash", rendered, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -91,6 +111,50 @@ public sealed class ClaudeSkillRendererTests
         var rendered = ClaudeSkillRenderer.Render(flagged, TestPaths.RepoRoot());
 
         Assert.Contains("**Flagged:** unstudied — eval cell pending", rendered, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Condition_renders_as_a_when_line_between_the_heading_and_the_body()
+    {
+        var conditional = Simple with
+        {
+            Steps = [Simple.Steps[0] with { Condition = "only when the project has no entry point" }],
+        };
+
+        var rendered = ClaudeSkillRenderer.Render(conditional, TestPaths.RepoRoot());
+
+        Assert.Contains(
+            "## 1. Run it\n\n**when:** only when the project has no entry point\n\n```bash",
+            rendered,
+            StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void A_blank_condition_is_rejected(string blank)
+    {
+        Assert.Throws<ArgumentException>(() => new SkillStep("t", new CommandStep([]), Condition: blank));
+        Assert.Throws<ArgumentException>(() => Simple.Steps[0] with { Condition = blank });
+    }
+
+    [Fact]
+    public void An_unconditional_step_renders_no_when_line()
+    {
+        var rendered = ClaudeSkillRenderer.Render(Simple, TestPaths.RepoRoot());
+
+        Assert.DoesNotContain("**when:**", rendered, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Codex_renders_the_when_line_the_same_way()
+    {
+        var conditional = Simple with { Steps = [Simple.Steps[0] with { Condition = "if x" }] };
+
+        Assert.Equal(
+            ClaudeSkillRenderer.Render(conditional, TestPaths.RepoRoot()),
+            CodexSkillRenderer.Render(conditional, TestPaths.RepoRoot()));
+        Assert.Contains("**when:** if x", CodexSkillRenderer.Render(conditional, TestPaths.RepoRoot()), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -161,5 +225,52 @@ public sealed class ClaudeSkillRendererTests
             var rendered = ClaudeSkillRenderer.Render(skill, TestPaths.RepoRoot());
             Assert.NotEmpty(rendered);
         }
+    }
+
+    [Fact]
+    public void Reference_sections_render_after_the_steps_and_before_the_rules()
+    {
+        var skill = Simple with
+        {
+            Sections =
+            [
+                new SkillSection("Which flavour answers which question", "| a | b |\n|---|---|\n| 1 | 2 |\n"),
+                new SkillSection("Shapes", "- a call made twice"),
+            ],
+        };
+
+        var rendered = ClaudeSkillRenderer.Render(skill, TestPaths.RepoRoot());
+
+        var steps = rendered.IndexOf("## 1. Run it", StringComparison.Ordinal);
+        var table = rendered.IndexOf("## Which flavour answers which question\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n", StringComparison.Ordinal);
+        var shapes = rendered.IndexOf("## Shapes\n\n- a call made twice\n\n", StringComparison.Ordinal);
+        var always = rendered.IndexOf("## Always", StringComparison.Ordinal);
+        Assert.True(steps >= 0 && steps < table && table < shapes && shapes < always, rendered);
+    }
+
+    [Fact]
+    public void A_skill_without_sections_renders_exactly_as_before()
+    {
+        Assert.Empty(Simple.Sections);
+        Assert.Contains("**failure:** nothing prints", ClaudeSkillRenderer.Render(Simple, TestPaths.RepoRoot()), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("  ")]
+    [InlineData("two\nlines")]
+    [InlineData("## a heading")]
+    [InlineData("carriage\rreturn")]
+    public void A_section_heading_is_one_line_of_plain_text(string heading)
+    {
+        Assert.Throws<ArgumentException>(() => new SkillSection(heading, "body"));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" \n ")]
+    public void A_section_body_is_never_blank(string body)
+    {
+        Assert.Throws<ArgumentException>(() => new SkillSection("Heading", body));
     }
 }

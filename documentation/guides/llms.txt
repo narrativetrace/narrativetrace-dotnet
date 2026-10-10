@@ -75,7 +75,7 @@ dotnet run
 ```text
 trace: loose hook parks (a1b2c3d)
 
-└── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 7ms
+└── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 9ms #1
 ```
 <!-- /snippet -->
 Then to your logger, same tree, two lines:
@@ -140,29 +140,50 @@ dotnet test
 - `NARRATIVETRACE_OUTPUT` defaults **on**.
 - `new ProxyOptions(Redaction: ...)` reaches the proxy, and `NarrativeTracingDiOptions.Redaction`/`NarrativeTraceOptions.Redaction` reach DI auto-wrap and ASP.NET Core auto-wrapped proxies too.
 - No compiler flag needed for parameter names.
-- The `.nt` structural artifact is a last-green baseline with per-invocation identity, `manifest.json` and approval mode: `NARRATIVETRACE_APPROVAL=true` fails a passing test whose structure differs from its committed `*.approved.nt`, and `./build.sh Approve` promotes a reviewed `*.received.nt`. See [Structural Trace Format](../structural-trace-format.md).
+- The `.nt` structural artifact is a last-green baseline with per-invocation identity, `manifest.json` and approval mode: `NARRATIVETRACE_APPROVAL=true` fails a passing test whose structure differs from its committed `*.approved.nt`, and `dotnet tool run dotnet-narrativetrace approve` promotes a reviewed `*.received.nt`. See [Structural Trace Format](../structural-trace-format.md).
 - A trace has a name (`trace: bold elk soars (a1b2c3d)`, above), and a test-suite run has one too — the console footer, `manifest.json`'s `run` object, the Markdown frontmatter's `run:` field, and `nt.runName` in the logging bridge's scope. Neither ever reaches the `.nt` text. See [Configuration Guide §7](configuration.md#7-logging-bridge-microsoftextensionslogging).
 - Every `NARRATIVETRACE_*` variable — what it sets, its default, and a runnable example of the effect — is tabulated in [Configuration Guide §10](configuration.md#10-environment-variable-worked-examples).
 
 ## Agent skills
 - `narrativetrace-doctor` — Diagnoses a NarrativeTrace .NET install without changing anything: runs the doctor CLI and explains every failing check and its fix — including whether the NarrativeTrace agent skills are installed and current — proves redaction with a real test, opens the newest rendered trace before trusting any assertion against it, and — flagged unstudied — walks an approval-trace diff.
 - `add-narrative-tracing` — Adds NarrativeTrace to a .NET project end to end: installs the real toolchain with a frozen restore, wraps a service and renders its first trace, sends the trace to a logger with one call, finishes by running the doctor CLI to confirm the install, and ends by previewing the agent skills install so the next session finds them.
+- `narrativetrace-feedback` — Reports a defect in NarrativeTrace itself — the library, the doctor, an agent skill, or the published install prompt. Drafts the report from this project (the install coordinates, the doctor's own JSON report, and at most one structural trace), refuses to write one that carries a value from your traces and names the rule that refused it, shows you the whole draft, and then asks once whether to file it publicly. Files nothing without your answer and sends nothing anywhere.
+- `add-narrativetrace-clarity` — Adds or verifies NarrativeTrace Clarity in a .NET project. Use when you want a first static naming report, per-element explanations, or an explicit clarity quality gate. Runs the real `clarity-scan` and `clarity-check` verbs, checks fresh nonempty JSON and Markdown, applies the report's renames and re-runs until the gate is clean, and preserves existing thresholds.
+- `narrativetrace-verify` — Verifies a change in a .NET project by reading what the code actually did before saying it is done. Writes the intent down first, runs the smallest real path, reads the value-free structural trace against the intent and opens values only on the span that looks wrong, then pins the flow as an approval baseline behind your yes and reports what the trace showed, citing span ids. Skips itself, saying why, for a pure function or a one-class edit.
+- `narrativetrace-debug` — Finds the cause of a wrong result in a .NET project by reading what the code did with the values, not by stepping through it. Reproduces the symptom with NarrativeTrace on, names the first span where a value diverges by its span id, fixes it there and checks the structural trace shows nothing else moved, then pins the reproduction as a regression test and an approval baseline behind your yes. Hands a defect in NarrativeTrace itself to `narrativetrace-feedback`.
 
 Install them into this project: `dotnet tool run dotnet-narrativetrace init --dry-run`, read the diff, then run it again without `--dry-run`. See [Agent Skills](../agent-skills.md) for the full walkthrough and `uninstall`.
 
+They are also reachable from two registries, each landing the same pages `init` then adopts. The Claude Code plugin marketplace carries them too: `/plugin marketplace add narrativetrace/narrativetrace-dotnet`, then `/plugin install narrativetrace-dotnet@narrativetrace-dotnet` — then run `dotnet tool run dotnet-narrativetrace init --dry-run`, read the diff, and run it without the flag so `AGENTS.md` points at them. `npx skills add narrativetrace/narrativetrace-dotnet` installs the open-standard pages directly into the project — then run `dotnet tool run dotnet-narrativetrace init --dry-run`, read the diff, and run it without the flag so `AGENTS.md` points at them.
+
 ## Doctor
-Confirm the install and surface misconfigurations, including whether the agent skills above are installed and current (the twelfth check, `config.skills-installed`):
+Confirm the install and surface misconfigurations — among its seventeen checks, one per framework this project uses (the doctor detects which, and each failing fix prints the compiled wiring lines) and whether the agent skills above are installed and current (`config.skills-installed`):
 ```bash
 dotnet tool run dotnet-narrativetrace doctor
 ```
+<!-- covered-frameworks:begin -->
+Covered frameworks (each row of the doctor's framework table): ASP.NET Core (`config.registration-pair`); Dependency injection (`config.di-namespaces`); xUnit (`config.xunit-fixture`); NUnit (`config.nunit-base`); OpenTelemetry (`config.otel-source`); Microsoft.Extensions.Logging (`trap.silent-sink`); MSBuild clarity targets (owned by the add-narrativetrace-clarity skill).
+<!-- covered-frameworks:end -->
+
 If the install block above didn't make the tool available, add it first: `dotnet tool install --global NarrativeTrace.Cli` (then invoke it as `dotnet-narrativetrace doctor`).
+
+## Report a problem
+
+If NarrativeTrace, this file, a skill or the doctor is wrong, ask your agent to use the `narrativetrace-feedback` skill: it drafts the report from your project, refuses to write one that carries a value from your traces, shows you the whole thing, and files nothing until you say so. Nothing is sent anywhere — the draft is yours until you submit it yourself.
+
+```bash
+dotnet tool run dotnet-narrativetrace doctor --report
+dotnet tool run dotnet-narrativetrace feedback draft --category doctor --step <check id> --did "..." --happened "..." --expected "..."
+```
+
+That writes the draft and its body under `TestResults/narrativetrace/feedback/`, and exits 2 naming a `vf.*` rule if a field carries a value instead of a description. `feedback url` then prints the pre-filled issue form for `github.com/narrativetrace/narrativetrace-dotnet`, which you open and submit under your own account; `feedback gh` prints the `gh issue create` line when `gh` is signed in. Filing is public: it shows that your project uses NarrativeTrace.
 
 ## Docs
 
 - [User Guides](README.md): installation, configuration, annotations, ASP.NET Core, clarity
 - [Complete Reference](llms-full.md): full API surface, data model, integration paths, CLI/MSBuild
 - [Repository README](../../README.md): value proposition and quick start
-- [Agent Skills](../agent-skills.md): the `narrativetrace-doctor` and `add-narrative-tracing` Claude Code skills
+- [Agent Skills](../agent-skills.md): the `narrativetrace-doctor`, `add-narrative-tracing`, `narrativetrace-feedback`, `add-narrativetrace-clarity`, `narrativetrace-verify` and `narrativetrace-debug` Claude Code skills
 
 ## Target frameworks
 
@@ -205,7 +226,7 @@ names in metadata by default.
 
 - `ClarityScanner.Scan([typeof(T)])` (reflection-only) or `ClarityAnalyzer.Analyze(tree)`
 - Five weighted components: Method 30%, Parameter 25%, Class 20%, Structural 15%, Cohesion 10%
-- CI gate: `dotnet-narrativetrace clarity-scan --assembly X.dll` then `clarity-check --results clarity-results.json --min-score 0.8 --max-high-issues 0`
+- CI gate: `dotnet-narrativetrace clarity-scan --assembly X.dll --output-dir narrativetrace` then `clarity-check --results narrativetrace/clarity-scan-results.json --min-score 0.8 --max-high-issues 0`
 
 ## Examples
 

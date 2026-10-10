@@ -39,6 +39,34 @@ public sealed class SkillsRenderCommandTests : IDisposable
         Assert.True(File.Exists(Path.Combine(_root, ".claude", "skills", "add-narrative-tracing", "SKILL.md")));
     }
 
+    /// <summary>
+    /// The framework table's two documentation blocks render with the skill pages, from the same
+    /// command — one render step, never a second one somebody forgets.
+    /// </summary>
+    [Fact]
+    public void Renders_the_framework_table_blocks_into_llms_full_and_llms_txt_where_their_markers_are()
+    {
+        SeedFixtureFiles();
+        var guides = Path.Combine(_root, "documentation", "guides");
+        Directory.CreateDirectory(guides);
+        File.WriteAllText(Path.Combine(guides, "llms-full.md"), "# Ref\n<!-- framework-table:begin -->\nstale\n<!-- framework-table:end -->\n");
+        File.WriteAllText(Path.Combine(guides, "llms.txt"), "# Txt\n<!-- covered-frameworks:begin -->\nstale\n<!-- covered-frameworks:end -->\n");
+
+        SkillsRenderCommand.Run(_root, _out, _err);
+
+        Assert.Contains("| ASP.NET Core |", File.ReadAllText(Path.Combine(guides, "llms-full.md")), StringComparison.Ordinal);
+        Assert.Contains("Covered frameworks", File.ReadAllText(Path.Combine(guides, "llms.txt")), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_repository_without_the_two_documentation_pages_renders_the_skills_and_nothing_else()
+    {
+        SeedFixtureFiles();
+
+        Assert.Equal(0, SkillsRenderCommand.Run(_root, _out, _err));
+        Assert.False(Directory.Exists(Path.Combine(_root, "documentation", "guides")));
+    }
+
     [Fact]
     public void Renders_the_same_skill_pages_under_codexs_agents_skills_layout()
     {
@@ -122,14 +150,31 @@ public sealed class SkillsRenderCommandTests : IDisposable
         Assert.Equal(before, File.GetLastWriteTimeUtc(catalogueJsonPath));
     }
 
-    private void SeedFixtureFiles()
+    [Fact]
+    public void Renders_the_claude_plugin_marketplace_file_at_the_repo_root()
     {
-        var fixtureDir = Path.Combine(_root, "examples", "NarrativeTrace.Examples.SixtySeconds");
-        Directory.CreateDirectory(fixtureDir);
-        File.WriteAllText(Path.Combine(fixtureDir, "Program.cs"), "// program\n");
+        SeedFixtureFiles();
 
-        var withLoggerDir = Path.Combine(_root, "examples", "NarrativeTrace.Examples.SixtySeconds.WithLogger");
-        Directory.CreateDirectory(withLoggerDir);
-        File.WriteAllText(Path.Combine(withLoggerDir, "Program.cs"), "// with logger\n");
+        var exit = SkillsRenderCommand.Run(_root, _out, _err);
+
+        Assert.Equal(0, exit);
+        var path = Path.Combine(_root, ".claude-plugin", "marketplace.json");
+        Assert.True(File.Exists(path));
+        Assert.Contains("\"source\": \"./.claude\"", File.ReadAllText(path), StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Does_not_rewrite_a_byte_identical_marketplace_file()
+    {
+        SeedFixtureFiles();
+        SkillsRenderCommand.Run(_root, _out, _err);
+        var path = Path.Combine(_root, ".claude-plugin", "marketplace.json");
+        var before = File.GetLastWriteTimeUtc(path);
+
+        SkillsRenderCommand.Run(_root, _out, _err);
+
+        Assert.Equal(before, File.GetLastWriteTimeUtc(path));
+    }
+
+    private void SeedFixtureFiles() => SkillListingSeed.Seed(_root);
 }

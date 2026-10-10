@@ -117,6 +117,24 @@ public class ProvenanceTest
         Assert.Equal(Provenance.Line(Coordinate) + "\n\n", Provenance.Stamp("", Coordinate));
     }
 
+    /// <summary>
+    /// A page somebody concatenated carries two provenance lines. The FIRST one wins, and that is the
+    /// coordinate staleness is judged against — so a second, older line appended below cannot make a
+    /// current install look stale, or an older one look current.
+    /// </summary>
+    [Fact]
+    public void ReadsTheFirstCoordinateWhenAPageCarriesTwo()
+    {
+        const string second = "NarrativeTrace.Skills/0.0.1";
+        var page =
+            "---\nx\n---\n" + Provenance.Line(Coordinate) + "\nbody\n" + Provenance.Line(second) + "\n";
+
+        Assert.Equal(Coordinate, Provenance.CoordinateIn(page));
+        Assert.Equal(
+            "---\nx\n---\n" + Provenance.Line(second) + "\nbody\n",
+            Provenance.Stamp(page, second));
+    }
+
     [Fact]
     public void FindsTheLineInAPageWhoseLastLineHasNoTerminator()
     {

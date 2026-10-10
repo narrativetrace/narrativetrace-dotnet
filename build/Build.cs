@@ -97,6 +97,9 @@ class Build : NukeBuild
     AbsolutePath FuzzSeeds => RootDirectory / "fuzz" / "NarrativeTrace.Fuzz" / "seeds";
     AbsolutePath VerifyAllLogDirectory => ArtifactsDirectory / "verifyAll-logs";
     AbsolutePath VerificationReportsDirectory => RootDirectory / "reports" / "verification";
+    AbsolutePath VendorValidationDirectory => ArtifactsDirectory / "vendor-validation";
+    AbsolutePath VendorValidationStatusDirectory => VendorValidationDirectory / "status";
+    AbsolutePath VendorValidationStageDirectory => VendorValidationDirectory / "stage";
 
     [Parameter("VerifyAll: 1-minute host load average above which benchmarks/allocation are " +
         "skipped rather than measured — this shared host has a documented pattern of phantom " +
@@ -1205,6 +1208,56 @@ class Build : NukeBuild
                 + "the rest test suites.");
         });
 
+    // ── Vendor validation (D6) ───────────────────────────────────────────────────
+    //
+    // VendorValidate — the seam where a VENDOR's own validator checks an artifact this
+    // repository publishes for that vendor to read (today: the plugin marketplace file the
+    // agent CLI reads). HEAVY TIER, beside Mutation: never part of Verify/per-commit, since a
+    // per-commit gate may not depend on a third-party CLI being installed — the per-commit gate
+    // for the same file is the JSON-shape/drift tests in NarrativeTrace.Skills.Catalogue. A
+    // REGISTRY (VendorValidationSupport.Checks), not one invocation, so npx-skills dry runs,
+    // codex plugin and gemini skills validations join later as rows, not as new machinery. Each
+    // row's artifact is staged from HEAD with git archive, never the working tree, so what a
+    // vendor validates is what a publish would ship.
+    Target VendorValidate => _ => _
+        .Executes(() =>
+        {
+            var reportsDir = VendorValidationStatusDirectory;
+            var results = new List<VendorCheckResult>();
+            foreach (var check in VendorValidationSupport.Checks)
+            {
+                var stage = VendorValidationStageDirectory / check.Tool;
+                if (Directory.Exists(stage))
+                    Directory.Delete(stage, true);
+                VendorValidationSupport.StageFromHead(RootDirectory, check.StagedPaths, stage);
+
+                var result = VendorValidationSupport.Validate(check, stage);
+                VendorValidationSupport.Record(reportsDir, result);
+                Console.WriteLine(
+                    $"VendorValidate: {check.Tool} {result.Outcome.ToString().ToLowerInvariant()} — {result.Message}");
+                if (result.Outcome != VendorOutcome.Passed && !string.IsNullOrWhiteSpace(result.Output))
+                    Console.WriteLine(result.Output.Trim());
+                results.Add(result);
+            }
+
+            switch (VendorValidationSupport.Aggregate(results))
+            {
+                case VendorOutcome.Failed:
+                    throw new Exception(
+                        "VendorValidate: a vendor rejected an artifact this repository publishes — see the output above");
+                case VendorOutcome.Skipped:
+                    Console.WriteLine(
+                        $"VendorValidate: every row SKIPPED — nothing was validated. A skip is not a pass; "
+                        + $"statuses recorded under {reportsDir}");
+                    break;
+                default:
+                    Console.WriteLine(
+                        $"VendorValidate: {results.Count(r => r.Outcome == VendorOutcome.Passed)} of "
+                        + $"{results.Count} row(s) validated by their own vendor; statuses under {reportsDir}");
+                    break;
+            }
+        });
+
     // ── Duplication (jscpd) ──────────────────────────────────────────────────────
     //
     // Mirrors the Java runtime's PMD-CPD duplicationReport/duplicationCheck pair (see
@@ -1631,6 +1684,48 @@ class Build : NukeBuild
                 .SetOutputDirectory(ArtifactsDirectory)
                 .EnableNoBuild());
         });
+
+    /// <summary>
+    /// Packs every packable project from HEAD into <c>artifacts/skills-evals-feed</c> — the local
+    /// feed a Tier B fixture's <c>nuget.config</c> names as <c>%NARRATIVETRACE_TEST_FEED%</c>, so a
+    /// trial measures the verbs this checkout ships rather than whatever was last published (the
+    /// feedback verb is newer than any release). The eval runner passes the feed only together with a
+    /// package cache and a CLI home the trial owns: the packages carry the published version, and
+    /// must never reach the operator's own global cache. Run by hand before such a trial; never in
+    /// <c>Verify</c>, and wiped by its <c>Clean</c> like everything else under <c>artifacts/</c>.
+    /// </summary>
+    Target SkillsEvalFeed => _ => _
+        .Executes(() =>
+        {
+            var feed = RootDirectory / "artifacts" / "skills-evals-feed";
+            if (Directory.Exists(feed))
+                Directory.Delete(feed, recursive: true);
+            DotNetPack(s => s
+                .SetProject(Solution)
+                .SetConfiguration(Configuration)
+                .SetOutputDirectory(feed));
+            // The Phase 7 fixtures' third-party dependencies, kept encoded (FixturePackageSupport) and
+            // unpacked into a temp directory outside the repository only while they are packed.
+            foreach (var bundle in (RootDirectory / "skills-evals" / "fixture-packages").GlobFiles("*.bundle"))
+                PackFixtureBundle(bundle, feed);
+        });
+
+    void PackFixtureBundle(AbsolutePath bundle, AbsolutePath feed)
+    {
+        var scratch = Directory.CreateTempSubdirectory("nt-fixture-package-").FullName;
+        try
+        {
+            FixturePackageSupport.Unpack(File.ReadAllText(bundle), scratch);
+            DotNetPack(s => s
+                .SetProject(Directory.GetFiles(scratch, "*.csproj").Single())
+                .SetConfiguration(Configuration)
+                .SetOutputDirectory(feed));
+        }
+        finally
+        {
+            Directory.Delete(scratch, recursive: true);
+        }
+    }
 
     // ── Post-publish verification ────────────────────────────────────────────
 
@@ -2247,6 +2342,7 @@ class Build : NukeBuild
             RunSafely("fuzz-tier-b", () => VerifyAllFuzzTierBRow(AddRow));
             RunSafely("benchmarks/allocation", () => VerifyAllBenchmarkRows(AddRow));
             RunSafely("stress-long", () => VerifyAllStressLongRow(AddRow));
+            RunSafely("vendor-validation", () => VerifyAllVendorValidationRow(AddRow));
 
             foreach (var category in VerificationSchema.Categories)
             {
@@ -2785,6 +2881,33 @@ class Build : NukeBuild
                 + "--stress-sweep-iterations controls the count — unset here means the real default, "
                 + "not a time-box override",
                 outcome, status)));
+    }
+
+    /// <summary>
+    /// A vendor's own validator against an artifact this repository publishes for it to read.
+    /// Its status comes from the RECORDED row statuses, never from the nested <c>VendorValidate</c>
+    /// subprocess's own exit code alone: a row that skipped because the vendor CLI is absent
+    /// also exits zero, and "nothing was validated" must not read as "validated".
+    /// </summary>
+    void VerifyAllVendorValidationRow(Action<CategoryResult> addRow)
+    {
+        var outcome = RunLogged("vendor-validation", "VendorValidate");
+        var statuses = VendorValidationSupport.Checks.ToDictionary(
+            check => check.Tool,
+            check => VendorValidationSupport.RecordedStatus(VendorValidationStatusDirectory, check.Tool));
+
+        var status = outcome.ExitCode != 0
+            ? "failed"
+            : statuses.Values.Any(s => s.StartsWith("passed", StringComparison.Ordinal))
+                ? "passed"
+                : "skipped";
+
+        var note = string.Join("; ", statuses.Select(kv => $"{kv.Key}: {kv.Value}"));
+        addRow(new CategoryResult(
+            "vendor-validation",
+            string.Join(" + ", VendorValidationSupport.Checks.Select(c => $"{c.Tool} {string.Join(" ", c.Validate)}")),
+            status, new Dictionary<string, object> { ["rows"] = VendorValidationSupport.Checks.Count },
+            outcome.Seconds, VerifyAllExec.WithLogHint(note, outcome, status)));
     }
 
     /// <remarks>

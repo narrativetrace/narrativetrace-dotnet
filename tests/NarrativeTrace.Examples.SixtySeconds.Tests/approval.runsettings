@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Approval mode for every test run of this project: a passing test whose traced structure
+     differs from its committed narratives/<TestClass>/<scenario>.approved.nt fails with the diff. -->
+<RunSettings>
+  <RunConfiguration>
+    <EnvironmentVariables>
+      <NARRATIVETRACE_APPROVAL>true</NARRATIVETRACE_APPROVAL>
+    </EnvironmentVariables>
+  </RunConfiguration>
+</RunSettings>

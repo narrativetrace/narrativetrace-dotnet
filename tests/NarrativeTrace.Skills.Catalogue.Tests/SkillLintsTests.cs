@@ -47,6 +47,20 @@ public sealed class SkillLintsTests
     }
 
     [Fact]
+    public void The_real_vocabulary_has_no_allowed_tools_violations()
+    {
+        Assert.Empty(SkillLints.AllowedToolsViolations(CommandVocabulary.AllowedTools));
+    }
+
+    [Fact]
+    public void Flags_a_vocabulary_entry_already_written_as_a_rendered_platform_pattern()
+    {
+        var violations = SkillLints.AllowedToolsViolations(["git", "Bash(git *)"]);
+
+        Assert.Equal(["Bash(git *)"], violations);
+    }
+
+    [Fact]
     public void Flags_a_command_outside_the_dotnet_git_vocabulary()
     {
         var offending = CleanSkill with
@@ -131,4 +145,132 @@ public sealed class SkillLintsTests
         Assert.Equal(["narrativetrace-example"], violations);
     }
 
+
+    [Fact]
+    public void A_step_condition_is_prose_the_citation_lint_reads()
+    {
+        var offending = CleanSkill with
+        {
+            Steps = [CleanSkill.Steps[0] with { Condition = "see §4 for the rule" }],
+        };
+
+        var violations = SkillLints.CitationViolations([offending], new HashSet<string>());
+
+        Assert.Contains(violations, v => v.Contains("section-mark", StringComparison.Ordinal) && v.Contains("condition", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void A_reference_section_is_prose_the_citation_lint_reads()
+    {
+        var offending = CleanSkill with { Sections = [new SkillSection("Shapes", "see §4 for the rule")] };
+
+        var violations = SkillLints.CitationViolations([offending], new HashSet<string>());
+
+        Assert.Contains(violations, v => v.Contains("section-mark", StringComparison.Ordinal) && v.Contains("section 'Shapes'", StringComparison.Ordinal));
+    }
+
+    private static Skill ReportingSkill(IReadOnlyList<string>? allowedTools) => CleanSkill with
+    {
+        Steps =
+        [
+            new SkillStep(
+                "Report it",
+                new CommandStep(["dotnet tool run dotnet-narrativetrace feedback url --category library"])),
+        ],
+        AllowedTools = allowedTools,
+    };
+
+    [Fact]
+    public void Flags_a_skill_that_pre_approves_its_own_reporting_command()
+    {
+        var violations = SkillLints.PublishingNotPreApprovedViolations([ReportingSkill(["dotnet"])]);
+
+        var violation = Assert.Single(violations);
+        Assert.Contains("pre-approves its own publishing command", violation, StringComparison.Ordinal);
+        Assert.Contains("let the harness ask", violation, StringComparison.Ordinal);
+        Assert.StartsWith("narrativetrace-example:", violation, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_skill_that_inherits_the_vocabulary_pre_approves_its_reporting_command()
+    {
+        // Omitting the declaration means "the whole vocabulary", which includes dotnet — the
+        // dangerous default is exactly what the lint exists to catch.
+        Assert.Single(SkillLints.PublishingNotPreApprovedViolations([ReportingSkill(null)]));
+    }
+
+    [Fact]
+    public void Accepts_the_same_skill_declaring_no_pre_approved_tool()
+    {
+        Assert.Empty(SkillLints.PublishingNotPreApprovedViolations([ReportingSkill([])]));
+    }
+
+    [Fact]
+    public void Ignores_a_skill_whose_commands_publish_nothing()
+    {
+        Assert.Empty(SkillLints.PublishingNotPreApprovedViolations([CleanSkill]));
+    }
+
+    [Fact]
+    public void The_publishing_match_is_a_word_so_a_near_miss_is_not_a_report()
+    {
+        var nearMiss = CleanSkill with
+        {
+            Steps = [new SkillStep("Run it", new CommandStep(["dotnet run --project feedbackless"]))],
+        };
+
+        Assert.Empty(SkillLints.PublishingNotPreApprovedViolations([nearMiss]));
+    }
+
+    [Fact]
+    public void The_real_catalogue_pre_approves_no_publishing_command()
+    {
+        Assert.Empty(SkillLints.PublishingNotPreApprovedViolations(SkillCatalogue.Skills));
+    }
+
+    private static Skill PromotingSkill(IReadOnlyList<string>? allowedTools, string command = "dotnet tool run dotnet-narrativetrace approve") =>
+        CleanSkill with
+        {
+            Steps = [new SkillStep("Promote what was shown", new CommandStep([command]))],
+            AllowedTools = allowedTools,
+        };
+
+    [Theory]
+    [InlineData("dotnet")]
+    [InlineData("git")]
+    public void Flags_a_promoting_skill_that_pre_approves_any_tool(string tool)
+    {
+        var violation = Assert.Single(SkillLints.PromotionNotPreApprovedViolations([PromotingSkill([tool])]));
+
+        Assert.StartsWith("narrativetrace-example:", violation, StringComparison.Ordinal);
+        Assert.Contains("promotes an approval baseline", violation, StringComparison.Ordinal);
+        Assert.Contains($"\"{tool}\"", violation, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_promoting_skill_that_inherits_the_vocabulary_is_flagged_once_per_tool()
+    {
+        Assert.Equal(2, SkillLints.PromotionNotPreApprovedViolations([PromotingSkill(null)]).Count);
+    }
+
+    [Fact]
+    public void Accepts_a_promoting_skill_that_pre_approves_nothing()
+    {
+        Assert.Empty(SkillLints.PromotionNotPreApprovedViolations([PromotingSkill([])]));
+    }
+
+    [Theory]
+    [InlineData("dotnet tool run dotnet-narrativetrace approved")]
+    [InlineData("dotnet tool run dotnet-narrativetrace doctor --json")]
+    [InlineData("dotnet test --filter Approve")]
+    public void A_command_that_does_not_run_the_approve_verb_is_not_a_promotion(string command)
+    {
+        Assert.Empty(SkillLints.PromotionNotPreApprovedViolations([PromotingSkill(["dotnet"], command)]));
+    }
+
+    [Fact]
+    public void The_real_catalogue_pre_approves_no_promotion()
+    {
+        Assert.Empty(SkillLints.PromotionNotPreApprovedViolations(SkillCatalogue.Skills));
+    }
 }

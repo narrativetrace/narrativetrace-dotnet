@@ -59,6 +59,25 @@ public sealed class DoctorRendererTests
         Assert.DoesNotContain("skill:", text, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// A framework fix ends in the wiring snippet's lines; each renders indented under the fix label,
+    /// so the next finding's <c>[PASS]</c>/<c>[FAIL]</c> line is never mistaken for one of them.
+    /// </summary>
+    [Fact]
+    public void Human_output_indents_every_line_of_a_multi_line_fix_under_its_label()
+    {
+        var report = new DoctorReport(
+            [DoctorFinding.Fail("config.di-namespaces", "not wired", "Apply the wiring:\nline one\n\nline two\n", "https://e/d")],
+            ExitCode: 1);
+
+        var text = DoctorRenderer.RenderHuman(report);
+
+        Assert.Contains(
+            "       fix: Apply the wiring:\n            line one\n\n            line two\n       skill:",
+            text.Replace("\r\n", "\n", StringComparison.Ordinal),
+            StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Json_output_round_trips_every_field()
     {

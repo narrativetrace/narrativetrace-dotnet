@@ -140,4 +140,21 @@ public sealed class ChildSegment
         return new ChildSegment(
             null, new[] { node }, null);
     }
+
+    /// <summary>
+    /// Whether any of <paramref name="nodes"/> belongs to a concurrent group — when none does, every
+    /// segment is one sequential call and a renderer can walk the list as it is, allocating no segments.
+    /// </summary>
+    internal static bool AnyConcurrent(IReadOnlyList<TraceNode> nodes)
+    {
+        for (var i = 0; i < nodes.Count; i++)
+        {
+            if (nodes[i].Concurrency is not null)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

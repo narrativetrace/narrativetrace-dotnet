@@ -12,6 +12,19 @@ public static class AddNarrativeTracingSkill
 {
     private const string Fixture = "examples/NarrativeTrace.Examples.SixtySeconds";
 
+    /// <summary>
+    /// The first-trace step's condition (Phase 6, D2). Names no framework: whether the project already
+    /// starts itself is read from its own entry point and the doctor's report, never from a list on this
+    /// page. The snippet below is a whole console program; dropped into a project that already has an
+    /// entry point it would replace the project's own deliverable with a demo.
+    /// </summary>
+    internal const string EntryPointRunsItself =
+        "if the project already has an application entry point — a Main method or top-level program it " +
+        "already runs, a web or application framework the doctor reports — do not add a demo program: run " +
+        "the application the way it already runs, exercise one real boundary, and read that request's " +
+        "trace; the verify below is for the console app, and in an existing application the step is done " +
+        "when that request's trace is in the output; otherwise create the smallest console app as follows";
+
     /// <summary>The full skill definition.</summary>
     public static readonly Skill Definition = new(
         CanonicalName: "add-narrative-tracing",
@@ -46,6 +59,19 @@ public static class AddNarrativeTracingSkill
                             "file, commit it, then use --locked-mode from then on"),
                 ]),
             new SkillStep(
+                Title: "Wire the frameworks this project already uses",
+                Body: new CommandStep(["dotnet tool run dotnet-narrativetrace doctor --json"]),
+                Verify: SkillCommands.FrameworkFixesApplied,
+                Failure:
+                [
+                    new FailureNote(
+                        Symptom: "the same framework finding fails again after its fix was applied",
+                        Cause: "the snippet was pasted as printed instead of adapted to this project — " +
+                            "its service and namespace names are the fixture's, not this project's",
+                        Fix: "keep the printed calls, swap in this project's own services and namespaces, " +
+                            "rerun the doctor; if it still fails, report it with the narrativetrace-feedback skill"),
+                ]),
+            new SkillStep(
                 Title: "First trace: wrap the service, call it, render the tree, run it",
                 Body: new SnippetStep(
                     Path: $"{Fixture}/Program.cs", Language: "csharp"),
@@ -59,7 +85,8 @@ public static class AddNarrativeTracingSkill
                             "returned by NarrativeTraceProxy.Create<T>",
                         Fix: "call the proxy instance everywhere the service is used, never the " +
                             "wrapped target"),
-                ]),
+                ],
+                Condition: EntryPointRunsItself),
             new SkillStep(
                 Title: "Send it to your logger — one call, same captured tree",
                 Body: new SnippetStep(
@@ -80,7 +107,7 @@ public static class AddNarrativeTracingSkill
             new SkillStep(
                 Title: "Install the skills for next time",
                 Body: new CommandStep(["dotnet tool run dotnet-narrativetrace init --dry-run"]),
-                Verify: SkillCommands.InitPreviewWroteNothing,
+                Verify: SkillCommands.InitPreviewThenNextSessionVerifies,
                 Failure:
                 [
                     new FailureNote(

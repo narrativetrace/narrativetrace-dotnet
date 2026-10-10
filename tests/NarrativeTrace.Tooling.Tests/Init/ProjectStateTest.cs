@@ -92,6 +92,46 @@ public class ProjectStateTest
             StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// A snapshot that lists a skill under a flavour whose install root is a link contradicts itself:
+    /// whatever was found there was found THROUGH the link, so it describes somebody else's tree.
+    /// </summary>
+    [Fact]
+    public void RefusesToListASkillUnderALinkedInstallRoot()
+    {
+        var builder = ProjectState.NewBuilder()
+            .LinkedInstallRoot(SkillFlavour.Agents, "/elsewhere")
+            .AddInstalledSkill(Ours("doctor"));
+
+        Assert.Throws<ArgumentException>(builder.Build);
+    }
+
+    [Fact]
+    public void RefusesAnInstalledSkillWhoseLinkContradictsItsPresence()
+    {
+        Assert.Contains("linked presence",
+            Assert.Throws<ArgumentException>(
+                () => new InstalledSkill(SkillFlavour.Agents, "d", SkillPresence.Foreign, "", "body", "../elsewhere")).Message,
+            StringComparison.Ordinal);
+        Assert.Contains("linked presence",
+            Assert.Throws<ArgumentException>(
+                () => new InstalledSkill(SkillFlavour.Agents, "d", SkillPresence.LinkedDirectory, "", "body", " ")).Message,
+            StringComparison.Ordinal);
+        Assert.Contains("never null",
+            Assert.Throws<ArgumentException>(
+                () => new InstalledSkill(SkillFlavour.Agents, "d", SkillPresence.Foreign, "", "b", null!)).Message,
+            StringComparison.Ordinal);
+    }
+
+    /// <summary>Asking where a link sits when nothing is a link is a caller's mistake, not a project's.</summary>
+    [Fact]
+    public void RefusesToNameALinkThatIsNotThere()
+    {
+        Assert.Contains(".agents/skills/doctor",
+            Assert.Throws<InvalidOperationException>(() => Ours("doctor").LinkedAt()).Message,
+            StringComparison.Ordinal);
+    }
+
     private static InstalledSkill Ours(string name) =>
         new(SkillFlavour.Agents, name, SkillPresence.Ours, "NarrativeTrace.Skills/1.0.0", "body");
 }

@@ -25,7 +25,7 @@ internal static class FireAndForgetSection
         return body;
     }
 
-    private static bool IsLauncherStub(TraceNode node)
+    internal static bool IsLauncherStub(TraceNode node)
     {
         return node.Signature.MethodName == "fire-and-forget"
             && node.Children.Count == 0;

@@ -29,7 +29,8 @@ public static class ProseRenderer
         // stack or loop forever on a hand-built or replayed cycle. Cheap on
         // ordinary input: TreeWalk.Bound returns Roots unchanged once it
         // confirms there is nothing to bound.
-        RenderNodes(sb, TreeWalk.Bound(tree.Roots), 0);
+        // Roots are a sibling list like any other (see RenderChildren).
+        RenderChildren(sb, TreeWalk.Bound(tree.Roots), 0, null);
         return sb.ToString();
     }
 
@@ -55,31 +56,40 @@ public static class ProseRenderer
         sb.Append("The trace ").Append(tree.TraceId.HumanName).Append(":\n\n");
     }
 
-    private static void RenderNodes(
-        StringBuilder sb,
-        IReadOnlyList<TraceNode> nodes,
-        int depth)
-    {
-        for (var i = 0; i < nodes.Count; i++)
-        {
-            RenderNode(sb, nodes[i], depth);
-        }
-    }
-
     private static void RenderNode(
-        StringBuilder sb, TraceNode node, int depth)
+        StringBuilder sb, CitedNode cited, int depth)
     {
+        var (node, id) = cited;
         var indent = new string(' ', depth * 2);
         sb.Append(indent);
-        AppendSentence(sb, node);
+        AppendSentence(sb, node, id);
         sb.AppendLine();
-        RenderChildren(sb, node.Children, depth + 1);
+        RenderChildren(sb, node.Children, depth + 1, id);
     }
 
     private static void RenderChildren(
         StringBuilder sb,
         IReadOnlyList<TraceNode> children,
-        int depth)
+        int depth, SpanRef? parent)
+    {
+        if (children.Count == 0)
+        {
+            return;
+        }
+
+        var ids = new SpanCursor(parent?.ToString());
+        if (ChildSegment.AnyConcurrent(children))
+        {
+            RenderSegments(sb, children, depth, ids);
+        }
+        else
+        {
+            RenderInOrder(sb, children, depth, ids);
+        }
+    }
+
+    private static void RenderSegments(
+        StringBuilder sb, IReadOnlyList<TraceNode> children, int depth, SpanCursor ids)
     {
         var segments = ChildSegment.Partition(children);
         for (var i = 0; i < segments.Count; i++)
@@ -87,37 +97,41 @@ public static class ProseRenderer
             if (segments[i].IsConcurrent)
             {
                 RenderConcurrent(
-                    sb, segments[i], depth);
+                    sb, segments[i], depth, ids);
             }
             else
             {
-                RenderNodes(
-                    sb, segments[i].Nodes, depth);
+                RenderNode(
+                    sb, new CitedNode(segments[i].Nodes[0], ids.NextRef()), depth);
             }
         }
     }
 
     private static void RenderConcurrent(
         StringBuilder sb, ChildSegment segment,
-        int depth)
+        int depth, SpanCursor ids)
     {
         if (segment.Kind == ConcurrencyKind.FireAndForget)
         {
-            RenderFireAndForget(sb, segment, depth);
+            RenderFireAndForget(sb, segment, depth, ids.Next());
             return;
         }
 
         var indent = new string(' ', depth * 2);
         sb.Append(indent);
         sb.AppendLine(ConcurrentLabel(segment.Nodes));
-        RenderNodes(sb, segment.Nodes, depth + 1);
+        RenderInOrder(sb, SpanPath.InConcurrentOrder(segment.Nodes), depth + 1, ids);
     }
 
+    /// <summary>
+    /// The launch takes one span id, named in its sentence; the launched work
+    /// is numbered under it in capture order.
+    /// </summary>
     private static void RenderFireAndForget(
-        StringBuilder sb, ChildSegment segment, int depth)
+        StringBuilder sb, ChildSegment segment, int depth, string launchId)
     {
         var indent = new string(' ', depth * 2);
-        sb.Append(indent).AppendLine("In the background:");
+        sb.Append(indent).Append("In the background (").Append(launchId).AppendLine("):");
         var body = FireAndForgetSection.Body(segment.Nodes);
         if (body.Count == 0)
         {
@@ -127,7 +141,17 @@ public static class ProseRenderer
         }
         else
         {
-            RenderNodes(sb, body, depth + 1);
+            RenderInOrder(sb, body, depth + 1, new SpanCursor(launchId));
+        }
+    }
+
+    /// <summary>Renders <paramref name="nodes"/> in the order given, each taking the next id.</summary>
+    private static void RenderInOrder(
+        StringBuilder sb, IReadOnlyList<TraceNode> nodes, int depth, SpanCursor ids)
+    {
+        for (var i = 0; i < nodes.Count; i++)
+        {
+            RenderNode(sb, new CitedNode(nodes[i], ids.NextRef()), depth);
         }
     }
 
@@ -149,8 +173,13 @@ public static class ProseRenderer
             : "Concurrently (awaited sequentially):";
     }
 
+    /// <summary>
+    /// One call as a sentence, naming its span by id in parentheses right
+    /// after the call and its arguments: <c>The order service place order
+    /// with id: `1` (#1) and returns …</c>.
+    /// </summary>
     private static void AppendSentence(
-        StringBuilder sb, TraceNode node)
+        StringBuilder sb, TraceNode node, SpanRef id)
     {
         var className = HumanizeClassName(
             node.Signature.ClassName);
@@ -162,6 +191,7 @@ public static class ProseRenderer
         sb.Append(' ');
         sb.Append(ControlEscape.Sanitize(methodName));
         AppendParameters(sb, node.Signature.Parameters);
+        id.AppendTo(sb.Append(" (")).Append(')');
         AppendOutcome(sb, node);
         AppendNarration(sb, node);
     }

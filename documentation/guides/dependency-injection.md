@@ -12,7 +12,7 @@ services in place.
 ## Package
 
 ```xml
-<PackageReference Include="NarrativeTrace.DependencyInjection" Version="0.2.0" />
+<PackageReference Include="NarrativeTrace.DependencyInjection" Version="0.3.0" />
 ```
 
 ## 1. Register and auto-wrap

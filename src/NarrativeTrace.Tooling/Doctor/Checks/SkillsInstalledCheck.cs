@@ -34,10 +34,28 @@ public static class SkillsInstalledCheck
 {
     private const string Id = "config.skills-installed";
 
+    // Quoted verbatim by documentation/agent-skills.md's "From a registry" section (rule 8, docs
+    // as tests) — the marker pair around these three fields is that embed's source, never typed
+    // into the page.
+    // snippet:begin registryMessages
     private const string InitCommand = "dotnet tool run dotnet-narrativetrace init --dry-run";
 
     /// <summary>What a skill directory that is present but not ours is called in a message.</summary>
     private const string NotOurs = " (there, but not ours)";
+
+    /// <summary>
+    /// What a page with no provenance line most often IS: a registry install (D5 state 3) — <c>npx
+    /// skills add</c>, or a plugin or workspace install — of this repository's own rendered pages.
+    /// Naming the case matters because the obvious reading of "not ours" is "somebody else's work",
+    /// which invites a <c>--force</c> nobody needs: <c>init</c> ADOPTS a page identical to this
+    /// release's.
+    /// </summary>
+    private const string FromARegistry =
+        " Pages that are there without our line usually came from a registry (npx skills add, a" +
+        " plugin or workspace install). Run " + InitCommand +
+        ", read the diff, then run it without the flag — a page identical to this release's is" +
+        " adopted, and no --force is needed.";
+    // snippet:end registryMessages
 
     /// <summary>Runs the check.</summary>
     public static DoctorFinding Run(DoctorSnapshot snapshot)
@@ -90,10 +108,11 @@ public static class SkillsInstalledCheck
     {
         var foreign = Present(snapshot);
         var suffix = foreign.Count == 0 ? "" : $" — {string.Join(", ", foreign)} is there, not ours";
+        var fix = $"Run {InitCommand}, read the diff, then run it without the flag.";
         return DoctorFinding.Fail(
             Id,
             $"The NarrativeTrace agent skills are not installed under {SkillFlavour.Agents.InstallRoot()}/{suffix}",
-            $"Run {InitCommand}, read the diff, then run it without the flag.",
+            foreign.Count == 0 ? fix : fix + FromARegistry,
             DoctorDocUrls.ValidateInstallation);
     }
 
@@ -112,8 +131,8 @@ public static class SkillsInstalledCheck
         return DoctorFinding.Fail(
             Id,
             $"The agent skills are installed, but this carrier's {string.Join(", ", missing)} is missing",
-            $"Run {InitCommand} to add the missing page(s); --force lets it replace a directory " +
-            "somebody else owns.",
+            $"Run {InitCommand} to add the missing page(s). A page identical to this release's is " +
+            "adopted as it stands; --force is only for a directory somebody else really owns.",
             DoctorDocUrls.ValidateInstallation);
     }
 

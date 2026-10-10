@@ -24,16 +24,22 @@ namespace Build.Tests;
 [Trait("Category", "SpawnsBuild")]
 public sealed class SkillsCarrierPackagingTests : IClassFixture<SkillsCarrierPackagingFixture>
 {
-    private static readonly string[] CarrierEntries =
-    [
-        "skills/agents/narrativetrace-doctor/SKILL.md",
-        "skills/agents/add-narrative-tracing/SKILL.md",
-        "skills/claude/narrativetrace-doctor/SKILL.md",
-        "skills/claude/add-narrative-tracing/SKILL.md",
-        "skills/catalogue.json",
-    ];
+    /// <summary>
+    /// The rendered skill pages this checkout ships, read from the two layouts at the repository
+    /// root — DERIVED, never listed: a hard-coded list of two skills went stale the day a third
+    /// shipped, and stayed green only because nobody ran this suite (Java's cross-port item 9).
+    /// </summary>
+    private static string[] ExpectedSkillNames() =>
+        [.. Directory.EnumerateDirectories(Path.Combine(RepositoryPath.Root(), ".agents", "skills"))
+            .Where(dir => File.Exists(Path.Combine(dir, "SKILL.md")))
+            .Select(Path.GetFileName)
+            .OfType<string>()];
 
-    private static readonly string[] ExpectedSkillNames = ["narrativetrace-doctor", "add-narrative-tracing"];
+    private static string[] CarrierEntries() =>
+        [
+            .. ExpectedSkillNames().SelectMany(name => new[] { $"skills/agents/{name}/SKILL.md", $"skills/claude/{name}/SKILL.md" }),
+            "skills/catalogue.json",
+        ];
 
     private readonly SkillsCarrierPackagingFixture _fixture;
 
@@ -48,7 +54,7 @@ public sealed class SkillsCarrierPackagingTests : IClassFixture<SkillsCarrierPac
         var carrierEntries = _fixture.SkillsEntries.Where(e => e.StartsWith("skills/", StringComparison.Ordinal));
 
         Assert.Equal(
-            CarrierEntries.OrderBy(e => e, StringComparer.Ordinal),
+            CarrierEntries().OrderBy(e => e, StringComparer.Ordinal),
             carrierEntries.OrderBy(e => e, StringComparer.Ordinal));
     }
 
@@ -73,7 +79,7 @@ public sealed class SkillsCarrierPackagingTests : IClassFixture<SkillsCarrierPac
         var names = Regex.Matches(catalogue, "\"name\": \"([^\"]+)\"").Select(m => m.Groups[1].Value);
 
         Assert.Equal(
-            ExpectedSkillNames.OrderBy(n => n, StringComparer.Ordinal),
+            ExpectedSkillNames().OrderBy(n => n, StringComparer.Ordinal),
             names.OrderBy(n => n, StringComparer.Ordinal));
         foreach (Match match in Regex.Matches(catalogue, "\"(?:agents|claude)\": \"([^\"]+)\""))
         {
@@ -100,7 +106,7 @@ public sealed class SkillsCarrierPackagingTests : IClassFixture<SkillsCarrierPac
     [Fact]
     public void The_cli_and_skills_packages_carry_the_same_carrier_pages_byte_for_byte()
     {
-        foreach (var entry in CarrierEntries)
+        foreach (var entry in CarrierEntries())
         {
             var fromSkills = _fixture.ReadSkillsEntry(entry);
             var embedded = _fixture.CliEmbeddedCarrierPage(entry);

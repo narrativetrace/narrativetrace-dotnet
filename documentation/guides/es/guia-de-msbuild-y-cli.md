@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/msbuild-cli.md blob 68922a18369f | translated: 2026-09-26 | reviewed: 2026-09-03 -->
+<!-- source: documentation/guides/msbuild-cli.md blob 228d982ae965 | translated: 2026-09-26 | reviewed: 2026-09-03 -->
 # NarrativeTrace .NET — Guía de MSBuild y CLI
 
 [English](../msbuild-cli.md) | **Español** | [Português](../pt-BR/guia-de-msbuild-e-cli.md) | [简体中文](../zh-CN/MSBuild与CLI指南.md)
@@ -165,7 +165,7 @@ Añade el paquete solo de build. `PrivateAssets="all"` lo mantiene fuera de
 las dependencias transitivas de tu paquete:
 
 ```xml
-<PackageReference Include="NarrativeTrace.MSBuild" Version="0.2.0"
+<PackageReference Include="NarrativeTrace.MSBuild" Version="0.3.0"
                   PrivateAssets="all" />
 ```
 

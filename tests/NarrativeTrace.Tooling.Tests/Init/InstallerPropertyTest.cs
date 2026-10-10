@@ -112,12 +112,12 @@ public class InstallerPropertyTest
         {
             Write(Path.Combine(project, "AGENTS.md"), agentsMd.Text);
             Write(Path.Combine(project, "CLAUDE.md"), claudeMd.Text);
-            var before = SnapshotOf(project);
+            var before = Projects.SnapshotOf(project);
 
             Apply(project, InitPlanner.Plan(Read(project), Carriers.Shared(), Permissive));
             Apply(project, UninstallPlanner.Plan(Read(project), Permissive));
 
-            var after = SnapshotOf(project);
+            var after = Projects.SnapshotOf(project);
             Assert.Equal(before.Keys.OrderBy(k => k, StringComparer.Ordinal),
                 after.Keys.OrderBy(k => k, StringComparer.Ordinal));
             foreach (var (path, content) in after)
@@ -165,19 +165,8 @@ public class InstallerPropertyTest
 
     // --- the project under test --------------------------------------------------------------------
 
-    private static void InATemporaryProject(System.Action<string> body)
-    {
-        var project = Path.Combine(Path.GetTempPath(), "nt-install-prop-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(project);
-        try
-        {
-            body(project);
-        }
-        finally
-        {
-            Directory.Delete(project, recursive: true);
-        }
-    }
+    private static void InATemporaryProject(System.Action<string> body) =>
+        Projects.InATemporaryOne("nt-install-prop-", body);
 
     private static ProjectState Read(string project) => ProjectStateReader.Read(project);
 
@@ -186,19 +175,6 @@ public class InstallerPropertyTest
     private static List<FileEdit> Edits(InitPlan plan) => plan.Actions.OfType<FileEdit>().ToList();
 
     private static List<string> Paths(InitPlan plan) => plan.Actions.Select(action => action.Path).ToList();
-
-    /// <summary>Every file under the project, by relative path, with its exact bytes.</summary>
-    private static Dictionary<string, string> SnapshotOf(string project)
-    {
-        var files = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var file in Directory.EnumerateFiles(project, "*", SearchOption.AllDirectories))
-        {
-            var relative = Path.GetRelativePath(project, file).Replace(Path.DirectorySeparatorChar, '/');
-            files[relative] = ReadText(file);
-        }
-
-        return files;
-    }
 
     /// <summary>
     /// The one documented exception to the round trip: a file the installer APPENDED to is left ending

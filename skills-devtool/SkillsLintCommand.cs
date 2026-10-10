@@ -41,6 +41,8 @@ public static class SkillsLintCommand
         return SkillLints.DescriptionBudgetViolations(skills)
             .Select(id => $"{id}: description exceeds the {SkillLints.DescriptionBudget}-char budget")
             .Concat(SkillLints.VocabularyViolations(skills).Select(v => $"vocabulary violation: {v}"))
+            .Concat(SkillLints.PublishingNotPreApprovedViolations(skills).Select(v => $"pre-approved publishing: {v}"))
+            .Concat(SkillLints.PromotionNotPreApprovedViolations(skills).Select(v => $"pre-approved promotion: {v}"))
             .Concat(SkillLints.CitationViolations(skills, markdownBasenames).Select(v => $"citation: {v}"))
             .Concat(FeatureGuideProblems(repoRoot));
     }
@@ -62,7 +64,21 @@ public static class SkillsLintCommand
         return SkillCatalogue.Skills.SelectMany(skill => SkillDriftProblems(repoRoot, skill))
             .Concat(AgentsMdDriftProblems(repoRoot))
             .Concat(CarrierDriftProblems(repoRoot))
-            .Concat(CarrierExhaustivenessProblems(repoRoot));
+            .Concat(CarrierExhaustivenessProblems(repoRoot))
+            .Concat(MarketplaceJsonDriftProblems(repoRoot));
+    }
+
+    private static IEnumerable<string> MarketplaceJsonDriftProblems(string repoRoot)
+    {
+        var path = Path.Combine(repoRoot, ".claude-plugin", "marketplace.json");
+        var onDisk = File.Exists(path) ? File.ReadAllText(path) : null;
+        if (onDisk == MarketplaceJsonRenderer.Render(SkillCatalogue.Marketplace))
+        {
+            yield break;
+        }
+
+        yield return ".claude-plugin/marketplace.json is stale — run " +
+            "`dotnet run --project skills-devtool -- render`";
     }
 
     private static IEnumerable<string> CarrierDriftProblems(string repoRoot)

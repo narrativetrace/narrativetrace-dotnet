@@ -93,14 +93,20 @@ public static class ProjectStateReader
     {
         var root = Path.Combine(
             projectDirectory, flavour.InstallRoot().Replace('/', Path.DirectorySeparatorChar));
-        if (!Directory.Exists(root))
+        if (LinkTarget(root) is { } linked)
+        {
+            builder.LinkedInstallRoot(flavour, linked);
+            return;
+        }
+
+        if (!IsDirectoryNotFollowingLinks(root))
         {
             return;
         }
 
         foreach (var child in Children(root, max))
         {
-            builder.AddInstalledSkill(ReadInstalledSkill(flavour, child));
+            builder.AddInstalledSkill(ReadInstalledSkill(projectDirectory, flavour, child));
         }
     }
 
@@ -109,20 +115,82 @@ public static class ProjectStateReader
             .OrderBy(Path.GetFileName, StringComparer.Ordinal)
             .Take(max);
 
-    private static InstalledSkill ReadInstalledSkill(SkillFlavour flavour, string directory)
+    /// <summary>
+    /// What sits at one skill's path, WITHOUT following a link on the way. A link is reported as one,
+    /// never resolved into "a directory of ours": writing through it would land in whatever it points
+    /// at, and after <c>npx skills add</c> that is the other flavour's page.
+    /// </summary>
+    private static InstalledSkill ReadInstalledSkill(
+        string projectDirectory, SkillFlavour flavour, string directory)
     {
         var name = Path.GetFileName(directory);
-        if (!Directory.Exists(directory))
+        if (LinkTarget(directory) is { } toDirectory)
+        {
+            return Linked(projectDirectory, flavour, directory, SkillPresence.LinkedDirectory, toDirectory);
+        }
+
+        if (!IsDirectoryNotFollowingLinks(directory))
         {
             return new InstalledSkill(flavour, name, SkillPresence.NotADirectory, "", "");
         }
 
-        var page = TextOf(Path.Combine(directory, InstalledSkill.Page)) ?? "";
+        var pageFile = Path.Combine(directory, InstalledSkill.Page);
+        return LinkTarget(pageFile) is { } toPage
+            ? Linked(projectDirectory, flavour, directory, SkillPresence.LinkedPage, toPage)
+            : PageOf(flavour, name, pageFile);
+    }
+
+    /// <summary>A real directory: ours when its page carries the provenance line, somebody else's otherwise.</summary>
+    private static InstalledSkill PageOf(SkillFlavour flavour, string name, string pageFile)
+    {
+        var page = TextOf(pageFile) ?? "";
         var coordinate = Provenance.CoordinateIn(page);
         return coordinate is not null
             ? new InstalledSkill(flavour, name, SkillPresence.Ours, coordinate, page)
             : new InstalledSkill(flavour, name, SkillPresence.Foreign, "", page);
     }
+
+    /// <summary>
+    /// A skill behind a link: what the link says, and the page it reaches — read only when the link
+    /// really resolves INSIDE this project, because nothing outside it is ours to stamp or to remove.
+    /// </summary>
+    private static InstalledSkill Linked(
+        string projectDirectory, SkillFlavour flavour, string directory, SkillPresence presence, string target)
+    {
+        var name = Path.GetFileName(directory);
+        var pagePath = Path.Combine(directory, InstalledSkill.Page);
+        var linkPath = presence == SkillPresence.LinkedPage ? pagePath : directory;
+        var body = InsideProject(projectDirectory, linkPath, target) ? TextOf(pagePath) ?? "" : "";
+        return new InstalledSkill(flavour, name, presence, "", body, target);
+    }
+
+    /// <summary>
+    /// Whether a link REALLY resolves inside the project. A link that resolves to nothing — dangling,
+    /// or out of the project — answers no, which is the same answer the installer treats as reaching
+    /// no page at all. The immediate target is resolved lexically against the link's own directory; no
+    /// symbolic link anywhere is followed to decide this, so a shared directory a person linked to on
+    /// purpose is never read, stamped or removed.
+    /// </summary>
+    private static bool InsideProject(string projectDirectory, string linkPath, string target)
+    {
+        var parent = Path.GetDirectoryName(linkPath)!;
+        var resolved = Path.GetFullPath(
+            Path.IsPathRooted(target) ? target : Path.Combine(parent, target));
+        var project = Path.GetFullPath(projectDirectory);
+        return string.Equals(resolved, project, StringComparison.Ordinal)
+            || resolved.StartsWith(project + Path.DirectorySeparatorChar, StringComparison.Ordinal);
+    }
+
+    /// <summary>What a symbolic link points at, or <see langword="null"/> when the path is not one.</summary>
+    private static string? LinkTarget(string path) => new FileInfo(path).LinkTarget;
+
+    /// <summary>
+    /// Whether the path is a directory and NOT itself a symbolic link — the platform's own directory
+    /// test follows links by default, and following one here is exactly the hazard this milestone
+    /// removes.
+    /// </summary>
+    private static bool IsDirectoryNotFollowingLinks(string path) =>
+        Directory.Exists(path) && new FileInfo(path).LinkTarget is null;
 
     /// <summary>
     /// The single NarrativeTrace family version this project restored, or <see langword="null"/> when

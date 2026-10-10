@@ -69,6 +69,17 @@ internal readonly record struct DiagramLabel
     /// <param name="safeAlias">An alias produced by <see cref="AliasGenerator.Generate"/>.</param>
     public static DiagramLabel Alias(string safeAlias) => new(safeAlias);
 
+    /// <summary>
+    /// A span id the renderer derived from the tree (<see cref="NarrativeTrace.Core.SpanPath"/>), checked to be exactly
+    /// one well-formed id — so a note citing it carries no trace text at all.
+    /// </summary>
+    /// <param name="id">An id such as <c>#1.3</c>.</param>
+    /// <exception cref="ArgumentException"><paramref name="id"/> is not a well-formed span id.</exception>
+    public static DiagramLabel SpanId(string id) =>
+        NarrativeTrace.Core.SpanPath.IsWellFormed(id)
+            ? new DiagramLabel(id)
+            : throw new ArgumentException("not a span id: a derived #n.n… position path is expected", nameof(id));
+
     /// <summary>The completion mark for a return with no rendered value (e.g. void) — a fixed program literal, not trace-derived.</summary>
     public static readonly DiagramLabel CheckMark = new("✔");
 

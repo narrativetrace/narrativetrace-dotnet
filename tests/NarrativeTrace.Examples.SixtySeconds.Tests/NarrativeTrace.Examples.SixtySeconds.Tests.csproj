@@ -5,6 +5,11 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
+  <!-- snippet:begin approval-mode -->
+  <PropertyGroup>
+    <RunSettingsFilePath>$(MSBuildProjectDirectory)/approval.runsettings</RunSettingsFilePath>
+  </PropertyGroup>
+  <!-- snippet:end approval-mode -->
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="xunit" Version="2.9.2" />

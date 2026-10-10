@@ -27,6 +27,7 @@ public static class ClaudeSkillRenderer
         AppendFrontmatter(builder, skill);
         builder.Append("\n# ").Append(skill.CanonicalName).Append("\n\n");
         AppendSteps(builder, skill, repoRoot);
+        AppendSections(builder, skill.Sections);
         AppendRules(builder, "Always", skill.Always);
         AppendRules(builder, "Never", skill.Never);
         return builder.ToString();
@@ -42,8 +43,21 @@ public static class ClaudeSkillRenderer
             builder.Append("when_to_use: ").Append(FrontmatterString(skill.WhenToUse)).Append('\n');
         }
 
-        builder.Append("allowed-tools: ").Append(string.Join(", ", CommandVocabulary.AllowedTools)).Append('\n');
+        AppendAllowedTools(builder, skill);
         builder.Append("---\n");
+    }
+
+    private static void AppendAllowedTools(StringBuilder builder, Skill skill)
+    {
+        // The LINE is omitted, never emitted empty: the absence is what leaves the harness asking.
+        if (skill.PreApprovedTools.Count == 0)
+        {
+            return;
+        }
+
+        builder.Append("allowed-tools: ")
+            .Append(string.Join(", ", skill.PreApprovedTools.Select(CommandVocabulary.ClaudeToolPattern)))
+            .Append('\n');
     }
 
     private static string FrontmatterString(string value)
@@ -62,6 +76,11 @@ public static class ClaudeSkillRenderer
     private static void AppendStep(StringBuilder builder, int number, SkillStep step, string repoRoot)
     {
         builder.Append("## ").Append(number).Append(". ").Append(step.Title).Append("\n\n");
+        if (step.Condition is not null)
+        {
+            builder.Append("**when:** ").Append(step.Condition).Append("\n\n");
+        }
+
         AppendBody(builder, step.Body, repoRoot);
         if (step.Verify is not null)
         {
@@ -89,6 +108,11 @@ public static class ClaudeSkillRenderer
 
     private static void AppendCommands(StringBuilder builder, CommandStep commands)
     {
+        if (commands.Commands.Count == 0)
+        {
+            return;
+        }
+
         builder.Append("```bash\n");
         foreach (var command in commands.Commands)
         {
@@ -131,6 +155,15 @@ public static class ClaudeSkillRenderer
         {
             builder.Append("**failure:** ").Append(failure.Symptom).Append(" — ")
                 .Append(failure.Cause).Append(" — fix: ").Append(failure.Fix).Append("\n\n");
+        }
+    }
+
+    private static void AppendSections(StringBuilder builder, IReadOnlyList<SkillSection> sections)
+    {
+        foreach (var section in sections)
+        {
+            builder.Append("## ").Append(section.Heading).Append("\n\n")
+                .Append(section.Markdown.TrimEnd('\n', '\r')).Append("\n\n");
         }
     }
 

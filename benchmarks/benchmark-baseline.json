@@ -29,7 +29,7 @@
   },
   "ConcurrencyBenchmarks.RenderForkJoinMarkdown": {
     "meanNs": 2055.64,
-    "allocatedBytes": 6680
+    "allocatedBytes": 7752
   },
   "CoreBenchmarks.BuildTree(NodeCount=10)": {
     "meanNs": 6109.81,
@@ -89,10 +89,10 @@
   },
   "RendererBenchmarks.MarkdownMedium": {
     "meanNs": 6233.67,
-    "allocatedBytes": 19384
+    "allocatedBytes": 19800
   },
   "RendererBenchmarks.MarkdownSmall": {
     "meanNs": 1194.99,
-    "allocatedBytes": 5000
+    "allocatedBytes": 5064
   }
 }

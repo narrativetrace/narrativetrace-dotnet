@@ -17,6 +17,8 @@ namespace NarrativeTrace.Core;
 /// distinguish from a real one; a raw ESC (0x1B) injects ANSI/OSC
 /// terminal sequences. This helper renders every control character as
 /// a visible, inert escape so no sink emits a raw control byte.
+/// The Unicode line and paragraph separators U+2028/U+2029 are escaped the
+/// same way: they are line terminators to many readers.
 /// Unlike JSON escaping, it does not touch quotes or backslashes —
 /// those are legitimate value content, so <c>C:\temp</c> stays
 /// readable.
@@ -86,7 +88,7 @@ public static class ControlEscape
         while (i < text.Length)
         {
             var c = text[i];
-            if (char.IsControl(c))
+            if (IsEscapedOutright(c))
             {
                 return i;
             }
@@ -145,7 +147,7 @@ public static class ControlEscape
     private static int AppendPlainOrEscaped(StringBuilder sb, string text, int index)
     {
         var c = text[index];
-        if (char.IsControl(c))
+        if (IsEscapedOutright(c))
         {
             AppendUnicodeEscape(sb, c);
             return index + 1;
@@ -166,6 +168,16 @@ public static class ControlEscape
         sb.Append(c);
         return index + 1;
     }
+
+    /// <summary>A control character, or a Unicode line or paragraph separator.</summary>
+    private static bool IsEscapedOutright(char c) => char.IsControl(c) || IsLineSeparator(c);
+
+    /// <summary>
+    /// U+2028 and U+2029: not controls, but line terminators to JavaScript,
+    /// many regex engines, YAML parsers and log viewers, so a raw one forges a
+    /// line exactly as <c>\n</c> does.
+    /// </summary>
+    internal static bool IsLineSeparator(char c) => c is '\u2028' or '\u2029';
 
     private static void AppendUnicodeEscape(StringBuilder sb, char c)
     {

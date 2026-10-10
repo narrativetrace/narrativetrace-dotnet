@@ -109,10 +109,11 @@ public static class MarkdownRenderer
     private static void RenderCallFlow(
         StringBuilder sb, TraceTree tree, MarkdownOptions? options)
     {
-        RenderNodes(
+        // Roots are a sibling list like any other (see RenderChildren).
+        RenderChildren(
             sb, tree.Roots, 0,
             options?.SlowThresholdMs ?? DefaultSlowThresholdMs,
-            ValueReferenceIndex.Build(tree));
+            ValueReferenceIndex.Build(tree), null);
     }
 
     // Java renderDocumentHeader: a visible header between the YAML frontmatter
@@ -301,29 +302,18 @@ public static class MarkdownRenderer
         return count;
     }
 
-    private static void RenderNodes(
-        StringBuilder sb,
-        IReadOnlyList<TraceNode> nodes,
-        int depth, int slowThresholdMs,
-        ValueReferenceIndex refs)
-    {
-        for (var i = 0; i < nodes.Count; i++)
-        {
-            RenderNode(sb, nodes[i], depth, slowThresholdMs, refs);
-        }
-    }
-
     private static void RenderNode(
-        StringBuilder sb, TraceNode node,
+        StringBuilder sb, CitedNode cited,
         int depth, int slowThresholdMs,
         ValueReferenceIndex refs)
     {
+        var (node, id) = cited;
         var indent = new string(' ', depth * 2);
         AppendMethodBullet(sb, node, indent, refs);
         if (node.Children.Count == 0)
         {
             AppendOutcome(sb, node, refs);
-            CloseEntryLine(sb, node, indent, slowThresholdMs);
+            CloseEntryLine(sb, node, indent, slowThresholdMs, id);
             return;
         }
 
@@ -335,22 +325,23 @@ public static class MarkdownRenderer
             AppendOutcome(sb, node, refs);
         }
 
-        CloseEntryLine(sb, node, indent, slowThresholdMs);
+        CloseEntryLine(sb, node, indent, slowThresholdMs, id);
         RenderChildren(
-            sb, node.Children, depth + 1, slowThresholdMs, refs);
+            sb, node.Children, depth + 1, slowThresholdMs, refs, id);
         AppendClosingOutcome(sb, node, indent);
     }
 
     /// <summary>
     /// Ends the entry line with its duration and follows it with the
     /// node's narration, which every entry line carries — leaf or parent.
+    /// The span id is the line's last token; closing outcome lines carry none.
     /// </summary>
     private static void CloseEntryLine(
         StringBuilder sb, TraceNode node,
-        string indent, int slowThresholdMs)
+        string indent, int slowThresholdMs, SpanRef id)
     {
         AppendNodeDuration(sb, node, slowThresholdMs);
-        sb.AppendLine();
+        id.AppendTo(sb.Append(' ')).AppendLine();
         RenderNarration(sb, node.Signature, indent);
     }
 
@@ -399,7 +390,29 @@ public static class MarkdownRenderer
         StringBuilder sb,
         IReadOnlyList<TraceNode> children,
         int depth, int slowThresholdMs,
-        ValueReferenceIndex refs)
+        ValueReferenceIndex refs, SpanRef? parent)
+    {
+        if (children.Count == 0)
+        {
+            return;
+        }
+
+        var ids = new SpanCursor(parent?.ToString());
+        if (ChildSegment.AnyConcurrent(children))
+        {
+            RenderSegments(sb, children, depth, slowThresholdMs, refs, ids);
+        }
+        else
+        {
+            RenderSequential(sb, children, depth, slowThresholdMs, refs, ids);
+        }
+    }
+
+    private static void RenderSegments(
+        StringBuilder sb,
+        IReadOnlyList<TraceNode> children,
+        int depth, int slowThresholdMs,
+        ValueReferenceIndex refs, SpanCursor ids)
     {
         var segments = ChildSegment.Partition(children);
         for (var i = 0; i < segments.Count; i++)
@@ -408,55 +421,71 @@ public static class MarkdownRenderer
             {
                 RenderConcurrentSegment(
                     sb, segments[i], depth,
-                    slowThresholdMs, refs);
+                    slowThresholdMs, refs, ids);
             }
             else
             {
-                RenderNodes(
-                    sb, segments[i].Nodes, depth,
+                RenderNode(
+                    sb, new CitedNode(segments[i].Nodes[0], ids.NextRef()), depth,
                     slowThresholdMs, refs);
             }
+        }
+    }
+
+    /// <summary>A sibling list with no concurrent group: each call in capture order, each the next id.</summary>
+    private static void RenderSequential(
+        StringBuilder sb, IReadOnlyList<TraceNode> children,
+        int depth, int slowThresholdMs,
+        ValueReferenceIndex refs, SpanCursor ids)
+    {
+        for (var i = 0; i < children.Count; i++)
+        {
+            RenderNode(sb, new CitedNode(children[i], ids.NextRef()), depth, slowThresholdMs, refs);
         }
     }
 
     private static void RenderConcurrentSegment(
         StringBuilder sb, ChildSegment segment,
         int depth, int slowThresholdMs,
-        ValueReferenceIndex refs)
+        ValueReferenceIndex refs, SpanCursor ids)
     {
         if (segment.Kind == ConcurrencyKind.FireAndForget)
         {
             RenderFireAndForget(
-                sb, segment, depth, slowThresholdMs, refs);
+                sb, segment, depth, slowThresholdMs, refs, ids.Next());
         }
         else
         {
             RenderForkJoin(
-                sb, segment, depth, slowThresholdMs, refs);
+                sb, segment, depth, slowThresholdMs, refs, ids);
         }
     }
 
     private static void RenderForkJoin(
         StringBuilder sb, ChildSegment segment,
         int depth, int slowThresholdMs,
-        ValueReferenceIndex refs)
+        ValueReferenceIndex refs, SpanCursor ids)
     {
         var indent = new string(' ', depth * 2);
         AppendForkMarker(sb, indent, segment);
         RenderForkMembers(
-            sb, segment.Nodes, depth, slowThresholdMs, refs);
+            sb, SpanPath.InConcurrentOrder(segment.Nodes), depth, slowThresholdMs, refs, ids);
         AppendJoinMarker(sb, indent, segment);
     }
 
+    /// <summary>
+    /// The launch takes one span id, the marker line's last token; the
+    /// launched work is numbered under it in capture order.
+    /// </summary>
     private static void RenderFireAndForget(
         StringBuilder sb, ChildSegment segment,
         int depth, int slowThresholdMs,
-        ValueReferenceIndex refs)
+        ValueReferenceIndex refs, string launchId)
     {
         var indent = new string(' ', depth * 2);
         sb.Append(indent).Append("- \u2933 fire-and-forget");
         AppendLauncherThread(sb, segment);
-        sb.AppendLine();
+        sb.Append(' ').Append(launchId).AppendLine();
 
         var body = FireAndForgetSection.Body(segment.Nodes);
         if (body.Count == 0)
@@ -466,7 +495,7 @@ public static class MarkdownRenderer
         }
         else
         {
-            RenderForkMembers(sb, body, depth, slowThresholdMs, refs);
+            RenderForkMembers(sb, body, depth, slowThresholdMs, refs, new SpanCursor(launchId));
         }
     }
 
@@ -514,25 +543,26 @@ public static class MarkdownRenderer
         }
     }
 
+    /// <summary>Renders <paramref name="nodes"/> in the order given, each taking the next id.</summary>
     private static void RenderForkMembers(
         StringBuilder sb, IReadOnlyList<TraceNode> nodes,
         int depth, int slowThresholdMs,
-        ValueReferenceIndex refs)
+        ValueReferenceIndex refs, SpanCursor ids)
     {
-        var sorted = SortByClassName(nodes);
-        for (var i = 0; i < sorted.Count; i++)
+        for (var i = 0; i < nodes.Count; i++)
         {
             RenderForkMember(
-                sb, sorted[i], depth,
+                sb, new CitedNode(nodes[i], ids.NextRef()), depth,
                 slowThresholdMs, refs);
         }
     }
 
     private static void RenderForkMember(
-        StringBuilder sb, TraceNode node,
+        StringBuilder sb, CitedNode cited,
         int depth, int slowThresholdMs,
         ValueReferenceIndex refs)
     {
+        var (node, id) = cited;
         var indent = new string(' ', (depth + 1) * 2);
         sb.Append(indent);
         sb.Append("\u21a6 **");
@@ -541,10 +571,10 @@ public static class MarkdownRenderer
         AppendParameters(sb, node.Signature.Parameters, refs);
         AppendOutcome(sb, node, refs);
         AppendThreadInfo(sb, node);
-        sb.AppendLine();
+        id.AppendTo(sb.Append(' ')).AppendLine();
         RenderChildren(
             sb, node.Children, depth + 2,
-            slowThresholdMs, refs);
+            slowThresholdMs, refs, id);
     }
 
     private static void AppendThreadInfo(
@@ -639,27 +669,6 @@ public static class MarkdownRenderer
         }
 
         return max;
-    }
-
-    private static IReadOnlyList<TraceNode>
-        SortByClassName(
-            IReadOnlyList<TraceNode> nodes)
-    {
-        var sorted = new List<TraceNode>(nodes);
-        sorted.Sort((a, b) =>
-        {
-            var cmp = string.Compare(
-                a.Signature.ClassName,
-                b.Signature.ClassName,
-                StringComparison.Ordinal);
-            return cmp != 0
-                ? cmp
-                : string.Compare(
-                    a.Signature.MethodName,
-                    b.Signature.MethodName,
-                    StringComparison.Ordinal);
-        });
-        return sorted;
     }
 
     // Mirrors Java renderDuration: every timed node shows "\u2014 Nms"; the slow

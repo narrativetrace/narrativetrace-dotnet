@@ -22,6 +22,10 @@
     <PackageReference Include="FsCheck.Xunit" Version="3.3.2" />
   </ItemGroup>
   <ItemGroup>
+    <!-- The issue form is the contract the verb's URL is held to; declared so the test re-runs when it changes. -->
+    <Content Include="../../.github/ISSUE_TEMPLATE/narrativetrace-report.yml" Link="IssueForm/narrativetrace-report.yml" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../../src/NarrativeTrace.Tooling/NarrativeTrace.Tooling.csproj" />
   </ItemGroup>
 </Project>

@@ -274,7 +274,7 @@ public sealed class TraceArtifactWriterTests : IDisposable
         var nt = Path.Combine(
             _dir, "structural", "OrderTests", "places_order.nt");
         Assert.Equal(
-            "scenario: places order\n\n- Svc.PlacesOrder()\n",
+            "scenario: places order\n\n#1 - Svc.PlacesOrder()\n",
             File.ReadAllText(nt));
     }
 
@@ -300,7 +300,7 @@ public sealed class TraceArtifactWriterTests : IDisposable
         Assert.DoesNotContain((byte)'\r', bytes);
         Assert.Equal((byte)'\n', bytes[^1]);
         Assert.Equal(
-            "scenario: places order\n\n- Café.Prépare() → value\n",
+            "scenario: places order\n\n#1 - Café.Prépare() → value\n",
             new UTF8Encoding(false, true).GetString(bytes));
     }
 

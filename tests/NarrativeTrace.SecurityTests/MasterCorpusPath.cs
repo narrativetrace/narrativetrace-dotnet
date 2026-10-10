@@ -60,6 +60,9 @@ internal static class MasterCorpusPath
     /// <summary>The master <c>redaction.json</c> file, or <see langword="null"/> when no candidate java repo is found on disk.</summary>
     internal static MasterCorpusFile? ResolveMasterRedactionFile() => ResolveMasterCorpusFile("redaction.json");
 
+    /// <summary>The master <c>feedback.json</c> file, or <see langword="null"/> when no candidate java repo is found on disk.</summary>
+    internal static MasterCorpusFile? ResolveMasterFeedbackFile() => ResolveMasterCorpusFile("feedback.json");
+
     /// <summary>
     /// The master copy of one named hostile-corpus file (e.g. <c>graphs.json</c>), read from its
     /// repo's committed <c>HEAD</c> — or <see langword="null"/> when no candidate java repo is

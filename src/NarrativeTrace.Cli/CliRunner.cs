@@ -28,21 +28,41 @@ public static class CliRunner
             return 0;
         }
 
-        return args[0] switch
-        {
-            "clarity-scan" => RunClarityScan(args, output, error),
-            "clarity-aggregate" => RunClarityAggregate(args, output, error),
-            "clarity-check" => RunClarityCheck(args, output, error),
-            "glossary" => RunGlossary(args, output, error),
-            "doctor" => RunDoctor(args, output, error),
-            "init" => InitCommand.Run(true, Rest(args), output, error),
-            "uninstall" => InitCommand.Run(false, Rest(args), output, error),
-            _ => UnknownVerb(args[0], error),
-        };
+        return Dispatch(args, output, error);
     }
+
+    private static int Dispatch(string[] args, TextWriter output, TextWriter error) => args[0] switch
+    {
+        "clarity-scan" => RunClarityScan(args, output, error),
+        "clarity-aggregate" => RunClarityAggregate(args, output, error),
+        "clarity-check" => RunClarityCheck(args, output, error),
+        "glossary" => RunGlossary(args, output, error),
+        "doctor" => RunDoctor(args, output, error),
+        "approve" => RunApprove(args, output, error),
+        "feedback" => Feedback.FeedbackCommand.Run(Rest(args), output, error),
+        "init" => InitCommand.Run(true, Rest(args), output, error),
+        "uninstall" => InitCommand.Run(false, Rest(args), output, error),
+        _ => UnknownVerb(args[0], error),
+    };
 
     /// <summary>The arguments after the verb, the slice each command parses.</summary>
     private static string[] Rest(string[] args) => args[1..];
+
+    /// <summary>
+    /// <c>approve</c> writes into the project, so a <c>--dir</c> with no value is refused rather than
+    /// read as "the current directory".
+    /// </summary>
+    private static int RunApprove(string[] args, TextWriter output, TextWriter error)
+    {
+        var dir = GetOption(args, "--dir");
+        if (dir is null && HasFlag(args, "--dir"))
+        {
+            error.WriteLine("error: approve: --dir needs a directory");
+            return 2;
+        }
+
+        return ApproveCommand.Run(dir ?? Directory.GetCurrentDirectory(), output, error);
+    }
 
     private static int RunGlossary(string[] args, TextWriter output, TextWriter error)
     {
@@ -54,8 +74,11 @@ public static class CliRunner
     {
         var json = HasFlag(args, "--json");
         var dir = GetOption(args, "--dir") ?? Directory.GetCurrentDirectory();
-        return DoctorCommand.Run(
-            dir, Environment.GetEnvironmentVariable, () => CarrierLocator.Open(null), json, output, error);
+        return HasFlag(args, "--report")
+            ? DoctorReportFile.Run(
+                dir, Environment.GetEnvironmentVariable, () => CarrierLocator.Open(null), json, output, error)
+            : DoctorCommand.Run(
+                dir, Environment.GetEnvironmentVariable, () => CarrierLocator.Open(null), json, output, error);
     }
 
     private static int RunClarityCheck(string[] args, TextWriter output, TextWriter error)
@@ -155,7 +178,12 @@ public static class CliRunner
         "  clarity-check     --results <path> [--min-score <x>] " +
         "[--max-high-issues <n>] [--warn-only]" + Environment.NewLine +
         "  glossary          [--file <glossary.json>]" + Environment.NewLine +
-        "  doctor            [--json] [--dir <path>]" + Environment.NewLine +
+        "  doctor            [--json] [--report] [--dir <path>]" + Environment.NewLine +
+        "  approve           [--dir <path>]  promote every reviewed *.received.nt" + Environment.NewLine +
+        "  feedback          <draft|url|gh> --category <c> --step <s> --did <s> --happened <s>" +
+        Environment.NewLine +
+        "                    --expected <s> [--language <tag>] [--trace <suffix>] [--json]" +
+        Environment.NewLine +
         "  init              [--dry-run] [--write-existing] [--force] [--only skills|agents-md]" +
         Environment.NewLine +
         "                    [--vendor claude|none] [--from <carrier>] [--dir <path>] [--json]" +

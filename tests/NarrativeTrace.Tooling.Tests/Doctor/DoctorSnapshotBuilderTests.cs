@@ -40,6 +40,28 @@ public sealed class DoctorSnapshotBuilderTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// A framework marker or a package reference can live in any MSBuild manifest — another language's
+    /// project file, or a Directory.Build file that adds items to every project — but a central version
+    /// pin references nothing.
+    /// </summary>
+    [Fact]
+    public void Reads_every_msbuild_manifest_a_reference_can_live_in_but_not_the_central_version_pins()
+    {
+        File.WriteAllText(Path.Combine(_root, "Directory.Build.props"), "<Project />");
+        File.WriteAllText(Path.Combine(_root, "Directory.Build.targets"), "<Project />");
+        File.WriteAllText(Path.Combine(_root, "Directory.Packages.props"), "<Project />");
+        WriteUnder("app", "App.fsproj");
+        WriteUnder("lib", "Lib.vbproj");
+        WriteUnder("web", "Web.csproj");
+
+        var snapshot = DoctorSnapshotBuilder.Build(_root, _ => null);
+
+        Assert.Equal(
+            ["App.fsproj", "Directory.Build.props", "Directory.Build.targets", "Lib.vbproj", "Web.csproj"],
+            snapshot.ProjectFiles.Keys.Select(Path.GetFileName).Order());
+    }
+
     [Fact]
     public void Reads_csproj_and_source_files_but_skips_bin_and_obj()
     {
@@ -52,6 +74,55 @@ public sealed class DoctorSnapshotBuilderTests : IDisposable
 
         Assert.Single(snapshot.ProjectFiles);
         Assert.Single(snapshot.SourceFiles);
+    }
+
+    [Fact]
+    public void Reads_run_settings_files_but_skips_bin_and_obj()
+    {
+        Directory.CreateDirectory(Path.Combine(_root, "tests"));
+        Directory.CreateDirectory(Path.Combine(_root, "bin"));
+        File.WriteAllText(Path.Combine(_root, "tests", "approval.runsettings"), "<RunSettings />");
+        File.WriteAllText(Path.Combine(_root, "bin", "copied.runsettings"), "<RunSettings />");
+
+        var snapshot = DoctorSnapshotBuilder.Build(_root, _ => null);
+
+        Assert.Single(snapshot.RunSettingsFiles);
+        Assert.Contains(snapshot.RunSettingsFiles.Keys, path => path.EndsWith("approval.runsettings", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// A relative approved dir sits beside each test project (the test run resolves it there), so a
+    /// doctor run from the solution root reads every project's baselines, not only its own folder's.
+    /// </summary>
+    [Fact]
+    public void Reads_the_approved_traces_beside_every_project_as_well_as_its_own()
+    {
+        Directory.CreateDirectory(Path.Combine(_root, "App.Tests", "narratives", "OrderTests"));
+        File.WriteAllText(Path.Combine(_root, "App.Tests", "App.Tests.csproj"), "<Project />");
+        File.WriteAllText(Path.Combine(_root, "App.Tests", "narratives", "OrderTests", "a.approved.nt"), "x");
+        Directory.CreateDirectory(Path.Combine(_root, "narratives"));
+        File.WriteAllText(Path.Combine(_root, "narratives", "root.received.nt"), "y");
+        Directory.CreateDirectory(Path.Combine(_root, "Lib", "baselines"));
+        File.WriteAllText(Path.Combine(_root, "Lib", "Lib.csproj"), "<Project />");
+
+        var snapshot = DoctorSnapshotBuilder.Build(_root, _ => null);
+
+        Assert.Equal(2, snapshot.ApprovedDirFiles.Count);
+        Assert.Contains(snapshot.ApprovedDirFiles.Keys, path => path.EndsWith("a.approved.nt", StringComparison.Ordinal));
+        Assert.Contains(snapshot.ApprovedDirFiles.Keys, path => path.EndsWith("root.received.nt", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void An_absolute_approved_dir_is_read_once_whatever_the_projects()
+    {
+        var absolute = Path.Combine(_root, "elsewhere");
+        Directory.CreateDirectory(absolute);
+        File.WriteAllText(Path.Combine(absolute, "a.approved.nt"), "x");
+        File.WriteAllText(Path.Combine(_root, "App.csproj"), "<Project />");
+
+        var snapshot = DoctorSnapshotBuilder.Build(_root, key => key == "NARRATIVETRACE_APPROVED_DIR" ? absolute : null);
+
+        Assert.Single(snapshot.ApprovedDirFiles);
     }
 
     [Fact]

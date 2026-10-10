@@ -92,4 +92,81 @@ public sealed class StructuralDeltaTests
             " scenario: x\n \n - A.b()\n-- A.c()\n+- A.d()\n",
             diff);
     }
+
+    [Fact]
+    public void A_baseline_written_before_span_ids_compares_equal_to_the_same_flow_with_ids()
+    {
+        const string baseline = "scenario: x\n\n- A.b()\n  - C.d() → value\n";
+        const string current = "scenario: x\n\n#1 - A.b()\n  #1.1 - C.d() → value\n";
+
+        var delta = StructuralDelta.Between(baseline, current);
+
+        Assert.True(delta.Unchanged);
+        Assert.Equal(string.Empty, delta.Diff());
+    }
+
+    [Fact]
+    public void Crlf_terminators_and_a_missing_final_newline_are_not_structure()
+    {
+        const string baseline = "scenario: x\r\n\r\n#1 - A.b()\r\n  #1.1 - C.d()";
+        const string current = "scenario: x\n\n#1 - A.b()\n  #1.1 - C.d()\n";
+
+        Assert.True(StructuralDelta.Between(baseline, current).Unchanged);
+    }
+
+    [Fact]
+    public void A_changed_id_alone_with_the_same_lines_is_unchanged()
+    {
+        // Ids are derived from position; the same lines mean the same flow.
+        const string baseline = "scenario: x\n\n#7 - A.b()\n";
+        const string current = "scenario: x\n\n#1 - A.b()\n";
+
+        Assert.True(StructuralDelta.Between(baseline, current).Unchanged);
+    }
+
+    [Fact]
+    public void Summary_counts_call_lines_that_carry_span_ids()
+    {
+        const string baseline = "scenario: x\n\n#1 - A.b()\n";
+        const string current = "scenario: x\n\n#1 - A.b()\n  #1.1 ~ fire-and-forget\n    #1.1.1 - A.c()\n";
+
+        Assert.Equal("+1 call A.c", StructuralDelta.Between(baseline, current).Summary());
+    }
+
+    [Fact]
+    public void Diff_cites_the_baseline_id_of_a_context_line_an_insertion_shifted()
+    {
+        const string baseline = "scenario: x\n\n#1 - A.b()\n  #1.1 - C.d()\n  #1.2 - E.f()\n";
+        const string current =
+            "scenario: x\n\n#1 - A.b()\n  #1.1 - C.d()\n  #1.2 - New.call()\n  #1.3 - E.f()\n";
+
+        var diff = StructuralDelta.Between(baseline, current).Diff();
+
+        Assert.Equal(
+            " scenario: x\n \n #1 - A.b()\n   #1.1 - C.d()\n+  #1.2 - New.call()\n"
+            + "   #1.3 - E.f()  (was #1.2)\n",
+            diff);
+    }
+
+    [Fact]
+    public void Diff_against_an_id_free_baseline_prints_the_current_lines_and_cites_nothing()
+    {
+        const string baseline = "scenario: x\n\n- A.b()\n";
+        const string current = "scenario: x\n\n#1 - A.b()\n#2 - A.c()\n";
+
+        Assert.Equal(
+            " scenario: x\n \n #1 - A.b()\n+#2 - A.c()\n",
+            StructuralDelta.Between(baseline, current).Diff());
+    }
+
+    [Fact]
+    public void A_removed_line_prints_as_the_baseline_wrote_it()
+    {
+        const string baseline = "scenario: x\n\n#1 - A.b()\n#2 - A.c()\n";
+        const string current = "scenario: x\n\n#1 - A.b()\n";
+
+        Assert.Equal(
+            " scenario: x\n \n #1 - A.b()\n-#2 - A.c()\n",
+            StructuralDelta.Between(baseline, current).Diff());
+    }
 }

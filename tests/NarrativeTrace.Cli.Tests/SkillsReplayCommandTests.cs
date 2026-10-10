@@ -41,7 +41,7 @@ public sealed class SkillsReplayCommandTests : IDisposable
     }
 
     [Fact]
-    public void Both_catalogue_skills_replay_cleanly_against_the_real_sixty_seconds_fixture()
+    public void Every_catalogue_skill_replays_cleanly_against_the_real_sixty_seconds_fixture()
     {
         var exit = SkillsReplayCommand.Run(RepoRoot.Find(), _out, _err);
 

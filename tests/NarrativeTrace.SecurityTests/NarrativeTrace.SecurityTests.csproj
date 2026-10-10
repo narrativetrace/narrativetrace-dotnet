@@ -43,5 +43,10 @@
     <ProjectReference Include="../../src/NarrativeTrace.Diagrams/NarrativeTrace.Diagrams.csproj" />
     <ProjectReference Include="../../src/NarrativeTrace.Clarity/NarrativeTrace.Clarity.csproj" />
     <ProjectReference Include="../../src/NarrativeTrace.Glossary/NarrativeTrace.Glossary.csproj" />
+    <!-- The one module that may see BOTH the runtime's redaction vocabulary (Core) and the
+         zero-dependency feedback gate (Tooling), so it is where the superset is asserted (one way):
+         every name and value shape the renderer redacts is also refused by the gate. The gate never
+         links Core; the assertion lives here instead. -->
+    <ProjectReference Include="../../src/NarrativeTrace.Tooling/NarrativeTrace.Tooling.csproj" />
   </ItemGroup>
 </Project>

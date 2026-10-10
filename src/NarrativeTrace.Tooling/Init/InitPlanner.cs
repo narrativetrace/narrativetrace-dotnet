@@ -89,14 +89,47 @@ public static class InitPlanner
     private static void PlanSkills(
         ProjectState state, Carrier carrier, InitOptions options, List<Action> actions)
     {
+        var writable = WritableFlavours(state, options, actions);
         foreach (var skill in carrier.Skills)
         {
-            foreach (var flavour in Flavours(state, options))
+            foreach (var flavour in writable)
             {
                 actions.Add(SkillAction(state, carrier, options, skill, flavour));
             }
         }
     }
+
+    /// <summary>
+    /// The flavours anything may be written into. A flavour whose whole install root is a symbolic
+    /// link is refused ONCE, here, rather than once per skill: one link is one decision, and a refusal
+    /// per skill would also put several actions on the one path a plan allows only one of.
+    /// </summary>
+    private static List<SkillFlavour> WritableFlavours(
+        ProjectState state, InitOptions options, List<Action> actions)
+    {
+        var writable = new List<SkillFlavour>();
+        foreach (var flavour in Flavours(state, options))
+        {
+            var linked = state.LinkedInstallRoot(flavour);
+            if (linked is null)
+            {
+                writable.Add(flavour);
+            }
+            else
+            {
+                actions.Add(RefuseLinkedRoot(flavour, linked));
+            }
+        }
+
+        return writable;
+    }
+
+    private static Refuse RefuseLinkedRoot(SkillFlavour flavour, string target) =>
+        new(
+            flavour.InstallRoot(),
+            flavour.InstallRoot() + " is a symbolic link to " + target
+            + " — every skill of this flavour would be written through it; remove the link, or run"
+            + " the install where it points");
 
     /// <summary>
     /// Which flavours this project gets: the open standard always, the vendor one where the project
@@ -116,9 +149,9 @@ public static class InitPlanner
     private static Action SkillAction(
         ProjectState state, Carrier carrier, InitOptions options, SkillEntry skill, SkillFlavour flavour)
     {
-        var directory = flavour.InstallRoot() + "/" + skill.Name;
-        var page = directory + "/" + InstalledSkill.Page;
-        var content = Provenance.Stamp(carrier.Body(skill, flavour), carrier.Coordinate);
+        var page = flavour.InstallRoot() + "/" + skill.Name + "/" + InstalledSkill.Page;
+        var rendered = carrier.Body(skill, flavour);
+        var content = Provenance.Stamp(rendered, carrier.Coordinate);
         var installed = state.InstalledSkill(flavour, skill.Name);
         if (installed is null)
         {
@@ -128,24 +161,85 @@ public static class InitPlanner
         return installed.Presence switch
         {
             SkillPresence.NotADirectory => new Refuse(
-                directory, directory + " is not a directory — move it aside and run the install again"),
-            SkillPresence.Ours => Write(page, installed.Body, content),
-            _ => Foreign(options, directory, page, installed.Body, content),
+                installed.Directory,
+                installed.Directory + " is not a directory — move it aside and run the install again"),
+            SkillPresence.Ours => Write(installed.PagePath, installed.Body, content),
+            SkillPresence.LinkedDirectory or SkillPresence.LinkedPage =>
+                Linked(carrier, skill, installed, content),
+            _ => Foreign(options, installed, rendered, content),
         };
     }
 
-    private static Action Foreign(
-        InitOptions options, string directory, string page, string current, string content)
+    /// <summary>
+    /// A symbolic link where a skill's directory or page belongs. Writing through it would land in
+    /// whatever it points at — after <c>npx skills add</c>, the OTHER flavour's page — so the link
+    /// itself is replaced whenever what it reaches is a page this install owns or would adopt, and
+    /// refused otherwise. No flag appears here: <c>--force</c> covers foreign CONTENT, and a link is
+    /// structure.
+    /// </summary>
+    private static Action Linked(
+        Carrier carrier, SkillEntry skill, InstalledSkill installed, string content)
     {
+        var at = installed.LinkedAt();
+        if (installed.Body.Length == 0)
+        {
+            return new Refuse(
+                at,
+                at + " is a symbolic link to " + installed.Link
+                + ", and there is no page of narrativetrace's at the other end — remove the link and"
+                + " run the install again");
+        }
+
+        if (!IsOursOrAdoptable(carrier, skill, installed.Body))
+        {
+            return new Refuse(
+                at,
+                at + " is a symbolic link to " + installed.Link
+                + ", a page narrativetrace did not install — remove the link and run the install"
+                + " again; --force covers content, never a link");
+        }
+
+        return new ReplaceLink(at, installed.PagePath, installed.Link, content);
+    }
+
+    /// <summary>
+    /// Whether a page reached through a link is one this install would own anyway: already stamped, or
+    /// identical to what this carrier renders for EITHER flavour. Either flavour, because the link a
+    /// registry leaves at the vendor path points at the open-standard page.
+    /// </summary>
+    private static bool IsOursOrAdoptable(Carrier carrier, SkillEntry skill, string body)
+    {
+        if (Provenance.CoordinateIn(body) is not null)
+        {
+            return true;
+        }
+
+        return Adoption.IsAdoptable(body, carrier.Body(skill, SkillFlavour.Agents))
+            || Adoption.IsAdoptable(body, carrier.Body(skill, SkillFlavour.Claude));
+    }
+
+    /// <summary>
+    /// A directory somebody else's tool wrote. A page equal to what this carrier renders is ADOPTED —
+    /// it is our own page, installed by a registry rather than by us, so stamping it takes nothing from
+    /// anybody. Anything else is a refusal until <c>--force</c> says otherwise.
+    /// </summary>
+    private static Action Foreign(
+        InitOptions options, InstalledSkill installed, string rendered, string content)
+    {
+        if (Adoption.IsAdoptable(installed.Body, rendered))
+        {
+            return new AdoptPage(installed.PagePath, installed.Body, content);
+        }
+
         if (!options.Force)
         {
             return new Refuse(
-                directory,
-                directory + " was not installed by narrativetrace — re-run with --force to overwrite"
+                installed.Directory,
+                installed.Directory + " was not installed by narrativetrace — re-run with --force to overwrite"
                 + " this skill, or move the directory aside");
         }
 
-        return Write(page, current, content);
+        return Write(installed.PagePath, installed.Body, content);
     }
 
     /// <summary>A write is a create when nothing is there and a replacement when something is.</summary>

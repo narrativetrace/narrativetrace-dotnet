@@ -23,6 +23,9 @@
 
   <ItemGroup>
     <ProjectReference Include="../src/NarrativeTrace.Skills.Catalogue/NarrativeTrace.Skills.Catalogue.csproj" />
+    <!-- The framework hand-off's replay reads the framework table's wiring-check ids from the doctor's
+         own package, rather than a second, hand-copied list of them. -->
+    <ProjectReference Include="../src/NarrativeTrace.Tooling/NarrativeTrace.Tooling.csproj" />
   </ItemGroup>
 
   <ItemGroup>

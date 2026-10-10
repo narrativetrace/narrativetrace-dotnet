@@ -1,0 +1,3 @@
+scenario: Customer places an order
+
+#1 - IOrderService.PlaceOrder(customerId, productId, quantity) → value

@@ -55,6 +55,81 @@ public static class SkillLints
         return body is CommandStep commands ? commands.Commands : [];
     }
 
+    /// <summary>
+    /// Entries of a declared tool vocabulary that are already written in a rendered platform
+    /// spelling (containing <c>(</c>) rather than as a bare command.
+    /// </summary>
+    /// <remarks>
+    /// Pins the split between the catalogue and the renderer: the vocabulary declares bare
+    /// commands, and <see cref="CommandVocabulary.ClaudeToolPattern"/> is the one place a bare
+    /// command becomes a platform-spelled tool pattern. A hand-written <c>Bash(git *)</c> in the
+    /// vocabulary would render as <c>Bash(Bash(git *) *)</c> — a rule matching nothing, in a field
+    /// whose whole purpose is to match something.
+    /// </remarks>
+    public static IReadOnlyList<string> AllowedToolsViolations(IReadOnlyList<string> allowedTools)
+    {
+        return allowedTools.Where(tool => tool.Contains('(', StringComparison.Ordinal)).ToList();
+    }
+
+    /// <summary>
+    /// Commands that reach a channel where something becomes PUBLIC and must never be pre-approved
+    /// by the skill that names them. A list rather than one literal: a second publishing command is
+    /// a question somebody has to answer, not a regex somebody widens.
+    /// </summary>
+    private static readonly Regex[] PublishingCommands = [new(@"\bfeedback\b", RegexOptions.Compiled)];
+
+    /// <summary>
+    /// <c>"skill: declares allowed tool …"</c> for every skill whose steps can make something public
+    /// while its <see cref="Skill.PreApprovedTools"/> would pre-approve the command doing it.
+    /// </summary>
+    /// <remarks>
+    /// INTENT: the Claude flavour's <c>allowed-tools</c> grants its listed tools for the turn that
+    /// LOADS the skill, without prompting. A reporting skill that kept the default vocabulary would
+    /// pre-approve its own reporting command, and the harness would stop asking exactly where asking
+    /// is the product. The absence of the declaration is the safety property, so it is linted rather
+    /// than left to whoever edits the catalogue next.
+    /// </remarks>
+    public static IReadOnlyList<string> PublishingNotPreApprovedViolations(IReadOnlyList<Skill> skills)
+    {
+        return skills.SelectMany(PublishingViolations).ToList();
+    }
+
+    private static IEnumerable<string> PublishingViolations(Skill skill)
+    {
+        return skill.Steps
+            .SelectMany(step => CommandsOf(step.Body))
+            .Where(command => PublishingCommands.Any(pattern => pattern.IsMatch(command)))
+            .Where(command => skill.PreApprovedTools.Contains(CommandVocabulary.FirstToken(command)))
+            .Select(command =>
+                $"{skill.CanonicalName}: declares allowed tool \"{CommandVocabulary.FirstToken(command)}\", " +
+                $"which pre-approves its own publishing command \"{command}\" — a skill that files " +
+                "something public must let the harness ask");
+    }
+
+    private static readonly Regex PromotingCommand =
+        new(@"\bdotnet-narrativetrace(?:\.exe|\.dll)?\s+approve(?![\w-])", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    /// <summary>
+    /// <c>"skill: promotes an approval baseline yet declares allowed tool …"</c>, once per pre-approved
+    /// tool, for every skill whose steps run the <c>approve</c> verb.
+    /// </summary>
+    /// <remarks>
+    /// INTENT: promoting a <c>.received.nt</c> writes the committed contract every later change is held
+    /// to, on the user's yes. A page whose <c>allowed-tools</c> pre-approved any tool would let the turn
+    /// that showed the review copy run the promotion (or commit it) without the harness asking —
+    /// exactly where the gate says the turn must stop. The allowance is empty: such a skill declares
+    /// nothing.
+    /// </remarks>
+    public static IReadOnlyList<string> PromotionNotPreApprovedViolations(IReadOnlyList<Skill> skills)
+    {
+        return skills
+            .Where(skill => skill.Steps.SelectMany(step => CommandsOf(step.Body)).Any(PromotingCommand.IsMatch))
+            .SelectMany(skill => skill.PreApprovedTools.Select(tool =>
+                $"{skill.CanonicalName}: promotes an approval baseline yet declares allowed tool \"{tool}\" — " +
+                "a skill that writes into the project on the user's yes must let the harness ask"))
+            .ToList();
+    }
+
     /// <summary>Step titles with no <see cref="SkillStep.Verify"/> — advisory, not itself a failure.</summary>
     public static IReadOnlyList<string> StepsWithoutVerify(IReadOnlyList<Skill> skills)
     {
@@ -98,6 +173,11 @@ public static class SkillLints
             yield return field;
         }
 
+        foreach (var section in skill.Sections)
+        {
+            yield return ($"section '{section.Heading}'", $"{section.Heading} {section.Markdown}");
+        }
+
         foreach (var rule in skill.Always.Concat(skill.Never))
         {
             yield return ("rule", $"{rule.Rule} {rule.Reason}");
@@ -110,6 +190,11 @@ public static class SkillLints
         if (step.Verify is not null)
         {
             yield return ($"step '{step.Title}' verify", step.Verify);
+        }
+
+        if (step.Condition is not null)
+        {
+            yield return ($"step '{step.Title}' condition", step.Condition);
         }
 
         foreach (var failure in step.FailureNotes)

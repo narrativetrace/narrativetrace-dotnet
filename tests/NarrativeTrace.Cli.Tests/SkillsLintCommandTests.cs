@@ -109,6 +109,19 @@ public sealed class SkillsLintCommandTests : IDisposable
     }
 
     [Fact]
+    public void Fails_when_the_marketplace_file_is_hand_edited()
+    {
+        SkillsRenderCommand.Run(_root, _out, _err);
+        var path = Path.Combine(_root, ".claude-plugin", "marketplace.json");
+        File.WriteAllText(path, "{}");
+
+        var exit = SkillsLintCommand.Run(_root, _out, _err);
+
+        Assert.Equal(1, exit);
+        Assert.Contains("marketplace.json", _err.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Fails_when_a_stray_file_sits_in_the_carrier()
     {
         SkillsRenderCommand.Run(_root, _out, _err);
@@ -121,16 +134,7 @@ public sealed class SkillsLintCommandTests : IDisposable
         Assert.Contains("stray", _err.ToString(), StringComparison.Ordinal);
     }
 
-    private void SeedFixtureFiles()
-    {
-        var fixtureDir = Path.Combine(_root, "examples", "NarrativeTrace.Examples.SixtySeconds");
-        Directory.CreateDirectory(fixtureDir);
-        File.WriteAllText(Path.Combine(fixtureDir, "Program.cs"), "// program\n");
-
-        var withLoggerDir = Path.Combine(_root, "examples", "NarrativeTrace.Examples.SixtySeconds.WithLogger");
-        Directory.CreateDirectory(withLoggerDir);
-        File.WriteAllText(Path.Combine(withLoggerDir, "Program.cs"), "// with logger\n");
-    }
+    private void SeedFixtureFiles() => SkillListingSeed.Seed(_root);
 
     private void SeedFeatureGuide()
     {

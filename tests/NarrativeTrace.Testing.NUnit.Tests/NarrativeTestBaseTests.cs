@@ -343,6 +343,32 @@ public class NarrativeTestBaseTests
         }
     }
 
+    /// <summary>Parity with the xUnit fixture: a relative approved directory lands beside the test project.</summary>
+    [Fact]
+    public void A_relative_approved_directory_lands_beside_the_test_project_not_in_bin()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "nt-nunit-" + Guid.NewGuid().ToString("N"));
+        var relative = "narratives-" + Guid.NewGuid().ToString("N");
+        var projectDir = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "..", ".."));
+        try
+        {
+            var test = new ApprovalSubject(dir, relative);
+            test.SetUpTrace();
+            test.Context.EnterMethod("Svc", "run", []);
+            test.Context.ExitMethodWithReturn(null);
+
+            Assert.Throws<NarrativeApprovalException>(() => test.TearDownTrace());
+
+            Assert.True(File.Exists(Path.Combine(projectDir, relative, AdhocClassDir, "adhoc_test_method.received.nt")));
+            Assert.False(Directory.Exists(Path.Combine(Directory.GetCurrentDirectory(), relative)));
+        }
+        finally
+        {
+            DeleteDirIfExists(dir);
+            DeleteDirIfExists(Path.Combine(projectDir, relative));
+        }
+    }
+
     [Fact]
     public void Suite_scope_receives_the_manifest_entry_and_delta_from_teardown()
     {

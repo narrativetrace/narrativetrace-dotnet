@@ -29,6 +29,10 @@ internal sealed class MermaidSequenceGrammar : ISequenceGrammar
         "    " + caller.Text + "->>" + target.Text + ": " + signature.Text + Environment.NewLine;
 
     /// <inheritdoc/>
+    public string SpanNote(DiagramLabel target, DiagramLabel spanId) =>
+        "    Note over " + target.Text + ": " + spanId.Text + Environment.NewLine;
+
+    /// <inheritdoc/>
     public string ReturnArrow(DiagramLabel target, DiagramLabel caller, DiagramLabel message) =>
         "    " + target.Text + "-->>" + caller.Text + ": " + message.Text + Environment.NewLine;
 

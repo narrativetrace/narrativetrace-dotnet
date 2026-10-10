@@ -91,6 +91,10 @@ public static class NarrativeTraceDoctorSkill
             new ReasonedRule(
                 "Read the newest rendered file under the output directory before asserting against it",
                 "a stale or wrong-directory trace makes any assertion against it meaningless"),
+            new ReasonedRule(
+                "If a check is wrong, or its fix does not work, report it with the narrativetrace-feedback skill",
+                "a wrong finding costs every project that hits it until somebody says so, and that skill " +
+                "shows you the whole report and files nothing without your answer"),
         ],
         Never:
         [

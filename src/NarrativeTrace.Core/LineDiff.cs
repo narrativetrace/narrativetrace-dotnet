@@ -44,21 +44,62 @@ internal static class LineDiff
         return withoutTrailingEmpty;
     }
 
+    /// <summary>The diff with lines matched on their exact text.</summary>
     internal static string Unified(string baseline, string current)
     {
-        var baselineLines = ToLines(baseline);
-        var currentLines = ToLines(current);
-        return Render(LcsTable(baselineLines, currentLines), baselineLines, currentLines);
+        return Unified(baseline, current, line => line, (was, _) => was);
     }
 
-    private static int[,] LcsTable(IReadOnlyList<string> baseline, IReadOnlyList<string> current)
+    /// <summary>
+    /// The diff with lines matched on <paramref name="key"/>, so two lines
+    /// whose keys agree are context even when their bytes differ;
+    /// <paramref name="context"/> renders such a pair from (baseline line,
+    /// current line). Removed lines print as the baseline wrote them, added
+    /// lines as the current document does.
+    /// </summary>
+    internal static string Unified(
+        string baseline, string current,
+        Func<string, string> key, Func<string, string, string> context)
     {
-        var table = new int[baseline.Count + 1, current.Count + 1];
-        for (var i = baseline.Count - 1; i >= 0; i--)
+        var sides = new Sides(ToLines(baseline), ToLines(current), key);
+        var sb = new StringBuilder();
+        var (i, j) = RenderCommon(sb, LcsTable(sides), sides, context);
+        RenderTail(sb, sides.Baseline, i, '-');
+        RenderTail(sb, sides.Current, j, '+');
+        return sb.ToString();
+    }
+
+    /// <summary>Both documents, each as its printed lines and the keys those lines are matched on.</summary>
+    private sealed class Sides
+    {
+        internal Sides(IReadOnlyList<string> baseline, IReadOnlyList<string> current, Func<string, string> key)
         {
-            for (var j = current.Count - 1; j >= 0; j--)
+            Baseline = baseline;
+            Current = current;
+            BaselineKeys = baseline.Select(key).ToList();
+            CurrentKeys = current.Select(key).ToList();
+        }
+
+        internal IReadOnlyList<string> Baseline { get; }
+
+        internal IReadOnlyList<string> Current { get; }
+
+        internal IReadOnlyList<string> BaselineKeys { get; }
+
+        internal IReadOnlyList<string> CurrentKeys { get; }
+
+        internal bool SameKey(int i, int j) =>
+            string.Equals(BaselineKeys[i], CurrentKeys[j], StringComparison.Ordinal);
+    }
+
+    private static int[,] LcsTable(Sides sides)
+    {
+        var table = new int[sides.Baseline.Count + 1, sides.Current.Count + 1];
+        for (var i = sides.Baseline.Count - 1; i >= 0; i--)
+        {
+            for (var j = sides.Current.Count - 1; j >= 0; j--)
             {
-                table[i, j] = baseline[i] == current[j]
+                table[i, j] = sides.SameKey(i, j)
                     ? table[i + 1, j + 1] + 1
                     : Math.Max(table[i + 1, j], table[i, j + 1]);
             }
@@ -67,36 +108,25 @@ internal static class LineDiff
         return table;
     }
 
-    private static string Render(
-        int[,] table, IReadOnlyList<string> baseline, IReadOnlyList<string> current)
-    {
-        var sb = new StringBuilder();
-        var (i, j) = RenderCommon(sb, table, baseline, current);
-        RenderTail(sb, baseline, i, '-');
-        RenderTail(sb, current, j, '+');
-        return sb.ToString();
-    }
-
     /// <summary>Walks both documents while either still has lines, then reports how far each got.</summary>
     private static (int Baseline, int Current) RenderCommon(
-        StringBuilder sb, int[,] table, IReadOnlyList<string> baseline, IReadOnlyList<string> current)
+        StringBuilder sb, int[,] table, Sides sides, Func<string, string, string> context)
     {
         var i = 0;
         var j = 0;
-        while (i < baseline.Count && j < current.Count)
+        while (i < sides.Baseline.Count && j < sides.Current.Count)
         {
-            if (baseline[i] == current[j])
+            if (sides.SameKey(i, j))
             {
-                sb.Append(' ').Append(baseline[i++]).Append('\n');
-                j++;
+                sb.Append(' ').Append(context(sides.Baseline[i++], sides.Current[j++])).Append('\n');
             }
             else if (table[i + 1, j] >= table[i, j + 1])
             {
-                sb.Append('-').Append(baseline[i++]).Append('\n');
+                sb.Append('-').Append(sides.Baseline[i++]).Append('\n');
             }
             else
             {
-                sb.Append('+').Append(current[j++]).Append('\n');
+                sb.Append('+').Append(sides.Current[j++]).Append('\n');
             }
         }
 

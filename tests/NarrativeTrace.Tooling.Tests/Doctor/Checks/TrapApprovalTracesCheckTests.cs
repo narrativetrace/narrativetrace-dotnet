@@ -37,6 +37,8 @@ public sealed class TrapApprovalTracesCheckTests
 
         Assert.False(finding.Passed);
         Assert.Contains("place.received.nt", finding.Message, StringComparison.Ordinal);
+        Assert.Contains("dotnet tool run dotnet-narrativetrace approve", finding.Fix, StringComparison.Ordinal);
+        Assert.DoesNotContain("build.sh", finding.Fix, StringComparison.Ordinal);
     }
 
     private static DoctorSnapshot WithApprovedDir(params (string Path, string Content)[] files)

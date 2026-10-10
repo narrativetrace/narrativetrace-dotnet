@@ -20,6 +20,8 @@ public sealed class InitPlannerTest : IDisposable
     private const string AgentsMd = "AGENTS.md";
     private const string ClaudeMd = "CLAUDE.md";
     private const string DoctorPage = ".agents/skills/narrativetrace-doctor/SKILL.md";
+    private const string VendorPage = ".claude/skills/narrativetrace-doctor/SKILL.md";
+    private const string LinkTarget = "../../.agents/skills/narrativetrace-doctor";
 
     private readonly string _root = Path.Combine(Path.GetTempPath(), "nt-initplanner-" + Guid.NewGuid().ToString("N"));
     private readonly Carrier _carrier;
@@ -383,6 +385,256 @@ public sealed class InitPlannerTest : IDisposable
             ((Refuse)ActionOn(plan, ".agents/skills/narrativetrace-doctor")!).Reason, StringComparison.Ordinal);
     }
 
+    // --- adoption of an identical page ----------------------------------------------------------
+
+    [Fact]
+    public void AdoptsAForeignPageThatIsIdenticalToTheCarriersOwnWithoutAnyFlag()
+    {
+        var state = Project().AddInstalledSkill(Theirs(IdenticalPage())).Build();
+
+        var plan = Plan(state);
+
+        Assert.IsType<AdoptPage>(ActionOn(plan, DoctorPage));
+        Assert.Equal(Provenance.Stamp(IdenticalPage(), Coordinate), After(plan, DoctorPage));
+        Assert.Equal(0, plan.ExitCode);
+    }
+
+    /// <summary>The vendor flavour is adopted on the same terms: a rule that holds on one path only is none.</summary>
+    [Fact]
+    public void AdoptsAnIdenticalVendorPageToo()
+    {
+        const string vendorPage = ".claude/skills/narrativetrace-doctor/SKILL.md";
+        var rendered = Carriers.PageBody("claude", Carriers.Doctor, Carriers.DoctorDescription);
+        var state = Project()
+            .HasClaudeDirectory(true)
+            .AddInstalledSkill(new InstalledSkill(SkillFlavour.Claude, Carriers.Doctor, SkillPresence.Foreign, "", rendered))
+            .Build();
+
+        Assert.IsType<AdoptPage>(ActionOn(Plan(state), vendorPage));
+    }
+
+    /// <summary>
+    /// The OTHER flavour's page at this flavour's path is a near miss, not a match: it is what a
+    /// registry leaves when it installs one flavour and links the other to it, and adopting it would
+    /// leave the project with two copies of the open-standard page and no vendor page at all.
+    /// </summary>
+    [Fact]
+    public void RefusesAPageThatIsTheOtherFlavoursRendering()
+    {
+        var state = Project()
+            .HasClaudeDirectory(true)
+            .AddInstalledSkill(new InstalledSkill(
+                SkillFlavour.Claude, Carriers.Doctor, SkillPresence.Foreign, "",
+                Carriers.PageBody("agents", Carriers.Doctor, Carriers.DoctorDescription)))
+            .Build();
+
+        Assert.IsType<Refuse>(ActionOn(Plan(state), ".claude/skills/narrativetrace-doctor"));
+    }
+
+    /// <summary>Adoption is about a name the catalogue owns; a skill of theirs stays theirs, identical or not.</summary>
+    [Fact]
+    public void LeavesAnIdenticalPageUnderASkillNameTheCatalogueNeverNamedAlone()
+    {
+        var state = Project()
+            .AddInstalledSkill(new InstalledSkill(
+                SkillFlavour.Agents, "deploy-to-staging", SkillPresence.Foreign, "", IdenticalPage()))
+            .Build();
+
+        Assert.DoesNotContain(
+            Plan(state).Actions,
+            action => action.Path.StartsWith(".agents/skills/deploy-to-staging", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void NeedsNoForceToAdoptAndAdoptsWhenForcedAnyway()
+    {
+        var state = Project().AddInstalledSkill(Theirs(IdenticalPage())).Build();
+
+        var forced = Plan(state, InitOptions.Defaults().WithForce(true));
+
+        Assert.IsType<AdoptPage>(ActionOn(forced, DoctorPage));
+    }
+
+    /// <summary>Once adopted, the page is ours: the next run of the same carrier plans nothing at all.</summary>
+    [Fact]
+    public void PlansNothingForAPageItAlreadyAdopted()
+    {
+        var adopted = Project()
+            .AddInstalledSkill(Ours(Carriers.Doctor, Coordinate, Provenance.Stamp(IdenticalPage(), Coordinate)))
+            .Build();
+
+        Assert.Null(ActionOn(Plan(adopted), DoctorPage));
+    }
+
+    // --- symbolic links -------------------------------------------------------------------------
+
+    /// <summary>
+    /// The registry hazard, at the planner: the vendor directory is a LINK to the open-standard one,
+    /// so writing the vendor page through it would overwrite the page just adopted. The link is
+    /// replaced by a real directory instead, and the page it pointed at is not in the plan at all.
+    /// </summary>
+    [Fact]
+    public void ReplacesALinkOverAPageItAdoptsWithARealDirectory()
+    {
+        var state = Project()
+            .HasClaudeDirectory(true)
+            .AddInstalledSkill(Linked(SkillPresence.LinkedDirectory, IdenticalPage()))
+            .Build();
+
+        var plan = Plan(state);
+
+        var action = Assert.IsType<ReplaceLink>(ActionOn(plan, VendorPage));
+        Assert.Equal(".claude/skills/narrativetrace-doctor", action.Link);
+        Assert.Equal(LinkTarget, action.Target);
+        Assert.Equal(
+            Provenance.Stamp(Carriers.PageBody("claude", Carriers.Doctor, Carriers.DoctorDescription), Coordinate),
+            action.After);
+        Assert.Equal(0, plan.ExitCode);
+    }
+
+    [Fact]
+    public void ReplacesALinkOverAPageOfItsOwn()
+    {
+        var ours = Provenance.Stamp(IdenticalPage(), "NarrativeTrace.Skills/0.0.1");
+        var state = Project()
+            .HasClaudeDirectory(true)
+            .AddInstalledSkill(Linked(SkillPresence.LinkedDirectory, ours))
+            .Build();
+
+        Assert.IsType<ReplaceLink>(ActionOn(Plan(state), VendorPage));
+    }
+
+    /// <summary>
+    /// A link whose page matches the VENDOR flavour's rendering is adoptable too — IsOursOrAdoptable
+    /// checks both flavours, because a link could reach either. Exercises the Claude branch of that
+    /// decision, the one the registry case (which links to the agents page) never reaches.
+    /// </summary>
+    [Fact]
+    public void ReplacesALinkWhosePageMatchesTheVendorFlavour()
+    {
+        var vendorBody = Carriers.PageBody("claude", Carriers.Doctor, Carriers.DoctorDescription);
+        var state = Project()
+            .HasClaudeDirectory(true)
+            .AddInstalledSkill(Linked(SkillPresence.LinkedDirectory, vendorBody))
+            .Build();
+
+        Assert.IsType<ReplaceLink>(ActionOn(Plan(state), VendorPage));
+    }
+
+    /// <summary>A linked PAGE inside a real directory is the same decision, one level down.</summary>
+    [Fact]
+    public void ReplacesALinkedPageWithARealFile()
+    {
+        var state = Project()
+            .HasClaudeDirectory(true)
+            .AddInstalledSkill(Linked(SkillPresence.LinkedPage, IdenticalPage()))
+            .Build();
+
+        var action = Assert.IsType<ReplaceLink>(ActionOn(Plan(state), VendorPage));
+        Assert.Equal(VendorPage, action.Link);
+    }
+
+    [Fact]
+    public void RefusesALinkOverAPageNobodyCanPlaceAndNamesTheTarget()
+    {
+        var state = Project()
+            .HasClaudeDirectory(true)
+            .AddInstalledSkill(Linked(SkillPresence.LinkedDirectory, "somebody else's page\n"))
+            .Build();
+
+        var refusal = Assert.IsType<Refuse>(ActionOn(Plan(state), ".claude/skills/narrativetrace-doctor"));
+        Assert.Contains("symbolic link", refusal.Reason, StringComparison.Ordinal);
+        Assert.Contains(LinkTarget, refusal.Reason, StringComparison.Ordinal);
+        Assert.Contains("remove the link", refusal.Reason, StringComparison.Ordinal);
+    }
+
+    /// <summary>A dangling link, and one out of the project, both reach no page: refused, never followed.</summary>
+    [Fact]
+    public void RefusesALinkThatReachesNoPage()
+    {
+        var state = Project()
+            .HasClaudeDirectory(true)
+            .AddInstalledSkill(Linked(SkillPresence.LinkedDirectory, ""))
+            .Build();
+
+        var refusal = Assert.IsType<Refuse>(ActionOn(Plan(state), ".claude/skills/narrativetrace-doctor"));
+        Assert.Contains("no page", refusal.Reason, StringComparison.Ordinal);
+        Assert.Contains(LinkTarget, refusal.Reason, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The refusal for a linked PAGE names the page, not the directory. One level down from
+    /// <see cref="RefusesALinkOverAPageNobodyCanPlaceAndNamesTheTarget"/>, and a different path in the
+    /// plan — which is what the "never two actions on one path" property reads, and what a person has
+    /// to be told to remove.
+    /// </summary>
+    [Fact]
+    public void RefusesALinkedPageOverSomebodyElsesPageAtThePageItself()
+    {
+        var state = Project()
+            .HasClaudeDirectory(true)
+            .AddInstalledSkill(Linked(SkillPresence.LinkedPage, "somebody else's page\n"))
+            .Build();
+
+        var refusal = Assert.IsType<Refuse>(ActionOn(Plan(state), VendorPage));
+        Assert.Contains("symbolic link", refusal.Reason, StringComparison.Ordinal);
+        Assert.Contains("--force covers content", refusal.Reason, StringComparison.Ordinal);
+        Assert.Equal(1, Plan(state).ExitCode);
+    }
+
+    /// <summary><c>--force</c> covers foreign CONTENT, never structure — and a link is structure.</summary>
+    [Fact]
+    public void ForceDoesNotCoverALink()
+    {
+        var state = Project()
+            .HasClaudeDirectory(true)
+            .AddInstalledSkill(Linked(SkillPresence.LinkedDirectory, "somebody else's page\n"))
+            .Build();
+
+        var forced = Plan(state, InitOptions.Defaults().WithForce(true));
+
+        Assert.IsType<Refuse>(ActionOn(forced, ".claude/skills/narrativetrace-doctor"));
+        Assert.Equal(1, forced.ExitCode);
+    }
+
+    /// <summary>One refused link never costs the other flavour, or the other skill, its own install.</summary>
+    [Fact]
+    public void ARefusedLinkLeavesTheRestOfThePlanAlone()
+    {
+        var state = Project()
+            .HasClaudeDirectory(true)
+            .AddInstalledSkill(Linked(SkillPresence.LinkedDirectory, "theirs\n"))
+            .Build();
+
+        var plan = Plan(state);
+
+        Assert.IsType<CreateFile>(ActionOn(plan, DoctorPage));
+        Assert.NotNull(ActionOn(plan, AgentsMd));
+    }
+
+    /// <summary>
+    /// A linked install root is one decision, not one per skill: the refusal names the root, every
+    /// skill of that flavour is left unplanned, and the other flavour is installed as usual.
+    /// </summary>
+    [Fact]
+    public void RefusesAWholeFlavourWhoseInstallRootIsALinkAndInstallsTheOther()
+    {
+        var state = Project()
+            .HasClaudeDirectory(true)
+            .LinkedInstallRoot(SkillFlavour.Claude, "/elsewhere")
+            .Build();
+
+        var plan = Plan(state);
+
+        var refusal = Assert.IsType<Refuse>(ActionOn(plan, ".claude/skills"));
+        Assert.Contains("symbolic link", refusal.Reason, StringComparison.Ordinal);
+        Assert.Contains("/elsewhere", refusal.Reason, StringComparison.Ordinal);
+        Assert.Contains("remove the link", refusal.Reason, StringComparison.Ordinal);
+        Assert.Null(ActionOn(plan, VendorPage));
+        Assert.IsType<CreateFile>(ActionOn(plan, DoctorPage));
+        Assert.Equal(1, plan.ExitCode);
+    }
+
     // --- scope, rule files and the plan itself --------------------------------------------------
 
     [Fact]
@@ -454,6 +706,17 @@ public sealed class InitPlannerTest : IDisposable
         Assert.Throws<ArgumentException>(() => InitPlanner.Plan(Project().Build(), null!, InitOptions.Defaults()));
         Assert.Throws<ArgumentException>(() => InitPlanner.Plan(Project().Build(), _carrier, null!));
     }
+
+    /// <summary>The carrier's own AGENTS page, byte for byte — what a registry install leaves behind.</summary>
+    private static string IdenticalPage() =>
+        Carriers.PageBody("agents", Carriers.Doctor, Carriers.DoctorDescription);
+
+    private static InstalledSkill Theirs(string body) =>
+        new(SkillFlavour.Agents, Carriers.Doctor, SkillPresence.Foreign, "", body);
+
+    /// <summary>A skill whose vendor path is what `npx skills add` leaves: a link to the agents directory.</summary>
+    private static InstalledSkill Linked(SkillPresence presence, string reached) =>
+        new(SkillFlavour.Claude, Carriers.Doctor, presence, "", reached, LinkTarget);
 
     private static InstalledSkill Ours(string name, string coordinate, string body) =>
         new(SkillFlavour.Agents, name, SkillPresence.Ours, coordinate, body);

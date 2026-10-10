@@ -42,8 +42,31 @@ public sealed class EvalTrialTests : IDisposable
 
     private EvalTrial NewTrial() => new(_runner.Run, () => FixedClock, _runsPath);
 
+    private EvalTrial NewTrial(RegistryDelivery delivery) =>
+        new(_runner.Run, () => FixedClock, _runsPath, delivery);
+
     private bool RunWith(string? agentCommand, string prompt = "set up tracing") =>
-        NewTrial().Run(Args, _root, _fixture, _caseDir, _scratch, prompt, agentCommand, 1);
+        NewTrial().Run(Args, _root, _fixture, _caseDir, _scratch, OneTurn(agentCommand, prompt), 1);
+
+    private static AgentTurns OneTurn(string? agentCommand, string prompt) =>
+        agentCommand is null ? AgentTurns.Graded(prompt) : new AgentTurns(agentCommand, null, [prompt]);
+
+    private static readonly AgentTurns Conversation = new(
+        "claude -p \"{prompt}\" --session-id S",
+        "claude -p \"{prompt}\" --resume S",
+        ["report it", "yes, file it"]);
+
+    private EvalTrial RecordingTrial(TrialEnvironment environment) =>
+        new(_runner.Run, () => FixedClock, _runsPath, RegistryDelivery.None(), environment);
+
+    private void WriteRenderedSkill() =>
+        WriteFile(Path.Combine(_root, ".agents", "skills", "add-narrative-tracing", "SKILL.md"), "page\n");
+
+    private static void WriteFile(string path, string content)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, content);
+    }
 
     [Fact]
     public void A_passing_agent_and_a_passing_grader_is_a_pass()
@@ -123,6 +146,24 @@ public sealed class EvalTrialTests : IDisposable
         Assert.True(File.Exists(Path.Combine(_scratch, "Program.cs")));
     }
 
+    /// <summary>
+    /// A fixture's root README describes the fixture for its maintainers — for a Phase 7 case, where
+    /// the defect is hidden — so it never reaches the agent (Java's harness skips it too). A README
+    /// anywhere below the root is project content and is copied.
+    /// </summary>
+    [Fact]
+    public void The_fixtures_root_readme_is_never_copied_but_a_nested_one_is()
+    {
+        File.WriteAllText(Path.Combine(_fixture, "README.md"), "the trap is in the listener\n");
+        Directory.CreateDirectory(Path.Combine(_fixture, "docs"));
+        File.WriteAllText(Path.Combine(_fixture, "docs", "README.md"), "project docs\n");
+
+        RunWith("claude -p \"{prompt}\"");
+
+        Assert.False(File.Exists(Path.Combine(_scratch, "README.md")));
+        Assert.True(File.Exists(Path.Combine(_scratch, "docs", "README.md")));
+    }
+
     [Fact]
     public void The_ledger_row_carries_the_fixed_clock_and_the_case_identity()
     {
@@ -135,18 +176,203 @@ public sealed class EvalTrialTests : IDisposable
         Assert.StartsWith("2026-09-26T07:00:00", row.Date, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void An_ordinary_case_copies_the_harnesss_own_rendered_pages_in()
+    {
+        WriteRenderedSkill();
+
+        RunWith("claude -p \"{prompt}\"");
+
+        Assert.True(File.Exists(Path.Combine(_scratch, ".agents", "skills", "add-narrative-tracing", "SKILL.md")));
+    }
+
+    [Fact]
+    public void A_registry_case_receives_none_of_the_harnesss_own_rendered_pages()
+    {
+        WriteRenderedSkill();
+        var delivery = RegistryDelivery.Through(RegistryPreStep.NpxSkills, Path.Combine(_root, "work"));
+
+        NewTrial(delivery).Run(Args, _root, _fixture, _caseDir, _scratch, OneTurn("claude -p \"{prompt}\"", "go"), 1);
+
+        Assert.False(Directory.Exists(Path.Combine(_scratch, ".agents", "skills")));
+    }
+
+    [Fact]
+    public void A_registry_case_runs_the_delivery_commands_before_the_agent_in_the_isolated_config()
+    {
+        var work = Path.Combine(_root, "work");
+        var delivery = RegistryDelivery.Through(RegistryPreStep.NpxSkills, work);
+
+        NewTrial(delivery).Run(Args, _root, _fixture, _caseDir, _scratch, OneTurn("claude -p \"{prompt}\"", "go"), 1);
+
+        var preSteps = delivery.Commands(_root);
+        Assert.Equal(preSteps[0], _runner.Calls[0].Argv);
+        Assert.Equal("git", _runner.Calls[0].Argv[0]);
+        Assert.Equal(IsolatedAgentConfig.ConfigDir(work), _runner.Calls[0].Env["CLAUDE_CONFIG_DIR"]);
+        var agentCall = _runner.Calls.Single(c => c.Argv[0] == "claude" && c.Argv[1] == "-p");
+        Assert.True(_runner.Calls.IndexOf(agentCall) > preSteps.Count - 1);
+    }
+
+    [Fact]
+    public void A_failed_pre_step_crashes_the_trial_and_writes_no_ledger_row()
+    {
+        _runner.PreStepExit = 1;
+        var delivery = RegistryDelivery.Through(RegistryPreStep.NpxSkills, Path.Combine(_root, "work"));
+
+        Assert.Throws<InvalidOperationException>(() =>
+            NewTrial(delivery).Run(Args, _root, _fixture, _caseDir, _scratch, OneTurn("claude -p \"{prompt}\"", "go"), 1));
+        Assert.False(File.Exists(_runsPath));
+        Assert.DoesNotContain(_runner.Calls, c => c.Argv[0] == "bash");
+    }
+
+    [Fact]
+    public void The_grader_is_told_where_the_built_cli_is_when_it_exists()
+    {
+        var dll = Path.Combine(_root, "src", "NarrativeTrace.Cli", "bin", "Release", "net10.0", "dotnet-narrativetrace.dll");
+        WriteFile(dll, "");
+
+        RunWith("claude -p \"{prompt}\"");
+
+        var graderCall = _runner.Calls.Single(c => c.Argv[0] == "bash");
+        Assert.Equal(dll, graderCall.Env["NARRATIVETRACE_CLI_DLL"]);
+    }
+
+    [Fact]
+    public void The_grader_is_told_no_cli_path_when_none_is_built()
+    {
+        RunWith("claude -p \"{prompt}\"");
+
+        var graderCall = _runner.Calls.Single(c => c.Argv[0] == "bash");
+        Assert.False(graderCall.Env.ContainsKey("NARRATIVETRACE_CLI_DLL"));
+    }
+
+    [Fact]
+    public void Every_turn_is_driven_in_order_with_its_own_prompt_and_template()
+    {
+        RecordingTrial(TrialEnvironment.None()).Run(Args, _root, _fixture, _caseDir, _scratch, Conversation, 1);
+
+        var agentCalls = _runner.Calls.Where(c => c.Argv[0] == "claude").ToList();
+        Assert.Equal(2, agentCalls.Count);
+        Assert.Equal(["claude", "-p", "report it", "--session-id", "S"], agentCalls[0].Argv);
+        Assert.Equal(["claude", "-p", "yes, file it", "--resume", "S"], agentCalls[1].Argv);
+        Assert.Equal("bash", _runner.Calls[^1].Argv[0]);
+    }
+
+    /// <summary>
+    /// A second turn driven after a failed first is an approval answering a question that was never
+    /// asked, and its grader would read "nothing was filed" as a pass — so the trial stops.
+    /// </summary>
+    [Fact]
+    public void A_turn_that_exits_non_zero_stops_the_trial_before_any_later_turn_or_the_grader()
+    {
+        _runner.AgentExit = 1;
+
+        var thrown = Assert.Throws<InvalidOperationException>(() =>
+            RecordingTrial(TrialEnvironment.None()).Run(Args, _root, _fixture, _caseDir, _scratch, Conversation, 1));
+
+        Assert.Contains("turn 1", thrown.Message, StringComparison.Ordinal);
+        Assert.Single(_runner.Calls);
+        Assert.False(File.Exists(_runsPath));
+    }
+
+    [Fact]
+    public void A_recording_trial_writes_each_users_words_before_that_turn_and_sends_stdout_to_the_transcript()
+    {
+        var environment = TrialEnvironment.Under(Path.Combine(_root, "work"), _root);
+        _runner.OnAgent = () => File.ReadAllLines(environment.Transcript()).Length;
+
+        RecordingTrial(environment).Run(Args, _root, _fixture, _caseDir, _scratch, Conversation, 1);
+
+        Assert.Equal([1, 2], _runner.TranscriptLinesSeenByEachTurn);
+        Assert.All(_runner.Calls.Where(c => c.Argv[0] == "claude"), c => Assert.Equal(environment.Transcript(), c.StdoutTo));
+        Assert.Contains("\"text\":\"yes, file it\"", File.ReadAllLines(environment.Transcript())[1], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_trial_that_records_nothing_captures_no_stdout()
+    {
+        RunWith("claude -p \"{prompt}\"");
+
+        Assert.All(_runner.Calls, c => Assert.Null(c.StdoutTo));
+    }
+
+    [Fact]
+    public void The_agent_runs_with_the_stand_ins_and_the_isolated_configuration_and_never_its_evidence()
+    {
+        var work = Path.Combine(_root, "work");
+        var environment = TrialEnvironment.Under(work, _root);
+
+        RecordingTrial(environment).Run(Args, _root, _fixture, _caseDir, _scratch, Conversation, 1);
+
+        var agentCall = _runner.Calls.First(c => c.Argv[0] == "claude");
+        Assert.StartsWith(Path.Combine(work, "bin") + ":", agentCall.Env["PATH"], StringComparison.Ordinal);
+        Assert.Equal(IsolatedAgentConfig.ConfigDir(work), agentCall.Env["CLAUDE_CONFIG_DIR"]);
+        Assert.False(agentCall.Env.ContainsKey("NARRATIVETRACE_TRANSCRIPT"));
+        var graderCall = _runner.Calls.Single(c => c.Argv[0] == "bash");
+        Assert.Equal(environment.Transcript(), graderCall.Env["NARRATIVETRACE_TRANSCRIPT"]);
+        Assert.Equal(environment.BlockedInvocations(), graderCall.Env["NARRATIVETRACE_GH_LOG"]);
+        Assert.Equal(_scratch, graderCall.Env["PROJECT_DIR"]);
+    }
+
+    /// <summary>
+    /// The capture is proven at the actual OS process boundary: a fake that "captured" into a string
+    /// would prove nothing about a child process's file descriptors. Errors stay where whoever started
+    /// the trial sees them; only standard output is the transcript.
+    /// </summary>
+    [Fact]
+    public void The_real_process_seam_appends_standard_output_and_only_it_to_the_transcript()
+    {
+        var transcript = Path.Combine(_root, "transcript.jsonl");
+        File.WriteAllText(transcript, "{\"nt_turn\":1}\n");
+
+        var exit = EvalTrial.RealProcess(
+            ["sh", "-c", "echo '{\"type\":\"result\"}'; echo oops >&2; exit 3"],
+            _root,
+            new Dictionary<string, string>(),
+            transcript);
+
+        Assert.Equal(3, exit);
+        Assert.Equal(["{\"nt_turn\":1}", "{\"type\":\"result\"}"], File.ReadAllLines(transcript));
+    }
+
     private sealed class FakeRunner
     {
         public int AgentExit { get; set; }
 
         public int GraderExit { get; set; }
 
-        public List<(IReadOnlyList<string> Argv, string Cwd, IReadOnlyDictionary<string, string> Env)> Calls { get; } = [];
+        public int PreStepExit { get; set; }
 
-        public int Run(IReadOnlyList<string> argv, string cwd, IReadOnlyDictionary<string, string> env)
+        public Func<int>? OnAgent { get; set; }
+
+        public List<int> TranscriptLinesSeenByEachTurn { get; } = [];
+
+        public List<(IReadOnlyList<string> Argv, string Cwd, IReadOnlyDictionary<string, string> Env, string? StdoutTo)> Calls { get; } = [];
+
+        public int Run(IReadOnlyList<string> argv, string cwd, IReadOnlyDictionary<string, string> env, string? stdoutTo)
         {
-            Calls.Add((argv, cwd, env));
-            return argv[0] == "bash" ? GraderExit : AgentExit;
+            Calls.Add((argv, cwd, env, stdoutTo));
+            if (argv[0] == "bash")
+            {
+                return GraderExit;
+            }
+
+            if (IsPreStep(argv))
+            {
+                return PreStepExit;
+            }
+
+            if (OnAgent is not null)
+            {
+                TranscriptLinesSeenByEachTurn.Add(OnAgent());
+            }
+
+            return AgentExit;
         }
+
+        // A pre-step is a registry tool line: git/tar staging, npx, or `claude plugin …` — never
+        // the agent's own `claude -p …` turn.
+        private static bool IsPreStep(IReadOnlyList<string> argv) =>
+            argv[0] is "git" or "tar" or "npx" || (argv[0] == "claude" && argv[1] == "plugin");
     }
 }

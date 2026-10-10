@@ -158,4 +158,12 @@ public class YamlEscapeTests
 
         Assert.DoesNotContain(result, c => char.IsSurrogate(c));
     }
+
+    [Theory]
+    [InlineData("a\u2028b", "\"a\\u2028b\"")]
+    [InlineData("a\u2029b", "\"a\\u2029b\"")]
+    public void Unicode_line_and_paragraph_separators_are_quoted_and_escaped(string raw, string scalar)
+    {
+        Assert.Equal(scalar, YamlEscape.Scalar(raw));
+    }
 }

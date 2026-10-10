@@ -305,7 +305,7 @@ Console.WriteLine(IndentedTextRenderer.Render(context.CaptureTrace()));
 ```
 
 ```
-└── IOrderService.PlaceOrder(sku: "book-123", quantity: 2) → "confirmed" — 6ms
+└── IOrderService.PlaceOrder(sku: "book-123", quantity: 2) → "confirmed" — 6ms #1
 ```
 
 **Dependency injection — auto-wrap every interface whose implementation
@@ -561,7 +561,7 @@ Going deeper:
 - [Security Tooling](documentation/security-tooling.md) — the scanner lineup and what gates the build vs. runs on a schedule
 - [Security Testing](documentation/security-testing.md) — the fuzz/property suite mirrored across every NarrativeTrace runtime
 - [The Contract Gate](documentation/contract-gate.md) — proving documented defaults and entry points against a published nuget.org install, not just the working tree
-- [Agent Skills](documentation/agent-skills.md) — the `narrativetrace-doctor` and `add-narrative-tracing` Claude Code and Codex CLI skills, generated from a typed catalogue
+- [Agent Skills](documentation/agent-skills.md) — the `narrativetrace-doctor`, `add-narrative-tracing`, `narrativetrace-feedback`, `add-narrativetrace-clarity`, `narrativetrace-verify` and `narrativetrace-debug` Claude Code and Codex CLI skills, generated from a typed catalogue
 
 For AI consumers: [`llms.txt`](documentation/guides/llms.txt) and
 [`llms-full.md`](documentation/guides/llms-full.md).

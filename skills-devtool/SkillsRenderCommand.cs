@@ -4,6 +4,7 @@
 using NarrativeTrace.Skills;
 using NarrativeTrace.Skills.Catalogue;
 using NarrativeTrace.Skills.Render;
+using NarrativeTrace.Tooling.Frameworks;
 
 namespace NarrativeTrace.SkillsDevTool;
 
@@ -33,9 +34,23 @@ public static class SkillsRenderCommand
 
         WriteIfChanged(CarrierPath(repoRoot, "catalogue.json"), CatalogueJsonRenderer.Render(SkillCatalogue.Skills));
         SpliceAgentsMd(repoRoot);
-        output.WriteLine($"Rendered {SkillCatalogue.Skills.Count} skill page(s) (Claude + Codex), the carrier and the AGENTS.md section.");
+        var marketplacePath = MarketplaceJsonPath(repoRoot);
+        Directory.CreateDirectory(Path.GetDirectoryName(marketplacePath)!);
+        WriteIfChanged(marketplacePath, MarketplaceJsonRenderer.Render(SkillCatalogue.Marketplace));
+        RenderPage(repoRoot, FrameworkTableDocs.LlmsFull, FrameworkTableDocs.RenderLlmsFull);
+        RenderPage(repoRoot, FrameworkTableDocs.LlmsTxt, FrameworkTableDocs.RenderLlmsTxt);
+        output.WriteLine($"Rendered {SkillCatalogue.Skills.Count} skill page(s) (Claude + Codex), the carrier, the AGENTS.md section, the marketplace file and the framework table's documentation blocks.");
         return 0;
     }
+
+    /// <summary>
+    /// <c>.claude-plugin/marketplace.json</c>, at the repository root — outside <c>.claude/</c> on
+    /// purpose: the vendor reads the marketplace manifest from the repository root, and the
+    /// plugin it lists is rooted at <c>./.claude</c>, so a marketplace file inside the plugin
+    /// would be a directory listing itself.
+    /// </summary>
+    private static string MarketplaceJsonPath(string repoRoot) =>
+        Path.Combine(repoRoot, ".claude-plugin", "marketplace.json");
 
     private static void RenderSkillPage(string repoRoot, string platformDir, Skill skill, string content)
     {
@@ -53,6 +68,19 @@ public static class SkillsRenderCommand
 
     private static string CarrierPath(string repoRoot, string relative) =>
         Path.Combine(repoRoot, "src", "NarrativeTrace.Skills", "skills", relative);
+
+    /// <summary>
+    /// Re-renders one documentation page's framework-table block (Phase 6 D1: the table renders into
+    /// the docs from the doctor's own rows). A repository without the page has nothing to render.
+    /// </summary>
+    private static void RenderPage(string repoRoot, string relativePage, Func<string, string> render)
+    {
+        var path = Path.Combine(repoRoot, relativePage);
+        if (File.Exists(path))
+        {
+            WriteIfChanged(path, render(File.ReadAllText(path)));
+        }
+    }
 
     private static void SpliceAgentsMd(string repoRoot)
     {

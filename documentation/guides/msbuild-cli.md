@@ -157,7 +157,7 @@ Add the build-only package. `PrivateAssets="all"` keeps it out of your
 package's transitive dependencies:
 
 ```xml
-<PackageReference Include="NarrativeTrace.MSBuild" Version="0.2.0"
+<PackageReference Include="NarrativeTrace.MSBuild" Version="0.3.0"
                   PrivateAssets="all" />
 ```
 

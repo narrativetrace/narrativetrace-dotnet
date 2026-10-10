@@ -202,13 +202,20 @@ Clarity becomes a *gate*, not a suggestion, via the
 wraps it).
 
 ```bash
-# 1. Scan a built assembly into clarity-results.json:
-dotnet-narrativetrace clarity-scan --assembly bin/Release/net10.0/MyApp.dll
+# 1. Scan a built assembly into narrativetrace/clarity-scan-results.json:
+dotnet-narrativetrace clarity-scan --assembly bin/Release/net10.0/MyApp.dll \
+    --output-dir narrativetrace
 
 # 2. Fail the build below a threshold or above a HIGH-issue budget:
-dotnet-narrativetrace clarity-check --results clarity-results.json \
+dotnet-narrativetrace clarity-check --results narrativetrace/clarity-scan-results.json \
     --min-score 0.80 --max-high-issues 0
 ```
+
+For a first report or a gate you work through name by name, use the
+[`add-narrativetrace-clarity`](../agent-skills.md#add-narrativetrace-clarity) skill. It runs
+`clarity-scan` and `clarity-check` through the local tool, reads both reports, renames by the
+report's suggestions, and re-runs until the gate exits `0`. A missing or empty report is a setup
+problem for `narrativetrace-doctor`.
 
 `clarity-check` exit codes: `0` pass (or `--warn-only`), `1` gate failure,
 `2` usage error / malformed results. A missing results file is **skipped**

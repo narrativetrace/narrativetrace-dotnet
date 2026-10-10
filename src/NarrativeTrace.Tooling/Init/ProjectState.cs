@@ -33,6 +33,8 @@ public sealed class ProjectState
         _claudeMd = builder.ClaudeMdContent;
         HasClaudeDirectory = builder.ClaudeDirectory;
         InstalledSkills = new ReadOnlyCollection<InstalledSkill>([.. builder.InstalledSkillsList]);
+        LinkedInstallRoots = new ReadOnlyDictionary<SkillFlavour, string>(
+            new Dictionary<SkillFlavour, string>(builder.LinkedInstallRootsMap));
         MarkedRuleFiles = new ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>(builder.MarkedRuleFilesMap, StringComparer.Ordinal));
         OutputDirectory = builder.OutputDirectoryValue;
@@ -59,6 +61,13 @@ public sealed class ProjectState
     public IReadOnlyList<InstalledSkill> InstalledSkills { get; }
 
     /// <summary>
+    /// Each flavour whose install root is ITSELF a symbolic link, mapped to what it points at —
+    /// nothing may be written into such a flavour at all, because every page of it, present or not,
+    /// would land wherever the link goes.
+    /// </summary>
+    public IReadOnlyDictionary<SkillFlavour, string> LinkedInstallRoots { get; }
+
+    /// <summary>
     /// Vendor rule files that already carry our markers, by project-relative path. The installer
     /// never CREATES one of these; it keeps an existing block up to date.
     /// </summary>
@@ -78,14 +87,26 @@ public sealed class ProjectState
         InstalledSkills.FirstOrDefault(
             skill => skill.Flavour == flavour && string.Equals(skill.Name, name, StringComparison.Ordinal));
 
-    /// <summary>No path is described twice: one snapshot entry per (flavour, name).</summary>
+    /// <summary>
+    /// What a flavour's install root points at when the root itself is a symbolic link, or
+    /// <see langword="null"/> when it is not — nothing may be written into that flavour at all.
+    /// </summary>
+    public string? LinkedInstallRoot(SkillFlavour flavour) =>
+        LinkedInstallRoots.TryGetValue(flavour, out var target) ? target : null;
+
+    /// <summary>
+    /// No path is described twice: one snapshot entry per (flavour, name), and nothing is listed under
+    /// a flavour whose whole install root is a link — what was found there was found through it.
+    /// </summary>
     internal bool Invariant()
     {
         var distinct = InstalledSkills
             .Select(skill => skill.Flavour + "/" + skill.Name)
             .Distinct(StringComparer.Ordinal)
             .Count();
-        return distinct == InstalledSkills.Count && !string.IsNullOrWhiteSpace(OutputDirectory);
+        return distinct == InstalledSkills.Count
+            && !string.IsNullOrWhiteSpace(OutputDirectory)
+            && !InstalledSkills.Any(skill => LinkedInstallRoots.ContainsKey(skill.Flavour));
     }
 
     /// <summary>Assembles a snapshot; every field has the "untouched project" default.</summary>
@@ -98,6 +119,8 @@ public sealed class ProjectState
         internal bool ClaudeDirectory { get; private set; }
 
         internal List<InstalledSkill> InstalledSkillsList { get; } = [];
+
+        internal Dictionary<SkillFlavour, string> LinkedInstallRootsMap { get; } = new();
 
         internal Dictionary<string, string> MarkedRuleFilesMap { get; } = new(StringComparer.Ordinal);
 
@@ -130,6 +153,13 @@ public sealed class ProjectState
         public Builder AddInstalledSkill(InstalledSkill skill)
         {
             InstalledSkillsList.Add(skill);
+            return this;
+        }
+
+        /// <summary>Records that a flavour's install root is a symbolic link, and what it points at.</summary>
+        public Builder LinkedInstallRoot(SkillFlavour flavour, string target)
+        {
+            LinkedInstallRootsMap[flavour] = target;
             return this;
         }
 

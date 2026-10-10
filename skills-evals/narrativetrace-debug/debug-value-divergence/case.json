@@ -1,0 +1,4 @@
+{
+  "fixture": "skills-evals/fixtures/checkout-currency",
+  "turns": { "2": "yes, pin it" }
+}

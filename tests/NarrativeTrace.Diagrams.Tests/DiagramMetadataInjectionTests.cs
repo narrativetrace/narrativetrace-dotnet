@@ -123,4 +123,38 @@ public class DiagramMetadataInjectionTests
 
         Assert.DoesNotContain(' ', arrowLine.TrimStart().Split("->>")[0]);
     }
+
+    [Theory]
+    [InlineData("\u2028")]
+    [InlineData("\u2029")]
+    [InlineData("\u0085")]
+    public void Unicode_line_terminators_in_every_name_field_fold_to_a_space_on_both_grammars(string separator)
+    {
+        var hostile = "Pay/" + separator + "ment";
+        var root = new TraceNode(
+            new MethodSignature(hostile, hostile, [new ParameterCapture(hostile, "1", false)]),
+            new Returned(null), [], 0);
+        var tree = new TraceTree([root]);
+
+        foreach (var diagram in new[] { MermaidSequenceRenderer.Render(tree), PlantUmlSequenceRenderer.Render(tree) })
+        {
+            Assert.DoesNotContain(separator, diagram);
+            Assert.Contains("Pay/ ment", diagram);
+        }
+    }
+
+    [Fact]
+    public void Unicode_line_terminators_in_a_return_value_fold_to_a_space_on_both_grammars()
+    {
+        var root = new TraceNode(
+            new MethodSignature("C", "m", []),
+            new Returned("\"a\u2029b\u2028c\""), [], 0);
+        var tree = new TraceTree([root]);
+
+        foreach (var diagram in new[] { MermaidSequenceRenderer.Render(tree), PlantUmlSequenceRenderer.Render(tree) })
+        {
+            Assert.DoesNotContain('\u2028', diagram);
+            Assert.DoesNotContain('\u2029', diagram);
+        }
+    }
 }

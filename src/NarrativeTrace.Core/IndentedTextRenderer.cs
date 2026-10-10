@@ -29,7 +29,9 @@ public static class IndentedTextRenderer
         // stack or loop forever on a hand-built or replayed cycle. Cheap on
         // ordinary input: TreeWalk.Bound returns Roots unchanged once it
         // confirms there is nothing to bound.
-        RenderNodes(sb, TreeWalk.Bound(tree.Roots), "");
+        // Roots are a sibling list like any other: a fork, an async group or a fire-and-forget launch
+        // at the root renders as one, and its ids are the structural trace's.
+        RenderChildren(sb, TreeWalk.Bound(tree.Roots), "", null);
         return sb.ToString();
     }
 
@@ -61,7 +63,7 @@ public static class IndentedTextRenderer
 
     private static void RenderNodes(
         StringBuilder sb,
-        IReadOnlyList<TraceNode> nodes,
+        IReadOnlyList<CitedNode> nodes,
         string indent)
     {
         for (var i = 0; i < nodes.Count; i++)
@@ -70,38 +72,75 @@ public static class IndentedTextRenderer
             var connector = isLast ? "\u2514\u2500\u2500 " : "\u251c\u2500\u2500 ";
             var childIndent = indent
                 + (isLast ? "    " : "\u2502   ");
+            var (node, id) = nodes[i];
 
             sb.Append(indent);
             sb.Append(connector);
-            AppendSignature(sb, nodes[i].Signature);
-            AppendOutcome(sb, nodes[i]);
-            AppendDuration(sb, nodes[i]);
-            sb.AppendLine();
+            AppendEntry(sb, node, id);
 
-            AppendNarration(sb, nodes[i].Signature, childIndent);
-            RenderChildren(
-                sb, nodes[i].Children, childIndent);
+            AppendNarration(sb, node.Signature, childIndent);
+            RenderChildren(sb, node.Children, childIndent, id);
         }
+    }
+
+    /// <summary>One call's line after its connector: signature, outcome, duration, then its span id.</summary>
+    private static void AppendEntry(StringBuilder sb, TraceNode node, SpanRef id)
+    {
+        AppendSignature(sb, node.Signature);
+        AppendOutcome(sb, node);
+        AppendDuration(sb, node);
+        id.AppendTo(sb.Append(' ')).AppendLine();
     }
 
     private static void RenderChildren(
         StringBuilder sb,
         IReadOnlyList<TraceNode> children,
-        string indent)
+        string indent,
+        SpanRef? parent)
     {
+        if (children.Count == 0)
+        {
+            return;
+        }
+
+        var ids = new SpanCursor(parent?.ToString());
+        if (!ChildSegment.AnyConcurrent(children))
+        {
+            // No concurrent group: every sibling is one batch, and no segment needs allocating.
+            RenderNodes(sb, Cite(children, ids), indent);
+            return;
+        }
+
+        RenderSegments(sb, children, indent, ids);
+    }
+
+    private static List<CitedNode> Cite(IReadOnlyList<TraceNode> children, SpanCursor ids)
+    {
+        var cited = new List<CitedNode>(children.Count);
+        for (var i = 0; i < children.Count; i++)
+        {
+            cited.Add(new CitedNode(children[i], ids.NextRef()));
+        }
+
+        return cited;
+    }
+
+    private static void RenderSegments(
+        StringBuilder sb, IReadOnlyList<TraceNode> children, string indent, SpanCursor ids)
+    {
+        var batch = new List<CitedNode>();
         var segments = ChildSegment.Partition(children);
-        var batch = new List<TraceNode>();
         for (var i = 0; i < segments.Count; i++)
         {
             if (segments[i].IsConcurrent)
             {
                 FlushBatch(sb, batch, indent);
                 RenderConcurrentSegment(
-                    sb, segments[i], indent);
+                    sb, segments[i], indent, ids);
             }
             else
             {
-                batch.AddRange(segments[i].Nodes);
+                batch.Add(new CitedNode(segments[i].Nodes[0], ids.NextRef()));
             }
         }
 
@@ -109,7 +148,7 @@ public static class IndentedTextRenderer
     }
 
     private static void FlushBatch(
-        StringBuilder sb, List<TraceNode> batch,
+        StringBuilder sb, List<CitedNode> batch,
         string indent)
     {
         if (batch.Count == 0)
@@ -123,26 +162,30 @@ public static class IndentedTextRenderer
 
     private static void RenderConcurrentSegment(
         StringBuilder sb, ChildSegment segment,
-        string indent)
+        string indent, SpanCursor ids)
     {
         if (segment.Kind == ConcurrencyKind.FireAndForget)
         {
-            RenderFireAndForget(sb, segment, indent);
+            RenderFireAndForget(sb, segment, indent, ids.Next());
         }
         else
         {
-            RenderForkJoin(sb, segment, indent);
+            RenderForkJoin(sb, segment, indent, ids);
         }
     }
 
+    /// <summary>
+    /// The launch takes one span id, printed at the end of its marker line;
+    /// the launched work is numbered under it in capture order.
+    /// </summary>
     private static void RenderFireAndForget(
         StringBuilder sb, ChildSegment segment,
-        string indent)
+        string indent, string launchId)
     {
         sb.Append(indent);
         sb.Append("\u2514\u2500\u2500 \u2933 fire-and-forget");
         AppendLauncherThread(sb, segment);
-        sb.AppendLine();
+        sb.Append(' ').Append(launchId).AppendLine();
 
         var body = FireAndForgetSection.Body(segment.Nodes);
         if (body.Count == 0)
@@ -152,11 +195,11 @@ public static class IndentedTextRenderer
             return;
         }
 
-        var sorted = SortByClassName(body);
-        for (var i = 0; i < sorted.Count; i++)
+        var launched = new SpanCursor(launchId);
+        for (var i = 0; i < body.Count; i++)
         {
             RenderForkMember(
-                sb, sorted[i], indent + "    ");
+                sb, body[i], indent + "    ", launched.NextRef());
         }
     }
 
@@ -172,7 +215,7 @@ public static class IndentedTextRenderer
 
     private static void RenderForkJoin(
         StringBuilder sb, ChildSegment segment,
-        string indent)
+        string indent, SpanCursor ids)
     {
         sb.Append(indent);
         sb.Append("\u251c\u2500\u2500 \u2442 fork [");
@@ -181,11 +224,11 @@ public static class IndentedTextRenderer
         AppendSequentialWarning(sb, segment.Nodes);
         sb.AppendLine();
 
-        var sorted = SortByClassName(segment.Nodes);
+        var sorted = SpanPath.InConcurrentOrder(segment.Nodes);
         for (var i = 0; i < sorted.Count; i++)
         {
             RenderForkMember(
-                sb, sorted[i], indent + "\u2502   ");
+                sb, sorted[i], indent + "\u2502   ", ids.NextRef());
         }
 
         sb.Append(indent).Append("\u2514\u2500\u2500 \u2443 join");
@@ -212,16 +255,13 @@ public static class IndentedTextRenderer
 
     private static void RenderForkMember(
         StringBuilder sb, TraceNode node,
-        string indent)
+        string indent, SpanRef id)
     {
         sb.Append(indent);
         sb.Append("\u21a6 ");
-        AppendSignature(sb, node.Signature);
-        AppendOutcome(sb, node);
-        AppendDuration(sb, node);
-        sb.AppendLine();
+        AppendEntry(sb, node, id);
         RenderChildren(
-            sb, node.Children, indent + "    ");
+            sb, node.Children, indent + "    ", id);
     }
 
     // Java renderOutcomeInline: this renderer targets console/failure output,
@@ -298,27 +338,6 @@ public static class IndentedTextRenderer
             sb.Append(savings);
             sb.Append("ms with Task.WhenAll");
         }
-    }
-
-    private static IReadOnlyList<TraceNode>
-        SortByClassName(
-            IReadOnlyList<TraceNode> nodes)
-    {
-        var sorted = new List<TraceNode>(nodes);
-        sorted.Sort((a, b) =>
-        {
-            var cmp = string.Compare(
-                a.Signature.ClassName,
-                b.Signature.ClassName,
-                StringComparison.Ordinal);
-            return cmp != 0
-                ? cmp
-                : string.Compare(
-                    a.Signature.MethodName,
-                    b.Signature.MethodName,
-                    StringComparison.Ordinal);
-        });
-        return sorted;
     }
 
     // Escapes className/methodName/parameter names the same way exception

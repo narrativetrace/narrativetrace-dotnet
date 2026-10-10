@@ -109,6 +109,38 @@ public sealed class SkillsInstalledCheckTests
         Assert.DoesNotContain(Doctor, finding.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Names_the_clarity_skill_when_it_is_the_only_one_of_the_four_missing()
+    {
+        string[] four = [Doctor, AddTracing, "narrativetrace-feedback", "add-narrativetrace-clarity"];
+        var snapshot = Project(
+            Installed(Doctor, Current), Installed(AddTracing, Current), Installed("narrativetrace-feedback", Current))
+            with
+        { CarrierCatalogueSkills = four };
+
+        var finding = SkillsInstalledCheck.Run(snapshot);
+
+        Assert.False(finding.Passed);
+        Assert.Contains("add-narrativetrace-clarity", finding.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("narrativetrace-feedback", finding.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Counts_all_four_skills_once_the_clarity_page_is_installed_too()
+    {
+        string[] four = [Doctor, AddTracing, "narrativetrace-feedback", "add-narrativetrace-clarity"];
+        var snapshot = Project(
+            Installed(Doctor, Current), Installed(AddTracing, Current),
+            Installed("narrativetrace-feedback", Current), Installed("add-narrativetrace-clarity", Current))
+            with
+        { CarrierCatalogueSkills = four };
+
+        var finding = SkillsInstalledCheck.Run(snapshot);
+
+        Assert.True(finding.Passed);
+        Assert.Contains("All 4 agent skill(s)", finding.Message, StringComparison.Ordinal);
+    }
+
     /// <summary>A directory of somebody else's is reported, and never counted as one of ours.</summary>
     [Fact]
     public void A_foreign_directory_at_a_skills_path_is_reported_and_not_counted()
@@ -120,6 +152,43 @@ public sealed class SkillsInstalledCheckTests
         Assert.Contains(AddTracing, finding.Message, StringComparison.Ordinal);
         Assert.Contains("not ours", finding.Message, StringComparison.Ordinal);
         Assert.DoesNotContain(Doctor, finding.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// "There, but not ours" is most often a REGISTRY install (npx skills add, a plugin, a workspace
+    /// skills install): the pages are this release's own rendered files with no provenance line. The
+    /// fix has to say so, and say that <c>init</c> adopts an identical page rather than demanding
+    /// --force — otherwise the only reading left is "overwrite somebody else's work".
+    /// </summary>
+    [Fact]
+    public void The_fix_for_pages_that_are_there_but_not_ours_names_the_registry_case_and_adoption()
+    {
+        var finding = SkillsInstalledCheck.Run(Project(Theirs(Doctor)));
+
+        Assert.False(finding.Passed);
+        Assert.Contains("not ours", finding.Message, StringComparison.Ordinal);
+        Assert.Contains("registry", finding.Fix, StringComparison.Ordinal);
+        Assert.Contains("dotnet tool run dotnet-narrativetrace init --dry-run", finding.Fix, StringComparison.Ordinal);
+        Assert.Contains("read the diff", finding.Fix, StringComparison.Ordinal);
+        Assert.Contains("adopted", finding.Fix, StringComparison.Ordinal);
+    }
+
+    /// <summary>Nothing there at all is nobody's registry: that fix says what to run and blames no tool.</summary>
+    [Fact]
+    public void The_fix_for_an_empty_project_does_not_invent_a_registry()
+    {
+        Assert.DoesNotContain("registry", SkillsInstalledCheck.Run(Project()).Fix, StringComparison.Ordinal);
+    }
+
+    /// <summary>A partial install is the same story per page, so it makes the same promise about adoption.</summary>
+    [Fact]
+    public void The_fix_for_a_partial_install_says_an_identical_page_is_adopted()
+    {
+        var finding = SkillsInstalledCheck.Run(
+            Project(Installed(Doctor, Current), Theirs(AddTracing)));
+
+        Assert.Contains("adopted", finding.Fix, StringComparison.Ordinal);
+        Assert.Contains("--force", finding.Fix, StringComparison.Ordinal);
     }
 
     /// <summary>A project's own skills are its own business — only the catalogue's names are this check's.</summary>

@@ -59,6 +59,27 @@ public sealed class SnippetCheckSupportTests : IDisposable
         Assert.Contains("drifted", problem, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// The doctor's framework-table wiring snippets ship inside the tooling package, so the file that
+    /// carries them is governed like a public page: a fixture edit that is not synced fails the build.
+    /// </summary>
+    [Fact]
+    public void The_doctors_wiring_snippets_resource_is_checked_although_it_lives_under_src()
+    {
+        Write("tests/Wiring/Setup.cs", "services.AddThing();\n");
+        Write("src/NarrativeTrace.Tooling/Frameworks/wiring-snippets.md",
+            "## thing\n\n"
+            + "<!-- snippet: tests/Wiring/Setup.cs -->\n"
+            + "```csharp\n"
+            + "services.AddOtherThing();\n"
+            + "```\n"
+            + "<!-- /snippet -->\n");
+
+        var problem = Assert.Single(SnippetCheckSupport.Check(_repo));
+
+        Assert.Contains("src/NarrativeTrace.Tooling/Frameworks/wiring-snippets.md", problem, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void A_block_that_has_drifted_from_its_source_names_both_paths()
     {

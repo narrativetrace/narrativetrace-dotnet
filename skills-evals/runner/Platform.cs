@@ -31,10 +31,23 @@ public static class Platforms
     /// What the Claude CLI is allowed to do in a trial, as a comma-separated <c>--allowed-tools</c>
     /// list — derived from the published init prompt, not convenience: step 1 reads llms.txt
     /// (<c>WebFetch</c>), steps 2-3 create and edit a project (<c>Read</c>, <c>Edit</c>,
-    /// <c>Write</c>), step 5 runs it (<c>Bash</c>). Granting less would measure the sandbox, not
-    /// the skill.
+    /// <c>Write</c>), step 5 runs it (<c>Bash</c>), and step 4 follows the skill when it is
+    /// available (<c>Skill</c>). Granting less would measure the sandbox, not the skill — a
+    /// registry case whose agent cannot invoke a skill measures nothing the registry delivered.
     /// </summary>
-    public const string ClaudeTools = "Bash,Read,Edit,Write,WebFetch";
+    public const string ClaudeTools = "Bash,Read,Edit,Write,WebFetch,Skill";
+
+    /// <summary>
+    /// The machine-readable stream, because a grader has to read the agent's TOOL CALLS and not only
+    /// its closing text: a URL a command printed and a URL typed into a reply are the same event to
+    /// the gate that must not see either before the user's approval turn. <c>--verbose</c> is not
+    /// decoration — without it this CLI exits 1 having written ZERO bytes, a silent failure
+    /// indistinguishable from an agent that did nothing (verified in the trial container).
+    /// </summary>
+    public const string ClaudeTranscriptFormat = "--output-format stream-json --verbose";
+
+    /// <summary>What a multi-turn template carries where the trial's own session id goes.</summary>
+    public const string SessionPlaceholder = "{session}";
 
     /// <summary>Parses a platform name case-insensitively; null when it names no known lane.</summary>
     public static Platform? Parse(string? value)
@@ -44,7 +57,11 @@ public static class Platforms
             return null;
         }
 
-        return Enum.TryParse<Platform>(value, ignoreCase: true, out var platform) ? platform : null;
+        // By NAME only: Enum.TryParse also accepts numeric text, which would make "--platform 1" Codex.
+        return Enum.GetValues<Platform>()
+            .Where(platform => string.Equals(platform.ToString(), value, StringComparison.OrdinalIgnoreCase))
+            .Select(platform => (Platform?)platform)
+            .FirstOrDefault();
     }
 
     /// <summary>The lowercase wire name (<c>claude</c>/<c>codex</c>/<c>gemini</c>) the ledger uses.</summary>
@@ -69,9 +86,38 @@ public static class Platforms
     public static string PresetAgentCommand(this Platform platform, string model, string canonicalSkillName) =>
         platform switch
         {
-            Platform.Claude => $"claude -p \"{{prompt}}\" --model {model} --allowed-tools \"{ClaudeTools}\"",
+            Platform.Claude =>
+                $"claude -p \"{{prompt}}\" --model {model} --allowed-tools \"{ClaudeTools}\" {ClaudeTranscriptFormat}",
             Platform.Codex => CodexCommand(model, canonicalSkillName),
             Platform.Gemini => GeminiCommand(model, canonicalSkillName),
+            _ => throw new ArgumentOutOfRangeException(nameof(platform), platform, "unknown platform"),
+        };
+
+    /// <summary>
+    /// How this platform's trial opens a conversation the runner will drive further, or <c>null</c>
+    /// when its own multi-turn flags have never been verified in the container the trials run in.
+    /// </summary>
+    public static string? PresetFirstTurnCommand(this Platform platform, string model, string canonicalSkillName) =>
+        MultiTurn(platform, model, canonicalSkillName, "--session-id " + SessionPlaceholder);
+
+    /// <summary>
+    /// How this platform's trial continues that same conversation, or <c>null</c> for the same
+    /// reason. The id is RESUMED rather than forked, so every later turn names the id turn 1 was given.
+    /// </summary>
+    public static string? PresetResumedTurnCommand(this Platform platform, string model, string canonicalSkillName) =>
+        MultiTurn(platform, model, canonicalSkillName, "--resume " + SessionPlaceholder);
+
+    /// <summary>
+    /// The single-turn preset plus one session flag and nothing else. <c>null</c> for every platform
+    /// but Claude, and for BOTH halves: a platform that could open a conversation but not resume it
+    /// would run its "second turn" as a FRESH session with no memory of the draft, where "nothing
+    /// was filed" is true for a reason that has nothing to do with the gate under test.
+    /// </summary>
+    private static string? MultiTurn(Platform platform, string model, string canonicalSkillName, string sessionFlag) =>
+        platform switch
+        {
+            Platform.Claude => platform.PresetAgentCommand(model, canonicalSkillName) + " " + sessionFlag,
+            Platform.Codex or Platform.Gemini => null,
             _ => throw new ArgumentOutOfRangeException(nameof(platform), platform, "unknown platform"),
         };
 

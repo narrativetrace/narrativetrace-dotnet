@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Licensed under the Business Source License 1.1 (see LICENSE); Change Date: four years from publication; Change License: Apache-2.0
 // Copyright (c) 2026 Empower Agile
+using NarrativeTrace.Tooling.Feedback;
 using NarrativeTrace.Cli;
 using NarrativeTrace.Clarity;
 using Xunit;
@@ -161,6 +162,56 @@ public sealed class CliRunnerTests : IDisposable
 
         Assert.Equal(1, exit);
         Assert.Contains("\"findings\"", _out.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Doctor_report_flag_leaves_the_json_report_where_the_feedback_verb_reads_it()
+    {
+        Directory.CreateDirectory(_outputDir);
+        File.WriteAllText(Path.Combine(_outputDir, "app.csproj"), "<Project />");
+
+        var exit = CliRunner.Run(["doctor", "--json", "--report", "--dir", _outputDir], _out, _err);
+
+        var written = File.ReadAllText(Path.Combine(
+            _outputDir, FeedbackGatherer.DoctorReportPath.Replace('/', Path.DirectorySeparatorChar)));
+        Assert.Equal(1, exit);
+        Assert.Equal(_out.ToString().TrimEnd(), written.TrimEnd());
+    }
+
+    [Fact]
+    public void Doctor_report_flag_without_json_still_prints_the_human_report_and_writes_json()
+    {
+        Directory.CreateDirectory(_outputDir);
+        File.WriteAllText(Path.Combine(_outputDir, "app.csproj"), "<Project />");
+
+        CliRunner.Run(["doctor", "--report", "--dir", _outputDir], _out, _err);
+
+        var written = File.ReadAllText(Path.Combine(
+            _outputDir, FeedbackGatherer.DoctorReportPath.Replace('/', Path.DirectorySeparatorChar)));
+        Assert.StartsWith("{", written.TrimStart(), StringComparison.Ordinal);
+        Assert.DoesNotContain("\"findings\"", _out.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Doctor_report_flag_writes_nothing_when_the_doctor_could_not_run()
+    {
+        Directory.CreateDirectory(_outputDir);
+
+        var exit = CliRunner.Run(["doctor", "--report", "--dir", _outputDir], _out, _err);
+
+        Assert.Equal(2, exit);
+        Assert.False(Directory.Exists(Path.Combine(_outputDir, "TestResults")));
+    }
+
+    [Fact]
+    public void Doctor_without_the_report_flag_writes_no_file()
+    {
+        Directory.CreateDirectory(_outputDir);
+        File.WriteAllText(Path.Combine(_outputDir, "app.csproj"), "<Project />");
+
+        CliRunner.Run(["doctor", "--json", "--dir", _outputDir], _out, _err);
+
+        Assert.False(Directory.Exists(Path.Combine(_outputDir, "TestResults")));
     }
 
     /// <summary>

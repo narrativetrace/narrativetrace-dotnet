@@ -1,4 +1,4 @@
-<!-- source: documentation/what-to-commit.md blob 106f3700cfd9 | translated: 2026-09-26 | reviewed: - -->
+<!-- source: documentation/what-to-commit.md blob dde8481ec463 | translated: 2026-10-07 | reviewed: - -->
 # Qué incluir en el commit
 
 [English](../what-to-commit.md) | **Español** | [Português](../pt-BR/o-que-incluir-no-commit.md) | [简体中文](../zh-CN/应提交的内容.md)
@@ -18,7 +18,7 @@ writers de esta implementación realmente producen, no asumido.
 | `<output-dir>/manifest.json` | No | Se regenera en cada ejecución; su objeto `run` de nivel superior (`id`, `name` — la frase de tres palabras propia de la ejecución) nombra *esta ejecución*, no un escenario, así que cambia en cada ejecución aunque nada más cambie. |
 | `<output-dir>/structural/<Class>/<slug>.nt` | No | Traza estructural sin valores (nombres, jerarquía, tipo de resultado únicamente). El archivo en disco es la **última línea base correcta (last green)**: una ejecución en verde la hace avanzar, una que no está en verde se compara contra ella (la línea "Since last green" del resumen de la suite, el delta del informe de fallo) pero nunca la sobrescribe. Sigue sin ser algo para hacer commit — consulta [Formato de traza estructural](../structural-trace-format.md) para la contraparte con commit. |
 | `<approved-dir>/<Class>/<slug>.approved.nt` | **Sí**, si el [modo de aprobación](../structural-trace-format.md) está activado | La traza de aprobación revisada — `NARRATIVETRACE_APPROVED_DIR` (por defecto `narratives`), actívalo con `NARRATIVETRACE_APPROVAL=true`. Este es el único archivo de esta tabla que es una decisión deliberada, no una salida. |
-| `<approved-dir>/<Class>/<slug>.received.nt` | No | Se escribe cuando la aprobación no coincide, o cuando aún no existe una traza aprobada. Revísalo, ejecuta `./build.sh Approve` para promoverlo (o renómbralo a mano), y deja que la promoción lo elimine — nunca hagas commit de la traza recibida en sí. |
+| `<approved-dir>/<Class>/<slug>.received.nt` | No | Se escribe cuando la aprobación no coincide, o cuando aún no existe una traza aprobada. Revísalo, ejecuta `dotnet tool run dotnet-narrativetrace approve` para promoverlo (o renómbralo a mano), y deja que la promoción lo elimine — nunca hagas commit de la traza recibida en sí. |
 | `<output-dir>/traces/<Class>/<slug>.canonical.json` | No | Fixture de conformidad opcional (`NARRATIVETRACE_CANONICAL_JSON=true`), pensado para probar el propio NarrativeTrace contra el esquema canónico — no algo que un proyecto de aplicación necesite conservar. |
 | `<output-dir>/traces/<Class>/<slug>.structural.json` | No | Array de entradas sin valores, opcional (`NARRATIVETRACE_STRUCTURAL_JSON=true`) — mismo razonamiento que `.canonical.json`. |
 | `<output-dir>/clarity-results.json` | No | Informe de claridad a nivel de suite generado (legible por máquina). Aparece siempre que el fixture de la suite se ejecutó y acumuló al menos una entrada, independientemente de `NARRATIVETRACE_OUTPUT` — regenera, no hagas commit. |
@@ -28,9 +28,15 @@ writers de esta implementación realmente producen, no asumido.
 | `glossary.md` | **Sí**, junto a `glossary.json` | Renderizado legible por humanos del mismo archivo, reescrito solo cuando cambian los bytes del JSON (anti-churn). |
 | `<output-dir>/glossary-usage.json` | No | Estadísticas de uso volátiles por ejecución — se regenera, no se cura. |
 | `.claude/skills/<segmento>/SKILL.md` | **Sí** | Regenerado por `dotnet run --project skills-devtool -- render` a partir del catálogo tipado de skills, pero se commitea igualmente: debe publicarse exactamente en la ruta donde Claude Code lo descubre. El verbo `lint` falla el build si difiere de una renderización reciente. |
+| `.claude-plugin/marketplace.json` | **Sí** | El listado propio de este repositorio para el marketplace de plugins de Claude Code (Fase 4): salida de build del mismo catálogo tipado que la fila de arriba, renderizado y verificado contra la misma prueba de drift — nunca editado a mano. |
 | La sección `<!-- narrativetrace:skills:start -->` … `<!-- narrativetrace:skills:end -->` de `AGENTS.md` | **Sí** | Mismo renderizador, insertado en el archivo en el mismo lugar — commitea el archivo completo, no solo la sección. |
 | `.agents/skills/<name>/SKILL.md` / `.claude/skills/<name>/SKILL.md` escritos por `dotnet tool run dotnet-narrativetrace init` en **tu propio** proyecto | **Sí** | Cada página lleva una línea de procedencia `<!-- installed by narrativetrace init from NarrativeTrace.Skills/<version> -->` justo después de su frontmatter — eso es lo que permite que un `init`/`uninstall` posterior distinga una página que él mismo escribió de una que puso otra persona. Haz commit de ella como de cualquier otro archivo del proyecto. |
 | La sección `<!-- narrativetrace:start <coordinate> -->` … `<!-- narrativetrace:end -->` del `AGENTS.md` de tu proyecto, escrita por `init` | **Sí** | Mismo convenio de bloque marcado que la propia sección de este repositorio, dos filas más arriba — commitea el archivo completo, no solo la sección. `uninstall` elimina exactamente este bloque (y la única línea `@AGENTS.md` que añadió a un `CLAUDE.md` existente), nunca nada más. |
+| `skills-lock.json` en **tu propio** proyecto | **Sí**, si tu equipo usa `npx skills add` | Se escribe en la raíz del proyecto mediante `npx skills add` — el propio registro del registry de qué instaló y desde dónde. Haz commit de él igual que harías con cualquier otro archivo de bloqueo de dependencias del que dependa tu equipo. |
+
+Una instalación personal del plugin (el `/plugin install narrativetrace-dotnet@narrativetrace-dotnet`
+de Claude Code) no escribe nada en el proyecto — vive en tu propia caché de plugins, así que no hay
+nada de ella que hacer commit.
 
 La escritura de trazas está **activada por defecto** (define
 `NARRATIVETRACE_OUTPUT=false` para desactivarla); `<output-dir>` por
@@ -83,7 +89,7 @@ compara la estructura actual con la traza aprobada
                 una persona revisa el diff
                      |
                      v
-                ./build.sh Approve
+                dotnet tool run dotnet-narrativetrace approve
                      |
                      v
               .approved.nt actualizado, haz commit

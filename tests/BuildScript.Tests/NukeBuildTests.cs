@@ -121,6 +121,15 @@ public class NukeBuildTests
             throw new TimeoutException($"{fileName} {arguments} timed out after 5 minutes.");
         }
 
+        // The timeout overload above only proves the process exited — it does NOT guarantee the
+        // redirected stdout/stderr readers have finished delivering their last buffered lines to
+        // the event handlers above (a documented Process gotcha: only the parameterless
+        // WaitForExit() makes that guarantee). Reading output.ToString() without this second call
+        // raced the async readers under concurrent load (several other SpawnsBuild tests'
+        // dotnet/build subprocesses competing for CPU) and intermittently returned an empty or
+        // truncated string for this fast, low-output command — caught chasing a flaky
+        // Test_LeavesTheWorkingTreeUnchanged failure that never reproduced in isolation.
+        process.WaitForExit();
         return (process.ExitCode, output.ToString());
     }
 
@@ -198,6 +207,9 @@ public class NukeBuildTests
             throw new TimeoutException("Build process timed out after 10 minutes.");
         }
 
+        // See the identical comment in RunProcess above: the timeout overload alone does not
+        // guarantee the redirected readers have drained.
+        process.WaitForExit();
         return (process.ExitCode, output.ToString());
     }
 }

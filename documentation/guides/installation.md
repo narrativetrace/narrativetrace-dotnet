@@ -22,7 +22,7 @@ Start with the minimum and add only what you need.
 
 ```xml
 <!-- Minimum: capture + render -->
-<PackageReference Include="NarrativeTrace.Proxy" Version="0.2.0" />
+<PackageReference Include="NarrativeTrace.Proxy" Version="0.3.0" />
 ```
 
 `NarrativeTrace.Proxy` depends on `.Runtime`, which depends on `.Core` — one
@@ -183,8 +183,9 @@ assembly — no test run required:
 ```bash
 dotnet tool install --global NarrativeTrace.Cli
 
-dotnet-narrativetrace clarity-scan --assembly bin/Release/net10.0/MyApp.dll
-dotnet-narrativetrace clarity-check --results clarity-results.json --min-score 0.80 --max-high-issues 0
+dotnet-narrativetrace clarity-scan --assembly bin/Release/net10.0/MyApp.dll \
+    --output-dir narrativetrace
+dotnet-narrativetrace clarity-check --results narrativetrace/clarity-scan-results.json --min-score 0.80 --max-high-issues 0
 ```
 
 See the [Clarity Guide](clarity.md) for the scoring model and CI gate.
@@ -194,7 +195,7 @@ See the [Clarity Guide](clarity.md) for the scoring model and CI gate.
 Add the build-only package to run the clarity gate as part of your build:
 
 ```xml
-<PackageReference Include="NarrativeTrace.MSBuild" Version="0.2.0"
+<PackageReference Include="NarrativeTrace.MSBuild" Version="0.3.0"
                   PrivateAssets="all" />
 ```
 

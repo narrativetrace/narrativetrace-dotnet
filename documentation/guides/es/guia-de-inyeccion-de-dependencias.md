@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/dependency-injection.md blob df67cd0e9331 | translated: 2026-09-17 | reviewed: - -->
+<!-- source: documentation/guides/dependency-injection.md blob 0b941c77bfd9 | translated: 2026-09-17 | reviewed: - -->
 # Guía de envoltura automática con inyección de dependencias
 
 [English](../dependency-injection.md) | **Español** | [Português](../pt-BR/guia-de-injecao-de-dependencias.md) | [简体中文](../zh-CN/依赖注入指南.md)
@@ -13,7 +13,7 @@ decora in situ los servicios que coinciden.
 ## Paquete
 
 ```xml
-<PackageReference Include="NarrativeTrace.DependencyInjection" Version="0.2.0" />
+<PackageReference Include="NarrativeTrace.DependencyInjection" Version="0.3.0" />
 ```
 
 ## 1. Registrar y envolver automáticamente

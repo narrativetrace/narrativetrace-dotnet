@@ -21,5 +21,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/NarrativeTrace.Observability/NarrativeTrace.Observability.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Runtime/NarrativeTrace.Runtime.csproj" />
   </ItemGroup>
 </Project>

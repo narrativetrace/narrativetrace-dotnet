@@ -197,7 +197,8 @@ public sealed class NarrativeFixture : IDisposable
         {
             NarrativeApproval.Verify(
                 trace, identity.StructuralScenario(displayName),
-                NarrativeApproval.ApprovedFile(_output.ApprovedDir, identity));
+                NarrativeApproval.ApprovedFile(
+                    _output.ApprovedDirectoryFrom(Directory.GetCurrentDirectory()), identity));
             return null;
         }
         catch (NarrativeApprovalException ex)

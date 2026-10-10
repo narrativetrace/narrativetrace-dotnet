@@ -21,6 +21,8 @@ public static class DoctorSnapshotBuilder
         "NARRATIVETRACE_LEVEL", "NARRATIVETRACE_FORMAT", "NARRATIVETRACE_APPROVAL",
     ];
     private const int MaxFiles = 5000;
+    private static readonly string[] ManifestFilePatterns =
+        ["*.csproj", "*.fsproj", "*.vbproj", "Directory.Build.props", "Directory.Build.targets"];
 
     /// <summary>
     /// Builds a snapshot of <paramref name="cwd"/> using <paramref name="readEnv"/> for variables, with
@@ -39,22 +41,22 @@ public static class DoctorSnapshotBuilder
     {
         var env = EnvKeys.ToDictionary(key => key, readEnv);
         var outputDir = ResolveDir(cwd, env, "NARRATIVETRACE_OUTPUT_DIR", "TestResults/narrativetrace");
-        var approvedDir = ResolveDir(cwd, env, "NARRATIVETRACE_APPROVED_DIR", "narratives");
         var projectState = TryReadProjectState(cwd);
         var carrier = TryOpenCarrier(openCarrier);
         return new DoctorSnapshot(
             cwd,
             RuntimeInformation.FrameworkDescription,
             env,
-            ReadFiles(cwd, "*.csproj"),
+            ReadManifests(cwd),
             ReadFiles(cwd, "*.cs"),
             ReadFiles(outputDir, "*"),
-            ReadFiles(approvedDir, "*"),
+            ReadApprovedDirs(cwd, env),
             ReadFiles(cwd, "appsettings*.json"),
             ReadInstalledPackages(cwd),
             projectState?.InstalledSkills ?? [],
             carrier?.Skills.Select(skill => skill.Name).ToList() ?? [],
-            projectState?.ResolvedFamilyVersion);
+            projectState?.ResolvedFamilyVersion)
+        { RunSettingsFiles = ReadFiles(cwd, "*.runsettings") };
     }
 
     /// <summary>
@@ -95,11 +97,55 @@ public static class DoctorSnapshotBuilder
     private static Carrier NoCarrierConfigured() =>
         throw new ArgumentException("this snapshot was built with no carrier to resolve agent skills from");
 
+    /// <summary>
+    /// The approval-trace directory under the doctor's own folder and beside every project manifest:
+    /// a test run resolves a relative directory against its test project, so that is where its
+    /// baselines and review copies are. An absolute directory is one directory, read once.
+    /// </summary>
+    private static Dictionary<string, string> ReadApprovedDirs(string cwd, Dictionary<string, string?> env)
+    {
+        var roots = new HashSet<string>(StringComparer.Ordinal) { cwd };
+        foreach (var manifest in ReadManifests(cwd).Keys)
+        {
+            roots.Add(Path.GetDirectoryName(manifest) ?? cwd);
+        }
+
+        var result = new Dictionary<string, string>();
+        foreach (var dir in roots.Select(root => Path.GetFullPath(ResolveDir(root, env, "NARRATIVETRACE_APPROVED_DIR", "narratives"))).Distinct())
+        {
+            foreach (var (path, content) in ReadFiles(dir, "*"))
+            {
+                result[path] = content;
+            }
+        }
+
+        return result;
+    }
+
     private static string ResolveDir(
         string cwd, Dictionary<string, string?> env, string key, string relativeDefault)
     {
         var configured = env.TryGetValue(key, out var value) ? value : null;
         return Path.Combine(cwd, string.IsNullOrWhiteSpace(configured) ? relativeDefault : configured);
+    }
+
+    /// <summary>
+    /// Every MSBuild manifest a framework marker or a package reference can live in: the project files
+    /// of every language the SDK builds, and the <c>Directory.Build.*</c> files that add items to all of
+    /// them. <c>Directory.Packages.props</c> is not read — a central version pin references nothing.
+    /// </summary>
+    private static Dictionary<string, string> ReadManifests(string cwd)
+    {
+        var result = new Dictionary<string, string>();
+        foreach (var pattern in ManifestFilePatterns)
+        {
+            foreach (var (path, content) in ReadFiles(cwd, pattern))
+            {
+                result[path] = content;
+            }
+        }
+
+        return result;
     }
 
     private static Dictionary<string, string> ReadFiles(string root, string pattern)
@@ -120,12 +166,21 @@ public static class DoctorSnapshotBuilder
             return;
         }
 
-        AddMatchingFiles(dir, pattern, result);
-        var included = Directory.EnumerateDirectories(dir)
-            .Where(sub => !ExcludedDirs.Contains(Path.GetFileName(sub)));
-        foreach (var sub in included)
+        try
         {
-            Walk(sub, pattern, result);
+            AddMatchingFiles(dir, pattern, result);
+            var included = Directory.EnumerateDirectories(dir)
+                .Where(sub => !ExcludedDirs.Contains(Path.GetFileName(sub)))
+                .ToList();
+            foreach (var sub in included)
+            {
+                Walk(sub, pattern, result);
+            }
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or IOException)
+        {
+            // A directory this user cannot list is skipped, like a file it cannot read: the doctor
+            // reports on what it can see and never crashes on a project's permissions.
         }
     }
 
@@ -148,7 +203,7 @@ public static class DoctorSnapshotBuilder
         {
             return File.ReadAllText(file);
         }
-        catch (IOException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             return string.Empty;
         }
@@ -162,7 +217,8 @@ public static class DoctorSnapshotBuilder
             return result;
         }
 
-        foreach (var assets in Directory.EnumerateFiles(cwd, "project.assets.json", SearchOption.AllDirectories))
+        var everywhereReadable = new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true };
+        foreach (var assets in Directory.EnumerateFiles(cwd, "project.assets.json", everywhereReadable))
         {
             MergeLibraries(assets, result);
         }

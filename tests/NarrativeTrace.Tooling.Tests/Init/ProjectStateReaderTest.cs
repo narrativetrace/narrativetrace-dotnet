@@ -126,6 +126,143 @@ public sealed class ProjectStateReaderTest : IDisposable
         Assert.Null(state.InstalledSkill(SkillFlavour.Claude, "absent"));
     }
 
+    // --- links ----------------------------------------------------------------------------------
+
+    /// <summary>
+    /// The verified hazard <c>npx skills add</c> leaves behind: the agents page is real, and the
+    /// vendor path is a LINK to it. Following that link would make the installer write the vendor
+    /// flavour over the agents page, so the reader reports the link instead of resolving it.
+    /// </summary>
+    [Fact]
+    public void ReadsASymlinkedSkillDirectoryAsALinkAndNotAsADirectoryOfOurs()
+    {
+        var page = InstalledPage("NarrativeTrace.Skills/0.1.0");
+        Write(".agents/skills/narrativetrace-doctor/SKILL.md", page);
+        Directory.CreateDirectory(Path.Combine(_dir, ".claude", "skills"));
+        Directory.CreateSymbolicLink(
+            Path.Combine(_dir, ".claude", "skills", "narrativetrace-doctor"),
+            Path.Combine("..", "..", ".agents", "skills", "narrativetrace-doctor"));
+
+        var linked = ProjectStateReader.Read(_dir).InstalledSkill(SkillFlavour.Claude, "narrativetrace-doctor")!;
+
+        Assert.Equal(SkillPresence.LinkedDirectory, linked.Presence);
+        Assert.Equal(Path.Combine("..", "..", ".agents", "skills", "narrativetrace-doctor"), linked.Link);
+        Assert.Equal(page, linked.Body);
+        Assert.Equal(".claude/skills/narrativetrace-doctor", linked.LinkedAt());
+    }
+
+    [Fact]
+    public void ReadsASymlinkedPageInsideARealDirectoryAsALinkToo()
+    {
+        Write(".agents/skills/somewhere/SKILL.md", "---\nname: x\n---\nbody\n");
+        Directory.CreateDirectory(Path.Combine(_dir, ".agents", "skills", "narrativetrace-doctor"));
+        File.CreateSymbolicLink(
+            Path.Combine(_dir, ".agents", "skills", "narrativetrace-doctor", "SKILL.md"),
+            Path.Combine("..", "somewhere", "SKILL.md"));
+
+        var linked = ProjectStateReader.Read(_dir).InstalledSkill(SkillFlavour.Agents, "narrativetrace-doctor")!;
+
+        Assert.Equal(SkillPresence.LinkedPage, linked.Presence);
+        Assert.Equal("---\nname: x\n---\nbody\n", linked.Body);
+        Assert.Equal(".agents/skills/narrativetrace-doctor/SKILL.md", linked.LinkedAt());
+    }
+
+    /// <summary>A link that resolves to nothing reaches no page: there is nothing to adopt or to remove.</summary>
+    [Fact]
+    public void ReadsADanglingLinkAsALinkThatReachesNoPage()
+    {
+        Directory.CreateDirectory(Path.Combine(_dir, ".agents", "skills"));
+        Directory.CreateSymbolicLink(
+            Path.Combine(_dir, ".agents", "skills", "narrativetrace-doctor"),
+            Path.Combine("..", "..", "gone"));
+
+        var linked = ProjectStateReader.Read(_dir).InstalledSkill(SkillFlavour.Agents, "narrativetrace-doctor")!;
+
+        Assert.Equal(SkillPresence.LinkedDirectory, linked.Presence);
+        Assert.Equal("", linked.Body);
+    }
+
+    /// <summary>
+    /// A link OUT of the project reaches no page either, whatever is at the other end. Nothing outside
+    /// the project is ours to stamp or to delete, and a shared skills directory is exactly the kind of
+    /// thing a person links to on purpose.
+    /// </summary>
+    [Fact]
+    public void ReadsALinkOutOfTheProjectAsReachingNoPage()
+    {
+        var elsewhere = Path.Combine(Path.GetTempPath(), "nt-elsewhere-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(elsewhere, "shared"));
+        File.WriteAllText(Path.Combine(elsewhere, "shared", "SKILL.md"), InstalledPage("NarrativeTrace.Skills/1"));
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(_dir, ".agents", "skills"));
+            Directory.CreateSymbolicLink(
+                Path.Combine(_dir, ".agents", "skills", "narrativetrace-doctor"),
+                Path.Combine(elsewhere, "shared"));
+
+            var linked = ProjectStateReader.Read(_dir).InstalledSkill(SkillFlavour.Agents, "narrativetrace-doctor")!;
+
+            Assert.Equal(SkillPresence.LinkedDirectory, linked.Presence);
+            Assert.Equal("", linked.Body);
+            Assert.Equal(Path.Combine(elsewhere, "shared"), linked.Link);
+        }
+        finally
+        {
+            Directory.Delete(elsewhere, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// A whole install root behind a link is the same hazard one level up, and worse: every skill of
+    /// that flavour would be written into somebody else's tree, including the ones not there yet. The
+    /// root is reported as linked and nothing under it is listed, so the planner refuses the flavour
+    /// once instead of planning writes it cannot make.
+    /// </summary>
+    [Fact]
+    public void ReadsASymlinkedInstallRootAsLinkedAndListsNothingUnderIt()
+    {
+        var shared = Path.Combine(Path.GetTempPath(), "nt-shared-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(shared, "narrativetrace-doctor"));
+        File.WriteAllText(Path.Combine(shared, "narrativetrace-doctor", "SKILL.md"), "---\nname: x\n---\nbody\n");
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(_dir, ".claude"));
+            Directory.CreateSymbolicLink(Path.Combine(_dir, ".claude", "skills"), shared);
+
+            var state = ProjectStateReader.Read(_dir);
+
+            Assert.Equal(shared, state.LinkedInstallRoot(SkillFlavour.Claude));
+            Assert.Empty(state.InstalledSkills);
+            Assert.Null(state.LinkedInstallRoot(SkillFlavour.Agents));
+        }
+        finally
+        {
+            Directory.Delete(shared, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// A CHAIN of links the filesystem will happily follow, ending at something that is not a skill
+    /// directory. The reader follows nothing itself: it reports a link, and the page it looks for
+    /// behind that link — <c>&lt;name&gt;/SKILL.md</c> — does not exist, so the body is empty and the
+    /// planner refuses with "no page at the other end". Worth pinning because the chain resolves: a
+    /// reader that trusted the real path and read whatever it landed on would hand the planner a plain
+    /// file's bytes under a skill's name.
+    /// </summary>
+    [Fact]
+    public void ReadsALinkChainEndingAtSomethingThatIsNotASkillDirectoryAsReachingNoPage()
+    {
+        Write(".agents/skills/target.md", "not a skill directory\n");
+        File.CreateSymbolicLink(Path.Combine(_dir, ".agents", "skills", "midway"), "target.md");
+        Directory.CreateSymbolicLink(Path.Combine(_dir, ".agents", "skills", "narrativetrace-doctor"), "midway");
+
+        var linked = ProjectStateReader.Read(_dir).InstalledSkill(SkillFlavour.Agents, "narrativetrace-doctor")!;
+
+        Assert.Equal(SkillPresence.LinkedDirectory, linked.Presence);
+        Assert.Equal("midway", linked.Link);
+        Assert.Equal("", linked.Body);
+    }
+
     [Fact]
     public void ReadsALegacyRuleFileOnlyWhenItCarriesOurMarkers()
     {

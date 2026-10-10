@@ -15,20 +15,20 @@ namespace NarrativeTrace.Build;
 /// The fixed shape every <c>verifyAll</c>-equivalent report commits to across the NarrativeTrace
 /// family (pro repo tracker item 35E), written once in the canonical Java repo's
 /// <c>reports/verification/SCHEMA.md</c> — this is this port's implementation of that contract, not
-/// a second definition of it: same field names, same four statuses, same 21 category ids. A
+/// a second definition of it: same field names, same four statuses, same 22 category ids. A
 /// category this runtime genuinely lacks still gets a row (<c>not-implemented</c>), never a missing
 /// one. See <see cref="VerifyAllSupport"/> for the orchestration that fills these rows and
 /// <c>Build.cs</c>'s <c>VerifyAll</c> target for the sequence.
 /// </summary>
 public static class VerificationSchema
 {
-    /// <summary>The 21 fixed category ids, in the order SCHEMA.md declares them. No more, no fewer.</summary>
+    /// <summary>The 22 fixed category ids, in the order SCHEMA.md declares them. No more, no fewer.</summary>
     public static readonly IReadOnlyList<string> Categories =
     [
         "unit-tests", "coverage", "mutation", "property", "fuzz-tier-a", "fuzz-tier-b",
         "benchmarks", "allocation", "architecture", "stress-short", "stress-long",
         "conformance", "secrets", "sast", "sca", "lint", "format", "types", "complexity",
-        "translation", "clarity",
+        "translation", "clarity", "vendor-validation",
     ];
 
     /// <summary>The four-value status vocabulary. Never a fifth.</summary>

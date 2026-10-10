@@ -10,6 +10,8 @@
          support code is compiled into this test assembly rather than
          referenced: one source of truth, tested under the solution's
          analyzers. -->
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/FixturePackageSupport.cs"
+             Link="FixturePackageSupport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/TranslationCheckSupport.cs"
              Link="TranslationCheckSupport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/SnippetCheckSupport.cs"
@@ -76,6 +78,8 @@
              Link="ContractLintSupport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/CommentHygieneSupport.cs"
              Link="CommentHygieneSupport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/VendorValidationSupport.cs"
+             Link="VendorValidationSupport.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -90,6 +94,9 @@
     <PackageReference Include="YamlDotNet" Version="18.1.0" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.1.0" />
     <PackageReference Include="xunit" Version="2.9.2" />
+    <!-- SkippableFact: a test whose fixture precondition is absent from the public snapshot
+         skips itself with a reason — a real "Skipped" result, not a disguised pass. -->
+    <PackageReference Include="Xunit.SkippableFact" Version="1.5.85" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

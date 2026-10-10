@@ -264,8 +264,9 @@ have interpolated arguments into). `ScenarioManifest.Write` emits
 backs approval mode (`NARRATIVETRACE_APPROVAL=true` /
 `NARRATIVETRACE_APPROVED_DIR`): a passing test's structure is verified against
 its committed `*.approved.nt`, a mismatch writes `*.received.nt` and throws
-`NarrativeApprovalException`, and `./build.sh Approve` promotes every received
-trace. See [Structural Trace Format](../structural-trace-format.md).
+`NarrativeApprovalException`, and `dotnet tool run dotnet-narrativetrace approve`
+promotes every received trace (a relative approved dir sits beside the test
+project, never in `bin/`). See [Structural Trace Format](../structural-trace-format.md).
 
 ## Proxy (`NarrativeTrace.Proxy`) and attributes (`NarrativeTrace.Core.Annotation`)
 
@@ -393,6 +394,134 @@ number, or a `Set-Cookie` header value, regardless of field name; only
 
 See the [Configuration Guide](configuration.md).
 
+## Framework integrations
+
+<!-- framework-table:begin -->
+### Framework table — what the doctor checks
+
+Rendered from the doctor's own framework table. For every row it can observe, `dotnet-narrativetrace doctor` runs the named check: the framework is detected but its package is not referenced, or the package is in use but its wiring was never applied — and the failing fix prints the lines below.
+
+| Framework | Detected by | Add | Wiring | Doctor check |
+|---|---|---|---|---|
+| ASP.NET Core | the Microsoft.NET.Sdk.Web SDK or a Microsoft.AspNetCore.App framework reference | `dotnet add package NarrativeTrace.AspNetCore` | AddNarrativeTrace(...) on the services, UseNarrativeTrace() on the app, and each service wrapped against HttpContext.GetNarrativeContext() (namespace NarrativeTrace.AspNetCore) | `config.registration-pair` |
+| Dependency injection | a Microsoft.Extensions.DependencyInjection package reference outside a web app | `dotnet add package NarrativeTrace.DependencyInjection` | AddNarrativeTracing(options => options.Namespaces(...)) after the service registrations (namespace NarrativeTrace.DependencyInjection) | `config.di-namespaces` |
+| xUnit | an xunit or xunit.v3 package reference | `dotnet add package NarrativeTrace.Testing.Xunit` | a NarrativeFixture around the traced calls in a test (namespace NarrativeTrace.TestingXunit) | `config.xunit-fixture` |
+| NUnit | an NUnit package reference | `dotnet add package NarrativeTrace.Testing.NUnit` | a test fixture deriving from NarrativeTestBase (namespace NarrativeTrace.TestingNUnit) | `config.nunit-base` |
+| OpenTelemetry | an OpenTelemetry or OpenTelemetry.* package reference | `dotnet add package NarrativeTrace.Observability` | AddSource("NarrativeTrace") on the tracer provider and the captured trace exported as spans (namespace NarrativeTrace.Observability) | `config.otel-source` |
+| Microsoft.Extensions.Logging | the default logger: tracing is wired and nothing reads the trace | `dotnet add package NarrativeTrace.Logging` | TraceLogExporter.ExportToLogger(...) with the application's own ILoggerFactory (namespace NarrativeTrace.Logging) | `trap.silent-sink` (existing) |
+| MSBuild clarity targets | the owner's opt-in to a build-time clarity gate | `dotnet add package NarrativeTrace.MSBuild` | the ClarityScan/ClarityCheck targets, set up by the add-narrativetrace-clarity skill | none — owned by the add-narrativetrace-clarity skill |
+
+#### ASP.NET Core — wiring
+
+<!-- snippet: tests/NarrativeTrace.AspNetCore.Tests/Wiring/AspNetCoreWiring.cs region=wiring -->
+```csharp
+builder.Services.AddNarrativeTrace(builder.Configuration);
+
+var app = builder.Build();
+app.UseNarrativeTrace(); // early: it wraps the whole request
+
+// Wrap a service against the request's own context, so its calls nest into the request's trace.
+app.MapGet("/orders/{customerId}", (string customerId, HttpContext http) =>
+    NarrativeTraceProxy.Create<IOrderService>(new OrderService(), http.GetNarrativeContext())
+        .PlaceOrder(customerId));
+```
+<!-- /snippet -->
+
+#### Dependency injection — wiring
+
+<!-- snippet: tests/NarrativeTrace.DependencyInjection.Tests/Wiring/DependencyInjectionWiring.cs region=wiring -->
+```csharp
+services.AddScoped<IOrderService, OrderService>();
+
+// Last: it wraps the interface registrations made before it whose implementation lives in a
+// listed namespace (dot-boundary match) — list this project's own service namespaces.
+services.AddNarrativeTracing(options => options.Namespaces("Example.Orders"));
+```
+<!-- /snippet -->
+
+#### xUnit — wiring
+
+<!-- snippet: tests/NarrativeTrace.Examples.SixtySeconds.Tests/RedactionQuickstartTests.cs -->
+```csharp
+using NarrativeTrace.Core;
+using NarrativeTrace.Proxy;
+using NarrativeTrace.TestingXunit;
+using Xunit;
+
+namespace NarrativeTrace.Examples.SixtySeconds.Tests;
+
+public sealed class RedactionQuickstartTests
+{
+    [Fact]
+    public void Redacts_a_deny_listed_parameter()
+    {
+        using var narrative = new NarrativeFixture();
+
+        narrative.Run("pay with a deny-listed parameter", context =>
+        {
+            var account = NarrativeTraceProxy.Create<IAccountService>(new AccountService(), context);
+            account.Pay("POL-123", "tok-super-secret-xyz");
+        });
+
+        var rendered = IndentedTextRenderer.Render(narrative.CaptureTrace());
+        Assert.Contains("paymentToken: [REDACTED]", rendered);
+        Assert.DoesNotContain("tok-super-secret-xyz", rendered);
+    }
+}
+
+public interface IAccountService
+{
+    string Pay(string policyId, string paymentToken);
+}
+
+public sealed class AccountService : IAccountService
+{
+    public string Pay(string policyId, string paymentToken) => $"paid:{policyId}";
+}
+```
+<!-- /snippet -->
+
+#### NUnit — wiring
+
+<!-- snippet: tests/NarrativeTrace.Testing.NUnit.EngineTests/Wiring/NUnitWiring.cs region=wiring -->
+```csharp
+[TestFixture]
+public sealed class OrderTraceTests : NarrativeTestBase // a fresh Context per test; the narrative prints on failure
+{
+    [Test]
+    public void Places_an_order()
+    {
+        var orders = NarrativeTraceProxy.Create<IOrderService>(new OrderService(), Context);
+
+        Assert.That(orders.PlaceOrder("cust-1"), Is.EqualTo("confirmed:cust-1"));
+        Assert.That(Context.CaptureTrace().Roots, Has.Count.EqualTo(1));
+    }
+}
+```
+<!-- /snippet -->
+
+#### OpenTelemetry — wiring
+
+<!-- snippet: tests/NarrativeTrace.Observability.Tests/Wiring/OpenTelemetryWiring.cs region=wiring -->
+```csharp
+using var tracerProvider = Sdk.CreateTracerProviderBuilder()
+    .AddSource("NarrativeTrace") // the ActivitySource NarrativeTrace emits its spans under
+    .AddProcessor(new SimpleActivityExportProcessor(exporter)) // your exporter
+    .Build();
+
+TraceActivityExporter.Export(context.CaptureTrace()); // one span per traced call
+```
+<!-- /snippet -->
+
+#### Microsoft.Extensions.Logging — wiring
+
+<!-- snippet: tests/NarrativeTrace.Logging.Tests/Wiring/LoggerWiring.cs region=wiring -->
+```csharp
+TraceLogExporter.ExportToLogger(context.CaptureTrace(), loggerFactory.CreateLogger("NarrativeTrace"));
+```
+<!-- /snippet -->
+<!-- framework-table:end -->
+
 ## Dependency injection
 
 ```csharp
@@ -477,6 +606,11 @@ Register the source name `"NarrativeTrace"` with your `TracerProvider`
   `clarity-scan` all find it via `GlossarySettings.ResolveFile`; reading is
   unconditional wherever a glossary exists, and an unreadable one degrades to
   the built-in dictionaries with a console note.
+
+For guided setup, use the `add-narrativetrace-clarity` skill ([Agent Skills](../agent-skills.md)): it
+runs `clarity-scan` and `clarity-check` through the local tool, reads both reports, renames by the
+report's suggestions, and re-runs until the gate exits `0`. `add-narrative-tracing` owns the first
+trace; `narrativetrace-doctor` diagnoses missing tracing or output.
 
 See the [Clarity Guide](clarity.md) for the JSON contract and CI gate.
 

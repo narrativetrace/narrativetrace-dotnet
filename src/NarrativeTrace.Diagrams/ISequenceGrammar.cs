@@ -41,6 +41,12 @@ internal interface ISequenceGrammar
     /// <summary>One call arrow, caller to target, naming the call signature.</summary>
     string CallArrow(DiagramLabel caller, DiagramLabel target, DiagramLabel signature);
 
+    /// <summary>
+    /// The note citing a call's span id, placed over its target right after the call arrow — the
+    /// same id the structural trace gives the span.
+    /// </summary>
+    string SpanNote(DiagramLabel target, DiagramLabel spanId);
+
     /// <summary>One return arrow, target back to caller, carrying the return message.</summary>
     string ReturnArrow(DiagramLabel target, DiagramLabel caller, DiagramLabel message);
 

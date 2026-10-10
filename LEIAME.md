@@ -1,4 +1,4 @@
-<!-- source: README.md blob dd9c9e8c48c9 | translated: 2026-09-26 | reviewed: - -->
+<!-- source: README.md blob 742b7bde4ddc | translated: 2026-10-09 | reviewed: - -->
 # NarrativeTrace .NET
 
 [English](README.md) | [Español](LEAME.md) | **Português** | [简体中文](自述文件.md)
@@ -316,7 +316,7 @@ Console.WriteLine(IndentedTextRenderer.Render(context.CaptureTrace()));
 ```
 
 ```
-└── IOrderService.PlaceOrder(sku: "book-123", quantity: 2) → "confirmed" — 6ms
+└── IOrderService.PlaceOrder(sku: "book-123", quantity: 2) → "confirmed" — 6ms #1
 ```
 
 **Injeção de dependências — envolve automaticamente toda interface cuja
@@ -580,7 +580,7 @@ Indo mais fundo:
 - [Guia de funcionalidades](documentation/feature-guide.md) (em inglês) — tabela de status oficial (Free/Pro/In development/Planned) para cada funcionalidade, com o código por trás de cada linha já publicada
 - [Ferramental de segurança](documentation/security-tooling.md) (em inglês) — o conjunto de scanners e o que faz gate do build vs. o que roda por agendamento
 - [Testes de segurança](documentation/security-testing.md) (em inglês) — a suíte de fuzzing/propriedades espelhada em toda implementação do NarrativeTrace
-- [Skills de agente](documentation/agent-skills.md) (em inglês) — as skills `narrativetrace-doctor` e `add-narrative-tracing` para o Claude Code e o Codex CLI, geradas a partir de um catálogo tipado
+- [Skills de agente](documentation/agent-skills.md) (em inglês) — as skills `narrativetrace-doctor`, `add-narrative-tracing`, `narrativetrace-feedback`, `add-narrativetrace-clarity`, `narrativetrace-verify` e `narrativetrace-debug` para o Claude Code e o Codex CLI, geradas a partir de um catálogo tipado
 
 Para consumidores de IA: [`llms.txt`](documentation/guides/llms.txt) e
 [`llms-full.md`](documentation/guides/llms-full.md).

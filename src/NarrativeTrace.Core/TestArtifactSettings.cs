@@ -79,4 +79,73 @@ public sealed record TestArtifactSettings(
             resolved.Approval,
             resolved.ApprovedDir ?? DefaultApprovedDir);
     }
+
+    /// <summary>
+    /// How many directories above the run directory are searched for a project file — enough for
+    /// <c>bin/&lt;configuration&gt;/&lt;tfm&gt;/&lt;rid&gt;</c>, and no further, so a run outside any
+    /// project never settles on an unrelated project far up the tree.
+    /// </summary>
+    private const int ProjectSearchDepth = 5;
+
+    private static readonly string[] ProjectFilePatterns = ["*.csproj", "*.fsproj", "*.vbproj"];
+
+    /// <summary>
+    /// The directory approved traces are read from and received traces written to, for a test run
+    /// whose working directory is <paramref name="runDirectory"/>.
+    /// </summary>
+    /// <param name="runDirectory">The test run's working directory — under <c>dotnet test</c>, the build output.</param>
+    /// <returns>
+    /// <see cref="ApprovedDir"/> as given when it is absolute; otherwise <see cref="ApprovedDir"/>
+    /// under the nearest directory, from <paramref name="runDirectory"/> up at most five levels, that
+    /// holds a <c>.csproj</c>, <c>.fsproj</c> or <c>.vbproj</c> file — the test project — or under
+    /// <paramref name="runDirectory"/> itself when none is in reach.
+    /// </returns>
+    /// <remarks>
+    /// <c>dotnet test</c> runs a test assembly with its working directory at
+    /// <c>bin/&lt;configuration&gt;/&lt;tfm&gt;</c>. Read against that, the default <c>narratives</c>
+    /// would put committed baselines inside <c>bin/</c>: wiped by a clean, never committed, and not
+    /// where the doctor looks. Beside the test project they are source, like any other test fixture.
+    /// </remarks>
+    /// <exception cref="ArgumentException"><paramref name="runDirectory"/> is null or blank.</exception>
+    public string ApprovedDirectoryFrom(string runDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(runDirectory))
+        {
+            throw new ArgumentException("the run directory must be named", nameof(runDirectory));
+        }
+
+        if (Path.IsPathRooted(ApprovedDir))
+        {
+            return ApprovedDir;
+        }
+
+        return Path.Combine(ProjectDirectoryAbove(runDirectory) ?? runDirectory, ApprovedDir);
+    }
+
+    private static string? ProjectDirectoryAbove(string runDirectory)
+    {
+        var directory = new DirectoryInfo(runDirectory);
+        for (var level = 0; directory is not null && level <= ProjectSearchDepth; level++)
+        {
+            if (HoldsProjectFile(directory))
+            {
+                return directory.FullName;
+            }
+
+            directory = directory.Parent;
+        }
+
+        return null;
+    }
+
+    private static bool HoldsProjectFile(DirectoryInfo directory) =>
+        directory.Exists
+        && ProjectFilePatterns.Any(pattern => directory.EnumerateFiles(pattern).Any(IsExactProjectFile));
+
+    /// <summary>
+    /// A file whose name ends in the extension itself — on Windows a <c>*.csproj</c> pattern also
+    /// matches <c>x.csproj.bak</c> (8.3 short-name matching), so the extension is checked again.
+    /// </summary>
+    private static bool IsExactProjectFile(FileInfo file) =>
+        file.Extension is ".csproj" or ".fsproj" or ".vbproj";
 }

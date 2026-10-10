@@ -62,16 +62,16 @@ public static class StructuralTraceRenderer
         // stack or loop forever on a hand-built or replayed cycle. Cheap on
         // ordinary input: TreeWalk.Bound returns Roots unchanged once it
         // confirms there is nothing to bound.
-        RenderChildren(sb, TreeWalk.Bound(tree.Roots), 0);
+        RenderChildren(sb, TreeWalk.Bound(tree.Roots), 0, null);
         return sb.ToString();
     }
 
     private static void RenderNode(
-        StringBuilder sb, TraceNode node, int depth)
+        StringBuilder sb, TraceNode node, int depth, string id)
     {
         var sig = node.Signature;
         AppendIndent(sb, depth);
-        sb.Append("- ")
+        sb.Append(id).Append(" - ")
             .Append(ControlEscape.Sanitize(sig.ClassName))
             .Append('.')
             .Append(ControlEscape.Sanitize(sig.MethodName))
@@ -80,33 +80,34 @@ public static class StructuralTraceRenderer
         sb.Append(')');
         RenderOutcomeKind(sb, node.Outcome);
         sb.Append('\n');
-        RenderChildren(sb, node.Children, depth + 1);
+        RenderChildren(sb, node.Children, depth + 1, id);
     }
 
     private static void RenderChildren(
-        StringBuilder sb, IReadOnlyList<TraceNode> children, int depth)
+        StringBuilder sb, IReadOnlyList<TraceNode> children, int depth, string? parentId)
     {
         var segments = ChildSegment.Partition(children);
+        var ids = new SpanCursor(parentId);
         for (var i = 0; i < segments.Count; i++)
         {
-            RenderSegment(sb, segments[i], depth);
+            RenderSegment(sb, segments[i], depth, ids);
         }
     }
 
     private static void RenderSegment(
-        StringBuilder sb, ChildSegment segment, int depth)
+        StringBuilder sb, ChildSegment segment, int depth, SpanCursor ids)
     {
         if (segment.Kind == ConcurrencyKind.FireAndForget)
         {
-            RenderFireAndForget(sb, segment.Nodes, depth);
+            RenderFireAndForget(sb, segment.Nodes, depth, ids.Next());
         }
         else if (segment.IsConcurrent)
         {
-            RenderGroup(sb, MarkerFor(segment.Kind), segment.Nodes, depth);
+            RenderGroup(sb, MarkerFor(segment.Kind), segment.Nodes, depth, ids);
         }
         else
         {
-            RenderNode(sb, segment.Nodes[0], depth);
+            RenderNode(sb, segment.Nodes[0], depth, ids.Next());
         }
     }
 
@@ -120,50 +121,40 @@ public static class StructuralTraceRenderer
     /// <c>~ async [n]</c>) with members sorted by <c>Class.method</c> — capture
     /// order across threads is the scheduler's choice, not behavior, and this
     /// artifact must be byte-identical for identical behavior. Thread identity
-    /// is runtime data and never appears.
+    /// is runtime data and never appears. The marker takes no span id; each
+    /// member takes the next one, in the order printed.
     /// </summary>
     private static void RenderGroup(
         StringBuilder sb, string marker,
-        IReadOnlyList<TraceNode> members, int depth)
+        IReadOnlyList<TraceNode> members, int depth, SpanCursor ids)
     {
         AppendIndent(sb, depth);
         sb.Append(marker).Append(" [").Append(members.Count).Append("]\n");
-        var sorted = SortedBySignature(members);
+        var sorted = SpanPath.InConcurrentOrder(members);
         for (var i = 0; i < sorted.Count; i++)
         {
-            RenderNode(sb, sorted[i], depth + 1);
+            RenderNode(sb, sorted[i], depth + 1, ids.Next());
         }
     }
 
     /// <summary>
-    /// Background work renders under a <c>~ fire-and-forget</c> marker followed
-    /// by the launched calls. The synthetic launcher stub is layout scaffolding,
-    /// not a call the developer wrote, so it never reaches the artifact.
+    /// Background work renders under a <c>#id ~ fire-and-forget</c> marker —
+    /// the launch takes one span position — followed by the launched calls,
+    /// numbered under the launch's id in capture order. The synthetic launcher
+    /// stub is layout scaffolding, not a call the developer wrote, so it never
+    /// reaches the artifact as a call line.
     /// </summary>
     private static void RenderFireAndForget(
-        StringBuilder sb, IReadOnlyList<TraceNode> segment, int depth)
+        StringBuilder sb, IReadOnlyList<TraceNode> segment, int depth, string launchId)
     {
         AppendIndent(sb, depth);
-        sb.Append("~ fire-and-forget\n");
+        sb.Append(launchId).Append(" ~ fire-and-forget\n");
         var body = FireAndForgetSection.Body(segment);
+        var launched = new SpanCursor(launchId);
         for (var i = 0; i < body.Count; i++)
         {
-            RenderNode(sb, body[i], depth + 1);
+            RenderNode(sb, body[i], depth + 1, launched.Next());
         }
-    }
-
-    private static IReadOnlyList<TraceNode> SortedBySignature(
-        IReadOnlyList<TraceNode> nodes)
-    {
-        var sorted = new List<TraceNode>(nodes);
-        sorted.Sort((a, b) => string.CompareOrdinal(
-            SignatureKey(a), SignatureKey(b)));
-        return sorted;
-    }
-
-    private static string SignatureKey(TraceNode node)
-    {
-        return node.Signature.ClassName + "." + node.Signature.MethodName;
     }
 
     private static void AppendIndent(StringBuilder sb, int depth)

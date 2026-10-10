@@ -288,6 +288,34 @@ public class NarrativeFixtureTests
         }
     }
 
+    /// <summary>
+    /// The test runner (<c>dotnet</c>'s test verb) runs this assembly from <c>bin/&lt;configuration&gt;/&lt;tfm&gt;</c>: a
+    /// relative approved directory lands beside the test project, where it can be committed.
+    /// </summary>
+    [Fact]
+    public void A_relative_approved_directory_lands_beside_the_test_project_not_in_bin()
+    {
+        var dir = TempDir();
+        var relative = "narratives-" + Guid.NewGuid().ToString("N");
+        var projectDir = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "..", ".."));
+        try
+        {
+            using var fixture = new NarrativeFixture(EnvApproval(dir, relative));
+            RecordOneCall(fixture);
+
+            Assert.Throws<NarrativeApprovalException>(
+                () => fixture.WriteArtifacts("OrderTests", "PlacesOrder", failed: false));
+
+            Assert.True(File.Exists(Path.Combine(projectDir, relative, "OrderTests", "places_order.received.nt")));
+            Assert.False(Directory.Exists(Path.Combine(Directory.GetCurrentDirectory(), relative)));
+        }
+        finally
+        {
+            DeleteDir(dir);
+            DeleteDir(Path.Combine(projectDir, relative));
+        }
+    }
+
     [Fact]
     public void Approval_mode_fails_the_write_when_no_approved_trace_exists_yet()
     {

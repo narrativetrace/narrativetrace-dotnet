@@ -55,6 +55,44 @@ public class PlanRendererTest
         Assert.Contains("1 applied, 1 refused", text, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// An adoption says so on BOTH surfaces — the preview a person reads and the report of what
+    /// happened. Seeing "replace" where nothing of theirs was replaced is the misreading this avoids.
+    /// </summary>
+    [Fact]
+    public void BothThePlanAndTheReportSayAPageWasAdopted()
+    {
+        var adoption = new AdoptPage(".agents/skills/doctor/SKILL.md", "page\n", "stamped\n");
+
+        var preview = PlanRenderer.RenderText(Plan(adoption));
+        var applied = PlanRenderer.RenderText(Report(Applied.Ran(adoption)));
+
+        Assert.Contains("adopt   .agents/skills/doctor/SKILL.md", preview, StringComparison.Ordinal);
+        Assert.Contains("adopted:", preview, StringComparison.Ordinal);
+        Assert.Contains("applied adopt   .agents/skills/doctor/SKILL.md", applied, StringComparison.Ordinal);
+        Assert.Contains("adopted:", applied, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A link replacement names, on both surfaces, the link it replaces and what it pointed at — so a
+    /// person reading the plan knows a symbolic link, not a file of theirs, is what changes.
+    /// </summary>
+    [Fact]
+    public void BothThePlanAndTheReportNameTheReplacedLink()
+    {
+        var replacement = new ReplaceLink(
+            ".claude/skills/doctor", ".claude/skills/doctor/SKILL.md",
+            "../../.agents/skills/doctor", "the vendor page\n");
+
+        var preview = PlanRenderer.RenderText(Plan(replacement));
+        var applied = PlanRenderer.RenderText(Report(Applied.Ran(replacement)));
+
+        const string note = "replaces the symbolic link .claude/skills/doctor → ../../.agents/skills/doctor";
+        Assert.Contains("replace-link .claude/skills/doctor/SKILL.md", preview, StringComparison.Ordinal);
+        Assert.Contains(note, preview, StringComparison.Ordinal);
+        Assert.Contains(note, applied, StringComparison.Ordinal);
+    }
+
     // --- JSON ------------------------------------------------------------------------------------
 
     [Fact]

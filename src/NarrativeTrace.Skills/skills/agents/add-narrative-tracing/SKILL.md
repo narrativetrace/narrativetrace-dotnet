@@ -2,7 +2,7 @@
 name: add-narrative-tracing
 description: "Adds NarrativeTrace to a .NET project end to end: installs the real toolchain with a frozen restore, wraps a service and renders its first trace, sends the trace to a logger with one call, finishes by running the doctor CLI to confirm the install, and ends by previewing the agent skills install so the next session finds them. Use when asked to \"add narrative tracing\", \"set up NarrativeTrace\", \"wire up tracing for this service\", \"instrument this .NET app with NarrativeTrace\", or \"get a trace out of this code\"."
 when_to_use: "A .NET project has no NarrativeTrace install yet and needs one wired up from scratch."
-allowed-tools: dotnet, git
+allowed-tools: Bash(dotnet *), Bash(git *)
 ---
 
 # add-narrative-tracing
@@ -19,7 +19,19 @@ dotnet restore --locked-mode
 
 **failure:** `dotnet restore --locked-mode` fails with no lock file found — the project has no committed packages.lock.json yet — fix: run `dotnet restore` once without --locked-mode to generate the lock file, commit it, then use --locked-mode from then on
 
-## 2. First trace: wrap the service, call it, render the tree, run it
+## 2. Wire the frameworks this project already uses
+
+```bash
+dotnet tool run dotnet-narrativetrace doctor --json
+```
+
+**verify:** every config.<framework>-* finding in the report, and config.registration-pair, passes: apply each failing one's fix in order, as printed, then run the doctor again; a framework the doctor reports as having no integration shipped is left alone
+
+**failure:** the same framework finding fails again after its fix was applied — the snippet was pasted as printed instead of adapted to this project — its service and namespace names are the fixture's, not this project's — fix: keep the printed calls, swap in this project's own services and namespaces, rerun the doctor; if it still fails, report it with the narrativetrace-feedback skill
+
+## 3. First trace: wrap the service, call it, render the tree, run it
+
+**when:** if the project already has an application entry point — a Main method or top-level program it already runs, a web or application framework the doctor reports — do not add a demo program: run the application the way it already runs, exercise one real boundary, and read that request's trace; the verify below is for the console app, and in an existing application the step is done when that request's trace is in the output; otherwise create the smallest console app as follows
 
 <!-- snippet: examples/NarrativeTrace.Examples.SixtySeconds/Program.cs -->
 ```csharp
@@ -59,7 +71,7 @@ public sealed class OrderService : IOrderService
 
 **failure:** no trace line appears — the wrapped target was called directly instead of the proxy returned by NarrativeTraceProxy.Create<T> — fix: call the proxy instance everywhere the service is used, never the wrapped target
 
-## 3. Send it to your logger — one call, same captured tree
+## 4. Send it to your logger — one call, same captured tree
 
 <!-- snippet: examples/NarrativeTrace.Examples.SixtySeconds.WithLogger/Program.cs -->
 ```csharp
@@ -103,7 +115,7 @@ public sealed class OrderService : IOrderService
 
 **verify:** the console logger prints one Information-level record per trace node
 
-## 4. Run the doctor and resolve every finding it reports
+## 5. Run the doctor and resolve every finding it reports
 
 ```bash
 dotnet tool run dotnet-narrativetrace doctor --json
@@ -113,13 +125,13 @@ dotnet tool run dotnet-narrativetrace doctor --json
 
 **failure:** the doctor CLI exits 1 — at least one finding failed — fix: read its "fix" field and doc URL, resolve it, then rerun doctor
 
-## 5. Install the skills for next time
+## 6. Install the skills for next time
 
 ```bash
 dotnet tool run dotnet-narrativetrace init --dry-run
 ```
 
-**verify:** the diff names .agents/skills/ and AGENTS.md, and neither exists yet — nothing is written until the same command runs again without --dry-run
+**verify:** the diff names .agents/skills/ and AGENTS.md, and neither exists yet — nothing is written until the same command runs again without --dry-run; the next session verifies with narrativetrace-verify — once a change's tests are green, it reads the trace before it reports
 
 **failure:** command not found: dotnet-narrativetrace — NarrativeTrace.Cli is not installed as a local tool in this project yet — fix: run this skill's own first step, or install it directly with `dotnet tool install NarrativeTrace.Cli`
 

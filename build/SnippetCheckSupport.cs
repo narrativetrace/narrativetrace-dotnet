@@ -84,6 +84,13 @@ internal static class SnippetCheckSupport
         RegexOptions.CultureInvariant);
 
     private const string CloseMarker = "<!-- /snippet -->";
+
+    /// <summary>
+    /// The doctor's framework-table wiring snippets: not a public page but a resource the tooling
+    /// package embeds, so the doctor can print a row's wiring lines with no repository in sight. Its
+    /// blocks are compiled fixtures' text like any page's, and governed the same way.
+    /// </summary>
+    internal const string WiringSnippetsResource = "src/NarrativeTrace.Tooling/Frameworks/wiring-snippets.md";
     private const string SnippetMarkerToken = "<!-- snippet:";
 
     // U+2014 EM DASH, matching the duration suffix every renderer in this
@@ -208,7 +215,9 @@ internal static class SnippetCheckSupport
             ? Directory.EnumerateFiles(documentation, "llms.txt", SearchOption.AllDirectories)
             : Enumerable.Empty<string>();
         var skillPages = SkillPages(root, ".claude").Concat(SkillPages(root, ".agents"));
-        return underDocs.Concat(atRoot).Concat(llmsTxt).Concat(skillPages)
+        var wiringSnippets = Path.Combine(root, WiringSnippetsResource);
+        var packaged = File.Exists(wiringSnippets) ? new[] { wiringSnippets } : Array.Empty<string>();
+        return underDocs.Concat(atRoot).Concat(llmsTxt).Concat(skillPages).Concat(packaged)
             .OrderBy(f => f, StringComparer.Ordinal);
     }
 

@@ -16,8 +16,8 @@ byte.
 | File | Role |
 |---|---|
 | `<output-dir>/structural/<TestClass>/<scenario>.nt` | Emitted on the Markdown path; the file on disk is the **last-green baseline** — a non-green run compares against it (console delta, failure report) but never overwrites it. "Green" is the whole verdict: a test that passed but whose structure approval *rejected* ends red, so a rejected structure never becomes the baseline and reverting the change reports no delta |
-| `<approvedDir>/<TestClass>/<scenario>.approved.nt` | The committed approved trace (`NarrativeApproval`; opt-in via `NARRATIVETRACE_APPROVAL=true`, directory configurable via `NARRATIVETRACE_APPROVED_DIR`, default `narratives`) — a passing test whose structure differs fails with a readable diff |
-| `<scenario>.received.nt` | Written beside the approved trace on a mismatch (or when no approved trace exists yet); review it, then promote via the `Approve` build target (`./build.sh Approve`) |
+| `<approvedDir>/<TestClass>/<scenario>.approved.nt` | The committed approved trace (`NarrativeApproval`; opt-in via `NARRATIVETRACE_APPROVAL=true`, directory configurable via `NARRATIVETRACE_APPROVED_DIR`, default `narratives` beside the test project — a relative directory resolves against the test project's directory, never `bin/`) — a passing test whose structure differs fails with a readable diff |
+| `<scenario>.received.nt` | Written beside the approved trace on a mismatch (or when no approved trace exists yet); review it, then promote it with `dotnet tool run dotnet-narrativetrace approve` (run from the test project or any directory above it; build output is never searched) |
 
 The format extension is last (`.approved.nt` — the approval-testing idea,
 applied to traces) so editors and diff viewers key off `.nt`. Note: `.nt`
@@ -80,22 +80,39 @@ want the file.
 ```
 scenario: Weekend trip settles with three transfers
 
-- TripSettlementService.RecordExpense(tripName, expense)
-  - ExpenseValidator.EnsureValid(expense)
-  - TripLedger.RecordExpense(tripName, expense)
-- TripSettlementService.SettleTrip(tripName) → value
-  - TripLedger.ExpensesOf(tripName) → value
+#1 - TripSettlementService.RecordExpense(tripName, expense)
+  #1.1 - ExpenseValidator.EnsureValid(expense)
+  #1.2 - TripLedger.RecordExpense(tripName, expense)
+#2 - TripSettlementService.SettleTrip(tripName) → value
+  #2.1 - TripLedger.ExpensesOf(tripName) → value
   ~ fork [2]
-    - BalanceCalculator.ComputeBalances(expenses) → value
-    - StockService.Check() → value
+    #2.2 - BalanceCalculator.ComputeBalances(expenses) → value
+    #2.3 - StockService.Check() → value
 ```
 
 - **Header:** `scenario: <humanized test name>` + blank line. Nothing
   else — no result, no trace ids/names, no dates. One invocation of a
   method that runs more than once is `scenario: <humanized method name>
   #<index>` — a display-name template's arguments never reach it.
-- **Call line:** `ClassName.MethodName(paramName, paramName)` — names
-  only, capture order, two-space indent per depth.
+- **Call line:** `#id - ClassName.MethodName(paramName, paramName)` —
+  names only, capture order, two-space indent per depth; the span id is
+  the first token after the indent.
+- **Span id:** the call's position in the tree — `#1` is the first root
+  call, `#1.3` its third child, `#1.3.2` that child's second child. Every
+  sibling list (roots, a call's children, the work a fire-and-forget
+  launched) is numbered in the order this format prints it: plain calls in
+  capture order, the members of one fork or async group by `Class.method`
+  (two members with the same `Class.method` keep capture order), and a
+  fire-and-forget launch takes one position — its id opens the
+  `~ fire-and-forget` line and the launched calls nest under it. Ids are
+  derived by the renderer from the tree (`SpanPath`), never captured or
+  stored, so the same flow always gets the same ids; an inserted call
+  shifts its later siblings, and the approval diff says so (`(was #1.2)`).
+  Every other flavour prints the same id for the same call (a trailing
+  `#1.3` in the indented text and Markdown narratives, `(#1.3)` in prose, a
+  `Note over` / `hnote over` in the sequence diagrams), so a report, a
+  review and an approval diff can all point at one span. An id carries no
+  value.
 - **Outcome kinds:** non-void return ` → value`; void: nothing; thrown
   ` !! ExceptionSimpleName` (type is structure; the message is a value and
   never appears); unmatched enter ` ?? incomplete`.
@@ -104,9 +121,11 @@ scenario: Weekend trip settles with three transfers
   **sorted by `Class.method`** — capture order across threads is the
   scheduler's choice, not behaviour, so the artifact states the set and
   nesting of concurrent work and never its order. Fire-and-forget renders
-  `~ fire-and-forget` + children. Thread names/ids never appear.
+  `#id ~ fire-and-forget` + the launched calls, laid out like any other
+  sibling list. Thread names/ids never appear.
 - **Excluded by design:** all argument/return values, exception messages,
-  durations, timestamps, thread identity, trace/span ids, trace names, run
+  durations, timestamps, thread identity, captured trace/span ids (the
+  W3C ones — the position ids above are derived, not captured), trace names, run
   ids, run names (a test-suite run has a name
   too, see [Configuration Guide §7](guides/configuration.md#7-logging-bridge-microsoftextensionslogging);
   it never enters this format, an approved or received trace, an artifact
@@ -118,7 +137,10 @@ scenario: Weekend trip settles with three transfers
 
 1. **Deterministic:** identical behavior ⇒ byte-identical file. This is
    what makes the artifact the approved-trace baseline and the
-   conformance-fixture golden format.
+   conformance-fixture golden format. Comparison (`StructuralDelta`) sets
+   span ids, line terminators and a final newline aside: an approved trace
+   written before ids existed, or checked out with CRLF, still matches a
+   current run of the same flow, and is never rewritten to add them.
 2. **Value-free:** zero prompt-injection surface, zero PII, minimal
    tokens — safe to hand to an AI agent by default.
 3. **Division of labor:** the artifact asserts behavioral *shape*; value

@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/clarity.md blob 6910fbf8f013 | translated: 2026-09-03 | reviewed: 2026-09-03 -->
+<!-- source: documentation/guides/clarity.md blob 73892c06590c | translated: 2026-10-09 | reviewed: - -->
 # NarrativeTrace .NET — Guia de clareza
 
 [English](../clarity.md) | [Español](../es/guia-de-claridad.md) | **Português** | [简体中文](../zh-CN/清晰度指南.md)
@@ -217,13 +217,20 @@ A clareza se torna um *gate*, não uma sugestão, por meio da CLI
 envolve).
 
 ```bash
-# 1. Escaneia um assembly compilado para clarity-results.json:
-dotnet-narrativetrace clarity-scan --assembly bin/Release/net10.0/MyApp.dll
+# 1. Escaneia um assembly compilado para narrativetrace/clarity-scan-results.json:
+dotnet-narrativetrace clarity-scan --assembly bin/Release/net10.0/MyApp.dll \
+    --output-dir narrativetrace
 
 # 2. Falha o build abaixo de um limiar ou acima de um orçamento de problemas HIGH:
-dotnet-narrativetrace clarity-check --results clarity-results.json \
+dotnet-narrativetrace clarity-check --results narrativetrace/clarity-scan-results.json \
     --min-score 0.80 --max-high-issues 0
 ```
+
+Para um primeiro relatório ou um limite resolvido nome por nome, use a skill
+[`add-narrativetrace-clarity`](../../agent-skills.md#add-narrativetrace-clarity) (em inglês).
+Ela executa `clarity-scan` e `clarity-check` pela ferramenta local, lê os dois relatórios, renomeia
+conforme as sugestões do relatório e repete até o limite terminar com `0`. Um relatório ausente ou
+vazio é um problema de configuração para o `narrativetrace-doctor`.
 
 Códigos de saída do `clarity-check`: `0` sucesso (ou `--warn-only`), `1`
 falha do gate, `2` erro de uso / resultados malformados. Um arquivo de

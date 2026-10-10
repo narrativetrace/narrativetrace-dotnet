@@ -66,6 +66,26 @@ public sealed class UninstallPlannerTest
         Assert.Equal("NarrativeTrace.Skills/unknown", Plan(state).Carrier);
     }
 
+    /// <summary>
+    /// A link is never something the installer created, so an uninstall leaves it — link and target
+    /// both. Following one would delete a page at the other end that may not even be in this project,
+    /// and a page reached through a link reads as OURS whenever it carries the provenance line.
+    /// </summary>
+    [Fact]
+    public void LeavesASymbolicLinkAndWhateverItPointsAtAlone()
+    {
+        var state = ProjectState.NewBuilder()
+            .AddInstalledSkill(new InstalledSkill(
+                SkillFlavour.Claude, Carriers.Doctor, SkillPresence.LinkedDirectory, "",
+                "page\n" + Provenance.Line(Coordinate) + "\n", "../../.agents/skills/narrativetrace-doctor"))
+            .AddInstalledSkill(new InstalledSkill(
+                SkillFlavour.Agents, Carriers.Doctor, SkillPresence.LinkedPage, "",
+                "page\n", "../elsewhere/SKILL.md"))
+            .Build();
+
+        Assert.Empty(Plan(state).Actions);
+    }
+
     // --- the managed section --------------------------------------------------------------------
 
     [Fact]

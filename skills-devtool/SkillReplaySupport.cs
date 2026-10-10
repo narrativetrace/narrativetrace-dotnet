@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using NarrativeTrace.Skills;
 using NarrativeTrace.Skills.Catalogue;
+using NarrativeTrace.Tooling.Frameworks;
 
 namespace NarrativeTrace.SkillsDevTool;
 
@@ -132,6 +133,27 @@ internal static class SkillReplayRegistry
             // entries above.
             ["dotnet tool run dotnet-narrativetrace init --dry-run"] =
                 (repoRoot, fixtureDir) => RunInitDryRun(repoRoot, fixtureDir).ActionsPlanned,
+            // narrativetrace-feedback: real invocations of the real verbs against the fixture, with
+            // concrete text standing in for each angle-bracket placeholder (FeedbackReplay).
+            [FeedbackCommands.RunDoctorReport] =
+                (repoRoot, fixtureDir) => FeedbackReplay.DoctorReport(repoRoot, fixtureDir),
+            [FeedbackCommands.DraftReport] =
+                (repoRoot, fixtureDir) => FeedbackReplay.Draft(repoRoot, fixtureDir),
+            [FeedbackCommands.PrintUrl] =
+                (repoRoot, fixtureDir) => FeedbackReplay.Url(repoRoot, fixtureDir),
+            // add-narrativetrace-clarity: the real scan and check verbs against the clarity example's
+            // built assembly (ClarityReplay); the tool install, build and build-gate lines replay as the
+            // in-repo structural claims they stand for.
+            [ClarityCommands.RestoreTool] =
+                (repoRoot, _) => CliPacksAsDotnetNarrativetraceTool(repoRoot),
+            [ClarityCommands.Build] =
+                (_, fixtureDir) => ClarityReplay.FixtureAssembly(fixtureDir) is not null,
+            [ClarityCommands.Scan] =
+                (repoRoot, fixtureDir) => ClarityReplay.ScanSucceeds(repoRoot, fixtureDir),
+            [ClarityCommands.Check] =
+                (repoRoot, fixtureDir) => ClarityReplay.CheckIsDecisive(repoRoot, fixtureDir),
+            [ClarityCommands.BuildGate] =
+                (repoRoot, _) => ClarityReplay.MsBuildGateIsDeclared(repoRoot),
             // The fixture itself is a console example, not a test host — its own real, committed
             // test project (tests/NarrativeTrace.Examples.SixtySeconds.Tests) is the safe,
             // fixture-scoped equivalent of "run the tests a real consumer would already have":
@@ -140,6 +162,9 @@ internal static class SkillReplayRegistry
             // invoked via reflection on its own compiled entry point — see that test project's own
             // remarks).
             ["dotnet test"] = (repoRoot, _) => RunSixtySecondsTests(repoRoot).ExitCode == 0,
+            [VerifyCommands.RunThePath] = (repoRoot, _) => VerifyReplay.RunThePathWritesTheStructuralTrace(repoRoot),
+            [DebugCommands.RunTheReproduction] = (repoRoot, _) => VerifyReplay.RunThePathWritesTheStructuralTrace(repoRoot),
+            [VerifyCommands.Approve] = (repoRoot, _) => VerifyReplay.ApprovePromotesAReviewCopy(repoRoot),
         };
 
     private delegate bool? VerifyChecker(string repoRoot, string fixtureDir);
@@ -151,10 +176,21 @@ internal static class SkillReplayRegistry
                 (repoRoot, fixtureDir) => DoctorReportWellFormed(repoRoot, fixtureDir),
             [SkillCommands.ToolchainChecksHold] =
                 (repoRoot, fixtureDir) => ToolchainChecksHold(repoRoot, fixtureDir),
+            // The framework hand-off is an OUTCOME, and an honest one on this fixture: the sixty-seconds
+            // console app uses no framework the table detects, so every wiring check passes as "not
+            // detected" — a row whose marker started matching it would turn this red, as it should.
+            [SkillCommands.FrameworkFixesApplied] =
+                (repoRoot, fixtureDir) => FindingsPass(repoRoot, fixtureDir, FrameworkTable.WiringCheckIds()),
             [SkillCommands.ApprovalTracesFindingPasses] =
                 (repoRoot, fixtureDir) => FindingPasses(repoRoot, fixtureDir, "trap.approval-traces"),
-            [SkillCommands.InitPreviewWroteNothing] =
+            [FeedbackCommands.VerifyDoctorReportWritten] =
+                (_, fixtureDir) => FeedbackReplay.DoctorReportExists(fixtureDir),
+            [FeedbackCommands.VerifyDraftWritten] =
+                (_, fixtureDir) => FeedbackReplay.DraftFilesExist(fixtureDir),
+            [SkillCommands.InitPreviewThenNextSessionVerifies] =
                 (repoRoot, fixtureDir) => InitPreviewWroteNothing(repoRoot, fixtureDir),
+            [ClarityCommands.VerifyScanWritten] =
+                (repoRoot, fixtureDir) => ClarityReplay.ScanSucceeds(repoRoot, fixtureDir),
             ["`dotnet run` prints a \"trace: <name> (<id>)\" line followed by the call tree"] =
                 (_, fixtureDir) => DotnetRunPrintsTraceLine(fixtureDir),
             // Deliberately NOT registered — SkillCommands.RedactionProofFindingPasses and
@@ -327,6 +363,21 @@ internal static class SkillReplayRegistry
             .All(finding => finding.GetProperty("passed").GetBoolean());
     }
 
+    private static bool FindingsPass(string repoRoot, string fixtureDir, IReadOnlyList<string> findingIds)
+    {
+        var (wellFormed, report) = RunDoctorJson(repoRoot, fixtureDir);
+        if (!wellFormed || report is null || findingIds.Count == 0)
+        {
+            return false;
+        }
+
+        var passed = report.RootElement.GetProperty("findings").EnumerateArray()
+            .Where(finding => finding.GetProperty("passed").GetBoolean())
+            .Select(finding => finding.GetProperty("id").GetString())
+            .ToHashSet(StringComparer.Ordinal);
+        return findingIds.All(passed.Contains);
+    }
+
     private static bool FindingPasses(string repoRoot, string fixtureDir, string findingId)
     {
         var (wellFormed, report) = RunDoctorJson(repoRoot, fixtureDir);
@@ -342,9 +393,9 @@ internal static class SkillReplayRegistry
 
     // ── Process plumbing ─────────────────────────────────────────────────────
 
-    private readonly record struct ProcessResult(int ExitCode, string StdOut);
+    internal readonly record struct ProcessResult(int ExitCode, string StdOut);
 
-    private static ProcessResult RunProcess(string fileName, string arguments, string workingDirectory)
+    internal static ProcessResult RunProcess(string fileName, string arguments, string workingDirectory)
     {
         using var process = StartProcess(fileName, arguments, workingDirectory);
         var output = new StringBuilder();

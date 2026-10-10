@@ -97,37 +97,35 @@ internal static class SequenceWalk
         Func<string, DiagramLabel> participantLabel,
         StringBuilder sb)
     {
+        var ids = SpanPath.IdsOf(roots, null);
         for (var i = 0; i < roots.Count; i++)
         {
             var target = participantLabel(roots[i].Signature.ClassName);
-            RenderNode(roots[i], target, grammar, participantLabel, sb);
+            RenderNode(roots[i], ids[i], target, new Walk(grammar, participantLabel, sb));
         }
     }
 
+    /// <summary>What every step of one walk shares: the grammar, the label mapping, the buffer.</summary>
+    private sealed record Walk(
+        ISequenceGrammar Grammar, Func<string, DiagramLabel> ParticipantLabel, StringBuilder Sb);
+
+    /// <summary>
+    /// One call: its arrow, the note citing its span id (the structural trace's id for the same
+    /// span), its children in capture order, then its outcome.
+    /// </summary>
     private static void RenderNode(
-        TraceNode node,
-        DiagramLabel callerLabel,
-        ISequenceGrammar grammar,
-        Func<string, DiagramLabel> participantLabel,
-        StringBuilder sb)
+        TraceNode node, string id, DiagramLabel callerLabel, Walk walk)
     {
-        var targetLabel = participantLabel(node.Signature.ClassName);
-        sb.Append(grammar.CallArrow(callerLabel, targetLabel, Signature(node)));
-        RenderChildren(node.Children, targetLabel, grammar, participantLabel, sb);
-        AppendOutcome(node, targetLabel, callerLabel, grammar, sb);
-    }
-
-    private static void RenderChildren(
-        IReadOnlyList<TraceNode> children,
-        DiagramLabel callerLabel,
-        ISequenceGrammar grammar,
-        Func<string, DiagramLabel> participantLabel,
-        StringBuilder sb)
-    {
-        for (var i = 0; i < children.Count; i++)
+        var targetLabel = walk.ParticipantLabel(node.Signature.ClassName);
+        walk.Sb.Append(walk.Grammar.CallArrow(callerLabel, targetLabel, Signature(node)));
+        walk.Sb.Append(walk.Grammar.SpanNote(targetLabel, DiagramLabel.SpanId(id)));
+        var childIds = SpanPath.IdsOf(node.Children, id);
+        for (var i = 0; i < node.Children.Count; i++)
         {
-            RenderNode(children[i], callerLabel, grammar, participantLabel, sb);
+            RenderNode(node.Children[i], childIds[i], targetLabel, walk);
         }
+
+        AppendOutcome(node, targetLabel, callerLabel, walk.Grammar, walk.Sb);
     }
 
     private static DiagramLabel Signature(TraceNode node)

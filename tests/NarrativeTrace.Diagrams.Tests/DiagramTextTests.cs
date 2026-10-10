@@ -69,4 +69,29 @@ public class DiagramTextTests
     {
         Assert.Equal("\"<unnamed>\"", DiagramText.QuoteIfNeeded("<unnamed>"));
     }
+
+    [Fact]
+    public void Identifier_folds_unicode_line_separators_to_a_space()
+    {
+        Assert.Equal("a b c d", DiagramText.Identifier("a\u2028b\u2029c\u0085d"));
+    }
+
+    [Fact]
+    public void Message_folds_unicode_line_separators_to_a_space()
+    {
+        Assert.Equal("a b c", DiagramText.Message("a\u2028b\u2029c"));
+    }
+
+    [Fact]
+    public void Identifier_keeps_ordinary_non_ascii_and_near_miss_separators()
+    {
+        // U+2027 and U+202A neighbour the separators and are not line terminators.
+        Assert.Equal("caf\u00e9\u2027\u202a\u00a0x", DiagramText.Identifier("caf\u00e9\u2027\u202a\u00a0x"));
+    }
+
+    [Fact]
+    public void Identifier_of_only_line_separators_is_the_unnamed_marker()
+    {
+        Assert.Equal("<unnamed>", DiagramText.Identifier("\u2028\u2029"));
+    }
 }

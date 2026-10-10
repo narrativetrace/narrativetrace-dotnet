@@ -12,6 +12,16 @@ public static class DoctorDocUrls
     private const string Base =
         "https://github.com/narrativetrace/narrativetrace-dotnet/blob/main/";
 
+    /// <summary>
+    /// The published URL of a repository-relative documentation page (and anchor) — how a
+    /// framework-table row's <c>Guide</c> becomes the link its finding carries.
+    /// </summary>
+    public static string ForPage(string repositoryRelativePage)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(repositoryRelativePage);
+        return Base + repositoryRelativePage;
+    }
+
     /// <summary>Package choices and the Legacy (<c>net48</c>) target.</summary>
     public const string InstallationPackages = Base + "documentation/guides/installation.md#packages";
 

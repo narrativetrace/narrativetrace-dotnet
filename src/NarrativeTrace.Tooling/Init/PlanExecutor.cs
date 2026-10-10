@@ -51,17 +51,13 @@ public static class PlanExecutor
 
     private static ExecutionReport.Applied Apply(Action action, string projectDirectory)
     {
-        var target = Path.Combine(
-            projectDirectory, action.Path.Replace('/', Path.DirectorySeparatorChar));
         try
         {
             return action switch
             {
                 Refuse refusal => ExecutionReport.Applied.Refused(action, refusal.Reason),
-                DeleteDirectory => DeleteTheDirectory(action, target),
-                DeleteFile => DeleteTheFile(action, target),
-                FileEdit edit => WriteEdit(action, target, edit),
-                _ => throw new InvalidOperationException("an action kind the executor does not know"),
+                ReplaceLink replacement => ReplaceTheLink(replacement, projectDirectory),
+                _ => ApplyFilesystem(action, projectDirectory),
             };
         }
         catch (IOException exception)
@@ -69,6 +65,73 @@ public static class PlanExecutor
             return ExecutionReport.Applied.Refused(action, exception.GetType().Name + ": " + exception.Message);
         }
     }
+
+    /// <summary>Every action but a refusal and a link replacement: a delete or a write, never through a link.</summary>
+    private static ExecutionReport.Applied ApplyFilesystem(Action action, string projectDirectory)
+    {
+        var target = Path.Combine(
+            projectDirectory, action.Path.Replace('/', Path.DirectorySeparatorChar));
+        RequireNoLinkOnTheWay(projectDirectory, action.Path);
+        return action switch
+        {
+            DeleteDirectory => DeleteTheDirectory(action, target),
+            DeleteFile => DeleteTheFile(action, target),
+            FileEdit edit => WriteEdit(action, target, edit),
+            _ => throw new InvalidOperationException("an action kind the executor does not know"),
+        };
+    }
+
+    /// <summary>
+    /// The one action that begins by deleting: the link goes first — the link itself, never what it
+    /// points at — so the write that follows creates a real directory or file of the project's own.
+    /// </summary>
+    private static ExecutionReport.Applied ReplaceTheLink(ReplaceLink action, string projectDirectory)
+    {
+        DeleteLink(Path.Combine(projectDirectory, action.Link.Replace('/', Path.DirectorySeparatorChar)));
+        RequireNoLinkOnTheWay(projectDirectory, action.Path);
+        Write(Path.Combine(projectDirectory, action.Path.Replace('/', Path.DirectorySeparatorChar)), action.After);
+        return ExecutionReport.Applied.Ran(action);
+    }
+
+    /// <summary>
+    /// No write and no delete ever passes THROUGH a symbolic link. The planners refuse every link they
+    /// can see; this is the guarantee for one they cannot — a link made between the read and the write,
+    /// or one further up the path than a planner looks. The action is refused like any other filesystem
+    /// refusal, and the rest of the plan still runs.
+    /// </summary>
+    private static void RequireNoLinkOnTheWay(string projectDirectory, string relative)
+    {
+        var walked = projectDirectory;
+        foreach (var element in relative.Split('/'))
+        {
+            walked = Path.Combine(walked, element);
+            if (IsSymbolicLink(walked))
+            {
+                throw new IOException(walked + " is a symbolic link, and nothing is written through one");
+            }
+        }
+    }
+
+    /// <summary>Removes the link itself — never what it points at. A directory link and a page link both unlink.</summary>
+    private static void DeleteLink(string link)
+    {
+        if (!IsSymbolicLink(link))
+        {
+            return;
+        }
+
+        if (Directory.Exists(link))
+        {
+            Directory.Delete(link, recursive: false);
+        }
+        else
+        {
+            File.Delete(link);
+        }
+    }
+
+    /// <summary>Whether the path itself is a symbolic link, without following it.</summary>
+    private static bool IsSymbolicLink(string path) => new FileInfo(path).LinkTarget is not null;
 
     private static ExecutionReport.Applied WriteEdit(Action action, string target, FileEdit edit)
     {

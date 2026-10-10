@@ -1,0 +1,44 @@
+NarrativeTrace — Copyright 2026 Empower Agile
+
+NarrativeTrace is a trademark of Empower Agile.
+
+This product includes software developed at Empower Agile
+(https://www.empoweragile.com).
+
+NarrativeTrace's API and output format are open standards (Apache 2.0, arriving with the api
+split). Its runtime is free and source-available today (BSL 1.1, converting to Apache 2.0 four
+years after each release). Pro is commercial.
+
+Which licence applies to what
+-----------------------------
+
+  NarrativeTrace.Skills
+  NarrativeTrace.Cli
+  NarrativeTrace.Tooling
+      Apache License, Version 2.0 — see LICENSE-APACHE.
+      The agent-skill carrier and the tooling around it: the package that ships the skill
+      pages, the dotnet-narrativetrace launcher, and the installer/doctor library behind it.
+      Open for the same reason an API surface is — what a consumer's own agents and build
+      read has to be readable, and reusable, without agreeing to anything. Declared per
+      package via PackageLicenseExpression in each project's own .csproj (this port carries
+      no central licensing-categories file).
+
+  the rendered agent-skill pages in this repository, and the marketplace file that lists
+  them: .claude/skills/**, .agents/skills/** and .claude-plugin/marketplace.json
+      Apache License, Version 2.0.
+      Build output of the same catalogue NarrativeTrace.Skills carries, published at the
+      paths agent tools discover them at. Whoever installs them — by copying a directory,
+      through the installer, or from a plugin marketplace — receives Apache-licensed pages,
+      and the marketplace listing says so.
+
+  every other NarrativeTrace.* package in this repository
+      Business Source License 1.1 — see LICENSE.
+      The runtime and its integrations. Free to use in production, including in products and
+      services you provide to your own customers; the one exclusion is offering NarrativeTrace
+      itself — or a product or service whose value derives substantially from it — to third
+      parties as a logging, tracing or code-narrative product or service. Each released
+      version converts to the Apache License, Version 2.0 four years after it is published.
+
+The category each package ships under is declared in that package's own .csproj
+(PackageLicenseExpression for the Apache-2.0 packages named above; PackageLicenseFile=LICENSE,
+the repository default in Directory.Build.props, for every other package).

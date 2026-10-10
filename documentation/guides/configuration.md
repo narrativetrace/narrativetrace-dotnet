@@ -145,11 +145,14 @@ approved trace `<approvedDir>/<TestClassSimpleName>/<artifact_name>.approved.nt`
 runs more than once has one approved trace per invocation. A missing
 approved trace or a structural difference fails the test with a readable
 diff and writes the current structure beside it as `*.received.nt`; review
-it and accept it via the `Approve` build target (`./build.sh Approve`) or
-rename it manually. A failing test's structure is never verified — it is
+it and accept it with `dotnet tool run dotnet-narrativetrace approve` (from the test project or a directory
+above it) or rename it manually. A failing test's structure is never verified — it is
 mid-flight and must not churn the received traces.
 `NARRATIVETRACE_APPROVED_DIR` names the directory those baselines live in
-(default `narratives`). See [Structural Trace Format](../structural-trace-format.md)
+(default `narratives`). A relative directory sits beside the test project —
+it resolves against the nearest directory above the test run that holds a
+`.csproj`/`.fsproj`/`.vbproj`, not against `bin/<configuration>/<tfm>`
+where `dotnet test` runs — so the baselines are source you commit. See [Structural Trace Format](../structural-trace-format.md)
 for the full behaviour, and [What to Commit](../what-to-commit.md) for
 which of these files to commit.
 

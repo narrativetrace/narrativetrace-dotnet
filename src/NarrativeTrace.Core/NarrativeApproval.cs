@@ -55,6 +55,9 @@ public static class NarrativeApproval
         }
     }
 
+    /// <summary>The adopter's promotion command, as the CLI's local-tool form spells it.</summary>
+    private const string ApproveCommand = "dotnet tool run dotnet-narrativetrace approve";
+
     private static NarrativeApprovalException NoApprovedTrace(
         string scenario, string current, string approvedFile, string receivedFile)
     {
@@ -62,8 +65,8 @@ public static class NarrativeApproval
         return new NarrativeApprovalException(
             "No approved trace for scenario \"" + scenario + "\".\n"
             + "Received: " + receivedFile
-            + "\nReview it and approve via the Approve build target (or rename it to "
-            + Path.GetFileName(approvedFile) + ").");
+            + "\nReview it, then promote it with: " + ApproveCommand
+            + " (or rename it to " + Path.GetFileName(approvedFile) + ").");
     }
 
     private static NarrativeApprovalException StructureChanged(
@@ -74,7 +77,7 @@ public static class NarrativeApproval
             "Trace changed against the approved trace (" + delta.Summary() + "):\n"
             + delta.Diff()
             + "Received: " + receivedFile
-            + "\nIf this change is intended, approve it via the Approve build target.");
+            + "\nIf this change is intended, promote it with: " + ApproveCommand);
     }
 
     /// <summary>

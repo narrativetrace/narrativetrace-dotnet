@@ -43,6 +43,10 @@ internal sealed class PlantUmlSequenceGrammar(bool includeLifelines) : ISequence
     }
 
     /// <inheritdoc/>
+    public string SpanNote(DiagramLabel target, DiagramLabel spanId) =>
+        "hnote over " + target.Text + " : " + spanId.Text + Environment.NewLine;
+
+    /// <inheritdoc/>
     public string ReturnArrow(DiagramLabel target, DiagramLabel caller, DiagramLabel message) =>
         Outcome(target, caller, " --> ", message);
 

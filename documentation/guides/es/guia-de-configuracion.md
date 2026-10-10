@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/configuration.md blob ad774701e669 | translated: 2026-09-18 | reviewed: - -->
+<!-- source: documentation/guides/configuration.md blob fbfa73142240 | translated: 2026-09-18 | reviewed: - -->
 # NarrativeTrace .NET — Guía de configuración
 
 [English](../configuration.md) | **Español** | [Português](../pt-BR/guia-de-configuracao.md) | [简体中文](../zh-CN/配置指南.md)
@@ -151,11 +151,15 @@ misma identidad de artefacto que cualquier otro archivo por prueba, así
 que un método que se ejecuta más de una vez tiene una traza aprobada por
 invocación. Una traza aprobada ausente o una diferencia estructural hace
 fallar la prueba con un diff legible y escribe la estructura actual junto
-a ella como `*.received.nt`; revísala y acéptala mediante el build target
-`Approve` (`./build.sh Approve`) o renómbrala a mano. La estructura de una
+a ella como `*.received.nt`; revísala y acéptala con
+`dotnet tool run dotnet-narrativetrace approve` (desde el proyecto de pruebas o un directorio superior) o renómbrala a mano. La estructura de una
 prueba que falla nunca se verifica — está a mitad de camino y no debe
 agitar las trazas recibidas. `NARRATIVETRACE_APPROVED_DIR` nombra el
-directorio donde viven esas líneas base (por defecto `narratives`).
+directorio donde viven esas líneas base (por defecto `narratives`). Un
+directorio relativo queda junto al proyecto de pruebas — se resuelve contra
+el directorio más cercano por encima de la ejecución que contiene un
+`.csproj`/`.fsproj`/`.vbproj`, no contra `bin/<configuración>/<tfm>`, donde
+`dotnet test` ejecuta — así que las líneas base son código fuente que haces commit.
 Consulta [Formato de traza estructural](../../structural-trace-format.md)
 para el comportamiento completo, y [Qué incluir en el commit](../../es/que-incluir-en-el-commit.md)
 para saber cuáles de estos archivos hacer commit.

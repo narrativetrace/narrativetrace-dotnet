@@ -65,9 +65,10 @@ public sealed class NarrativeApprovalTests : IDisposable
             () => NarrativeApproval.Verify(TreeWithNode(), "Places an order", approvedFile));
 
         Assert.Contains("No approved trace", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("dotnet tool run dotnet-narrativetrace approve", exception.Message, StringComparison.Ordinal);
         var receivedFile = Path.Combine(_dir, "OrderTests", "places_order.received.nt");
         Assert.True(File.Exists(receivedFile));
-        Assert.Equal("scenario: Places an order\n\n- Svc.PlacesOrder()\n", File.ReadAllText(receivedFile));
+        Assert.Equal("scenario: Places an order\n\n#1 - Svc.PlacesOrder()\n", File.ReadAllText(receivedFile));
     }
 
     [Fact]
@@ -76,12 +77,26 @@ public sealed class NarrativeApprovalTests : IDisposable
         var approvedFile = Path.Combine(_dir, "OrderTests", "places_order.approved.nt");
         var receivedFile = Path.Combine(_dir, "OrderTests", "places_order.received.nt");
         Directory.CreateDirectory(Path.GetDirectoryName(approvedFile)!);
-        File.WriteAllText(approvedFile, "scenario: Places an order\n\n- Svc.PlacesOrder()\n");
+        File.WriteAllText(approvedFile, "scenario: Places an order\n\n#1 - Svc.PlacesOrder()\n");
         File.WriteAllText(receivedFile, "stale");
 
         NarrativeApproval.Verify(TreeWithNode(), "Places an order", approvedFile);
 
         Assert.False(File.Exists(receivedFile));
+    }
+
+    [Fact]
+    public void An_approved_trace_written_before_span_ids_still_passes_and_is_never_rewritten()
+    {
+        const string idFree = "scenario: Places an order\r\n\r\n- Svc.PlacesOrder()";
+        var approvedFile = Path.Combine(_dir, "OrderTests", "places_order.approved.nt");
+        Directory.CreateDirectory(Path.GetDirectoryName(approvedFile)!);
+        File.WriteAllText(approvedFile, idFree);
+
+        NarrativeApproval.Verify(TreeWithNode(), "Places an order", approvedFile);
+
+        Assert.Equal(idFree, File.ReadAllText(approvedFile));
+        Assert.False(File.Exists(Path.Combine(_dir, "OrderTests", "places_order.received.nt")));
     }
 
     [Fact]
@@ -96,6 +111,8 @@ public sealed class NarrativeApprovalTests : IDisposable
 
         Assert.Contains("Trace changed against the approved trace", exception.Message, StringComparison.Ordinal);
         Assert.Contains("-1 call Svc.Ship", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("dotnet tool run dotnet-narrativetrace approve", exception.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("build target", exception.Message, StringComparison.Ordinal);
         Assert.True(File.Exists(Path.Combine(_dir, "OrderTests", "places_order.received.nt")));
     }
 

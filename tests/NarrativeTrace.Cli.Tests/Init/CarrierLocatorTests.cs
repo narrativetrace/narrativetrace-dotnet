@@ -34,8 +34,10 @@ public sealed class CarrierLocatorTests : IDisposable
         var carrier = CarrierLocator.Open(null);
 
         Assert.StartsWith("NarrativeTrace.Skills/", carrier.Coordinate, StringComparison.Ordinal);
-        Assert.Equal(2, carrier.Skills.Count);
+        Assert.Equal(NarrativeTrace.Skills.Catalogue.SkillCatalogue.Skills.Count, carrier.Skills.Count);
         Assert.Contains(carrier.Skills, skill => skill.Name == "narrativetrace-doctor");
+        Assert.Contains(carrier.Skills, skill => skill.Name == "narrativetrace-feedback");
+        Assert.Contains(carrier.Skills, skill => skill.Name == "add-narrativetrace-clarity");
     }
 
     [Fact]

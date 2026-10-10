@@ -29,6 +29,16 @@ public static class SkillCommands
         "the finding with id \"trap.approval-traces\" reports \"passed\": true — no stale " +
         "*.received.nt files remain";
 
+    /// <summary>
+    /// The framework hand-off (Phase 6 D2): which frameworks this project uses, and how each is wired,
+    /// is the installed doctor's answer — the step names no framework. <c>config.registration-pair</c>
+    /// is named because it kept the id it shipped with before the framework table existed.
+    /// </summary>
+    public const string FrameworkFixesApplied =
+        "every config.<framework>-* finding in the report, and config.registration-pair, passes: apply " +
+        "each failing one's fix in order, as printed, then run the doctor again; a framework the doctor " +
+        "reports as having no integration shipped is left alone";
+
     /// <summary>The doctor CLI's own process exit code is 0 — no failing findings remain.</summary>
     public const string ExitCodeIsZero =
         "the doctor CLI's own process exit code is 0 — no failing findings remain";
@@ -41,4 +51,12 @@ public static class SkillCommands
     public const string InitPreviewWroteNothing =
         "the diff names .agents/skills/ and AGENTS.md, and neither exists yet — nothing is " +
         "written until the same command runs again without --dry-run";
+
+    /// <summary>
+    /// The install's hand-off to the next session (Phase 7 D7), closing the preview step: once the skills
+    /// are installed, the session after this one reads what its changes did before reporting them.
+    /// </summary>
+    public const string InitPreviewThenNextSessionVerifies =
+        InitPreviewWroteNothing + "; the next session verifies with narrativetrace-verify — once a change's " +
+        "tests are green, it reads the trace before it reports";
 }

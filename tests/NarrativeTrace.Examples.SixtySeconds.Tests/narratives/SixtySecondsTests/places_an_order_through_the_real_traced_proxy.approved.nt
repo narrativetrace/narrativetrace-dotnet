@@ -1,0 +1,3 @@
+scenario: Places an order through the real traced proxy
+
+#1 - IOrderService.PlaceOrder(customerId, productId, quantity) → value

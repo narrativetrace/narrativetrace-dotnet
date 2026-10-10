@@ -21,6 +21,10 @@
   <ItemGroup>
     <ProjectReference Include="../../src/NarrativeTrace.Cli/NarrativeTrace.Cli.csproj" />
     <ProjectReference Include="../../src/NarrativeTrace.Clarity/NarrativeTrace.Clarity.csproj" />
+    <!-- Test-only: AspNetCoreGraderRehearsalTests builds trees that reference these two integrations'
+         built assemblies from this project's own output, so a rehearsal needs no packed feed. -->
+    <ProjectReference Include="../../src/NarrativeTrace.AspNetCore/NarrativeTrace.AspNetCore.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.Testing.Xunit/NarrativeTrace.Testing.Xunit.csproj" />
     <!-- The skills render/lint/replay verbs moved out of the shipped CLI (Phase 3 Q3) into the
          standalone, non-packable skills-devtool/ so the CLI package no longer carries the
          catalogue assembly. Their tests stay here, referencing the dev tool directly (an

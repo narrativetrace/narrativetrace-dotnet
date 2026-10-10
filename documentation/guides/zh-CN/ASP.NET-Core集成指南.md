@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/aspnetcore.md blob 4820ee3799e9 | translated: 2026-09-12 | reviewed: - -->
+<!-- source: documentation/guides/aspnetcore.md blob 2be5c7c20f47 | translated: 2026-09-12 | reviewed: - -->
 # ASP.NET Core 集成指南
 
 [English](../aspnetcore.md) | [Español](../es/guia-de-integracion-con-aspnet-core.md) | [Português](../pt-BR/guia-de-integracao-com-aspnet-core.md) | **简体中文**
@@ -9,7 +9,7 @@
 ## 包
 
 ```xml
-<PackageReference Include="NarrativeTrace.AspNetCore" Version="0.2.0" />
+<PackageReference Include="NarrativeTrace.AspNetCore" Version="0.3.0" />
 ```
 
 ## 1. 注册并接入中间件

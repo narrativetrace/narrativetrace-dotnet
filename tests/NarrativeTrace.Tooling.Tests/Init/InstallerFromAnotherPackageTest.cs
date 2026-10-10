@@ -20,6 +20,9 @@ public sealed class InstallerFromAnotherPackageTest : IDisposable
     private const string Version = "0.1.5";
     private const string Coordinate = "NarrativeTrace.Skills/0.1.5";
 
+    /// <summary>What `npx skills add` writes at the project root, and nothing of ours may touch.</summary>
+    private const string LockFile = "{\"skills\": []}\n";
+
     private readonly string _root = Path.Combine(Path.GetTempPath(), "nt-consumer-" + Guid.NewGuid().ToString("N"));
     private readonly Carrier _carrier;
 
@@ -172,6 +175,95 @@ public sealed class InstallerFromAnotherPackageTest : IDisposable
         Assert.NotEmpty(files);
         Assert.DoesNotContain("AGENTS.md", files);
     }
+
+    /// <summary>
+    /// The registry case, end to end: a project that got these very pages from a registry — the
+    /// repository's own rendered files, no provenance line — is adopted rather than refused, with no
+    /// flag at all, and the page it already had is left in place with one line added.
+    /// </summary>
+    [Fact]
+    public void AdoptsThePagesARegistryInstalledWithoutAnyFlag()
+    {
+        var project = NewProject();
+        var first = _carrier.Skills[0];
+        var page = Path.Combine(project, ".agents", "skills", first.Name, "SKILL.md");
+        Directory.CreateDirectory(Path.GetDirectoryName(page)!);
+        File.WriteAllText(page, _carrier.Body(first, SkillFlavour.Agents));
+
+        var report = Install(project, InitOptions.Defaults());
+
+        Assert.Equal(0, report.ExitCode);
+        var text = PlanRenderer.RenderText(report);
+        Assert.Contains("adopt", text, StringComparison.Ordinal);
+        Assert.Contains("adopted:", text, StringComparison.Ordinal);
+        var stamped = ReadText(page);
+        Assert.Contains("installed by narrativetrace init from " + Coordinate, stamped, StringComparison.Ordinal);
+        Assert.Equal(
+            Provenance.Stamp(_carrier.Body(first, SkillFlavour.Agents), Coordinate),
+            stamped);
+    }
+
+    /// <summary>
+    /// The whole registry tree, end to end: what `npx skills add` really leaves — the open-standard
+    /// pages, a LINK from each vendor path to them, and a lock file of its own. `init` adopts the
+    /// pages and replaces the links; it never writes the vendor flavour through one, which would have
+    /// overwritten the page it had just adopted.
+    /// </summary>
+    [Fact]
+    public void InstallsIntoATreeARegistryLeftBehindWithoutWritingThroughItsLinks()
+    {
+        var project = NewProject();
+        SimulateRegistryInstall(project);
+
+        var report = Install(project, InitOptions.Defaults());
+
+        Assert.Equal(0, report.ExitCode);
+        foreach (var skill in _carrier.Skills)
+        {
+            var agents = Path.Combine(project, ".agents", "skills", skill.Name, "SKILL.md");
+            var vendor = Path.Combine(project, ".claude", "skills", skill.Name);
+            Assert.Equal(Stamped(_carrier.Body(skill, SkillFlavour.Agents)), ReadText(agents));
+            Assert.Contains(Coordinate, ReadText(agents), StringComparison.Ordinal);
+            Assert.False(new FileInfo(vendor).LinkTarget is not null);
+            Assert.Equal(Stamped(_carrier.Body(skill, SkillFlavour.Claude)), ReadText(Path.Combine(vendor, "SKILL.md")));
+        }
+
+        Assert.Equal(LockFile, ReadText(Path.Combine(project, "skills-lock.json")));
+    }
+
+    /// <summary>Uninstalling that tree takes back the pages, now ours, and leaves the registry's own file.</summary>
+    [Fact]
+    public void UninstallingAfterAdoptingARegistryTreeLeavesTheRegistrysOwnFiles()
+    {
+        var project = NewProject();
+        SimulateRegistryInstall(project);
+        Install(project, InitOptions.Defaults());
+
+        var report = PlanExecutor.Execute(
+            UninstallPlanner.Plan(ProjectStateReader.Read(project), InitOptions.Defaults()), project);
+
+        Assert.Equal(0, report.ExitCode);
+        Assert.Equal(["skills-lock.json"], FilesUnder(project));
+    }
+
+    /// <summary>`npx skills add`: the agents pages, a link per vendor path, and a lock file at the root.</summary>
+    private void SimulateRegistryInstall(string project)
+    {
+        Directory.CreateDirectory(Path.Combine(project, ".claude", "skills"));
+        foreach (var skill in _carrier.Skills)
+        {
+            var directory = Path.Combine(project, ".agents", "skills", skill.Name);
+            Directory.CreateDirectory(directory);
+            File.WriteAllText(Path.Combine(directory, "SKILL.md"), _carrier.Body(skill, SkillFlavour.Agents));
+            Directory.CreateSymbolicLink(
+                Path.Combine(project, ".claude", "skills", skill.Name),
+                Path.Combine("..", "..", ".agents", "skills", skill.Name));
+        }
+
+        File.WriteAllText(Path.Combine(project, "skills-lock.json"), LockFile);
+    }
+
+    private static string Stamped(string rendered) => Provenance.Stamp(rendered, Coordinate);
 
     [Fact]
     public void ReadsBackWhatItWroteAsAProjectState()

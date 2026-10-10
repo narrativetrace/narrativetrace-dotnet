@@ -126,9 +126,16 @@ public static partial class Formats
         foreach (var line in StatementsOf(diagram))
         {
             Assert.True(MermaidStatement().IsMatch(line), $"{emitter} emitted a line the Mermaid grammar does not allow: {line}");
-            Assert.False(line.Any(char.IsControl), $"{emitter} left a control character inside a diagram line");
+            Assert.False(line.Any(EndsALine), $"{emitter} left a line terminator inside a diagram line");
         }
     }
+
+    /// <summary>
+    /// A control character or U+2028/U+2029 — the characters that end a line for some consumer of a
+    /// diagram (JavaScript, regex engines, viewers) even where <see cref="char.IsControl(char)"/>
+    /// says no.
+    /// </summary>
+    private static bool EndsALine(char c) => char.IsControl(c) || c is '\u2028' or '\u2029';
 
     /// <summary>The statement lines of a diagram: no blanks, no <c>%%</c> comments, indentation stripped.</summary>
     public static List<string> StatementsOf(string diagram) =>
@@ -149,7 +156,7 @@ public static partial class Formats
         foreach (var line in PlantUmlStatementsOf(trimmed))
         {
             Assert.True(PlantUmlStatement().IsMatch(line), $"{emitter} emitted a line the PlantUML grammar does not allow: {line}");
-            Assert.False(line.Any(char.IsControl), $"{emitter} left a control character inside a diagram line");
+            Assert.False(line.Any(EndsALine), $"{emitter} left a line terminator inside a diagram line");
         }
     }
 
