@@ -78,7 +78,8 @@ public sealed class AgentTurnsTests
 
     [Theory]
     [InlineData(Platform.Codex)]
-    [InlineData(Platform.Gemini)]
+    [InlineData(Platform.Antigravity)]
+    [InlineData(Platform.Cursor)]
     public void Refuses_a_multi_turn_case_on_a_platform_that_cannot_resume_a_session(Platform platform)
     {
         var thrown = Assert.Throws<ArgumentException>(() => Of(platform, null, ["yes"]));
@@ -88,7 +89,8 @@ public sealed class AgentTurnsTests
 
     [Theory]
     [InlineData(Platform.Codex)]
-    [InlineData(Platform.Gemini)]
+    [InlineData(Platform.Antigravity)]
+    [InlineData(Platform.Cursor)]
     public void A_single_turn_case_still_runs_on_a_platform_that_cannot_resume_a_session(Platform platform)
     {
         var turns = Of(platform, null, []);
@@ -169,5 +171,73 @@ public sealed class AgentTurnsTests
         prompts.Add("two");
 
         Assert.Equal(1, turns.TurnCount);
+    }
+
+    // --- fresh turns: the first-turn template under a session id of their own ---------------------
+
+    private static AgentTurns WithFresh(Platform platform, IReadOnlyList<string> replies, params int[] fresh) =>
+        AgentTurns.Of(platform, "claude-haiku-5-5", Skill, null, "report it", replies, Session, fresh);
+
+    [Fact]
+    public void A_fresh_turn_opens_a_new_session_with_the_first_turn_template()
+    {
+        var turns = WithFresh(Platform.Claude, ["check my setup"], 2);
+
+        Assert.EndsWith("--session-id " + Session, turns.CommandForTurn(1), StringComparison.Ordinal);
+        var second = turns.CommandForTurn(2);
+        Assert.Contains("--session-id ", second, StringComparison.Ordinal);
+        Assert.DoesNotContain(Session, second, StringComparison.Ordinal);
+        Assert.DoesNotContain("--resume", second, StringComparison.Ordinal);
+        Assert.DoesNotContain(Platforms.SessionPlaceholder, second, StringComparison.Ordinal);
+        Assert.True(turns.IsFreshTurn(2));
+        Assert.False(turns.IsFreshTurn(1));
+    }
+
+    [Fact]
+    public void Refuses_a_fresh_turn_that_is_not_the_last_turn()
+    {
+        var e = Assert.Throws<ArgumentException>(() => WithFresh(Platform.Claude, ["check my setup", "thanks"], 2));
+
+        Assert.Contains("last turn", e.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Refuses_a_fresh_turn_outside_the_conversation()
+    {
+        var e = Assert.Throws<ArgumentException>(() => WithFresh(Platform.Claude, ["check my setup"], 3));
+
+        Assert.Contains("outside", e.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Refuses_a_fresh_turn_on_a_platform_that_cannot_open_a_named_session()
+    {
+        var e = Assert.Throws<ArgumentException>(() => WithFresh(Platform.Codex, ["check my setup"], 2));
+
+        Assert.Contains("cannot drive a multi-turn case", e.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Two_trials_of_a_fresh_case_get_two_different_fresh_sessions()
+    {
+        var one = WithFresh(Platform.Claude, ["check my setup"], 2).CommandForTurn(2);
+        var other = WithFresh(Platform.Claude, ["check my setup"], 2).CommandForTurn(2);
+
+        Assert.NotEqual(one, other);
+    }
+
+    [Fact]
+    public void A_case_without_fresh_turns_resumes_every_turn_after_the_first()
+    {
+        var turns = WithFresh(Platform.Claude, ["yes, file it"]);
+
+        Assert.False(turns.IsFreshTurn(2));
+        Assert.EndsWith("--resume " + Session, turns.CommandForTurn(2), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_single_turn_case_refuses_a_fresh_turn_because_there_is_no_turn_to_open()
+    {
+        Assert.Throws<ArgumentException>(() => WithFresh(Platform.Claude, [], 2));
     }
 }

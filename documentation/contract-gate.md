@@ -57,7 +57,7 @@ Run the nightly gate by hand against a specific version:
 
 A failure names the facts in one line, so a skim is enough:
 
-```
+```text
 documentation/contract.yaml: reflectable-output-default documented default "true"
 but NarrativeTrace.Core <version> (published) reads "false"
 ```

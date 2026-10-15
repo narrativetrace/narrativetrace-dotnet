@@ -62,4 +62,55 @@ public sealed class SporadicPolicyTests
             SporadicPolicy.BeforeTrial(Platform.Codex, "/repo", TierGreen, ledger, Today));
         Assert.Contains("allowance", ex.Message, StringComparison.Ordinal);
     }
+
+    // --- the skip line ---------------------------------------------------------------------------
+
+    private static readonly QuotaLedger NotInstalled =
+        new([new QuotaAllowance(Platform.Cursor, "not installed", 0)], []);
+
+    [Fact]
+    public void A_lane_with_a_weekly_allowance_of_zero_skips_with_one_line_naming_its_tool()
+    {
+        var reason = SporadicPolicy.SkipReason(Platform.Cursor, NotInstalled);
+
+        Assert.NotNull(reason);
+        Assert.StartsWith("SKIP", reason, StringComparison.Ordinal);
+        Assert.Contains("cursor", reason, StringComparison.Ordinal);
+        Assert.Contains("`agent`", reason, StringComparison.Ordinal);
+        Assert.Contains("ledger/quota.md", reason, StringComparison.Ordinal);
+        Assert.DoesNotContain('\n', reason);
+    }
+
+    [Fact]
+    public void A_lane_with_an_allowance_does_not_skip_and_neither_does_the_exempt_lane()
+    {
+        Assert.Null(SporadicPolicy.SkipReason(Platform.Codex, CodexAllowed));
+        Assert.Null(SporadicPolicy.SkipReason(Platform.Claude, NotInstalled));
+    }
+
+    /// <summary>A missing row is a ledger the owner has not finished — a refusal, never a skip.</summary>
+    [Fact]
+    public void A_lane_with_no_allowance_row_at_all_does_not_skip_so_the_refusal_still_speaks()
+    {
+        Assert.Null(SporadicPolicy.SkipReason(Platform.Cursor, CodexAllowed));
+    }
+
+    [Fact]
+    public void A_spent_allowance_is_a_refusal_and_not_a_skip()
+    {
+        var spent = new QuotaLedger(
+            [new QuotaAllowance(Platform.Cursor, "pro", 1)],
+            [new QuotaSpendRow("2026-09-28", Platform.Cursor, "s", "c", QuotaMarkdown.IsoWeek(Today))]);
+
+        Assert.Null(SporadicPolicy.SkipReason(Platform.Cursor, spent));
+    }
+
+    [Fact]
+    public void The_real_ledger_lists_cursor_at_zero_so_the_lane_skips_today()
+    {
+        var ledger = QuotaMarkdown.Parse(File.ReadAllText(
+            Path.Combine(RepoRoot.Locate(), "skills-evals", "ledger", "quota.md")));
+
+        Assert.NotNull(SporadicPolicy.SkipReason(Platform.Cursor, ledger));
+    }
 }

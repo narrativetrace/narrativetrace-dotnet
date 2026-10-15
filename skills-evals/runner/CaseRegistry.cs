@@ -35,7 +35,7 @@ public static partial class CaseRegistry
         var id = match.Groups[1].Value;
         return RegistryPreSteps.Parse(id)
             ?? throw new InvalidOperationException(
-                $"{manifest} names an unknown registry \"{id}\" — the vocabulary is claude-marketplace, npx-skills");
+                $"{manifest} names an unknown registry \"{id}\" — the vocabulary is claude-marketplace, npx-skills, narrativetrace-init");
     }
 
     [GeneratedRegex("\"registry\"\\s*:\\s*\"([^\"]+)\"")]

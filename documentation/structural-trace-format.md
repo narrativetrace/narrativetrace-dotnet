@@ -77,7 +77,7 @@ want the file.
 
 ## Content
 
-```
+```text
 scenario: Weekend trip settles with three transfers
 
 #1 - TripSettlementService.RecordExpense(tripName, expense)

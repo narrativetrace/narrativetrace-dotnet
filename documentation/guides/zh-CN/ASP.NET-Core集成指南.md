@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/aspnetcore.md blob 2be5c7c20f47 | translated: 2026-09-12 | reviewed: - -->
+<!-- source: documentation/guides/aspnetcore.md blob 685c806827fa | translated: 2026-10-11 | reviewed: - -->
 # ASP.NET Core 集成指南
 
 [English](../aspnetcore.md) | [Español](../es/guia-de-integracion-con-aspnet-core.md) | [Português](../pt-BR/guia-de-integracao-com-aspnet-core.md) | **简体中文**
@@ -9,7 +9,7 @@
 ## 包
 
 ```xml
-<PackageReference Include="NarrativeTrace.AspNetCore" Version="0.3.0" />
+<PackageReference Include="NarrativeTrace.AspNetCore" Version="0.4.0" />
 ```
 
 ## 1. 注册并接入中间件
@@ -190,6 +190,29 @@ await middleware.InvokeAsync(http, ctx =>
 若要更快地对单个服务做单元测试，可以跳过中间件，直接把
 [xUnit / NUnit 测试助手](安装指南.md#方式-d--xunit-自动上下文--失败叙事)
 与 `NarrativeTraceProxy` 一起使用。
+
+## 7. 出站调用
+
+中间件会读取入站的 `traceparent`;出站一侧则发送一个,这样运行 NarrativeTrace 的被调用方就会加入同一条追踪。在任意 `IHttpClientFactory` 客户端上注册:
+
+```csharp
+builder.Services.AddHttpClient("payments")
+    .AddNarrativeTraceTraceparentPropagation();
+```
+
+该客户端在被追踪的请求内发出的每个请求都带有 `traceparent: 00-<trace id>-<活动 span id>-01`:被调用方的根 span 成为发起调用的那个 span 的子 span。没有活动追踪时(请求之外的调用)不发送该头;你自己设置的 `traceparent` 绝不会被覆盖。
+
+对于不使用 `IHttpClientFactory` 的代码,读取该值并自行附加:
+
+```csharp
+var value = TraceparentHeaders.Current(context); // null when there is no trace
+if (value is not null)
+{
+    request.Headers.TryAddWithoutValidation(Traceparent.HeaderName, value);
+}
+```
+
+`TraceparentPropagationHandler`(位于 `NarrativeTrace.Runtime`)是同样行为的普通 `DelegatingHandler`,适用于你手工构建的客户端。
 
 ## 另请参阅
 

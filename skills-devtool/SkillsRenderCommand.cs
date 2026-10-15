@@ -5,6 +5,7 @@ using NarrativeTrace.Skills;
 using NarrativeTrace.Skills.Catalogue;
 using NarrativeTrace.Skills.Render;
 using NarrativeTrace.Tooling.Frameworks;
+using NarrativeTrace.Tooling.Platforms;
 
 namespace NarrativeTrace.SkillsDevTool;
 
@@ -37,9 +38,11 @@ public static class SkillsRenderCommand
         var marketplacePath = MarketplaceJsonPath(repoRoot);
         Directory.CreateDirectory(Path.GetDirectoryName(marketplacePath)!);
         WriteIfChanged(marketplacePath, MarketplaceJsonRenderer.Render(SkillCatalogue.Marketplace));
+        RenderCursorFiles(repoRoot);
         RenderPage(repoRoot, FrameworkTableDocs.LlmsFull, FrameworkTableDocs.RenderLlmsFull);
         RenderPage(repoRoot, FrameworkTableDocs.LlmsTxt, FrameworkTableDocs.RenderLlmsTxt);
-        output.WriteLine($"Rendered {SkillCatalogue.Skills.Count} skill page(s) (Claude + Codex), the carrier, the AGENTS.md section, the marketplace file and the framework table's documentation blocks.");
+        RenderPage(repoRoot, PlatformTableDocs.Page, PlatformTableDocs.Splice);
+        output.WriteLine($"Rendered {SkillCatalogue.Skills.Count} skill page(s) (Claude + Codex), the carrier, the AGENTS.md section, the marketplace file, the Cursor plugin files and the framework and platform tables' documentation blocks.");
         return 0;
     }
 
@@ -51,6 +54,17 @@ public static class SkillsRenderCommand
     /// </summary>
     private static string MarketplaceJsonPath(string repoRoot) =>
         Path.Combine(repoRoot, ".claude-plugin", "marketplace.json");
+
+    /// <summary>The Cursor plugin manifests and the one rule, each at its fixed repository path.</summary>
+    private static void RenderCursorFiles(string repoRoot)
+    {
+        foreach (var (relative, content) in CursorFiles.All())
+        {
+            var path = Path.Combine(repoRoot, relative.Replace('/', Path.DirectorySeparatorChar));
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            WriteIfChanged(path, content);
+        }
+    }
 
     private static void RenderSkillPage(string repoRoot, string platformDir, Skill skill, string content)
     {

@@ -349,4 +349,23 @@ public interface INarrativeContext
     /// header is actually read.
     /// </remarks>
     void AdoptTraceparent(Traceparent? traceparent);
+
+    /// <summary>
+    /// The W3C trace context to attach to an outgoing request made from the
+    /// calling flow, so the callee joins this trace.
+    /// </summary>
+    /// <returns>
+    /// The current trace id with the innermost active span as the parent and
+    /// the sampled flag set, or <see langword="null"/> when there is nothing
+    /// to propagate: no trace has started, or no span (and no adopted remote
+    /// parent) exists to name as the parent. Never throws, and never starts a
+    /// trace.
+    /// </returns>
+    /// <remarks>
+    /// The outbound counterpart of <see cref="AdoptTraceparent"/>. Most code
+    /// does not call this directly: register
+    /// <c>AddNarrativeTraceTraceparentPropagation()</c> on an
+    /// <c>HttpClient</c>, or use <c>TraceparentHeaders.Current</c>.
+    /// </remarks>
+    Traceparent? OutboundTraceparent();
 }

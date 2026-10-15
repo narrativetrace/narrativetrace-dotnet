@@ -62,3 +62,7 @@ NarrativeTrace.Format.sln
 
 # Approval review copies are never committed (the .approved.nt is the contract)
 **/*.received.nt
+
+# Python bytecode from the eval graders; never committed
+__pycache__/
+*.pyc

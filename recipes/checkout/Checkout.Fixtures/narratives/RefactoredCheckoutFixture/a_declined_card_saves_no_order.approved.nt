@@ -1,0 +1,6 @@
+scenario: A declined card saves no order
+
+#1 - IOrderService.PlaceOrder(customerId, sku, quantity, cardNumber) !! PaymentDeclinedException
+  #1.1 - IInventoryService.Reserve(sku, quantity)
+  #1.2 - IPaymentService.Charge(customerId, amountCents, card) !! PaymentDeclinedException
+  #1.3 - IInventoryService.Release(sku, quantity)

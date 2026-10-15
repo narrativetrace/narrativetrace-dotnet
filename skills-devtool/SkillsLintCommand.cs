@@ -65,7 +65,20 @@ public static class SkillsLintCommand
             .Concat(AgentsMdDriftProblems(repoRoot))
             .Concat(CarrierDriftProblems(repoRoot))
             .Concat(CarrierExhaustivenessProblems(repoRoot))
-            .Concat(MarketplaceJsonDriftProblems(repoRoot));
+            .Concat(MarketplaceJsonDriftProblems(repoRoot))
+            .Concat(CursorFileDriftProblems(repoRoot));
+    }
+
+    private static IEnumerable<string> CursorFileDriftProblems(string repoRoot)
+    {
+        foreach (var (relative, fresh) in CursorFiles.All())
+        {
+            var path = Path.Combine(repoRoot, relative.Replace('/', Path.DirectorySeparatorChar));
+            if (!File.Exists(path) || File.ReadAllText(path) != fresh)
+            {
+                yield return $"{relative} is stale — run `dotnet run --project skills-devtool -- render`";
+            }
+        }
     }
 
     private static IEnumerable<string> MarketplaceJsonDriftProblems(string repoRoot)

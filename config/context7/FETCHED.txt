@@ -1,0 +1,7 @@
+context7.schema.json is a verbatim copy of https://context7.com/schema/context7.json,
+fetched 2026-10-12. Context7Config tests (tests/BuildScript.Tests/Context7ConfigTests.cs)
+validate the root context7.json against it offline.
+
+Refresh by hand: curl -sS https://context7.com/schema/context7.json -o config/context7/context7.schema.json,
+update the date above, re-run the tests, and read https://context7.com/docs/library-owners.md
+for changes to the field semantics.

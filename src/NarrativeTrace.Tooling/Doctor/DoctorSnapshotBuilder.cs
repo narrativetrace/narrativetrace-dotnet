@@ -42,7 +42,6 @@ public static class DoctorSnapshotBuilder
         var env = EnvKeys.ToDictionary(key => key, readEnv);
         var outputDir = ResolveDir(cwd, env, "NARRATIVETRACE_OUTPUT_DIR", "TestResults/narrativetrace");
         var projectState = TryReadProjectState(cwd);
-        var carrier = TryOpenCarrier(openCarrier);
         return new DoctorSnapshot(
             cwd,
             RuntimeInformation.FrameworkDescription,
@@ -54,10 +53,17 @@ public static class DoctorSnapshotBuilder
             ReadFiles(cwd, "appsettings*.json"),
             ReadInstalledPackages(cwd),
             projectState?.InstalledSkills ?? [],
-            carrier?.Skills.Select(skill => skill.Name).ToList() ?? [],
+            CatalogueSkills(openCarrier),
             projectState?.ResolvedFamilyVersion)
-        { RunSettingsFiles = ReadFiles(cwd, "*.runsettings") };
+        {
+            RunSettingsFiles = ReadFiles(cwd, "*.runsettings"),
+            PointerReadings = ReadPointers(projectState),
+        };
     }
+
+    /// <summary>The installer's reading of each detected platform's pointer; none when the project was unreadable.</summary>
+    private static IReadOnlyList<PointerReading> ReadPointers(ProjectState? projectState) =>
+        projectState is null ? [] : PointerReading.ReadAll(projectState);
 
     /// <summary>
     /// Reads the project's <see cref="ProjectState"/> through the installer's own strict reader,
@@ -81,6 +87,10 @@ public static class DoctorSnapshotBuilder
             return null;
         }
     }
+
+    /// <summary>Every skill name the carrier's catalogue lists, or none when no carrier can be opened.</summary>
+    private static List<string> CatalogueSkills(Func<Carrier> openCarrier) =>
+        TryOpenCarrier(openCarrier)?.Skills.Select(skill => skill.Name).ToList() ?? [];
 
     private static Carrier? TryOpenCarrier(Func<Carrier> openCarrier)
     {

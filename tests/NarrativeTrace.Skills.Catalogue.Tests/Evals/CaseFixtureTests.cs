@@ -35,4 +35,31 @@ public sealed class CaseFixtureTests : IDisposable
 
         Assert.Throws<InvalidOperationException>(() => CaseFixture.FixtureFor(_dir));
     }
+
+    [Fact]
+    public void A_case_seeds_the_harnesss_rendered_pages_unless_it_says_otherwise()
+    {
+        Assert.True(CaseFixture.SeedsTheRenderedSkills(_dir));
+        File.WriteAllText(Path.Combine(_dir, "case.json"), "{ \"fixture\": \"f\" }");
+        Assert.True(CaseFixture.SeedsTheRenderedSkills(_dir));
+    }
+
+    [Fact]
+    public void A_case_can_decline_the_seeded_pages_so_the_install_is_what_the_agent_finds()
+    {
+        File.WriteAllText(Path.Combine(_dir, "case.json"), "{ \"fixture\": \"f\", \"seedSkills\": false }");
+
+        Assert.False(CaseFixture.SeedsTheRenderedSkills(_dir));
+    }
+
+    [Theory]
+    [InlineData("\"no\"")]
+    [InlineData("0")]
+    [InlineData("null")]
+    public void Refuses_a_seedSkills_that_is_not_a_boolean(string declared)
+    {
+        File.WriteAllText(Path.Combine(_dir, "case.json"), "{ \"fixture\": \"f\", \"seedSkills\": " + declared + " }");
+
+        Assert.Throws<InvalidOperationException>(() => CaseFixture.SeedsTheRenderedSkills(_dir));
+    }
 }

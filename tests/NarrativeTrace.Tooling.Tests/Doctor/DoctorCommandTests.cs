@@ -98,4 +98,23 @@ public sealed class DoctorCommandTests : IDisposable
         Assert.Contains("\"config.skills-installed\"", json, StringComparison.Ordinal);
         Assert.Contains("cannot tell", json, StringComparison.Ordinal);
     }
+
+    /// <summary>
+    /// "Doctor green" is exit 0 and a failing finding is exit 1 — the verdict a script reads must not
+    /// live only inside the report (item 165: two consumers read exit 0 as green on a [FAIL] run).
+    /// </summary>
+    [Fact]
+    public void Returns_zero_when_every_check_passes_and_one_the_moment_one_does_not()
+    {
+        File.WriteAllText(Path.Combine(_root, "app.csproj"), "<Project />");
+        File.WriteAllText(
+            Path.Combine(_root, "OrderServiceTests.cs"), "Assert.Contains(\"[REDACTED]\", rendered);");
+
+        var passing = DoctorCommand.Run(_root, _ => null, StubCarrier, json: false, _out, _err);
+        File.Delete(Path.Combine(_root, "OrderServiceTests.cs"));
+        var failing = DoctorCommand.Run(_root, _ => null, StubCarrier, json: false, _out, _err);
+
+        Assert.Equal(0, passing);
+        Assert.Equal(1, failing);
+    }
 }

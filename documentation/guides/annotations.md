@@ -143,7 +143,7 @@ public interface IAccountService
 }
 ```
 
-```
+```text
 [NotTraced] is not supported on a method (found on IAccountService.Authenticate);
 it has no whole-call meaning here. Annotate each sensitive parameter, property,
 or record component individually instead.
@@ -340,7 +340,7 @@ The xUnit fixture and NUnit base scan each captured trace after a test and
 print any surviving placeholders as warnings, so a template typo surfaces
 during tests:
 
-```
+```text
 WARNING: Unresolved template placeholder(s) detected:
   - OrderService.PlaceOrder: {custmerId} in narration
 ```

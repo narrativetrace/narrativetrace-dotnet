@@ -286,6 +286,28 @@ class Build : NukeBuild
         });
 
     /// <summary>
+    /// Runs the recipe fixtures (<c>recipes/checkout/Checkout.Fixtures</c>) through the real test
+    /// runner and keeps their artifacts under <c>artifacts/recipes/&lt;slug&gt;/</c> — the
+    /// captured output the recipe pages embed (rule 8, docs as tests; see
+    /// <see cref="RecipeArtifactsSupport"/>). Fails when a run's verdict is not the one its page
+    /// claims: the fixture that must fail passed, or one that must pass failed.
+    /// </summary>
+    Target RecipeArtifacts => _ => _
+        .DependsOn(Compile)
+        .Executes(() =>
+        {
+            var problems = RecipeArtifactsSupport.Run(RootDirectory, Configuration.ToString()).ToList();
+            foreach (var problem in problems)
+                Console.WriteLine($"  {problem}");
+
+            if (problems.Count > 0)
+                throw new InvalidOperationException(
+                    $"Recipe artifacts failed: {problems.Count} problem(s), first: {problems[0]}");
+
+            Console.WriteLine("Recipe artifacts written to artifacts/recipes");
+        });
+
+    /// <summary>
     /// Fails when a marked code or output block in an English page
     /// (<c>&lt;!-- snippet: PATH --&gt;</c>) has drifted from the real,
     /// tested project it embeds — rule 8 (docs as tests; see
@@ -294,11 +316,11 @@ class Build : NukeBuild
     /// since-marker, a removed banner, or a NarrativeTrace coordinate at the
     /// wrong version. Depends on <see cref="Test"/> because a block's source
     /// can be a captured-stdout file a test just wrote
-    /// (<c>artifacts/sixty-seconds/</c>); reads only tracked and freshly-built
+    /// (<c>artifacts/sixty-seconds/</c>, <c>artifacts/recipes/</c>); reads only tracked and freshly-built
     /// files, no network.
     /// </summary>
     Target SnippetCheck => _ => _
-        .DependsOn(Test)
+        .DependsOn(Test, RecipeArtifacts)
         .Executes(() =>
         {
             var problems = SnippetCheckSupport.Check(RootDirectory).ToList();
@@ -325,7 +347,7 @@ class Build : NukeBuild
     /// wrong, not the other way round.
     /// </summary>
     Target SnippetSync => _ => _
-        .DependsOn(Test)
+        .DependsOn(Test, RecipeArtifacts)
         .Executes(() =>
         {
             var changes = SnippetCheckSupport.Sync(RootDirectory).ToList();

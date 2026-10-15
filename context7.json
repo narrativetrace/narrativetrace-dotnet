@@ -1,0 +1,58 @@
+{
+  "projectTitle": "NarrativeTrace for .NET",
+  "description": "NarrativeTrace for .NET records each traced interface call, its parameters and its result as log lines through the Microsoft.Extensions.Logging bridge, and writes a value-free structural trace per test. Install the NarrativeTrace.Proxy package from NuGet, add NarrativeTrace.Logging for the logging bridge, and install the NarrativeTrace.Cli tool.",
+  "folders": [
+    "documentation"
+  ],
+  "excludeFolders": [
+    "documentation/es",
+    "documentation/pt-BR",
+    "documentation/zh-CN",
+    "documentation/guides/es",
+    "documentation/guides/pt-BR",
+    "documentation/guides/zh-CN",
+    "documentation/i18n"
+  ],
+  "excludeFiles": [
+    "LEAME.md",
+    "LEIAME.md",
+    "自述文件.md",
+    "contract.yaml",
+    "CODE_OF_CONDUCT.md",
+    "SECURITY.md"
+  ],
+  "rules": [
+    "Install with dotnet add package NarrativeTrace.Proxy, then dotnet new tool-manifest and dotnet tool install NarrativeTrace.Cli; keep every NarrativeTrace.* package on the same version.",
+    "dotnet tool run dotnet-narrativetrace init --dry-run previews the agent skills it copies into .agents/skills and .claude/skills plus a marked AGENTS.md section; run it without --dry-run only after reading the diff.",
+    "Choose one capture path per project with documentation/choosing-an-integration.md (test fixture, NarrativeTraceProxy.Create, AddNarrativeTracing or the ASP.NET Core middleware); Logging and Observability layer on top of it.",
+    "Values whose parameter names or shapes match the redaction rules are replaced with [REDACTED] before any output; keep secrets out of traced parameters and prove redaction with a test that asserts [REDACTED].",
+    "Only calls through an interface wrapped by NarrativeTraceProxy or AddNarrativeTracing are traced; private and internal calls are not, so read the run's actual output before describing what the application did.",
+    "documentation/guides/llms.txt is the curated reference with the install block and known traps; documentation/recipes/ holds complete worked examples organised by problem."
+  ],
+  "previousVersions": [
+    {
+      "tag": "v0.3.0"
+    },
+    {
+      "tag": "v0.2.0"
+    },
+    {
+      "tag": "v0.1.5"
+    },
+    {
+      "tag": "v0.1.4"
+    },
+    {
+      "tag": "v0.1.3"
+    },
+    {
+      "tag": "v0.1.2"
+    },
+    {
+      "tag": "v0.1.1"
+    },
+    {
+      "tag": "v0.1.0"
+    }
+  ]
+}

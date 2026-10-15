@@ -32,6 +32,16 @@ public class LoggingNarrativeContextTests
     }
 
     [Fact]
+    public void OutboundTraceparent_is_the_wrapped_contexts()
+    {
+        var inner = new SyncNarrativeContext(new NarrativeTraceConfig());
+        var ctx = new LoggingNarrativeContext(inner, new CapturingLogger());
+        var span = ctx.EnterMethod("Svc", "Run", []);
+
+        Assert.Equal(span, ctx.OutboundTraceparent()!.ParentSpanId);
+    }
+
+    [Fact]
     public void EnterMethod_logs_with_nt_traceId_and_nt_traceName()
     {
         var logger = new CapturingLogger();

@@ -20,6 +20,7 @@ public sealed class RegistryPreStepTests
     [Theory]
     [InlineData("claude-marketplace", RegistryPreStep.ClaudeMarketplace)]
     [InlineData("npx-skills", RegistryPreStep.NpxSkills)]
+    [InlineData("narrativetrace-init", RegistryPreStep.NarrativetraceInit)]
     public void A_known_id_parses_to_its_delivery(string id, RegistryPreStep expected)
     {
         Assert.Equal(expected, RegistryPreSteps.Parse(id));
@@ -65,5 +66,30 @@ public sealed class RegistryPreStepTests
 
         Assert.Equal(new[] { "npx", "--yes", "skills", "add", Staged, "-y" }, commands[2]);
         Assert.Equal(3, commands.Count);
+    }
+
+    [Fact]
+    public void The_installer_delivery_runs_this_checkouts_built_cli_init_and_stages_nothing()
+    {
+        var repo = Path.Combine(Path.GetTempPath(), "nt-init-step-" + Guid.NewGuid().ToString("N"));
+        var dll = Path.Combine(repo, "src", "NarrativeTrace.Cli", "bin", "Debug", "net10.0", "dotnet-narrativetrace.dll");
+        Directory.CreateDirectory(Path.GetDirectoryName(dll)!);
+        File.WriteAllText(dll, "");
+        try
+        {
+            var commands = RegistryPreStep.NarrativetraceInit.Commands(repo, Staged);
+
+            Assert.Equal(new[] { new[] { "dotnet", dll, "init" } }, commands);
+        }
+        finally
+        {
+            Directory.Delete(repo, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void The_installer_delivery_fails_at_plan_time_when_the_cli_is_not_built()
+    {
+        Assert.Throws<InvalidOperationException>(() => RegistryPreStep.NarrativetraceInit.Commands(RepoRoot, Staged));
     }
 }

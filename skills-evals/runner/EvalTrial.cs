@@ -117,7 +117,7 @@ public sealed class EvalTrial
         int trial)
     {
         ArgumentNullException.ThrowIfNull(turns);
-        Scaffold(repoRoot, fixtureDir, scratch);
+        Scaffold(repoRoot, fixtureDir, caseDir, scratch);
         RunPreStep(repoRoot, scratch);
         if (turns.DrivesAnAgent)
         {
@@ -133,12 +133,13 @@ public sealed class EvalTrial
     /// <summary>
     /// The fixture always; the harness's own rendered pages ONLY when no registry delivers them —
     /// a registry case measures the state the registry left behind, and a page the harness wrote
-    /// over it would answer the case's own question.
+    /// over it would answer the case's own question. A case that asks what the INSTALL leaves behind
+    /// declares <c>"seedSkills": false</c> for the same reason.
     /// </summary>
-    private void Scaffold(string repoRoot, string fixtureDir, string scratch)
+    private void Scaffold(string repoRoot, string fixtureDir, string caseDir, string scratch)
     {
         CopyRecursively(fixtureDir, scratch, skipRootReadme: true);
-        if (_delivery.DeliversTheSkills())
+        if (_delivery.DeliversTheSkills() || !CaseFixture.SeedsTheRenderedSkills(caseDir))
         {
             return;
         }
@@ -219,7 +220,7 @@ public sealed class EvalTrial
         var grader = Path.GetFullPath(Path.Combine(caseDir, "graders", "verify.sh"));
         var env = Merged(_delivery.Environment(), _environment.GraderEnvironment());
         env["PROJECT_DIR"] = scratch;
-        var cli = BuiltCliDll(repoRoot);
+        var cli = CliDll.Locate(repoRoot);
         if (cli is not null)
         {
             env["NARRATIVETRACE_CLI_DLL"] = cli;
@@ -238,29 +239,6 @@ public sealed class EvalTrial
         }
 
         return merged;
-    }
-
-    /// <summary>The CLI project's assembly name — the entry assembly is <c>dotnet-narrativetrace</c>, not its project name.</summary>
-    private const string CliAssembly = "dotnet-narrativetrace.dll";
-
-    /// <summary>
-    /// The built CLI assembly a registry grader invokes directly
-    /// (<c>dotnet &lt;dll&gt; init --dry-run --json</c>) to read the installer's own plan — the most
-    /// recently written one under the CLI project's <c>bin/</c>, or <c>null</c> when the project has
-    /// not been built. Pointing the grader at a built binary keeps its adoption check independent of
-    /// whatever the agent did or did not install during the trial.
-    /// </summary>
-    private static string? BuiltCliDll(string repoRoot)
-    {
-        var binDir = Path.Combine(repoRoot, "src", "NarrativeTrace.Cli", "bin");
-        if (!Directory.Exists(binDir))
-        {
-            return null;
-        }
-
-        return Directory.EnumerateFiles(binDir, CliAssembly, SearchOption.AllDirectories)
-            .OrderByDescending(File.GetLastWriteTimeUtc)
-            .FirstOrDefault();
     }
 
     private void AppendLedgerRow(RunLedgerRow row)

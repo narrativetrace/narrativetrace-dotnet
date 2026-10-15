@@ -176,5 +176,47 @@ public sealed class SkillsRenderCommandTests : IDisposable
         Assert.Equal(before, File.GetLastWriteTimeUtc(path));
     }
 
+    [Fact]
+    public void Renders_the_cursor_plugin_manifests_and_the_one_rule_at_the_repo_root()
+    {
+        SeedFixtureFiles();
+
+        var exit = SkillsRenderCommand.Run(_root, _out, _err);
+
+        Assert.Equal(0, exit);
+        Assert.Contains("\"skills\": \"./.agents/skills/\"", File.ReadAllText(Path.Combine(_root, ".cursor-plugin", "plugin.json")), StringComparison.Ordinal);
+        Assert.Contains("\"source\": \".\"", File.ReadAllText(Path.Combine(_root, ".cursor-plugin", "marketplace.json")), StringComparison.Ordinal);
+        var rule = File.ReadAllText(Path.Combine(_root, ".cursor", "rules", "narrativetrace.mdc"));
+        Assert.StartsWith("---\n", rule, StringComparison.Ordinal);
+        Assert.Contains("<!-- narrativetrace:start -->", rule, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Does_not_rewrite_a_byte_identical_cursor_rule()
+    {
+        SeedFixtureFiles();
+        SkillsRenderCommand.Run(_root, _out, _err);
+        var path = Path.Combine(_root, ".cursor", "rules", "narrativetrace.mdc");
+        var before = File.GetLastWriteTimeUtc(path);
+
+        SkillsRenderCommand.Run(_root, _out, _err);
+
+        Assert.Equal(before, File.GetLastWriteTimeUtc(path));
+    }
+
+    [Fact]
+    public void Renders_the_platform_table_into_the_use_with_your_agent_page_where_its_markers_are()
+    {
+        SeedFixtureFiles();
+        var page = Path.Combine(_root, "documentation", "use-with-your-agent.md");
+        Directory.CreateDirectory(Path.GetDirectoryName(page)!);
+        File.WriteAllText(page, "# Page\n<!-- platform-table:begin -->\nstale\n<!-- platform-table:end -->\n");
+
+        SkillsRenderCommand.Run(_root, _out, _err);
+
+        Assert.Contains("| Cursor |", File.ReadAllText(page), StringComparison.Ordinal);
+        Assert.DoesNotContain("stale", File.ReadAllText(page), StringComparison.Ordinal);
+    }
+
     private void SeedFixtureFiles() => SkillListingSeed.Seed(_root);
 }

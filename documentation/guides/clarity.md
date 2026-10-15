@@ -83,7 +83,7 @@ public sealed record ClarityResult(
 flags **generic-verb method names** as `high`-severity issues — for
 example a method whose first token is `get`/`process`/`handle`:
 
-```
+```text
 severity:    high
 description: Generic verb 'process' in DataProcessor.process
 suggestion:  Use a domain-specific verb

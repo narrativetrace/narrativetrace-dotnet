@@ -24,7 +24,7 @@ public static class InitCommand
         + "  --write-existing  Permission to touch an AGENTS.md or CLAUDE.md that is already there.\n"
         + "  --force           Permission to overwrite a skill directory somebody else owns.\n"
         + "  --only <half>     skills | agents-md. Both halves by default.\n"
-        + "  --vendor <vendor> claude | none. Detected from the project by default.\n"
+        + "  --vendor <vendor> claude | none. claude by default: Claude Code loads .claude/skills only.\n"
         + "  --from <carrier>  A directory, a .nupkg, or an Id/Version coordinate already in the local\n"
         + "                    NuGet cache. The carrier embedded in this CLI by default.\n"
         + "  --dir <path>      The project directory. The current directory by default.\n"
@@ -33,14 +33,16 @@ public static class InitCommand
 
     private const string InitUsage =
         "dotnet-narrativetrace init [options]\n\n"
-        + "Copies the NarrativeTrace agent skills into .agents/skills/ (and .claude/skills/ where the\n"
-        + "project is one of that vendor's) and writes one marked section into AGENTS.md. Zero network.\n\n"
+        + "Copies the NarrativeTrace agent skills into .agents/skills/ and .claude/skills/ (the only\n"
+        + "directory Claude Code loads; --vendor none leaves it out) and writes one marked section into AGENTS.md. Where the project\n"
+        + "shows a platform that has a pointer file, it writes that too: a marked section in replit.md\n"
+        + "(replit.md or .replit present) and .cursor/rules/narrativetrace.mdc (.cursor/ present). Zero network.\n\n"
         + InstallerOptions;
 
     private const string UninstallUsage =
         "dotnet-narrativetrace uninstall [options]\n\n"
         + "Removes exactly what init wrote: skill directories carrying its provenance line, the marked\n"
-        + "section, and the one @AGENTS.md import line. Never touches anything else.\n\n"
+        + "section, the platform pointers, and the one @AGENTS.md import line. Never touches anything else.\n\n"
         + InstallerOptions;
 
     /// <summary>What to type when the carrier cannot be found — the CLI itself never fetches anything.</summary>

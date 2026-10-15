@@ -49,7 +49,7 @@ public static class TierPrecondition
         {
             throw new InvalidOperationException(
                 "Tier A lints / Tier A2 replay are not green at HEAD (./build.sh SkillsLint"
-                + " SkillsReplay) — a sporadic-lane (codex/gemini) trial refuses to start on top of"
+                + " SkillsReplay) — a sporadic-lane (codex/antigravity/cursor) trial refuses to start on top of"
                 + " a known defect. Fix the skills tiers before spending quota here.",
                 e);
         }

@@ -58,4 +58,26 @@ public sealed class PromotionRendererTests
 
         Assert.Contains("| narrativetrace-doctor | approved |", md, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void The_matrix_has_a_cursor_column_after_antigravity()
+    {
+        var row = Row("narrativetrace-doctor", "happy-path", Platform.Cursor, true, "2026-10-10T10:00:00Z");
+
+        var md = PromotionRenderer.Render(SkillCatalogue.Skills, [row]);
+
+        Assert.Contains("| Skill | Claude | Codex | Antigravity | Cursor |\n|---|---|---|---|---|\n", md, StringComparison.Ordinal);
+        Assert.Contains("| narrativetrace-doctor | not yet run | not yet run | not yet run | green (haiku, 2026-10-10) |", md, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_committed_promotion_matrix_is_what_the_ledger_renders()
+    {
+        var root = RepoRoot.Locate();
+        var runs = RunLedgerRow.ParseJsonl(File.ReadAllText(Path.Combine(root, "skills-evals", "ledger", "runs.jsonl")));
+
+        Assert.Equal(
+            PromotionRenderer.Render(SkillCatalogue.Skills, runs),
+            File.ReadAllText(Path.Combine(root, "skills-evals", "ledger", "promotion.md")));
+    }
 }

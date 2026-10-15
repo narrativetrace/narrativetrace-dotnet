@@ -331,6 +331,10 @@ public sealed class AsyncNarrativeContext
     }
 
     /// <inheritdoc/>
+    /// <remarks>Does not throw outside a scope: it answers <see langword="null"/> there.</remarks>
+    public Traceparent? OutboundTraceparent() => Readable()?.OutboundTraceparent();
+
+    /// <inheritdoc/>
     /// <remarks>
     /// Reads the active scope, else the most recently completed one, else
     /// returns an empty tree. Never throws for want of a scope — but see the

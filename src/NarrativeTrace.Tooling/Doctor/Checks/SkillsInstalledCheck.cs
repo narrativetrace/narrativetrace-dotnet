@@ -92,16 +92,73 @@ public static class SkillsInstalledCheck
         }
 
         var missing = Missing(snapshot);
-        return missing.Count == 0 ? UpToDate(ours, snapshot.ProjectResolvedFamilyVersion) : Incomplete(missing);
+        return missing.Count == 0 ? DecidePointers(ours, snapshot) : Incomplete(missing);
     }
 
-    private static DoctorFinding UpToDate(List<InstalledSkill> ours, string resolvedVersion)
+    private static DoctorFinding DecidePointers(List<InstalledSkill> ours, DoctorSnapshot snapshot)
+    {
+        var problems = PointerProblems(snapshot);
+        return problems.Count == 0
+            ? UpToDate(ours, snapshot)
+            : PointersWrong(problems);
+    }
+
+    private static DoctorFinding UpToDate(List<InstalledSkill> ours, DoctorSnapshot snapshot)
     {
         return DoctorFinding.Pass(
             Id,
             $"All {ours.Count} agent skill(s) are installed and current with this project's " +
-            $"NarrativeTrace {resolvedVersion}",
+            $"NarrativeTrace {snapshot.ProjectResolvedFamilyVersion}{PointersCurrent(snapshot)}",
             DoctorDocUrls.ValidateInstallation);
+    }
+
+    /// <summary><c>"; Cursor pointer present and current, …"</c> — empty when no platform needs a pointer.</summary>
+    private static string PointersCurrent(DoctorSnapshot snapshot) =>
+        snapshot.PointerReadings.Count == 0
+            ? ""
+            : "; " + string.Join(
+                ", ", snapshot.PointerReadings.Select(reading => reading.PlatformName + " pointer present and current"));
+
+    private static DoctorFinding PointersWrong(IReadOnlyList<string> problems)
+    {
+        return DoctorFinding.Fail(
+            Id,
+            "The agent skills are installed, but " + string.Join("; ", problems),
+            $"Run {InitCommand}, read the diff, then run it without the flag. A rule file or section " +
+            "that is identical to this release's is adopted as it stands; where the file exists and " +
+            "has no section of ours, add --write-existing; a link must be removed by hand.",
+            DoctorDocUrls.ValidateInstallation);
+    }
+
+    /// <summary>One sentence per detected platform whose pointer is missing, foreign, linked or not current.</summary>
+    private static List<string> PointerProblems(DoctorSnapshot snapshot) =>
+        snapshot.PointerReadings
+            .Select(reading => PointerProblem(reading, snapshot.ProjectResolvedFamilyVersion!))
+            .OfType<string>()
+            .ToList();
+
+    private static string? PointerProblem(PointerReading reading, string resolvedVersion)
+    {
+        var where = $"{reading.PlatformName} pointer {reading.Path}";
+        return reading.Status switch
+        {
+            PointerReading.PointerStatus.Absent => where + " is missing",
+            PointerReading.PointerStatus.Linked => where + " is behind a symbolic link, and nothing is written through one",
+            PointerReading.PointerStatus.Foreign => where + " exists but has no NarrativeTrace section of ours",
+            _ => SectionProblem(reading, where, resolvedVersion),
+        };
+    }
+
+    private static string? SectionProblem(PointerReading reading, string where, string resolvedVersion)
+    {
+        if (reading.Coordinate.Length == 0)
+        {
+            return where + " carries no stamp, so no release it describes can be named — init will adopt it";
+        }
+
+        return VersionOf(reading.Coordinate) == resolvedVersion
+            ? null
+            : $"{where} was written for {reading.Coordinate}, project resolves {resolvedVersion}";
     }
 
     private static DoctorFinding NotInstalled(DoctorSnapshot snapshot)

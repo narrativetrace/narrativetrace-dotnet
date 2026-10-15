@@ -6,9 +6,10 @@ using NarrativeTrace.Skills.Catalogue;
 namespace NarrativeTrace.SkillsEvals;
 
 /// <summary>
-/// The closed vocabulary of REGISTRY deliveries a Tier B case may declare — the step that puts this
-/// repository's rendered skill pages where a tool other than our own installer put them, run before
-/// the agent starts.
+/// The closed vocabulary of deliveries a Tier B case may declare — the step that puts this
+/// repository's rendered skill pages in place before the agent starts: a REGISTRY tool, or our own
+/// installer run by the harness so a case can ask what a session finds AFTER an install without the
+/// install being the agent's work.
 ///
 /// <para>A closed enum rather than a command string in <c>case.json</c>: a case file is data, and
 /// data that can name any executable is a shell this harness does not have. Each constant stands
@@ -24,6 +25,14 @@ public enum RegistryPreStep
 
     /// <summary><c>npx skills add</c>: the open-standard pages installed into the project itself.</summary>
     NpxSkills,
+
+    /// <summary>
+    /// Our own installer — <c>init</c> from the CLI built out of this checkout — run by the harness in
+    /// the scratch project. Nothing is staged: the carrier is the one bundled with the build, this
+    /// checkout's own rendered pages, so a case measures the install under test and never a published
+    /// package that predates it, nor the agent's own reading of the install prompt.
+    /// </summary>
+    NarrativetraceInit,
 }
 
 /// <summary>Helpers over <see cref="RegistryPreStep"/>: its case-file id, parsing, and the commands it runs.</summary>
@@ -35,6 +44,7 @@ public static class RegistryPreSteps
         {
             RegistryPreStep.ClaudeMarketplace => "claude-marketplace",
             RegistryPreStep.NpxSkills => "npx-skills",
+            RegistryPreStep.NarrativetraceInit => "narrativetrace-init",
             _ => throw new ArgumentOutOfRangeException(nameof(step), step, "unknown registry"),
         };
 
@@ -44,6 +54,7 @@ public static class RegistryPreSteps
         {
             "claude-marketplace" => RegistryPreStep.ClaudeMarketplace,
             "npx-skills" => RegistryPreStep.NpxSkills,
+            "narrativetrace-init" => RegistryPreStep.NarrativetraceInit,
             _ => null,
         };
 
@@ -61,6 +72,11 @@ public static class RegistryPreSteps
     public static IReadOnlyList<IReadOnlyList<string>> Commands(
         this RegistryPreStep step, string repoRoot, string stagedSnapshot)
     {
+        if (step == RegistryPreStep.NarrativetraceInit)
+        {
+            return [["dotnet", CliDll.Require(repoRoot), "init"]];
+        }
+
         var all = new List<IReadOnlyList<string>>(StagedSnapshot.StagingCommands(repoRoot, stagedSnapshot));
         all.AddRange(RegistryCommands(step, stagedSnapshot));
         return all;
@@ -83,6 +99,7 @@ public static class RegistryPreSteps
             [
                 ["npx", "--yes", "skills", "add", staged, "-y"],
             ],
+            RegistryPreStep.NarrativetraceInit => throw new InvalidOperationException("the installer stages nothing"),
             _ => throw new ArgumentOutOfRangeException(nameof(step), step, "unknown registry"),
         };
     }

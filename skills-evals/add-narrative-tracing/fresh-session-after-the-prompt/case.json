@@ -1,0 +1,8 @@
+{
+  "fixture": "skills-evals/fixtures/empty-project",
+  "seedSkills": false,
+  "turns": {
+    "2": "Is NarrativeTrace wired up correctly in this project? Check the install."
+  },
+  "freshTurns": [2]
+}

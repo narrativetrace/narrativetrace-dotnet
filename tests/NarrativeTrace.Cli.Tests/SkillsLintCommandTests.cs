@@ -121,6 +121,32 @@ public sealed class SkillsLintCommandTests : IDisposable
         Assert.Contains("marketplace.json", _err.ToString(), StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(".cursor-plugin/plugin.json")]
+    [InlineData(".cursor-plugin/marketplace.json")]
+    [InlineData(".cursor/rules/narrativetrace.mdc")]
+    public void Fails_when_a_cursor_file_is_hand_edited_and_names_it(string relative)
+    {
+        SkillsRenderCommand.Run(_root, _out, _err);
+        File.WriteAllText(Path.Combine(_root, relative.Replace('/', Path.DirectorySeparatorChar)), "{}");
+
+        var exit = SkillsLintCommand.Run(_root, _out, _err);
+
+        Assert.Equal(1, exit);
+        Assert.Contains(relative + " is stale", _err.ToString(), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(".cursor-plugin/plugin.json")]
+    [InlineData(".cursor/rules/narrativetrace.mdc")]
+    public void Fails_when_a_cursor_file_is_missing(string relative)
+    {
+        SkillsRenderCommand.Run(_root, _out, _err);
+        File.Delete(Path.Combine(_root, relative.Replace('/', Path.DirectorySeparatorChar)));
+
+        Assert.Equal(1, SkillsLintCommand.Run(_root, _out, _err));
+    }
+
     [Fact]
     public void Fails_when_a_stray_file_sits_in_the_carrier()
     {

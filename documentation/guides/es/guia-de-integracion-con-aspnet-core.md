@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/aspnetcore.md blob 2be5c7c20f47 | translated: 2026-09-12 | reviewed: - -->
+<!-- source: documentation/guides/aspnetcore.md blob 685c806827fa | translated: 2026-10-11 | reviewed: - -->
 # Guía de integración con ASP.NET Core
 
 [English](../aspnetcore.md) | **Español** | [Português](../pt-BR/guia-de-integracao-com-aspnet-core.md) | [简体中文](../zh-CN/ASP.NET-Core集成指南.md)
@@ -10,7 +10,7 @@ enchufable, la exclusión de rutas y el contexto de petición/usuario.
 ## Paquete
 
 ```xml
-<PackageReference Include="NarrativeTrace.AspNetCore" Version="0.3.0" />
+<PackageReference Include="NarrativeTrace.AspNetCore" Version="0.4.0" />
 ```
 
 ## 1. Registrar y cablear el middleware
@@ -209,6 +209,29 @@ Para pruebas unitarias más rápidas de servicios concretos, sáltate el
 middleware y usa los
 [helpers de pruebas de xUnit / NUnit](guia-de-instalacion.md#opción-d--contexto-automático-en-xunit--narrativa-de-fallos)
 directamente con `NarrativeTraceProxy`.
+
+## 7. Llamadas salientes
+
+El middleware lee un `traceparent` entrante; el lado saliente envía uno, de modo que un destinatario que ejecute NarrativeTrace se une a la misma traza. Regístralo en cualquier cliente de `IHttpClientFactory`:
+
+```csharp
+builder.Services.AddHttpClient("payments")
+    .AddNarrativeTraceTraceparentPropagation();
+```
+
+Cada petición que ese cliente envíe desde dentro de una petición trazada lleva `traceparent: 00-<trace id>-<span id activo>-01`: el span raíz del destinatario pasa a ser hijo del span que hizo la llamada. No se envía ninguna cabecera cuando no hay una traza activa (una llamada fuera de una petición), y un `traceparent` que hayas puesto tú nunca se sobrescribe.
+
+Para código que no usa `IHttpClientFactory`, lee el valor y adjúntalo:
+
+```csharp
+var value = TraceparentHeaders.Current(context); // null when there is no trace
+if (value is not null)
+{
+    request.Headers.TryAddWithoutValidation(Traceparent.HeaderName, value);
+}
+```
+
+`TraceparentPropagationHandler` (en `NarrativeTrace.Runtime`) es el mismo comportamiento como un `DelegatingHandler` simple para clientes que construyes a mano.
 
 ## Véase también
 

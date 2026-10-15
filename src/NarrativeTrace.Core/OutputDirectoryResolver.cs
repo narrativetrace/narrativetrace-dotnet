@@ -221,7 +221,7 @@ public sealed class OutputDirectoryResolver
     /// outside the directory given to <see cref="OutputDirectoryResolver"/>)
     /// and control characters and lone surrogates (neither of which
     /// <see cref="Path.Combine(string, string)"/> can round-trip safely on
-    /// every platform). Nothing else — a class name keeps its own spelling,
+    /// every platform), and Unicode noncharacters (which APFS refuses at write time). Nothing else — a class name keeps its own spelling,
     /// Unicode letters included. Deliberately narrower than
     /// <see cref="ToFileSlug(string)"/>: this only removes what a path cannot carry,
     /// so <c>OrderServiceTests</c> still resolves to <c>OrderServiceTests</c>
@@ -255,7 +255,16 @@ public sealed class OutputDirectoryResolver
         var c = name[index];
         if (char.IsHighSurrogate(c) && index + 1 < name.Length && char.IsLowSurrogate(name[index + 1]))
         {
-            sb.Append(c).Append(name[index + 1]);
+            var low = name[index + 1];
+            if (IsNoncharacter(char.ConvertToUtf32(c, low)))
+            {
+                sb.Append('_');
+            }
+            else
+            {
+                sb.Append(c).Append(low);
+            }
+
             return index + 2;
         }
 
@@ -269,9 +278,17 @@ public sealed class OutputDirectoryResolver
     /// written.
     /// </summary>
     private static bool IsPathSafe(char c) =>
-        !char.IsControl(c) && !char.IsSurrogate(c)
+        !char.IsControl(c) && !char.IsSurrogate(c) && !IsNoncharacter(c)
         && c != '/' && c != '\\'
         && c != Path.DirectorySeparatorChar && c != Path.AltDirectorySeparatorChar;
+
+    /// <summary>
+    /// Unicode's 66 permanently unassigned code points: the last two of every plane (U+nFFFE, U+nFFFF)
+    /// and the BMP block U+FDD0..U+FDEF. Legal UTF-8, so a byte-level check passes them; ext4 writes
+    /// them and APFS does not.
+    /// </summary>
+    private static bool IsNoncharacter(int codePoint) =>
+        (codePoint & 0xFFFE) == 0xFFFE || (codePoint >= 0xFDD0 && codePoint <= 0xFDEF);
 
     /// <summary>
     /// The slug, shortened to fit a path element when it does not.

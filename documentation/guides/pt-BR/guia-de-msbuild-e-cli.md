@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/msbuild-cli.md blob 228d982ae965 | translated: 2026-09-26 | reviewed: 2026-09-03 -->
+<!-- source: documentation/guides/msbuild-cli.md blob c4e46e6431df | translated: 2026-10-10 | reviewed: 2026-09-03 -->
 # NarrativeTrace .NET — Guia de MSBuild e CLI
 
 [English](../msbuild-cli.md) | [Español](../es/guia-de-msbuild-y-cli.md) | **Português** | [简体中文](../zh-CN/MSBuild与CLI指南.md)
@@ -39,8 +39,8 @@ recebem valor).
 
 ### `init` e `uninstall`
 
-Copia as duas habilidades de agente para `.agents/skills/` (e também para `.claude/skills/`,
-assim que detecta `.claude/` ou `CLAUDE.md`) e escreve uma seção marcada em `AGENTS.md`;
+Copia as duas habilidades de agente para `.agents/skills/` e para `.claude/skills/` (o Claude
+Code carrega as habilidades do projeto somente desse diretório; `--vendor none` o omite) e escreve uma seção marcada em `AGENTS.md`;
 `uninstall` remove exatamente o que `init` escreveu, e nada mais. Zero rede — o portador viaja
 dentro deste pacote.
 
@@ -56,7 +56,7 @@ dotnet tool run dotnet-narrativetrace uninstall
 | `--write-existing` | Permissão para tocar em um `AGENTS.md` ou `CLAUDE.md` que já exista. |
 | `--force` | Permissão para sobrescrever um diretório de habilidade que pertence a outra pessoa. |
 | `--only <half>` | `skills` \| `agents-md`. As duas metades por padrão. |
-| `--vendor <vendor>` | `claude` \| `none`. Detectado a partir do projeto por padrão. |
+| `--vendor <vendor>` | `claude` \| `none`. `claude` por padrão: o Claude Code só carrega `.claude/skills`. |
 | `--from <carrier>` | Um diretório, um `.nupkg`, ou uma coordenada `Id/Version` já presente no cache local do NuGet. O portador embutido nesta CLI por padrão. |
 | `--dir <path>` | O diretório do projeto. O diretório atual por padrão. |
 | `--json` | Saída legível por máquina em vez de texto para humanos. |
@@ -70,6 +70,21 @@ Códigos de saída:
 | `2` | A linha de comando não pôde ser interpretada. |
 
 Veja as [habilidades de agente](../../agent-skills.md) para saber o que é escrito e por quê.
+
+### `doctor`
+
+Diagnóstico somente leitura da instalação. Faz o build falhar diante de um achado com falha — o
+relatório é escrito primeiro (`--report` deixa o JSON em `TestResults/narrativetrace/doctor-report.json`),
+então «doctor verde» é sair com `0`.
+
+| Código | Quando |
+|---|---|
+| `0` | Todas as verificações passaram. |
+| `1` | Pelo menos um achado falhou. |
+| `2` | O doctor não pôde ser executado (diretório inexistente, nenhum `.csproj`). |
+
+Um pipeline que lê o relatório por conta própria opta por sair ignorando o código de saída desse
+único passo (por exemplo `dotnet-narrativetrace doctor --report || true`) e lendo o JSON.
 
 ### `clarity-scan`
 
@@ -165,7 +180,7 @@ Adicione o pacote somente de build. `PrivateAssets="all"` o mantém fora
 das dependências transitivas do seu pacote:
 
 ```xml
-<PackageReference Include="NarrativeTrace.MSBuild" Version="0.3.0"
+<PackageReference Include="NarrativeTrace.MSBuild" Version="0.4.0"
                   PrivateAssets="all" />
 ```
 
@@ -264,7 +279,7 @@ Quando `NarrativeTraceOutput=true`, o target `_NarrativeTraceExportEnv`
 (executado antes do `VSTest`) anexa a configuração de runtime a
 `VSTestEnvironmentVariables`, de modo que o host de testes vê:
 
-```
+```text
 NARRATIVETRACE_OUTPUT=true
 NARRATIVETRACE_OUTPUT_DIR=$(NarrativeTraceOutputDir)
 NARRATIVETRACE_FORMAT=$(NarrativeTraceFormat)

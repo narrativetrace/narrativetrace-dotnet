@@ -16,7 +16,7 @@ namespace NarrativeTrace.SkillsEvals;
 /// </summary>
 public static class PromotionRenderer
 {
-    private static readonly Platform[] Columns = [Platform.Claude, Platform.Codex, Platform.Gemini];
+    private static readonly Platform[] Columns = [Platform.Claude, Platform.Codex, Platform.Antigravity, Platform.Cursor];
 
     /// <summary>Regenerates the full <c>promotion.md</c> content from the catalogue and the ledger.</summary>
     public static string Render(IReadOnlyList<Skill> skills, IReadOnlyList<RunLedgerRow> runs)
@@ -26,8 +26,8 @@ public static class PromotionRenderer
         sb.Append("A cell turns `approved` once that platform has one green `trigger` case and\n");
         sb.Append("one green `happy-path` case for the skill, at its current wording and\n");
         sb.Append("fixture. A wording or fixture change clears that skill's row.\n\n");
-        sb.Append("| Skill | Claude | Codex | Gemini |\n");
-        sb.Append("|---|---|---|---|\n");
+        sb.Append("| Skill | Claude | Codex | Antigravity | Cursor |\n");
+        sb.Append("|---|---|---|---|---|\n");
         foreach (var skill in skills)
         {
             AppendRow(sb, skill.CanonicalName, runs);

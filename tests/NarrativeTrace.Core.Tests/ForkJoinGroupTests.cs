@@ -488,6 +488,8 @@ public class ForkJoinGroupTests
         public void AdoptTraceparent(Traceparent? traceparent) =>
             _inner.AdoptTraceparent(traceparent);
 
+        public Traceparent? OutboundTraceparent() => _inner.OutboundTraceparent();
+
         public void OnForkCreated(string groupId) =>
             ForkCreatedIds.Add(groupId);
 

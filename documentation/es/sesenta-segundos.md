@@ -1,4 +1,4 @@
-<!-- source: documentation/sixty-seconds.md blob d4cf984324af | translated: 2026-09-25 | reviewed: - -->
+<!-- source: documentation/sixty-seconds.md blob 0d08d50c6065 | translated: 2026-10-15 | reviewed: - -->
 # Ve una traza en 60 segundos
 
 [English](../sixty-seconds.md) | **Español** | [Português](../pt-BR/sessenta-segundos.md) | [简体中文](../zh-CN/60秒.md)
@@ -251,7 +251,7 @@ dotnet test
 
 La lista de bloqueo compara por subcadena, sin distinguir mayúsculas — nombrar un parámetro
 `paymentToken` ya basta, sin necesidad de ningún atributo. Consulta
-[Privacidad y ocultación](privacidad-y-ocultacion.md) para la lista completa de 26 patrones y
+[Privacidad y ocultación](privacidad-y-ocultacion.md) para la lista completa de patrones y
 qué tiene prioridad sobre ella.
 
 ## Siguiente paso

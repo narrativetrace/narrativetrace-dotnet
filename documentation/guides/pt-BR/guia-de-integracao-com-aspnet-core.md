@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/aspnetcore.md blob 2be5c7c20f47 | translated: 2026-09-12 | reviewed: - -->
+<!-- source: documentation/guides/aspnetcore.md blob 685c806827fa | translated: 2026-10-11 | reviewed: - -->
 # Guia de integração com ASP.NET Core
 
 [English](../aspnetcore.md) | [Español](../es/guia-de-integracion-con-aspnet-core.md) | **Português** | [简体中文](../zh-CN/ASP.NET-Core集成指南.md)
@@ -10,7 +10,7 @@ a exclusão de caminhos e o contexto de requisição/usuário.
 ## Pacote
 
 ```xml
-<PackageReference Include="NarrativeTrace.AspNetCore" Version="0.3.0" />
+<PackageReference Include="NarrativeTrace.AspNetCore" Version="0.4.0" />
 ```
 
 ## 1. Registrar e conectar o middleware
@@ -214,6 +214,29 @@ Para testes unitários mais rápidos de serviços individuais, pule o
 middleware e use os
 [helpers de teste do xUnit / NUnit](guia-de-instalacao.md#opção-d--contexto-automático-do-xunit--narrativa-de-falha)
 diretamente com `NarrativeTraceProxy`.
+
+## 7. Chamadas de saída
+
+O middleware lê um `traceparent` de entrada; o lado de saída envia um, de modo que um destino que execute o NarrativeTrace entra no mesmo trace. Registre-o em qualquer cliente do `IHttpClientFactory`:
+
+```csharp
+builder.Services.AddHttpClient("payments")
+    .AddNarrativeTraceTraceparentPropagation();
+```
+
+Toda requisição que esse cliente enviar de dentro de uma requisição rastreada carrega `traceparent: 00-<trace id>-<span id ativo>-01`: o span raiz do destino passa a ser filho do span que fez a chamada. Nenhum cabeçalho é enviado quando não há trace ativo (uma chamada fora de uma requisição), e um `traceparent` definido por você nunca é sobrescrito.
+
+Para código que não usa `IHttpClientFactory`, leia o valor e anexe-o:
+
+```csharp
+var value = TraceparentHeaders.Current(context); // null when there is no trace
+if (value is not null)
+{
+    request.Headers.TryAddWithoutValidation(Traceparent.HeaderName, value);
+}
+```
+
+`TraceparentPropagationHandler` (em `NarrativeTrace.Runtime`) é o mesmo comportamento como um `DelegatingHandler` simples para clientes que você constrói à mão.
 
 ## Veja também
 

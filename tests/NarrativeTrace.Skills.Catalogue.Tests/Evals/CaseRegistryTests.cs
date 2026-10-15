@@ -22,6 +22,15 @@ public sealed class CaseRegistryTests : IDisposable
 
     private void WriteCaseJson(string body) => File.WriteAllText(Path.Combine(_caseDir, "case.json"), body);
 
+    [Fact]
+    public void The_fresh_session_case_declares_the_installer_delivery_and_its_prompt_variant_does_not()
+    {
+        var cases = Path.Combine(NarrativeTrace.Skills.Tests.TestPaths.RepoRoot(), "skills-evals", "add-narrative-tracing");
+
+        Assert.Equal(RegistryPreStep.NarrativetraceInit, CaseRegistry.RegistryFor(Path.Combine(cases, "fresh-session-sees-the-skills")));
+        Assert.Null(CaseRegistry.RegistryFor(Path.Combine(cases, "fresh-session-after-the-prompt")));
+    }
+
     [Theory]
     [InlineData("npx-skills", RegistryPreStep.NpxSkills)]
     [InlineData("claude-marketplace", RegistryPreStep.ClaudeMarketplace)]

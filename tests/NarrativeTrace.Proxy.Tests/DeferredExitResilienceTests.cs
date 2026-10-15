@@ -220,5 +220,7 @@ public class DeferredExitResilienceTests
 
         public void AdoptTraceparent(Traceparent? traceparent) =>
             _inner.AdoptTraceparent(traceparent);
+
+        public Traceparent? OutboundTraceparent() => _inner.OutboundTraceparent();
     }
 }

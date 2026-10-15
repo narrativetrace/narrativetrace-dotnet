@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/annotations.md blob a704c9cf3b8a | translated: 2026-09-18 | reviewed: - -->
+<!-- source: documentation/guides/annotations.md blob 50566d557207 | translated: 2026-09-18 | reviewed: - -->
 # NarrativeTrace .NET — Guía de atributos
 
 [English](../annotations.md) | **Español** | [Português](../pt-BR/guia-de-atributos.md) | [简体中文](../zh-CN/特性指南.md)
@@ -151,7 +151,7 @@ public interface IAccountService
 }
 ```
 
-```
+```text
 [NotTraced] is not supported on a method (found on IAccountService.Authenticate);
 it has no whole-call meaning here. Annotate each sensitive parameter, property,
 or record component individually instead.
@@ -366,7 +366,7 @@ El fixture de xUnit y la clase base de NUnit escanean cada traza capturada
 después de una prueba e imprimen como advertencias los marcadores que
 sobrevivan, así que una errata en una plantilla aflora durante las pruebas:
 
-```
+```text
 WARNING: Unresolved template placeholder(s) detected:
   - OrderService.PlaceOrder: {custmerId} in narration
 ```

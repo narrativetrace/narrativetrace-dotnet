@@ -55,7 +55,9 @@ namespace NarrativeTrace.Build;
 /// would still read as drifted — the reader-visible "timing varies" is
 /// defined as varying between *some* number of milliseconds and *none
 /// rendered*, not just between numbers, so the mask has to erase the whole
-/// optional fragment on both sides.</item>
+/// optional fragment on both sides. A written trace artifact states its timing twice more
+/// — the frontmatter's <c>duration_ms:</c> and the header's <c>**Duration:**</c> — and
+/// the same mask erases those figures (the label stays).</item>
 /// <item><c>traceName</c> *(since 0.1.5, unreleased)* replaces the
 /// trace/run three-word phrase — and, where adjacent, the 7-hex trace-id
 /// fragment — wherever a <c>trace:</c>/<c>run:</c>/<c>trace_name:</c>/
@@ -102,6 +104,11 @@ internal static class SnippetCheckSupport
     // read as drift.
     private static readonly Regex DurationMask = new(
         " — \\d+(\\.\\d+)?ms", RegexOptions.CultureInvariant);
+
+    // The two other places a written trace artifact states its timing: the frontmatter's
+    // "duration_ms: 5" and the header's "**Duration:** 5ms". The label stays, the figure goes.
+    private static readonly Regex ArtifactDurationMask = new(
+        @"(?<=duration_ms: |\*\*Duration:\*\* )\d+(\.\d+)?(ms)?", RegexOptions.CultureInvariant);
 
     // A label immediately followed by "adjective noun verb", optionally the
     // "(1234567)" trace-id fragment — the exact shapes TraceNamer-derived
@@ -493,7 +500,7 @@ internal static class SnippetCheckSupport
         var result = content;
         if (masks.Duration)
         {
-            result = DurationMask.Replace(result, "");
+            result = ArtifactDurationMask.Replace(DurationMask.Replace(result, ""), "");
         }
 
         if (masks.TraceName)

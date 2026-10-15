@@ -197,6 +197,16 @@ internal static class MutationAccounting
             "xUnit test-framework integration adapter (514 lines) — DEFERRED, no stryker-config "
             + "targets it yet"),
 
+        // ---- recipe scenario (recipes/checkout): documentation fixtures, not product code --------
+        ["Checkout"] = new(
+            "the recipe pages' scenario domain (recipes/checkout) — documentation code, never "
+            + "packed; proven by Checkout.Tests (100% line coverage, gated) and by the recipe "
+            + "runs whose output the pages embed, not by mutants"),
+        ["Checkout.Fixtures"] = new(
+            "recipe fixtures that fail by design or need approval mode, run by RecipeArtifacts "
+            + "with their verdicts asserted — a mutant here would only change a documented story, "
+            + "and the output the pages embed is compared by SnippetCheck on every Verify"),
+
         // ---- demo/consumer code: proven by being executed, not by mutants ----------------------
         ["NarrativeTrace.Examples.Clarity"] = new(
             "demo/consumer code, run non-interactively by RunExamples (CI smoke run) — proven by "

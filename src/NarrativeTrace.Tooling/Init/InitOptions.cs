@@ -19,10 +19,10 @@ public enum Scope
 /// <summary>Whether the vendor flavour is installed beside the open-standard one.</summary>
 public enum Vendor
 {
-    /// <summary>Install it where the project looks like that vendor's.</summary>
+    /// <summary>The default: install it, like <see cref="On"/>, on every project — Claude Code loads <c>.claude/skills</c> only.</summary>
     Auto,
 
-    /// <summary>Install it, detected or not.</summary>
+    /// <summary>Install it.</summary>
     On,
 
     /// <summary>Never install it.</summary>
@@ -90,7 +90,7 @@ public sealed record InitOptions
     /// <summary>Whether the vendor flavour is installed as well.</summary>
     public Vendor VendorClaude { get; init; }
 
-    /// <summary>Write both halves, touch nothing that exists, detect the vendor.</summary>
+    /// <summary>Write both halves, touch nothing that exists, install the vendor flavour too.</summary>
     public static InitOptions Defaults() => new(false, false, false, Scope.Both, Vendor.Auto);
 
     /// <summary>This value with <see cref="DryRun"/> set to <paramref name="value"/>.</summary>

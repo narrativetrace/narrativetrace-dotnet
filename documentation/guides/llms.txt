@@ -2,7 +2,7 @@
 
 Working with an AI agent? Paste this:
 
-```
+```text
 Set up NarrativeTrace in this project and show me its first trace.
 1. Read https://narrativetrace.ai/dotnet/llms.txt first. It carries the install block and the
 known traps. Do not guess versions or artifact names.
@@ -75,7 +75,7 @@ dotnet run
 ```text
 trace: loose hook parks (a1b2c3d)
 
-└── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 9ms #1
+└── IOrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2) → "confirmed:cust-1:book-123:2" — 6ms #1
 ```
 <!-- /snippet -->
 Then to your logger, same tree, two lines:
@@ -135,6 +135,17 @@ public sealed class AccountService : IAccountService
 dotnet test
 ```
 
+## Runtime support
+
+What the manifests declare, and what CI actually runs:
+
+- **Tested:** the .NET 10 SDK on Linux. Every test project targets `net10.0`, and the gate runs on `ubuntu-latest` with SDK `10.0.301` (the version `global.json` pins). Windows and macOS are expected to work but have no CI job.
+- **Declared, built, not run:** the libraries (`Core`, `Runtime`, `Proxy`, `DependencyInjection`, `Logging`, `Observability`, `Diagrams`, `Clarity`, `Glossary`) also compile for `netstandard2.0`, so they restore on .NET Framework and older .NET. No test executes that build, so treat it as expected to work, not tested.
+- **`NarrativeTrace.AspNetCore` is `net10.0` only** and carries a framework reference to `Microsoft.AspNetCore.App`: use it only in a project that runs on the ASP.NET Core shared framework. A console app or a worker without ASP.NET Core takes `Proxy` (or `DependencyInjection`) plus `Logging` or `Observability` instead.
+- **`NarrativeTrace.Cli` is a `net10.0` .NET tool and `NarrativeTrace.MSBuild` a build-only shim.** Neither belongs in an application's runtime dependencies.
+- **`NarrativeTrace.Legacy` is a deliberately empty reservation** of the `net48` slot. It has no API; do not reference it to get tracing on .NET Framework.
+- **Not declared or tested:** trimming and Native AOT. Capture is built on `System.Reflection.DispatchProxy`, so do not assume either works.
+
 ## Before you start
 - `NarrativeTrace.Proxy` pulls in `.Runtime`+`.Core`.
 - `NARRATIVETRACE_OUTPUT` defaults **on**.
@@ -144,6 +155,46 @@ dotnet test
 - A trace has a name (`trace: bold elk soars (a1b2c3d)`, above), and a test-suite run has one too — the console footer, `manifest.json`'s `run` object, the Markdown frontmatter's `run:` field, and `nt.runName` in the logging bridge's scope. Neither ever reaches the `.nt` text. See [Configuration Guide §7](configuration.md#7-logging-bridge-microsoftextensionslogging).
 - Every `NARRATIVETRACE_*` variable — what it sets, its default, and a runnable example of the effect — is tabulated in [Configuration Guide §10](configuration.md#10-environment-variable-worked-examples).
 
+## Tracing a request in production
+
+The test path above stays; this is the one for a running ASP.NET Core service.
+
+```csharp
+builder.Services.AddNarrativeTrace(builder.Configuration);
+builder.Services.AddNarrativeTracing(o => o.Namespaces("MyApp.Services"));
+// ...
+app.UseMiddleware<NarrativeTraceMiddleware>();
+```
+
+- **Per-request context:** `AddNarrativeTrace` registers a *scoped* `INarrativeContext` (a `SyncNarrativeContext`), so each request gets its own and concurrent requests do not mix. The middleware stores it in `HttpContext.Items`; read it with `HttpContext.GetNarrativeContext()`. Services wrapped by `AddNarrativeTracing` resolve the same scoped context, so their calls nest into the request's trace.
+- **Where the trace is captured:** inside the middleware, in a `finally` after the rest of the pipeline returns, with the response status and elapsed milliseconds. A request that throws still produces a trace (status 500 unless an error status was already set). Work started with a `Task` during the request lands in that same trace. Put the middleware where you want the clock to start: it traces what runs after it.
+- **Cleanup:** the middleware never calls `Reset()`; the context is discarded with the request's DI scope. You do not reset a request's context yourself. Excluded paths (`options.ExcludedPaths.Add("/health")`) create no context and no trace.
+- **Failure isolation:** a fault while stamping the request or inside the exporter is swallowed; it never fails the request.
+- **Level:** defaults to `Detail`. Set `NarrativeTrace:Level` in configuration or `options.Level` to lower it in production.
+- **Exporter, built in:** `LoggerTraceExporter` (package `NarrativeTrace.AspNetCore`, the default) writes one `Information` entry per request — `GET /api/orders [200] 42ms — {json}` — to the logger category `NarrativeTrace.Export`. Values in it are already redacted.
+- **Exporter, logger tree:** `TraceLogExporter.ExportToLogger(tree, logger)` (package `NarrativeTrace.Logging`, namespace `NarrativeTrace.Logging`) writes the indented call tree, one record per node, from a trace you captured yourself.
+- **Exporter, OpenTelemetry:** `TraceActivityExporter.Export(tree)` (package `NarrativeTrace.Observability`, namespace `NarrativeTrace.Observability`) replays a finished trace as `Activity` spans under the source `"NarrativeTrace"`; register it with `.AddSource("NarrativeTrace")`. The middleware has no built-in OpenTelemetry exporter: register your own `ITraceExporter` that calls it. Register it before `AddNarrativeTrace`, which only adds its default when none is present:
+
+```csharp
+public sealed class OtelTraceExporter : ITraceExporter
+{
+    public void Export(TraceTree tree, RequestContext request) => TraceActivityExporter.Export(tree);
+}
+
+builder.Services.AddSingleton<ITraceExporter, OtelTraceExporter>();
+builder.Services.AddNarrativeTrace(builder.Configuration);
+```
+
+The exported spans carry the same (redacted) values as the trace, so mind where the OpenTelemetry pipeline ships them. See the [ASP.NET Core Guide](aspnetcore.md#3-export).
+
+## Privacy and redaction
+
+See [Privacy and Redaction](../privacy-and-redaction.md) for what is redacted on every surface and what outranks it. In short:
+
+- **Names:** a deny-list of case-insensitive name patterns in English, Spanish, Portuguese, French, Chinese and German (for example `password`, `token`, `contrasena`, `senha`, `rut`, `dni`, `cpf`); a matching parameter, property or field is replaced by `[REDACTED]` before its value is read.
+- **Value shapes:** whatever the field is called, a JWT, a Luhn-valid payment card number, a `Set-Cookie` string, and a national identity number that passes its own check digits (RUT, CPF, CNPJ, Spanish DNI/NIE, French NIR, Chinese resident ID, dashed US SSN) are redacted. `[NotTraced]` always wins and renders the same `[REDACTED]` marker; the structural `.nt` artifact holds no values at all.
+- **No off switch you can reach by accident:** no environment variable, flag or MSBuild property turns redaction off. The integrations take a `RedactionPolicy` (`ProxyOptions`, `NarrativeTracingDiOptions`, `NarrativeTraceOptions`), and only passing `RedactionPolicy.Disabled` there disables the name and value-shape rules, in your own source. `NARRATIVETRACE_REDACTION_ADDITIONALPATTERNS` can only add patterns. The xUnit and NUnit helpers accept no policy.
+
 ## Agent skills
 - `narrativetrace-doctor` — Diagnoses a NarrativeTrace .NET install without changing anything: runs the doctor CLI and explains every failing check and its fix — including whether the NarrativeTrace agent skills are installed and current — proves redaction with a real test, opens the newest rendered trace before trusting any assertion against it, and — flagged unstudied — walks an approval-trace diff.
 - `add-narrative-tracing` — Adds NarrativeTrace to a .NET project end to end: installs the real toolchain with a frozen restore, wraps a service and renders its first trace, sends the trace to a logger with one call, finishes by running the doctor CLI to confirm the install, and ends by previewing the agent skills install so the next session finds them.
@@ -151,8 +202,9 @@ dotnet test
 - `add-narrativetrace-clarity` — Adds or verifies NarrativeTrace Clarity in a .NET project. Use when you want a first static naming report, per-element explanations, or an explicit clarity quality gate. Runs the real `clarity-scan` and `clarity-check` verbs, checks fresh nonempty JSON and Markdown, applies the report's renames and re-runs until the gate is clean, and preserves existing thresholds.
 - `narrativetrace-verify` — Verifies a change in a .NET project by reading what the code actually did before saying it is done. Writes the intent down first, runs the smallest real path, reads the value-free structural trace against the intent and opens values only on the span that looks wrong, then pins the flow as an approval baseline behind your yes and reports what the trace showed, citing span ids. Skips itself, saying why, for a pure function or a one-class edit.
 - `narrativetrace-debug` — Finds the cause of a wrong result in a .NET project by reading what the code did with the values, not by stepping through it. Reproduces the symptom with NarrativeTrace on, names the first span where a value diverges by its span id, fixes it there and checks the structural trace shows nothing else moved, then pins the reproduction as a regression test and an approval baseline behind your yes. Hands a defect in NarrativeTrace itself to `narrativetrace-feedback`.
+- `narrativetrace-explain` — Explains what an application or a flow actually does, with nothing broken and no change needing verification. Decides first whether a trace is worth it: a question ten lines of source answer is answered from the source, with no install and no run. Otherwise it runs one existing test or entry point for the flow, reads the value-free structural trace, and explains the run by span id, marking what it inferred and naming the code no span covered. Hands a defect to `narrativetrace-debug`, a change to `narrativetrace-verify`.
 
-Install them into this project: `dotnet tool run dotnet-narrativetrace init --dry-run`, read the diff, then run it again without `--dry-run`. See [Agent Skills](../agent-skills.md) for the full walkthrough and `uninstall`.
+Install them into this project: `dotnet tool run dotnet-narrativetrace init --dry-run`, read the diff, then run it again without `--dry-run`; it writes `.agents/skills/` and `.claude/skills/` (the directory Claude Code loads; `--vendor none` leaves it out). See [Agent Skills](../agent-skills.md) for the full walkthrough and `uninstall`. Each platform's install path (Cursor, Replit, Antigravity, GitHub Copilot, Claude Code), what its agent finds, and the small pointer file `init` writes for it are in [Use NarrativeTrace with your agent](../use-with-your-agent.md).
 
 They are also reachable from two registries, each landing the same pages `init` then adopts. The Claude Code plugin marketplace carries them too: `/plugin marketplace add narrativetrace/narrativetrace-dotnet`, then `/plugin install narrativetrace-dotnet@narrativetrace-dotnet` — then run `dotnet tool run dotnet-narrativetrace init --dry-run`, read the diff, and run it without the flag so `AGENTS.md` points at them. `npx skills add narrativetrace/narrativetrace-dotnet` installs the open-standard pages directly into the project — then run `dotnet tool run dotnet-narrativetrace init --dry-run`, read the diff, and run it without the flag so `AGENTS.md` points at them.
 
@@ -183,7 +235,18 @@ That writes the draft and its body under `TestResults/narrativetrace/feedback/`,
 - [User Guides](README.md): installation, configuration, annotations, ASP.NET Core, clarity
 - [Complete Reference](llms-full.md): full API surface, data model, integration paths, CLI/MSBuild
 - [Repository README](../../README.md): value proposition and quick start
-- [Agent Skills](../agent-skills.md): the `narrativetrace-doctor`, `add-narrative-tracing`, `narrativetrace-feedback`, `add-narrativetrace-clarity`, `narrativetrace-verify` and `narrativetrace-debug` Claude Code skills
+- [Agent Skills](../agent-skills.md): the `narrativetrace-doctor`, `add-narrative-tracing`, `narrativetrace-feedback`, `add-narrativetrace-clarity`, `narrativetrace-verify`, `narrativetrace-debug` and `narrativetrace-explain` Claude Code skills
+- [Use NarrativeTrace with your agent](../use-with-your-agent.md): per platform — Cursor, Replit, Antigravity, GitHub Copilot, Claude Code — how the skills get into a project, which pointer file `init` writes, and what the agent finds
+
+## Recipes
+
+One page per problem, in the words a user would type. Each page carries its scenario's code and the real output of a run this build performs — nothing on a recipe page is typed by hand.
+
+- [Add logging to this service](../recipes/add-logging-to-this-service.md) — a checkout with no log statement: wrap its collaborators once and every call, with its parameter names and its result, appears in the project's own `ILogger`.
+- [Help me debug and fix this bug](../recipes/help-me-debug-and-fix-this-bug.md) — a declined card leaves the stock reserved: the failing run's narrative shows `Reserve`, then `Charge` throwing, then nothing, and the fix and the approved baseline that pins it.
+- [Why did this test fail](../recipes/why-did-this-test-fail.md) — a red checkout test read span by span against the assertion, where every span agrees with every other and the expectation is what is stale.
+- [Review a complex flow before changing it](../recipes/review-a-complex-flow-before-changing-it.md) — one run at `Detail` and at `Summary`, with the log line that carries values beside the value-free `.nt` an agent reads.
+- [Review a refactoring: did behaviour change](../recipes/review-a-refactoring-did-behaviour-change.md) — the tests stay green, the approval diff names the dropped call, and `dotnet tool run dotnet-narrativetrace approve` is how you say yes.
 
 ## Target frameworks
 
@@ -206,6 +269,8 @@ names in metadata by default.
 - `NarrativeTrace.MSBuild` — build-only shim wiring the CLI into `dotnet build`/`test`
 - `NarrativeTrace.Testing.Xunit` / `.NUnit` — per-test context + failure-narrative printing
 
+**Install every `NarrativeTrace.*` package at one version.** Each package declares its NarrativeTrace dependencies as a minimum version equal to the version it was built at (NuGet's `>=`), not an exact pin and not a wide range, so NuGet will accept a mix of an older and a newer package. Mixed versions are not tested together; install them together at the same version.
+
 ## Core API
 
 - `new SyncNarrativeContext(new NarrativeTraceConfig(TracingLevel.Detail))`
@@ -219,7 +284,7 @@ names in metadata by default.
 
 - Env: `NARRATIVETRACE_LEVEL`, `NARRATIVETRACE_OUTPUT`, `NARRATIVETRACE_OUTPUT_DIR`, `NARRATIVETRACE_FORMAT`, `NARRATIVETRACE_APPROVAL`, `NARRATIVETRACE_APPROVED_DIR` (`ConfigResolver`, invalid values degrade to defaults)
 - DI: `services.AddNarrativeTracing(o => o.Namespaces("MyApp.Services"))`
-- ASP.NET Core: `services.AddNarrativeTrace(configuration)` + `app.UseMiddleware<NarrativeTraceMiddleware>()`; trace services via `HttpContext.GetNarrativeContext()`
+- ASP.NET Core: `services.AddNarrativeTrace(configuration)` + `app.UseMiddleware<NarrativeTraceMiddleware>()`; trace services via `HttpContext.GetNarrativeContext()`; send the trace on outbound HTTP calls with `services.AddHttpClient(name).AddNarrativeTraceTraceparentPropagation()` (or `TraceparentHeaders.Current(context)` without a factory)
 - MSBuild: `NarrativeTrace.MSBuild` package → `ClarityScan`/`ClarityCheck` targets
 
 ## Clarity

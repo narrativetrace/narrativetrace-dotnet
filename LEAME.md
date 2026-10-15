@@ -1,4 +1,4 @@
-<!-- source: README.md blob 742b7bde4ddc | translated: 2026-10-09 | reviewed: - -->
+<!-- source: README.md blob 1be389f461c0 | translated: 2026-10-11 | reviewed: - -->
 # NarrativeTrace .NET
 
 [English](README.md) | **Español** | [Português](LEIAME.md) | [简体中文](自述文件.md)
@@ -9,7 +9,7 @@
   aplicación de consola, una ejecución, y la traza está en tu terminal.
 - ¿Trabajas con un agente de IA? Pega esto:
 
-```
+```text
 Set up NarrativeTrace in this project and show me its first trace.
 1. Read https://narrativetrace.ai/dotnet/llms.txt first. It carries the install block and the
 known traps. Do not guess versions or artifact names.
@@ -101,7 +101,7 @@ La traza se genera automáticamente a partir de los nombres de métodos, los
 nombres de parámetros y los valores de retorno — la información que ya estaba
 ahí:
 
-```
+```text
 OrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2)
   CustomerService.FindCustomer(customerId: "cust-1") → Customer { Id = cust-1, Name = Ada Lovelace, Tier = Premium }
   ProductCatalogService.LookupPrice(productId: "book-123") → 9.99
@@ -119,7 +119,7 @@ protegido contra regresiones por sus pruebas de caracterización.
 La traza hace visibles los errores. Cóbrale a un cliente por encima de su límite
 y la historia se detiene exactamente donde se rompió:
 
-```
+```text
 OrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2)
   CustomerService.FindCustomer(customerId: "cust-1") → Customer { Id = cust-1, … }
   ProductCatalogService.LookupPrice(productId: "book-123") → 9.99
@@ -138,7 +138,7 @@ nombres de dominio y otra con nombres genéricos (la
 [demo de nombres de Minecraft](examples/NarrativeTrace.Examples.Minecraft)):
 
 **Refactorizado (nombres limpios):**
-```
+```text
 WorldServer.PlayerJoined(playerName: "Steve")
   WorldGenerator.GenerateChunk(x: 0, z: 0) → Chunk { X = 0, Z = 0, Biome = plains }
   PlayerInventory.AddItem(item: "wooden_pickaxe", count: 1) → true
@@ -147,7 +147,7 @@ WorldServer.PlayerJoined(playerName: "Steve")
 ```
 
 **Sin refactorizar (nombres genéricos):**
-```
+```text
 GameManager.Handle(input: "Steve")
   DataProcessor.Process(a: 0, b: 0) → "0,0"
   StateManager.Update(key: "wooden_pickaxe", value: 1) → true
@@ -316,7 +316,7 @@ orders.PlaceOrder("book-123", quantity: 2);
 Console.WriteLine(IndentedTextRenderer.Render(context.CaptureTrace()));
 ```
 
-```
+```text
 └── IOrderService.PlaceOrder(sku: "book-123", quantity: 2) → "confirmed" — 6ms #1
 ```
 
@@ -561,6 +561,7 @@ para ver cómo se combinan.
 Empieza aquí:
 
 - [Ve una traza en 60 segundos](documentation/es/sesenta-segundos.md) — una app de consola, `dotnet run`, salida real en tu terminal
+- [Recetas](documentation/es/recetas/anade-registro-a-este-servicio.md) — una página por problema: añadir registro, depurar un error, leer una prueba fallida, revisar un flujo o una refactorización, cada una con la salida real de una ejecución
 - [Elegir una integración](documentation/es/elegir-una-integracion.md) — qué módulo necesitas, como diagrama de decisión
 - [Solución de problemas](documentation/es/solucion-de-problemas.md) — síntoma → causa → arreglo para los fallos que la gente realmente encuentra
 - [Qué incluir en el commit](documentation/es/que-incluir-en-el-commit.md) — qué archivos generados son desechables y cuáles se revisan
@@ -583,7 +584,8 @@ Para profundizar:
 - [Guía de funcionalidades](documentation/feature-guide.md) — tabla de estado canónica (Free/Pro/In development/Planned) para cada funcionalidad, con el código detrás de cada fila ya implementada
 - [Herramientas de seguridad](documentation/security-tooling.md) — el catálogo de escáneres y qué condiciona el build frente a lo que corre en un horario
 - [Pruebas de seguridad](documentation/security-testing.md) — la suite de fuzzing/propiedades reflejada en todas las implementaciones de NarrativeTrace
-- [Habilidades del agente](documentation/agent-skills.md) (solo en inglés) — las habilidades `narrativetrace-doctor`, `add-narrative-tracing`, `narrativetrace-feedback`, `add-narrativetrace-clarity`, `narrativetrace-verify` y `narrativetrace-debug` para Claude Code y Codex CLI, generadas a partir de un catálogo tipado
+- [Habilidades del agente](documentation/agent-skills.md) (solo en inglés) — las habilidades `narrativetrace-doctor`, `add-narrative-tracing`, `narrativetrace-feedback`, `add-narrativetrace-clarity`, `narrativetrace-verify`, `narrativetrace-debug` y `narrativetrace-explain` para Claude Code y Codex CLI, generadas a partir de un catálogo tipado
+- [Usa NarrativeTrace con tu agente](documentation/use-with-your-agent.md) (solo en inglés) — por plataforma (Cursor, Replit, Antigravity, GitHub Copilot, Claude Code): cómo llegan las habilidades a un proyecto, qué archivo de puntero escribe `init` y qué encuentra el agente
 
 Para consumidores de IA (solo en inglés):
 [`llms.txt`](documentation/guides/llms.txt) y
@@ -730,19 +732,16 @@ artefacto estructural, es la única *categórica* — recurre a ella si tu model
 de amenaza exige que ningún valor pueda salir jamás del proceso.
 
 **¿Pueden los IDs de traza correlacionarse con un ID de correlación estándar
-entre servicios, o el tracing es solo local?** Solo local, hoy — y preferimos
-decirlo con claridad antes que dejar que el paquete `NarrativeTrace.Observability`
-dé a entender lo contrario. Esta implementación no analiza una cabecera W3C
-`traceparent` entrante, ni adjunta una en las llamadas HTTP salientes; es una
-decisión explícita y probada de no hacerlo por ahora, no un descuido — un test
-de propiedades stub en la suite de seguridad afirma que todavía no existe
-ningún tipo `Traceparent` en `NarrativeTrace.Core`, precisamente para que un
-futuro parser llegue con sus casos de fuzzing ya preparados. `TraceId` se
-genera localmente y tiene forma W3C (32 caracteres hexadecimales en
-minúscula, comparable byte a byte con los IDs que produciría otro runtime
-de NarrativeTrace o una cabecera `traceparent` real) — pero nunca se *deriva* de una
-cabecera entrante, así que un ID de traza de NarrativeTrace no será igual al
-de una traza distribuida previa.
+entre servicios, o el tracing es solo local?** Se correlacionan, mediante la
+cabecera W3C `traceparent`. En la entrada, `NarrativeTraceMiddleware` analiza la
+cabecera, así que la petición continúa el ID de traza del llamador y el span del
+llamador pasa a ser el padre del span raíz. En la salida,
+`AddHttpClient(name).AddNarrativeTraceTraceparentPropagation()` (o
+`TraceparentHeaders.Current(context)` cuando no hay `IHttpClientFactory`) envía
+el ID de traza actual y el ID del span activo, de modo que un destinatario que
+ejecute NarrativeTrace se une a la misma traza; sin traza activa no se envía
+ninguna cabecera. Consulta
+[Llamadas salientes](documentation/guides/es/guia-de-integracion-con-aspnet-core.md#7-llamadas-salientes).
 
 Lo que sí existe: `TraceActivityExporter` (por lotes) y
 `OtelTraceEventListener` (en vivo) de `NarrativeTrace.Observability`
@@ -750,12 +749,7 @@ convierten un árbol de NarrativeTrace completado o en curso en spans de
 `System.Diagnostics.Activity` bajo un `ActivitySource("NarrativeTrace")` —
 pero esto es una repetición, no instrumentación en vivo: los spans llevan la
 jerarquía propia de la traza y no son hijos de lo que sea que
-`Activity.Current` valga en el momento de la exportación. Si la correlación
-entre servicios es un requisito duro hoy, propaga tu propio ID de correlación
-a través de los scopes de `ILogger` de `NarrativeTrace.Logging` junto con la
-salida de NarrativeTrace; tratar la propagación de contexto W3C como algo ya
-distribuido aquí sería inexacto — es un hueco en la hoja de ruta, no una
-funcionalidad publicada.
+`Activity.Current` valga en el momento de la exportación. La correlación entre servicios no depende de ellos: viaja en la cabecera `traceparent`, como arriba.
 
 **¿Los valores de parámetros y de retorno se serializan de forma eager?** Sí —
 los valores se renderizan a cadenas en el momento de la captura, según el nivel

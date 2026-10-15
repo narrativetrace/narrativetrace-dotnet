@@ -291,17 +291,17 @@ public sealed class InitPlannerTest : IDisposable
     }
 
     [Fact]
-    public void InstallsTheVendorFlavourWhereTheVendorIsDetected()
+    public void InstallsTheVendorFlavourOnEveryProjectBecauseClaudeCodeReadsNothingElse()
     {
         const string vendorPage = ".claude/skills/narrativetrace-doctor/SKILL.md";
 
+        Assert.NotNull(ActionOn(Plan(Project().Build()), vendorPage));
         Assert.NotNull(ActionOn(Plan(Project().HasClaudeDirectory(true).Build()), vendorPage));
         Assert.NotNull(ActionOn(Plan(Project().ClaudeMd("# C\n").Build()), vendorPage));
-        Assert.Null(ActionOn(Plan(Project().Build()), vendorPage));
     }
 
     [Fact]
-    public void ObeysAnExplicitVendorChoiceOverDetection()
+    public void ObeysAnExplicitVendorChoice()
     {
         const string vendorPage = ".claude/skills/narrativetrace-doctor/SKILL.md";
         var on = InitOptions.Defaults().WithVendorClaude(Vendor.On);

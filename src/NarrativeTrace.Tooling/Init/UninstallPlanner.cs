@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Licensed under the Business Source License 1.1 (see LICENSE); Change Date: four years from publication; Change License: Apache-2.0
 // Copyright (c) 2026 Empower Agile
+using NarrativeTrace.Tooling.Platforms;
+
 namespace NarrativeTrace.Tooling.Init;
 
 /// <summary>
@@ -39,6 +41,7 @@ public static class UninstallPlanner
             PlanAgentsMd(state, actions);
             PlanClaudeMd(state, actions);
             PlanRuleFiles(state, actions);
+            PlanPointers(state, actions);
         }
 
         return new InitPlan(InstalledCoordinate(state), options.DryRun, actions);
@@ -72,6 +75,56 @@ public static class UninstallPlanner
         }
     }
 
+    /// <summary>
+    /// Every platform pointer the table names, whether or not the platform's marker is still there:
+    /// what the installer wrote is removed even after the project stopped looking like that platform.
+    /// A pointer behind a link was never written by us and is not in the snapshot.
+    /// </summary>
+    private static void PlanPointers(ProjectState state, List<Action> actions)
+    {
+        foreach (var pointer in PlatformTable.Rows.Select(row => row.Pointer).Where(pointer => pointer is not Pointer.None))
+        {
+            var text = state.PointerFile(pointer.Path);
+            if (text is null)
+            {
+                continue;
+            }
+
+            if (pointer is Pointer.Rule)
+            {
+                RemoveRule(pointer.Path, text, actions);
+            }
+            else
+            {
+                RemoveSection(pointer.Path, text, mayDelete: true, actions);
+            }
+        }
+    }
+
+    /// <summary>
+    /// A rule file is deleted when nothing but its frontmatter is left once our section is gone — the
+    /// installer made it — and otherwise loses only the section, so a rule the user added below ours
+    /// survives.
+    /// </summary>
+    private static void RemoveRule(string path, string text, List<Action> actions)
+    {
+        var scan = MarkedBlock.ScanText(text);
+        if (scan.Problems.Count > 0 || scan.Regions.Count > 1)
+        {
+            actions.Add(new Refuse(
+                path, path + " does not carry exactly one NarrativeTrace section — remove it by hand"));
+        }
+        else if (scan.Regions.Count == 1)
+        {
+            var remainder = MarkedBlock.Remove(text, scan.Regions[0]);
+            var onlyFrontmatter = string.Equals(
+                MarkedBlock.WithEol(MarkedBlock.WithoutByteOrderMark(remainder), "\n"),
+                CursorRule.Frontmatter,
+                StringComparison.Ordinal);
+            actions.Add(onlyFrontmatter ? new DeleteFile(path, text) : new ReplaceBlock(path, text, remainder));
+        }
+    }
+
     private static void RemoveSection(string path, string text, bool mayDelete, List<Action> actions)
     {
         var scan = MarkedBlock.ScanText(text);
@@ -90,7 +143,7 @@ public static class UninstallPlanner
         var withoutSection = MarkedBlock.Remove(text, scan.Regions[0]);
         var created = MarkedBlock.LineIs(withoutSection, MarkedBlock.CreatedNote);
         var remainder = created is not null ? MarkedBlock.Remove(withoutSection, created) : withoutSection;
-        if (mayDelete && created is not null && string.IsNullOrWhiteSpace(remainder))
+        if (mayDelete && created is not null && string.IsNullOrWhiteSpace(MarkedBlock.WithoutByteOrderMark(remainder)))
         {
             actions.Add(new DeleteFile(path, text));
             return;

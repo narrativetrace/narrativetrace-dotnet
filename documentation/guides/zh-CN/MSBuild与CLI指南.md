@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/msbuild-cli.md blob 228d982ae965 | translated: 2026-09-26 | reviewed: 2026-09-03 -->
+<!-- source: documentation/guides/msbuild-cli.md blob c4e46e6431df | translated: 2026-10-10 | reviewed: 2026-09-03 -->
 # NarrativeTrace .NET — MSBuild 与 CLI 指南
 
 [English](../msbuild-cli.md) | [Español](../es/guia-de-msbuild-y-cli.md) | [Português](../pt-BR/guia-de-msbuild-e-cli.md) | **简体中文**
@@ -33,8 +33,7 @@ MSBuild 目标按名称(`dotnet-narrativetrace`)调用该工具，因此在运�
 
 ### `init` 与 `uninstall`
 
-把两个智能体技能复制到 `.agents/skills/`(一旦检测到 `.claude/` 或 `CLAUDE.md`，也会复制到
-`.claude/skills/`)，并向 `AGENTS.md` 写入一段带标记的内容；`uninstall` 只会移除 `init` 写入的内容，
+把两个智能体技能复制到 `.agents/skills/`和 `.claude/skills/`(Claude Code 只从该目录加载项目技能；`--vendor none` 则不写入)，并向 `AGENTS.md` 写入一段带标记的内容；`uninstall` 只会移除 `init` 写入的内容，
 不多不少。零网络依赖 — 载体随这个包一起分发。
 
 ```bash
@@ -49,7 +48,7 @@ dotnet tool run dotnet-narrativetrace uninstall
 | `--write-existing` | 允许修改已经存在的 `AGENTS.md` 或 `CLAUDE.md`。 |
 | `--force` | 允许覆盖属于别人的技能目录。 |
 | `--only <half>` | `skills` \| `agents-md`。默认两部分都执行。 |
-| `--vendor <vendor>` | `claude` \| `none`。默认根据项目自动检测。 |
+| `--vendor <vendor>` | `claude` \| `none`。默认 `claude`：Claude Code 只从 `.claude/skills` 加载技能。 |
 | `--from <carrier>` | 一个目录、一个 `.nupkg`，或者本地 NuGet 缓存中已有的 `Id/Version` 坐标。默认是内嵌在这个 CLI 里的载体。 |
 | `--dir <path>` | 项目目录。默认是当前目录。 |
 | `--json` | 输出机器可读格式，而不是人类可读文本。 |
@@ -63,6 +62,19 @@ dotnet tool run dotnet-narrativetrace uninstall
 | `2` | 命令行无法解析。 |
 
 关于写入了什么、为什么这样写，见[智能体技能](../../agent-skills.md)。
+
+### `doctor`
+
+对安装情况做只读诊断。出现失败的检查项时会让构建失败——报告先写出(`--report` 会把 JSON 留在
+`TestResults/narrativetrace/doctor-report.json`)，因此“doctor 通过”就是退出码 `0`。
+
+| 退出码 | 何时 |
+|---|---|
+| `0` | 所有检查通过。 |
+| `1` | 至少一项检查失败。 |
+| `2` | doctor 无法运行(目录不存在、没有 `.csproj`)。 |
+
+自己读取报告的流水线可忽略该步骤的退出码来选择退出(例如 `dotnet-narrativetrace doctor --report || true`)，然后读取 JSON。
 
 ### `clarity-scan`
 
@@ -153,7 +165,7 @@ dotnet-narrativetrace clarity-check \
 依赖中：
 
 ```xml
-<PackageReference Include="NarrativeTrace.MSBuild" Version="0.3.0"
+<PackageReference Include="NarrativeTrace.MSBuild" Version="0.4.0"
                   PrivateAssets="all" />
 ```
 
@@ -242,7 +254,7 @@ dotnet build  /t:ClarityCheck /p:NarrativeTraceClaritySource=runtime /p:ClarityM
 `VSTest` 之前运行)会把运行时配置追加到 `VSTestEnvironmentVariables`，于是
 测试宿主会看到：
 
-```
+```text
 NARRATIVETRACE_OUTPUT=true
 NARRATIVETRACE_OUTPUT_DIR=$(NarrativeTraceOutputDir)
 NARRATIVETRACE_FORMAT=$(NarrativeTraceFormat)

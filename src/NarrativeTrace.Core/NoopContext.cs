@@ -189,6 +189,10 @@ public sealed class NoopContext
     /// <remarks>No-op — a disabled context has no trace to continue.</remarks>
     public void AdoptTraceparent(Traceparent? traceparent) { }
 
+    /// <inheritdoc/>
+    /// <remarks>Always <see langword="null"/> — a disabled context has no trace to propagate.</remarks>
+    public Traceparent? OutboundTraceparent() => null;
+
     private sealed class NoopSnapshot : IContextSnapshot
     {
         public static readonly IContextSnapshot Shared = new NoopSnapshot();

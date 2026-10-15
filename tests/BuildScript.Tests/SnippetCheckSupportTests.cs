@@ -132,6 +132,37 @@ public sealed class SnippetCheckSupportTests : IDisposable
     }
 
     [Fact]
+    public void Mask_duration_ignores_the_trace_artifacts_own_timing_lines()
+    {
+        // A written trace artifact carries its timing three more times than the call-flow suffix:
+        // the frontmatter's duration_ms and the header's **Duration:** figure.
+        Write("out/trace.md",
+            "duration_ms: 5\n**Duration:** 5ms | **Result:** PASSED\n- Call — 5ms #1\n");
+        Write("documentation/recipe.md",
+            "<!-- snippet: out/trace.md mask=duration -->\n"
+            + "```text\n"
+            + "duration_ms: 12.5\n**Duration:** 12.5ms | **Result:** PASSED\n- Call — 12.5ms #1\n"
+            + "```\n"
+            + "<!-- /snippet -->\n");
+
+        Assert.Empty(SnippetCheckSupport.Check(_repo));
+    }
+
+    [Fact]
+    public void Mask_duration_still_reports_a_changed_result_beside_the_timing_lines()
+    {
+        Write("out/trace.md", "**Duration:** 5ms | **Result:** FAILED\n");
+        Write("documentation/recipe.md",
+            "<!-- snippet: out/trace.md mask=duration -->\n"
+            + "```text\n"
+            + "**Duration:** 5ms | **Result:** PASSED\n"
+            + "```\n"
+            + "<!-- /snippet -->\n");
+
+        Assert.Single(SnippetCheckSupport.Check(_repo));
+    }
+
+    [Fact]
     public void Mask_duration_does_not_hide_drift_unrelated_to_timing()
     {
         Write("out/trace.txt", "PlaceOrder(...) — 8ms\n");

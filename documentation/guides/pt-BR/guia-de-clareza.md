@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/clarity.md blob 73892c06590c | translated: 2026-10-09 | reviewed: - -->
+<!-- source: documentation/guides/clarity.md blob bf8350d4c125 | translated: 2026-10-09 | reviewed: - -->
 # NarrativeTrace .NET — Guia de clareza
 
 [English](../clarity.md) | [Español](../es/guia-de-claridad.md) | **Português** | [简体中文](../zh-CN/清晰度指南.md)
@@ -87,7 +87,7 @@ sinaliza **nomes de método com verbo genérico** como problemas de
 severidade `high` — por exemplo, um método cujo primeiro token é
 `get`/`process`/`handle`:
 
-```
+```text
 severity:    high
 description: Generic verb 'process' in DataProcessor.process
 suggestion:  Use a domain-specific verb

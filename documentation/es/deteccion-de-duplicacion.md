@@ -1,4 +1,4 @@
-<!-- source: documentation/duplication.md blob e4974f3e1c34 | translated: 2026-09-17 | reviewed: - -->
+<!-- source: documentation/duplication.md blob cd2dfb6bbc04 | translated: 2026-09-17 | reviewed: - -->
 # Detección de duplicación
 
 [English](../duplication.md) | **Español** | [Português](../pt-BR/deteccao-de-duplicacao.md) | [简体中文](../zh-CN/重复代码检测.md)
@@ -141,7 +141,7 @@ completo.
 
 El registro de la compilación imprime una línea de resumen por ejecución:
 
-```
+```text
 duplication: main 12.8% of tokens in 137 clusters (largest 1558 tokens
 src/NarrativeTrace.Core/TraceNamer.cs:29 ↔ src/NarrativeTrace.Core/TraceNamer.cs:65)
 · test 26.7% in 912 clusters (reported, not gated)

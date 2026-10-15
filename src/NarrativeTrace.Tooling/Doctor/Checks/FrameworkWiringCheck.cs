@@ -34,15 +34,13 @@ public sealed class FrameworkWiringCheck
     public FrameworkWiringCheck(FrameworkRow row)
     {
         ArgumentNullException.ThrowIfNull(row);
-        if (row.Check is not CheckBinding.WiringCheck check || row.Wiring is not Wiring.Snippet snippet)
-        {
-            throw new ArgumentException($"row {row.Id} has no source-level wiring check", nameof(row));
-        }
-
+        _id = (row.Check as CheckBinding.WiringCheck)?.Id ?? throw NoWiringCheck(row);
+        _wiring = row.Wiring as Wiring.Snippet ?? throw NoWiringCheck(row);
         _row = row;
-        _wiring = snippet;
-        _id = check.Id;
     }
+
+    private static ArgumentException NoWiringCheck(FrameworkRow row) =>
+        new($"row {row.Id} has no source-level wiring check", nameof(row));
 
     /// <summary>Runs the check.</summary>
     public DoctorFinding Run(DoctorSnapshot snapshot)

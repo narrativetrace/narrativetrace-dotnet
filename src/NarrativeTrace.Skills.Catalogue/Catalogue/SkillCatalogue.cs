@@ -15,6 +15,7 @@ public static class SkillCatalogue
         AddNarrativeTraceClaritySkill.Definition,
         NarrativeTraceVerifySkill.Definition,
         NarrativeTraceDebugSkill.Definition,
+        NarrativeTraceExplainSkill.Definition,
     ];
 
     /// <summary>Every Pro-tier listing the catalogue advertises.</summary>
@@ -33,7 +34,8 @@ public static class SkillCatalogue
         PluginDescription:
             "Install NarrativeTrace in a .NET project and reach a first trace, diagnose an " +
             "install that traces nothing, score the names a trace renders, verify a change " +
-            "by reading what the code actually did, and debug a wrong result from its values.",
+            "by reading what the code actually did, debug a wrong result from its values, and explain " +
+            "what an application actually does from a run of it.",
         PluginSource: "./.claude",
         License: "Apache-2.0",
         Homepage: "https://narrativetrace.ai",

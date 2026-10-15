@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Licensed under the Business Source License 1.1 (see LICENSE); Change Date: four years from publication; Change License: Apache-2.0
 // Copyright (c) 2026 Empower Agile
+using NarrativeTrace.Tooling.Platforms;
+
 namespace NarrativeTrace.Tooling.Init;
 
 /// <summary>
@@ -45,6 +47,7 @@ public static class InitPlanner
             PlanAgentsMd(state, carrier, options, actions);
             PlanClaudeMd(state, options, actions);
             PlanRuleFiles(state, carrier, actions);
+            PlanPointers(state, carrier, options, actions);
         }
 
         return new InitPlan(carrier.Coordinate, options.DryRun, WithoutNoOps(actions), VersionGuard(state, carrier));
@@ -108,7 +111,7 @@ public static class InitPlanner
         ProjectState state, InitOptions options, List<Action> actions)
     {
         var writable = new List<SkillFlavour>();
-        foreach (var flavour in Flavours(state, options))
+        foreach (var flavour in Flavours(options))
         {
             var linked = state.LinkedInstallRoot(flavour);
             if (linked is null)
@@ -132,17 +135,20 @@ public static class InitPlanner
             + " the install where it points");
 
     /// <summary>
-    /// Which flavours this project gets: the open standard always, the vendor one where the project
-    /// looks like that vendor's — or wherever the caller overrode the detection.
+    /// Which flavours this project gets: the open standard always, and the vendor one too unless the
+    /// caller turned it off.
     /// </summary>
-    private static IReadOnlyList<SkillFlavour> Flavours(ProjectState state, InitOptions options)
+    /// <remarks>
+    /// INTENT: Claude Code loads project skills from <c>.claude/skills</c> only — never from
+    /// <c>.agents/skills</c>. Writing the vendor flavour only where a <c>.claude/</c> directory or a
+    /// <c>CLAUDE.md</c> already existed left a fresh project's skills invisible to the agent the
+    /// published prompt runs from, while the doctor reported them installed. Cursor and GitHub Copilot
+    /// read <c>.claude/skills</c> too, so no platform pays for the directory; <c>--vendor none</c> is
+    /// the opt-out.
+    /// </remarks>
+    private static IReadOnlyList<SkillFlavour> Flavours(InitOptions options)
     {
-        var vendor = options.VendorClaude switch
-        {
-            Vendor.On => true,
-            Vendor.Off => false,
-            _ => state.HasClaudeDirectory || state.ClaudeMd is not null,
-        };
+        var vendor = options.VendorClaude != Vendor.Off;
         return vendor ? [SkillFlavour.Agents, SkillFlavour.Claude] : [SkillFlavour.Agents];
     }
 
@@ -251,16 +257,17 @@ public static class InitPlanner
     private static void PlanAgentsMd(
         ProjectState state, Carrier carrier, InitOptions options, List<Action> actions)
     {
-        var block = AgentsMdBlock.Render(carrier, state);
-        var existing = state.AgentsMd;
-        if (existing is null)
-        {
-            actions.Add(new CreateFile(AgentsMd, MarkedBlock.CreatedNote + "\n" + block));
-            return;
-        }
-
-        actions.Add(BlockAction(AgentsMd, existing, block, options.WriteExisting));
+        actions.Add(ManagedHome(AgentsMd, state.AgentsMd, AgentsMdBlock.Render(carrier, state), options));
     }
+
+    /// <summary>
+    /// A markdown file that is ours to create and may carry the section: made with the created note
+    /// when absent, kept current when it has a section, appended to only on <c>--write-existing</c>.
+    /// </summary>
+    private static Action ManagedHome(string path, string? existing, string block, InitOptions options) =>
+        existing is null
+            ? new CreateFile(path, MarkedBlock.CreatedNote + "\n" + block)
+            : BlockAction(path, existing, block, options.WriteExisting);
 
     /// <summary>The same decision for any file that may carry the section: our home and the rule files.</summary>
     private static Action BlockAction(string path, string text, string block, bool mayWriteExisting)
@@ -334,6 +341,75 @@ public static class InitPlanner
             actions.Add(BlockAction(path, text, block, false));
         }
     }
+
+    // --- platform pointers ----------------------------------------------------------------------
+
+    /// <summary>
+    /// One pointer per DETECTED platform whose row has one. The marker decides, never a flag: a
+    /// project not on Cursor gets no <c>.cursor/</c> directory it did not have.
+    /// </summary>
+    private static void PlanPointers(
+        ProjectState state, Carrier carrier, InitOptions options, List<Action> actions)
+    {
+        foreach (var row in PlatformTable.Rows.Where(row => state.DetectedPlatforms.Contains(row.Id)))
+        {
+            if (PlanPointer(row.Pointer, state, carrier, options) is { } action)
+            {
+                actions.Add(action);
+            }
+        }
+    }
+
+    private static Action? PlanPointer(Pointer pointer, ProjectState state, Carrier carrier, InitOptions options)
+    {
+        if (pointer is Pointer.None)
+        {
+            return null;
+        }
+
+        if (state.PointerBehindLink(pointer.Path))
+        {
+            return RefuseLink(pointer.Path);
+        }
+
+        var existing = state.PointerFile(pointer.Path);
+        return pointer is Pointer.Rule rule
+            ? PlanRule(rule, existing, carrier)
+            : ManagedHome(pointer.Path, existing, AgentsMdBlock.Render(carrier, state), options);
+    }
+
+    private static Refuse RefuseLink(string path) =>
+        new(path, path + " is behind a symbolic link — nothing is written through one; remove the link");
+
+    /// <summary>
+    /// The rule file: made when absent, kept current when ours, ADOPTED when it is the unstamped
+    /// plugin copy byte for byte, and refused when it carries no section of ours at all.
+    /// </summary>
+    private static Action PlanRule(Pointer.Rule rule, string? existing, Carrier carrier)
+    {
+        var wanted = CursorRule.Render(rule.Text, carrier.Coordinate);
+        if (existing is null)
+        {
+            return new CreateFile(rule.Path, wanted);
+        }
+
+        if (Adoption.IsAdoptable(existing, CursorRule.Render(rule.Text, "")))
+        {
+            return new AdoptPage(rule.Path, existing, wanted);
+        }
+
+        var scan = MarkedBlock.ScanText(existing);
+        return scan.HasExactlyOneRegion
+            ? ReplaceRuleSection(rule.Path, existing, wanted[CursorRule.Frontmatter.Length..], scan.Regions[0])
+            : new Refuse(
+                rule.Path,
+                rule.Path + " was not written by narrativetrace (it has no single NarrativeTrace section) —"
+                + " move it aside and run the install again");
+    }
+
+    private static ReplaceBlock ReplaceRuleSection(
+        string path, string existing, string section, MarkedBlock.Region region) =>
+        new(path, existing, MarkedBlock.Replace(existing, region, MarkedBlock.WithEol(section, MarkedBlock.EolOf(existing))));
 
     /// <summary>
     /// A file that ends inside an unfinished fenced code block cannot be appended to: whatever is added

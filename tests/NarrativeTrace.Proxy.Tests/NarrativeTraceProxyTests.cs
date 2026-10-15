@@ -995,6 +995,8 @@ public class NarrativeTraceProxyTests
         { }
 
         public void AdoptTraceparent(Traceparent? traceparent) { }
+
+        public Traceparent? OutboundTraceparent() => null;
     }
 
     private sealed class NarratedService : INarrated

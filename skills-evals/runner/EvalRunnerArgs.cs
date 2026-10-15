@@ -17,7 +17,7 @@ public sealed record EvalRunnerArgs(
     int Trials)
 {
     private const string Usage =
-        "Usage: --skill <name> --case <name> --platform <claude|codex|gemini> --model <id>"
+        "Usage: --skill <name> --case <name> --platform <claude|codex|antigravity|cursor> --model <id>"
         + " [--agent-command \"<template with {prompt}>\"] [--trials N]";
 
     /// <summary>Validates every field; throws <see cref="ArgumentException"/> on a bad value.</summary>

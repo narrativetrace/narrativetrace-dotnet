@@ -1,4 +1,4 @@
-<!-- source: documentation/privacy-and-redaction.md blob e0759eb17633 | translated: 2026-09-18 | reviewed: - -->
+<!-- source: documentation/privacy-and-redaction.md blob 7a4299e17088 | translated: 2026-10-15 | reviewed: - -->
 # Privacidad y ocultación
 
 [English](../privacy-and-redaction.md) | **Español** | [Português](../pt-BR/privacidade-e-ocultacao.md) | [简体中文](../zh-CN/隐私与脱敏.md)
@@ -34,32 +34,50 @@ aceptan una política distinta:
 
 ## Qué atrapa la lista de denegación, y qué la supera en rango
 
-`RedactionPolicy.Default` coincide con 26 patrones de nombre sin distinguir
-mayúsculas de minúsculas, no el conjunto más corto "password, cvv, ssn,
-token, secret, authorization" que podrías suponer con una lectura rápida
-de las preguntas frecuentes:
+`RedactionPolicy.Default` coincide con una lista multilingüe de patrones de
+nombre sin distinguir mayúsculas de minúsculas — palabras en español,
+portugués, francés, alemán y chino junto a las inglesas, siempre activas y
+sin ninguna configuración regional que elegir — no el conjunto más corto
+"password, cvv, ssn, token, secret, authorization" que podrías suponer con
+una lectura rápida de las preguntas frecuentes:
 
+```text
+Inglés: password, passwd, secret, token, apikey, api_key, cvv, ssn,
+  authorization, credential, privatekey, private_key, cardnumber,
+  card_number, jwt, cookie, setcookie, set_cookie, sessionid, session_id,
+  accountnumber, account_number, routingnumber, routing_number, pan, iban,
+  passphrase, otp, bearer, accesskey, access_key, socialsecurity,
+  social_security, socialsecuritynumber, taxid, tax_id
+Palabras cortas de documentos nacionales (coincidencia por límite de token, abajo): rut, cuit, dni,
+  senha, cpf, cnpj, nir, mima
+Español: contrasena, tarjeta, cedula, claveacceso, clave_acceso,
+  clavesecreta, clave_secreta
+Portugués: cartao
+Francés: motdepasse, mot_de_passe, cartebancaire, carte_bancaire,
+  numerocarte, numero_carte
+Chino: 密码, 身份证, shenfenzheng
+Alemán: passwort, kennwort
 ```
-password, passwd, secret, token, apikey, api_key, cvv, ssn, authorization,
-credential, privatekey, private_key, cardnumber, card_number, jwt, cookie,
-setcookie, set_cookie, sessionid, session_id, accountnumber, account_number,
-routingnumber, routing_number, pan, iban
-```
 
-La coincidencia es por subcadena y deliberadamente sesgada hacia la
-sobre-ocultación (un patrón de `token` también atrapa `apiTokenValue`) —
-excepto `pan` e `iban`, que de otro modo ocultarían campos de negocio
-ordinarios (`companyName`, `planId`, `spanCount`, `japaneseAddress`) como
-subcadenas, así que esos dos se comparan por límites de token del
-identificador en su lugar.
+Los nombres se normalizan antes de comparar, así que `contraseña` y
+`contrasena` son un solo patrón. La coincidencia es por subcadena y
+deliberadamente sesgada hacia la sobre-ocultación (un patrón de `token`
+también atrapa `apiTokenValue`) — excepto `pan`, `iban` y las palabras
+cortas de documentos nacionales del segundo grupo, que de otro modo
+ocultarían campos de negocio ordinarios (`companyName`, `planId`,
+`spanCount`, `japaneseAddress`, `midnight`, `truth`) como subcadenas, así
+que esos se comparan por límites de token del identificador en su lugar.
 
-Con independencia del nombre del campo, un segundo eje reconoce tres
-**formas de valor** y las oculta sin importar cómo se llame el campo: un
-JWT (tres segmentos base64url que empiezan por `eyJ`), un número de
-tarjeta de pago válido según Luhn de 13 a 19 dígitos, y una cadena con
-forma de `Set-Cookie` HTTP. Por eso un campo llamado `data` o `note`
-igualmente se oculta cuando resulta que contiene algo que parece un
-número de tarjeta o un token bearer.
+Con independencia del nombre del campo, un segundo eje reconoce **formas de
+valor** y las oculta sin importar cómo se llame el campo: un JWT (tres
+segmentos base64url que empiezan por `eyJ`), un número de tarjeta de pago
+válido según Luhn de 13 a 19 dígitos, una cadena con forma de `Set-Cookie`
+HTTP y un número de documento nacional de identidad que supera sus propios
+dígitos de control — un RUT chileno, un CPF o CNPJ brasileño, un DNI/NIE
+español, un NIR francés, un número de identidad de residente chino o un
+número de la Seguridad Social de EE. UU. en su forma con guiones. Por eso un
+campo llamado `data` o `note` igualmente se oculta cuando resulta que
+contiene algo que parece un número de tarjeta, un token bearer o un CPF.
 
 `[NotTraced]` en un parámetro, propiedad o campo siempre gana, con
 independencia de la lista de denegación:
@@ -117,8 +135,8 @@ ocultación:
 - **La ocultación es incondicional por defecto en toda integración
   distribuida**, y sigue siéndolo a menos que el código de la aplicación
   desactive deliberadamente un proxy en su propio código fuente:
-  `[NotTraced]` y la lista de denegación de 26 patrones (más las tres
-  formas de valor) se aplican a toda vía de salida que esta implementación
+  `[NotTraced]` y la lista de denegación de nombres (más las formas
+  de valor) se aplican a toda vía de salida que esta implementación
   distribuye — captura por proxy, auto-envoltura de DI, middleware de
   ASP.NET Core, salida de pruebas de xUnit/NUnit, marcadores de plantilla y
   todo formato de exportación — a menos que ese proxy en concreto se haya

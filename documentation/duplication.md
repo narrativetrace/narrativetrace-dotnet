@@ -122,7 +122,7 @@ genuinely rare in-file overlap between two different clusters. See
 
 The build log prints one summary line per run:
 
-```
+```text
 duplication: main 12.8% of tokens in 137 clusters (largest 1558 tokens
 src/NarrativeTrace.Core/TraceNamer.cs:29 ↔ src/NarrativeTrace.Core/TraceNamer.cs:65)
 · test 26.7% in 912 clusters (reported, not gated)

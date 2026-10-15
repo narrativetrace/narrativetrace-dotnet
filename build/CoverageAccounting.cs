@@ -120,6 +120,10 @@ internal static class CoverageAccounting
         // this map either; it is still proven by being executed (MutationAccounting.cs) and
         // by snippet-check comparing its output to the page.
         ["NarrativeTrace.Examples.SixtySeconds.Tests"] = new(98, "[NarrativeTrace.Examples.SixtySeconds]*"),
+        // The recipes' checkout domain (recipes/checkout): 100% measured in Release; 98 is the
+        // usual two points of headroom. Checkout.Fixtures is not a test project by name and is run
+        // by RecipeArtifacts, so it carries no gate of its own.
+        ["Checkout.Tests"] = new(98, "[Checkout]*"),
         // Exercises the shipped NUnit engine/runner adapter narrowly (the integration seam, not
         // the breadth NarrativeTrace.Testing.NUnit.Tests already covers at 86) — 71% is the
         // honest floor of that narrower slice, not an aspirational number; see the backlog entry

@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/installation.md blob 35419d854a04 | translated: 2026-10-09 | reviewed: - -->
+<!-- source: documentation/guides/installation.md blob 2ae9acbce941 | translated: 2026-10-09 | reviewed: - -->
 # NarrativeTrace .NET — Guia de instalação
 
 [English](../installation.md) | [Español](../es/guia-de-instalacion.md) | **Português** | [简体中文](../zh-CN/安装指南.md)
@@ -25,7 +25,7 @@ Comece com o mínimo e adicione apenas o que você precisar.
 
 ```xml
 <!-- Mínimo: captura + renderização -->
-<PackageReference Include="NarrativeTrace.Proxy" Version="0.3.0" />
+<PackageReference Include="NarrativeTrace.Proxy" Version="0.4.0" />
 ```
 
 `NarrativeTrace.Proxy` depende de `.Runtime`, que depende de `.Core` — um
@@ -205,7 +205,7 @@ Adicione o pacote somente de build para executar o quality gate de
 clareza como parte do seu build:
 
 ```xml
-<PackageReference Include="NarrativeTrace.MSBuild" Version="0.3.0"
+<PackageReference Include="NarrativeTrace.MSBuild" Version="0.4.0"
                   PrivateAssets="all" />
 ```
 

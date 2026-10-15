@@ -43,7 +43,8 @@ public static class EvalRunner
 
     /// <summary>What one case is: its paths, its fixture, its first prompt, its scripted replies and its registry.</summary>
     private sealed record TrialPlan(
-        EvalRunnerArgs Args, Paths Paths, string FixtureDir, string Prompt, IReadOnlyList<string> Replies, RegistryPreStep? PreStep);
+        EvalRunnerArgs Args, Paths Paths, string FixtureDir, string Prompt, IReadOnlyList<string> Replies,
+        IReadOnlyList<int> FreshTurns, RegistryPreStep? PreStep);
 
     private static int RunTrials(EvalRunnerArgs args, TextWriter output, TextWriter error)
     {
@@ -68,8 +69,14 @@ public static class EvalRunner
     {
         var plan = new TrialPlan(
             args, paths, Path.Combine(paths.RepoRoot, CaseFixture.FixtureFor(paths.CaseDir)), prompt,
-            CaseTurns.ScriptedRepliesFor(paths.CaseDir), CaseRegistry.RegistryFor(paths.CaseDir));
+            CaseTurns.ScriptedRepliesFor(paths.CaseDir), CaseTurns.FreshTurnsFor(paths.CaseDir), CaseRegistry.RegistryFor(paths.CaseDir));
         LogTheConversationsShape(plan, output);
+        var skip = SporadicPolicy.SkipReason(args.Platform, MergedQuotaLedger(paths.QuotaPath, []));
+        if (skip is not null)
+        {
+            output.WriteLine(skip);
+            return 0;
+        }
 
         var sessionSpend = new List<QuotaSpendRow>();
         for (var t = 1; t <= args.Trials; t++)
@@ -88,13 +95,16 @@ public static class EvalRunner
     private static AgentTurns TurnsFor(TrialPlan plan) =>
         AgentTurns.Of(
             plan.Args.Platform, plan.Args.Model, plan.Args.Skill, plan.Args.AgentCommand, plan.Prompt, plan.Replies,
-            Guid.NewGuid().ToString());
+            Guid.NewGuid().ToString(), plan.FreshTurns);
 
     /// <summary>The one line that tells an operator whether the case they named is the conversation they meant.</summary>
-    private static void LogTheConversationsShape(TrialPlan plan, TextWriter output) =>
+    private static void LogTheConversationsShape(TrialPlan plan, TextWriter output)
+    {
+        var fresh = plan.FreshTurns.Count == 0 ? "" : $" (fresh session at turn {string.Join(", ", plan.FreshTurns)})";
         output.WriteLine(plan.Replies.Count == 0
             ? "one turn: the case's prompt.md"
-            : $"{plan.Replies.Count + 1} turns: the case's prompt.md, then [{string.Join(" | ", plan.Replies)}]");
+            : $"{plan.Replies.Count + 1} turns: the case's prompt.md, then [{string.Join(" | ", plan.Replies)}]{fresh}");
+    }
 
     private static void RunOneTrial(TrialPlan plan, int t, List<QuotaSpendRow> sessionSpend, TextWriter output)
     {

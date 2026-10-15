@@ -51,8 +51,16 @@ into a single tree.
   package additionally targets `net48`.
 - **No compiler flag required** — .NET retains method parameter names in
   metadata by default.
-- NuGet package id = project directory name. Keep all `NarrativeTrace.*`
-  packages on the same version.
+- Tested: the .NET 10 SDK on Linux (every test project targets `net10.0`).
+  The `netstandard2.0` builds are compiled, not executed. Trimming and
+  Native AOT are not declared or tested. `NarrativeTrace.AspNetCore` is
+  `net10.0` only with a `Microsoft.AspNetCore.App` framework reference;
+  `NarrativeTrace.Legacy` is an empty `net48` reservation. See
+  [llms.txt](llms.txt#runtime-support).
+- NuGet package id = project directory name. Install every `NarrativeTrace.*`
+  package at one version: each declares its NarrativeTrace dependencies as a
+  minimum (`>=`) equal to the version it was built at, so NuGet accepts a mix
+  that is not tested together.
 
 ### Package map (dependency direction)
 
@@ -554,7 +562,16 @@ exports (even on exception, with the response status). Trace services via
 Implement `IRequestContextProvider.ResolveUserContext(HttpContext)` for user
 identity; it returns `UserContext(string? EnduserId, string? SessionId,
 string? TenantId)` or null for anonymous traffic, and the middleware stamps
-the returned values onto the span and the request log scope. See the [ASP.NET Core Guide](aspnetcore.md).
+the returned values onto the span and the request log scope.
+
+The per-request context is a *scoped* `INarrativeContext`; the middleware
+captures the trace in a `finally` after the pipeline returns and never calls
+`Reset()` — the context is discarded with the request's DI scope. Exporter
+and stamping faults are swallowed, never failing the request. To send a
+request trace to OpenTelemetry, register an `ITraceExporter` that calls
+`TraceActivityExporter.Export(tree)`; there is no built-in one. See
+[llms.txt](llms.txt#tracing-a-request-in-production) and the
+[Privacy and Redaction](../privacy-and-redaction.md) page for what is redacted. See the [ASP.NET Core Guide](aspnetcore.md).
 
 ## OpenTelemetry (`NarrativeTrace.Observability`)
 

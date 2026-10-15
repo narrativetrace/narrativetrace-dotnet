@@ -8,7 +8,7 @@
   app, one run, and the trace is in your terminal.
 - Working with an AI agent? Paste this:
 
-```
+```text
 Set up NarrativeTrace in this project and show me its first trace.
 1. Read https://narrativetrace.ai/dotnet/llms.txt first. It carries the install block and the
 known traps. Do not guess versions or artifact names.
@@ -101,7 +101,7 @@ public Order PlaceOrder(OrderRequest req)
 The trace is generated automatically from the method names, parameter names, and
 return values — the information that was already there:
 
-```
+```text
 OrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2)
   CustomerService.FindCustomer(customerId: "cust-1") → Customer { Id = cust-1, Name = Ada Lovelace, Tier = Premium }
   ProductCatalogService.LookupPrice(productId: "book-123") → 9.99
@@ -119,7 +119,7 @@ example, regression-guarded by its characterization tests.
 The trace makes bugs visible. Charge a customer over their limit and the story
 stops exactly where it broke:
 
-```
+```text
 OrderService.PlaceOrder(customerId: "cust-1", productId: "book-123", quantity: 2)
   CustomerService.FindCustomer(customerId: "cust-1") → Customer { Id = cust-1, … }
   ProductCatalogService.LookupPrice(productId: "book-123") → 9.99
@@ -138,7 +138,7 @@ with generic ones (the
 [Minecraft naming demo](examples/NarrativeTrace.Examples.Minecraft)):
 
 **Refactored (clean names):**
-```
+```text
 WorldServer.PlayerJoined(playerName: "Steve")
   WorldGenerator.GenerateChunk(x: 0, z: 0) → Chunk { X = 0, Z = 0, Biome = plains }
   PlayerInventory.AddItem(item: "wooden_pickaxe", count: 1) → true
@@ -147,7 +147,7 @@ WorldServer.PlayerJoined(playerName: "Steve")
 ```
 
 **Unrefactored (generic names):**
-```
+```text
 GameManager.Handle(input: "Steve")
   DataProcessor.Process(a: 0, b: 0) → "0,0"
   StateManager.Update(key: "wooden_pickaxe", value: 1) → true
@@ -304,7 +304,7 @@ orders.PlaceOrder("book-123", quantity: 2);
 Console.WriteLine(IndentedTextRenderer.Render(context.CaptureTrace()));
 ```
 
-```
+```text
 └── IOrderService.PlaceOrder(sku: "book-123", quantity: 2) → "confirmed" — 6ms #1
 ```
 
@@ -539,6 +539,7 @@ for how they combine.
 Start here:
 
 - [See a trace in 60 seconds](documentation/sixty-seconds.md) — one console app, `dotnet run`, real output in your terminal
+- [Recipes](documentation/recipes/add-logging-to-this-service.md) — one page per problem: add logging, debug a bug, read a failing test, review a flow or a refactoring, each with a real run's output
 - [Choosing an Integration](documentation/choosing-an-integration.md) — which module you need, as a decision diagram
 - [Troubleshooting](documentation/troubleshooting.md) — symptom → cause → fix for the failure modes people actually hit
 - [What to Commit](documentation/what-to-commit.md) — which generated files are throwaway output and which are reviewed
@@ -561,7 +562,8 @@ Going deeper:
 - [Security Tooling](documentation/security-tooling.md) — the scanner lineup and what gates the build vs. runs on a schedule
 - [Security Testing](documentation/security-testing.md) — the fuzz/property suite mirrored across every NarrativeTrace runtime
 - [The Contract Gate](documentation/contract-gate.md) — proving documented defaults and entry points against a published nuget.org install, not just the working tree
-- [Agent Skills](documentation/agent-skills.md) — the `narrativetrace-doctor`, `add-narrative-tracing`, `narrativetrace-feedback`, `add-narrativetrace-clarity`, `narrativetrace-verify` and `narrativetrace-debug` Claude Code and Codex CLI skills, generated from a typed catalogue
+- [Agent Skills](documentation/agent-skills.md) — the `narrativetrace-doctor`, `add-narrative-tracing`, `narrativetrace-feedback`, `add-narrativetrace-clarity`, `narrativetrace-verify`, `narrativetrace-debug` and `narrativetrace-explain` Claude Code and Codex CLI skills, generated from a typed catalogue
+- [Use NarrativeTrace with your agent](documentation/use-with-your-agent.md) — per platform (Cursor, Replit, Antigravity, GitHub Copilot, Claude Code): how the skills get into a project, which pointer file `init` writes, and what the agent finds
 
 For AI consumers: [`llms.txt`](documentation/guides/llms.txt) and
 [`llms-full.md`](documentation/guides/llms-full.md).
@@ -695,29 +697,22 @@ only *categorical* one — reach for it if your threat model requires that no
 value can possibly leave the process.
 
 **Can trace IDs correlate with a standard correlation ID across services, or
-is tracing local only?** Local only, today — and we'd rather say that
-plainly than let the `NarrativeTrace.Observability` package imply otherwise.
-This runtime does not parse an inbound W3C `traceparent` header, and does
-not attach one on outbound HTTP calls; that is an explicit, tested
-non-goal right now, not an oversight — a stub property test in the security
-suite asserts that no `Traceparent` type exists in `NarrativeTrace.Core` yet,
-precisely so a future parser lands with its fuzz cases already in place.
-`TraceId` is generated locally and is W3C-*shaped* (32 lowercase hex
-characters, comparable byte-for-byte against ids another NarrativeTrace
-runtime or a real `traceparent` header would produce) — but it is never *derived* from an
-inbound header, so a NarrativeTrace trace id will not equal an upstream
-distributed trace's id.
+is tracing local only?** They correlate, through the W3C `traceparent` header.
+Inbound, `NarrativeTraceMiddleware` parses the header, so the request continues
+the caller's trace id and the caller's span becomes the parent of the root span.
+Outbound, `AddHttpClient(name).AddNarrativeTraceTraceparentPropagation()` (or
+`TraceparentHeaders.Current(context)` where there is no `IHttpClientFactory`)
+sends the current trace id and the active span id, so a callee running
+NarrativeTrace joins the same trace; with no active trace no header is sent.
+See [Outbound calls](documentation/guides/aspnetcore.md#7-outbound-calls).
 
 What does exist: `NarrativeTrace.Observability`'s `TraceActivityExporter`
 (batch) and `OtelTraceEventListener` (live) turn a completed or in-flight
 NarrativeTrace tree into `System.Diagnostics.Activity` spans under an
 `ActivitySource("NarrativeTrace")` — but this is a replay, not live
 instrumentation: the spans carry the trace's own hierarchy and are not
-children of whatever `Activity.Current` happens to be at export time. If
-cross-service correlation is a hard requirement today, propagate your own
-correlation id through `NarrativeTrace.Logging`'s `ILogger` scopes alongside
-NarrativeTrace's output; treating W3C trace-context propagation as shipped
-here would be inaccurate — it is a gap on the roadmap, not a shipped feature.
+children of whatever `Activity.Current` happens to be at export time. Cross-service
+correlation does not depend on them: it travels in the `traceparent` header, as above.
 
 **Are parameter and return values serialized eagerly?** Yes — values are rendered
 to strings at capture time, at the configured level. That is deliberate: the

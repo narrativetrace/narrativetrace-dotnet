@@ -39,7 +39,9 @@ internal static class MarkedBlock
     private const char Bom = '﻿';
 
     /// <summary>One managed region inside a file.</summary>
-    /// <param name="Start">Offset of the first character of the opening marker's line.</param>
+    /// <param name="Start">
+    /// Offset of the first character of the opening marker's line, after a byte-order mark on line 1.
+    /// </param>
     /// <param name="End">Offset just past the closing marker's line, its terminator included.</param>
     /// <param name="StartLine">1-based line of the opening marker, so a refusal can name it.</param>
     /// <param name="Coordinate">The stamp on the opening marker, empty when it carries none.</param>
@@ -47,7 +49,7 @@ internal static class MarkedBlock
 
     /// <summary>One line of a file, with everything a marker decision needs.</summary>
     /// <param name="Number">1-based line number.</param>
-    /// <param name="Start">Offset of the line's first character.</param>
+    /// <param name="Start">Offset of the line's first character, after the byte-order mark on line 1.</param>
     /// <param name="End">Offset just past the line's terminator.</param>
     /// <param name="Content">The line without its terminator, and without a leading byte-order mark.</param>
     /// <param name="InFence">Whether the line sits inside a fenced code block.</param>
@@ -75,7 +77,8 @@ internal static class MarkedBlock
             number++;
             var content = Strip(raw, number);
             var fenceLine = IsFence(content);
-            lines.Add(new Line(number, offset, offset + raw.Length, content, inFence || fenceLine));
+            var bom = number == 1 && raw.StartsWith(Bom) ? 1 : 0;
+            lines.Add(new Line(number, offset + bom, offset + raw.Length, content, inFence || fenceLine));
             if (fenceLine)
             {
                 inFence = !inFence;
@@ -185,6 +188,13 @@ internal static class MarkedBlock
         return newline > 0 && text[newline - 1] == '\r' ? "\r\n" : "\n";
     }
 
+    /// <summary>
+    /// The text without a leading byte-order mark. A line's <c>Start</c> is the offset of its first
+    /// character AFTER such a mark, so an edit of a region on line 1 leaves the mark where it was; a
+    /// caller that asks "is anything left?" strips it, because a mark alone is not content.
+    /// </summary>
+    internal static string WithoutByteOrderMark(string text) => text.StartsWith(Bom) ? text[1..] : text;
+
     /// <summary>The same text with every line ending rewritten to <paramref name="eol"/>.</summary>
     internal static string WithEol(string text, string eol) =>
         text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\n", eol, StringComparison.Ordinal);
@@ -226,7 +236,7 @@ internal static class MarkedBlock
 
         internal void Accept(Line line)
         {
-            if (line.Content.StartsWith(StartMarker, StringComparison.Ordinal))
+            if (IsStartMarker(line.Content))
             {
                 OpenMarker(line.Content, line.Start, line.Number);
             }
@@ -235,6 +245,11 @@ internal static class MarkedBlock
                 CloseMarker(line.End, line.Number);
             }
         }
+
+        /// <summary>The start marker proper: after the prefix comes a space or the line's end, never more word.</summary>
+        private static bool IsStartMarker(string content) =>
+            content.StartsWith(StartMarker, StringComparison.Ordinal)
+            && (content.Length == StartMarker.Length || content[StartMarker.Length] == ' ');
 
         private void OpenMarker(string content, int offset, int number)
         {

@@ -26,4 +26,10 @@
          coverage gate. -->
     <ProjectReference Include="../../skills-evals/runner/NarrativeTrace.SkillsEvalRunner.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- The grader tests start python3; a bare .NET SDK image carries none, so they skip with a reason there
+         (the publish verify, 2026-10-15) instead of asserting against "command not found". -->
+    <Compile Include="../NarrativeTrace.Cli.Tests/PythonFactAttribute.cs" Link="PythonFactAttribute.cs" />
+  </ItemGroup>
+
 </Project>

@@ -59,7 +59,7 @@ public sealed class ClaritySkillDocsTests
         Assert.Contains($"## `{Clarity}`", guide, StringComparison.Ordinal);
         Assert.Contains($".claude/skills/{Clarity}/SKILL.md", guide, StringComparison.Ordinal);
         Assert.Contains($".agents/skills/{Clarity}/SKILL.md", guide, StringComparison.Ordinal);
-        Assert.Contains("Six packaged agent playbooks", guide, StringComparison.Ordinal);
+        Assert.Contains("Seven packaged agent playbooks", guide, StringComparison.Ordinal);
         Assert.DoesNotContain("the same three skills", guide, StringComparison.Ordinal);
     }
 

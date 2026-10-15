@@ -250,7 +250,7 @@ dotnet test
 
 The deny-list matches by substring, case-insensitively — naming a parameter `paymentToken` is
 enough, no attribute required. See [Privacy and Redaction](privacy-and-redaction.md) for the
-full 26-pattern list and what outranks it.
+full pattern list and what outranks it.
 
 ## Next
 

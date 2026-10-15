@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/installation.md blob 35419d854a04 | translated: 2026-10-09 | reviewed: - -->
+<!-- source: documentation/guides/installation.md blob 2ae9acbce941 | translated: 2026-10-09 | reviewed: - -->
 # NarrativeTrace .NET — Guía de instalación
 
 [English](../installation.md) | **Español** | [Português](../pt-BR/guia-de-instalacao.md) | [简体中文](../zh-CN/安装指南.md)
@@ -25,7 +25,7 @@ id. Empieza por el mínimo y añade solo lo que necesites.
 
 ```xml
 <!-- Mínimo: captura + renderizado -->
-<PackageReference Include="NarrativeTrace.Proxy" Version="0.3.0" />
+<PackageReference Include="NarrativeTrace.Proxy" Version="0.4.0" />
 ```
 
 `NarrativeTrace.Proxy` depende de `.Runtime`, que depende de `.Core` — un
@@ -204,7 +204,7 @@ Añade el paquete solo de build para ejecutar la puerta de claridad como
 parte de tu build:
 
 ```xml
-<PackageReference Include="NarrativeTrace.MSBuild" Version="0.3.0"
+<PackageReference Include="NarrativeTrace.MSBuild" Version="0.4.0"
                   PrivateAssets="all" />
 ```
 

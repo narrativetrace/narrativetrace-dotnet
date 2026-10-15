@@ -186,6 +186,22 @@ public sealed class EvalTrialTests : IDisposable
         Assert.True(File.Exists(Path.Combine(_scratch, ".agents", "skills", "add-narrative-tracing", "SKILL.md")));
     }
 
+    /// <summary>
+    /// The fresh-session case asks what the install ITSELF leaves for the next session; pages the
+    /// harness seeded would answer that question before the install ran, and the case would pass vacuously.
+    /// </summary>
+    [Fact]
+    public void A_case_that_declines_the_seeded_pages_receives_none_of_them()
+    {
+        WriteRenderedSkill();
+        WriteFile(Path.Combine(_caseDir, "case.json"), "{ \"fixture\": \"f\", \"seedSkills\": false }");
+
+        RunWith("claude -p \"{prompt}\"");
+
+        Assert.False(Directory.Exists(Path.Combine(_scratch, ".agents", "skills")));
+        Assert.False(Directory.Exists(Path.Combine(_scratch, ".claude", "skills")));
+    }
+
     [Fact]
     public void A_registry_case_receives_none_of_the_harnesss_own_rendered_pages()
     {

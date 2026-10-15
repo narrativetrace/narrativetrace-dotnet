@@ -3,7 +3,7 @@
 This directory is the engine-neutral Tier B case layout for the shipped
 skills (`narrativetrace-doctor`, `add-narrative-tracing`, `narrativetrace-feedback`) — fixtures,
 trigger phrasings, and graders for a real sandboxed-agent trial through
-Claude Code, Codex, or Gemini, per the frozen cross-runtime skill-harness
+Claude Code, Codex, Antigravity, or Cursor, per the frozen cross-runtime skill-harness
 design.
 
 The case layout, the quota ledger, and the promotion matrix below exist so a
@@ -48,6 +48,16 @@ skills-evals/
 │   │   ├── case.json               → fixtures/existing-project
 │   │   ├── prompt.md               same published prompt, other branch
 │   │   └── graders/verify.sh
+│   ├── grade_the_fresh_session.py  the LAST turn's init event lists every skill + the doctor was reached for
+│   ├── fresh-session-sees-the-skills/  item 166, the INSTALLER's question: what does the NEXT session find?
+│   │   ├── case.json               → fixtures/empty-project + "registry": "narrativetrace-init" — the
+│   │   │                             harness runs THIS CHECKOUT's built CLI `init` before the agent
+│   │   ├── prompt.md               ONE turn, a fresh session: a doctor-shaped question
+│   │   └── graders/verify.sh       its init event lists every skill + the doctor (grade_the_fresh_session.py)
+│   ├── fresh-session-after-the-prompt/  the whole real path, the model-facing case
+│   │   ├── case.json               → fixtures/empty-project; "seedSkills": false; turn 2 + "freshTurns": [2]
+│   │   ├── prompt.md               same published prompt — turn 1 is the install
+│   │   └── graders/verify.sh       the same grader on turn 2, a NEW session
 │   ├── grade_the_aspnetcore_case.py  runs HEAD's doctor and the app itself
 │   └── init-prompt-aspnetcore-project/  Phase 6 D4: the framework hand-off
 │       ├── case.json               → fixtures/aspnetcore-project; turn 2 is
@@ -63,12 +73,19 @@ skills-evals/
 │   ├── approval-gate-approved/    3 turns: prompt.md, a deferral, "yes"
 │   ├── approval-gate-refused/     3 turns: prompt.md, a deferral, "no"
 │   └── value-free/                1 turn, approval given in advance
+├── narrativetrace-explain/
+│   ├── trigger.yaml
+│   ├── grade_the_explain.py       transcript for ORDER, scratch project for STATE (--kind explain|control)
+│   ├── check_grade_the_explain.py self-check, 34 probes
+│   ├── explain-an-unfamiliar-flow/  the ask names nothing of ours
+│   ├── happy-path/                the same ask with the skill named
+│   └── pure-function-control/     LateFees.FeeFor: answered from the source, nothing run
 ├── add-narrativetrace-clarity/
 │   ├── trigger.yaml
 │   ├── grade_the_gate.py          rebuilds, scans and checks on its own
 │   └── happy-path/                run the gate, rename by the report, re-run
 └── ledger/
-    ├── quota.md                   weekly Codex/Gemini allowance + spend log
+    ├── quota.md                   weekly Codex/Antigravity/Cursor allowance + spend log
     ├── promotion.md               skill × platform approval matrix
     └── runs.jsonl                 one row per trial (append-only)
 ```
@@ -104,12 +121,19 @@ gate order and containment on every model and REPORT judgment measures
 
 ```
 dotnet run --project runner -- --skill <name> --case <name> \
-    --platform claude|codex|gemini --model <id> [--trials N]
+    --platform claude|codex|antigravity|cursor --model <id> [--trials N]
 ```
 
 The platform preset supplies the agent command unless `--agent-command`
-overrides it. Codex and Gemini are sporadic (weekly-quota-guarded, see
-`ledger/quota.md`); Claude is exempt and runs on the regular cadence. Pass
+overrides it. Codex, Antigravity and Cursor are sporadic (weekly-quota-guarded, see
+`ledger/quota.md`); Claude is exempt and runs on the regular cadence. The
+Cursor preset is the headless CLI, `agent -p "{prompt}" --output-format text
+--force` (`--force` for every skill, the doctor included — a preset narrower
+than the prompt measures the sandbox, not the skill); the `--model` value is a
+ledger label and is never passed to the CLI. A lane whose weekly allowance is
+`0` in `ledger/quota.md` (Antigravity and Cursor today: the CLI is not installed or
+signed in) prints one `SKIP` line naming its tool and exits green; a missing
+allowance row, a spent allowance and a red Tier A/A2 stay refusals. Pass
 the exact model id (`--model claude-haiku-5-5`), never an alias: an alias
 moves under you and the ledger row would name the wrong model.
 
@@ -137,6 +161,32 @@ moves under you and the ledger row would name the wrong model.
   it with `--resume` (Claude only — the other platforms' flags are
   unverified, so a multi-turn case refuses to run there). A turn that exits
   non-zero stops the trial before any later turn or the grader.
+- **A scripted turn can open a FRESH session.** `case.json` adds
+  `"freshTurns": [2]`: that turn runs the first-turn template under a session
+  id of its own instead of `--resume`, so its agent remembers nothing of the
+  turns before it. It exists for one question the install cases cannot ask —
+  what does the NEXT session find? — because an install that goes green in the
+  session that ran it says nothing about the next one (item 166: the install
+  went green and the next session listed no skill). A fresh turn must be the
+  last turn, must be a scripted turn, and may not be turn 1; the transcript
+  reader records each turn's `system/init` skills list
+  (`Turn.available_skills`).
+- **A case can decline the seeded pages.** The harness copies this
+  checkout's rendered `.agents/skills` and `.claude/skills` into every
+  scaffolded project (except registry cases) so the skill under trial can
+  trigger at all. A case that asks what the INSTALL leaves behind declares
+  `"seedSkills": false`: seeded pages would put every skill in turn 1's init
+  event before the install ran and the case would pass vacuously (it did, once).
+- **The harness can run this checkout's own installer.** `"registry":
+  "narrativetrace-init"` (a delivery in the same closed vocabulary as
+  `claude-marketplace` and `npx-skills`) runs `dotnet <built CLI> init` in the
+  scratch project before the agent starts — the CLI built out of `src/`, its
+  bundled carrier being this checkout's rendered pages, never a published
+  package that predates it. Build `src/NarrativeTrace.Cli` first; a missing
+  build fails at plan time. `fresh-session-sees-the-skills` uses it and asks
+  its ONE fresh turn what the next session finds, so any lane can run it;
+  `fresh-session-after-the-prompt` keeps the published prompt as the
+  model-facing path. The shared grader reads the LAST turn of either.
 - **The local feed, when packed.** `./build.sh SkillsEvalFeed` packs HEAD
   into `artifacts/skills-evals-feed`; a fixture whose `nuget.config` names
   `%NARRATIVETRACE_TEST_FEED%` then restores `NarrativeTrace.*` from it, into
@@ -195,3 +245,29 @@ The demonstration the design asked for — a trace catching what the tests do no
 batch-1-to-4 verify transcript since the hardening (kept under
 `artifacts/skills-evals/narrativetrace-verify/verify-unintended-interaction/`, `-pass` for passes).
 
+## narrativetrace-explain (2026-10-15)
+
+Cases: `explain-an-unfamiliar-flow` (the prompt names nothing of ours), `happy-path` (same ask, skill
+named) and `pure-function-control` (`LateFees.FeeFor`), all on fixture `checkout-service`; grader
+`grade_the_explain.py` (imports the verify grader's transcript reader), self-check
+`check_grade_the_explain.py`. The gates are mechanical — the skill invoked, a trace on disk, a structural
+trace read before the answer, an id cited that the trace has, production code and build untouched; for the
+control, nothing installed, run or traced and the method, rate and not-late case in the answer. Whether the
+calls were named in order, whether the unobserved code was named and whether values were opened are
+reported, never gated. The flow's `.nt` is `#1 Checkout` over `#1.1 IssueInvoice`, `#1.2 Authorize`,
+`#1.3 OnCheckout` (with `#1.3.1 IAuditLog.Record`) and `#1.4 Confirm`; `INotificationService` is wired and
+never called, and the compiled pipeline between them has no span.
+
+**Trials (claude-haiku-5-5, 2026-10-15, three per case, every row in `ledger/runs.jsonl`):**
+
+| case | result | what it establishes |
+|---|---|---|
+| explain-an-unfamiliar-flow | 3/3 pass | the skill was invoked from the unnamed ask every time, a structural trace was read before the answer, the calls were named in order and the unobserved code named in all three; values opened in one |
+| happy-path | 3/3 pass | the loop works once loaded, the same way |
+| pure-function-control | 3/3 pass | nothing installed, run or traced, the answer from the source — but the skill was never invoked here, so the row is "no regression", not "the cost rule fired" |
+
+This differs from the Java rows, where the unnamed ask was unselected 0/6: this harness copies the rendered
+`.claude/skills` pages into the scaffold (see "What every trial runs with"), so the skill is discoverable
+from turn 1, and a Haiku trial chose it. The rows are recorded as they fell; the wording was not iterated.
+Whether an agent finds the skill with no seeded pages is the discovery study's question, not this
+ledger's.

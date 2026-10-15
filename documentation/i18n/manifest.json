@@ -36,6 +36,46 @@
       }
     },
     {
+      "source": "documentation/recipes/add-logging-to-this-service.md",
+      "translations": {
+        "es": "es/recetas/anade-registro-a-este-servicio.md",
+        "pt-BR": "pt-BR/receitas/adicione-logs-a-este-servico.md",
+        "zh-CN": "zh-CN/实用方案/给这个服务加日志.md"
+      }
+    },
+    {
+      "source": "documentation/recipes/help-me-debug-and-fix-this-bug.md",
+      "translations": {
+        "es": "es/recetas/ayudame-a-depurar-y-arreglar-este-error.md",
+        "pt-BR": "pt-BR/receitas/ajude-me-a-depurar-e-corrigir-este-bug.md",
+        "zh-CN": "zh-CN/实用方案/帮我调试并修复这个缺陷.md"
+      }
+    },
+    {
+      "source": "documentation/recipes/why-did-this-test-fail.md",
+      "translations": {
+        "es": "es/recetas/por-que-fallo-esta-prueba.md",
+        "pt-BR": "pt-BR/receitas/por-que-este-teste-falhou.md",
+        "zh-CN": "zh-CN/实用方案/这个测试为什么失败了.md"
+      }
+    },
+    {
+      "source": "documentation/recipes/review-a-complex-flow-before-changing-it.md",
+      "translations": {
+        "es": "es/recetas/revisa-un-flujo-complejo-antes-de-cambiarlo.md",
+        "pt-BR": "pt-BR/receitas/revise-um-fluxo-complexo-antes-de-altera-lo.md",
+        "zh-CN": "zh-CN/实用方案/修改复杂流程前先审查它.md"
+      }
+    },
+    {
+      "source": "documentation/recipes/review-a-refactoring-did-behaviour-change.md",
+      "translations": {
+        "es": "es/recetas/revisa-una-refactorizacion-cambio-el-comportamiento.md",
+        "pt-BR": "pt-BR/receitas/revise-uma-refatoracao-o-comportamento-mudou.md",
+        "zh-CN": "zh-CN/实用方案/审查重构行为变了吗.md"
+      }
+    },
+    {
       "source": "documentation/choosing-an-integration.md",
       "translations": {
         "es": "es/elegir-una-integracion.md",

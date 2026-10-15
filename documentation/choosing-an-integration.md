@@ -26,7 +26,7 @@ Every path in this runtime attaches at an **interface boundary** — there is no
 bytecode-weaving or zero-code option today (the row above). The real
 question is *how* you reach that interface call:
 
-```
+```text
 Are you writing a test?
   yes -> xUnit?  -> NarrativeFixture
          NUnit?  -> NarrativeTestBase (derive from it)

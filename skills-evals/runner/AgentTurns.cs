@@ -24,14 +24,20 @@ public sealed partial class AgentTurns
     private readonly string? _firstTurnCommand;
     private readonly string? _resumedTurnCommand;
     private readonly string[] _prompts;
+    private readonly Dictionary<int, string> _freshTurnCommands;
 
     /// <summary>
     /// <paramref name="firstTurnCommand"/> is turn 1's template, or <c>null</c> to drive no agent at
     /// all; <paramref name="resumedTurnCommand"/> is every later turn's, or <c>null</c> for one turn;
-    /// <paramref name="prompts"/> holds one prompt per turn, <c>prompt.md</c> first.
+    /// <paramref name="prompts"/> holds one prompt per turn, <c>prompt.md</c> first;
+    /// <paramref name="freshTurnCommands"/> holds the command of every turn that opens a NEW session
+    /// instead of resuming — the first-turn template under a session id of its own; <c>null</c> for a
+    /// case that resumes every turn.
     /// </summary>
-    /// <exception cref="ArgumentException">no turn, a blank prompt, or several turns with nothing to resume them.</exception>
-    public AgentTurns(string? firstTurnCommand, string? resumedTurnCommand, IReadOnlyList<string> prompts)
+    /// <exception cref="ArgumentException">no turn, a blank prompt, several turns with nothing to resume them, or a fresh turn that is not the last.</exception>
+    public AgentTurns(
+        string? firstTurnCommand, string? resumedTurnCommand, IReadOnlyList<string> prompts,
+        IReadOnlyDictionary<int, string>? freshTurnCommands = null)
     {
         ArgumentNullException.ThrowIfNull(prompts);
         if (prompts.Count == 0)
@@ -51,9 +57,34 @@ public sealed partial class AgentTurns
                 $"a trial of {prompts.Count} turns needs a template that resumes its session", nameof(resumedTurnCommand));
         }
 
+        _freshTurnCommands = freshTurnCommands?.ToDictionary(pair => pair.Key, pair => pair.Value) ?? [];
+        RequireFreshTurnsToBeTheLast(_freshTurnCommands.Keys, prompts.Count);
         _firstTurnCommand = firstTurnCommand;
         _resumedTurnCommand = resumedTurnCommand;
         _prompts = [.. prompts];
+    }
+
+    /// <summary>
+    /// A turn after a fresh one would have to resume the NEW session, whose id the resumed template
+    /// does not carry; rather than resume the old one silently, the shape is refused until a case
+    /// needs it.
+    /// </summary>
+    private static void RequireFreshTurnsToBeTheLast(IEnumerable<int> fresh, int turns)
+    {
+        foreach (var turn in fresh)
+        {
+            if (turn < 2 || turn > turns)
+            {
+                throw new ArgumentException($"fresh turn {turn} is outside a conversation of {turns}");
+            }
+
+            if (turn != turns)
+            {
+                throw new ArgumentException(
+                    "a fresh turn must be the last turn: the turn after it would have to resume the NEW session,"
+                    + " and nothing here carries its id");
+            }
+        }
     }
 
     /// <summary>
@@ -80,21 +111,25 @@ public sealed partial class AgentTurns
     /// </exception>
     public static AgentTurns Of(
         Platform platform, string model, string canonicalSkillName, string? overrideCommand,
-        string firstPrompt, IReadOnlyList<string> scriptedReplies, string? sessionId)
+        string firstPrompt, IReadOnlyList<string> scriptedReplies, string? sessionId,
+        IReadOnlyCollection<int>? freshTurns = null)
     {
         RequireOneTokenModel(model);
         string[] prompts = [firstPrompt, .. scriptedReplies];
         if (prompts.Length == 1)
         {
+            RequireFreshTurnsToBeTheLast(freshTurns ?? [], prompts.Length);
             return new AgentTurns(overrideCommand ?? platform.PresetAgentCommand(model, canonicalSkillName), null, prompts);
         }
 
         RequireNoOverride(overrideCommand);
         var session = RequireAWellShapedSessionId(sessionId);
+        var first = platform.PresetFirstTurnCommand(model, canonicalSkillName);
         return new AgentTurns(
-            Named(platform.PresetFirstTurnCommand(model, canonicalSkillName), platform, session),
+            Named(first, platform, session),
             Named(platform.PresetResumedTurnCommand(model, canonicalSkillName), platform, session),
-            prompts);
+            prompts,
+            (freshTurns ?? []).Distinct().ToDictionary(turn => turn, _ => Named(first, platform, Guid.NewGuid().ToString())));
     }
 
     /// <summary>A trial that drives no agent: the fixture is graded exactly as the case scaffolded it.</summary>
@@ -114,8 +149,15 @@ public sealed partial class AgentTurns
     /// hands this straight to <see cref="AgentArgv"/>, which only ever substitutes the prompt.
     /// </summary>
     public string CommandForTurn(int turn) =>
-        (IndexOf(turn) == 0 ? _firstTurnCommand : _resumedTurnCommand)
+        (_freshTurnCommands.TryGetValue(turn, out var fresh) ? fresh : IndexOf(turn) == 0 ? _firstTurnCommand : _resumedTurnCommand)
         ?? throw new InvalidOperationException("a trial that drives no agent has no command to run");
+
+    /// <summary>Whether <paramref name="turn"/> opens a new session rather than resuming the conversation.</summary>
+    public bool IsFreshTurn(int turn)
+    {
+        _ = IndexOf(turn);
+        return _freshTurnCommands.ContainsKey(turn);
+    }
 
     private int IndexOf(int turn)
     {

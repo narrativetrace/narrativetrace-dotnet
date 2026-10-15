@@ -72,7 +72,7 @@ internal static class Projects
         }
     }
 
-    private static void DeleteRecursively(string directory)
+    internal static void DeleteRecursively(string directory)
     {
         foreach (var entry in Directory.EnumerateFileSystemEntries(directory))
         {

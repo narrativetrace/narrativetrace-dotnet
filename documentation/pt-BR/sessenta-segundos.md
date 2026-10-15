@@ -1,4 +1,4 @@
-<!-- source: documentation/sixty-seconds.md blob d4cf984324af | translated: 2026-09-25 | reviewed: - -->
+<!-- source: documentation/sixty-seconds.md blob 0d08d50c6065 | translated: 2026-10-15 | reviewed: - -->
 # Veja um trace em 60 segundos
 
 [English](../sixty-seconds.md) | [Español](../es/sesenta-segundos.md) | **Português** | [简体中文](../zh-CN/60秒.md)
@@ -249,7 +249,7 @@ dotnet test
 
 A lista de bloqueio compara por substring, sem diferenciar maiúsculas de minúsculas — nomear um
 parâmetro `paymentToken` já basta, sem precisar de nenhum atributo. Veja
-[Privacidade e ocultação](privacidade-e-ocultacao.md) para a lista completa de 26 padrões e o
+[Privacidade e ocultação](privacidade-e-ocultacao.md) para a lista completa de padrões e o
 que tem prioridade sobre ela.
 
 ## Próximos passos

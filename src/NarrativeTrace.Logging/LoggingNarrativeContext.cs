@@ -253,6 +253,9 @@ public sealed class LoggingNarrativeContext
         _inner.AdoptTraceparent(traceparent);
     }
 
+    /// <inheritdoc/>
+    public Traceparent? OutboundTraceparent() => _inner.OutboundTraceparent();
+
     private void LogEnter(
         string className, string methodName,
         SpanId handle, SpanId? parent,

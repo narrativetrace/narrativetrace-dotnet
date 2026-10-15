@@ -14,7 +14,7 @@ public sealed class SkillCatalogueTests
     {
         Assert.Equal(
             ["narrativetrace-doctor", "add-narrative-tracing", "narrativetrace-feedback", "add-narrativetrace-clarity",
-                "narrativetrace-verify", "narrativetrace-debug"],
+                "narrativetrace-verify", "narrativetrace-debug", "narrativetrace-explain"],
             SkillCatalogue.Skills.Select(s => s.CanonicalName));
     }
 
@@ -53,7 +53,7 @@ public sealed class SkillCatalogueTests
     [Fact]
     public void The_gated_skills_pre_approve_no_tool_and_every_other_skill_keeps_the_vocabulary()
     {
-        string[] gated = ["narrativetrace-feedback", "narrativetrace-verify", "narrativetrace-debug"];
+        string[] gated = ["narrativetrace-feedback", "narrativetrace-verify", "narrativetrace-debug", "narrativetrace-explain"];
         Assert.All(SkillCatalogue.Skills.Where(s => gated.Contains(s.CanonicalName)), skill => Assert.Empty(skill.PreApprovedTools));
         Assert.All(
             SkillCatalogue.Skills.Where(s => !gated.Contains(s.CanonicalName)),

@@ -142,4 +142,69 @@ public sealed class CaseTurnsTests : IDisposable
         var thrown = Assert.Throws<InvalidOperationException>(() => CaseTurns.ScriptedRepliesFor(_dir));
         Assert.Contains("case.json", thrown.Message, StringComparison.Ordinal);
     }
+
+    // --- fresh turns: a scripted turn that opens a NEW session instead of resuming ----------------
+
+    [Fact]
+    public void A_case_with_no_manifest_declares_no_fresh_turn()
+    {
+        Assert.Empty(CaseTurns.FreshTurnsFor(_dir));
+    }
+
+    [Fact]
+    public void Reads_which_scripted_turns_open_a_fresh_session()
+    {
+        Manifest("{ \"turns\": { \"2\": \"check my setup\", \"3\": \"thanks\" }, \"freshTurns\": [3] }");
+
+        Assert.Equal([3], CaseTurns.FreshTurnsFor(_dir));
+    }
+
+    [Fact]
+    public void A_case_that_declares_no_fresh_turns_resumes_every_turn()
+    {
+        Manifest("{ \"turns\": { \"2\": \"yes, file it\" } }");
+
+        Assert.Empty(CaseTurns.FreshTurnsFor(_dir));
+    }
+
+    [Fact]
+    public void Refuses_a_fresh_turn_that_has_no_scripted_reply()
+    {
+        Manifest("{ \"turns\": { \"2\": \"check my setup\" }, \"freshTurns\": [3] }");
+
+        var e = Assert.Throws<InvalidOperationException>(() => CaseTurns.FreshTurnsFor(_dir));
+
+        Assert.Contains("freshTurns", e.Message, StringComparison.Ordinal);
+        Assert.Contains("3", e.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Refuses_a_fresh_turn_at_the_first_turn_because_it_is_a_fresh_session_already()
+    {
+        Manifest("{ \"turns\": { \"2\": \"check my setup\" }, \"freshTurns\": [1] }");
+
+        var e = Assert.Throws<InvalidOperationException>(() => CaseTurns.FreshTurnsFor(_dir));
+
+        Assert.Contains("turn 1", e.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("[\"two\"]")]
+    [InlineData("[2.5]")]
+    [InlineData("2")]
+    [InlineData("[null]")]
+    public void Refuses_a_fresh_turn_that_is_not_a_turn_number(string declared)
+    {
+        Manifest("{ \"turns\": { \"2\": \"check my setup\" }, \"freshTurns\": " + declared + " }");
+
+        Assert.Throws<InvalidOperationException>(() => CaseTurns.FreshTurnsFor(_dir));
+    }
+
+    [Fact]
+    public void Refuses_the_same_fresh_turn_declared_twice()
+    {
+        Manifest("{ \"turns\": { \"2\": \"check my setup\" }, \"freshTurns\": [2, 2] }");
+
+        Assert.Throws<InvalidOperationException>(() => CaseTurns.FreshTurnsFor(_dir));
+    }
 }

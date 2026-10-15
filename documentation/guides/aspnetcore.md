@@ -9,7 +9,7 @@ and request/user context.
 ## Package
 
 ```xml
-<PackageReference Include="NarrativeTrace.AspNetCore" Version="0.3.0" />
+<PackageReference Include="NarrativeTrace.AspNetCore" Version="0.4.0" />
 ```
 
 ## 1. Register and wire the middleware
@@ -203,6 +203,36 @@ await middleware.InvokeAsync(http, ctx =>
 For faster unit tests of individual services, skip the middleware and use
 the [xUnit / NUnit test helpers](installation.md#option-d--xunit-auto-context--failure-narrative)
 with `NarrativeTraceProxy` directly.
+
+## 7. Outbound calls
+
+The middleware reads an inbound `traceparent`; the outbound side sends one, so a
+callee that runs NarrativeTrace joins the same trace. Register it on any
+`IHttpClientFactory` client:
+
+```csharp
+builder.Services.AddHttpClient("payments")
+    .AddNarrativeTraceTraceparentPropagation();
+```
+
+Every request that client sends from inside a traced request carries
+`traceparent: 00-<trace id>-<active span id>-01`: the callee's root span becomes a
+child of the span that made the call. No header is sent when no trace is active
+(a call outside a request), and a `traceparent` you set yourself is never
+overwritten.
+
+For code that does not use `IHttpClientFactory`, read the value and attach it:
+
+```csharp
+var value = TraceparentHeaders.Current(context); // null when there is no trace
+if (value is not null)
+{
+    request.Headers.TryAddWithoutValidation(Traceparent.HeaderName, value);
+}
+```
+
+`TraceparentPropagationHandler` (in `NarrativeTrace.Runtime`) is the same
+behaviour as a plain `DelegatingHandler` for clients you build by hand.
 
 ## See also
 

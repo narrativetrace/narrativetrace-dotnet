@@ -1,4 +1,4 @@
-<!-- source: documentation/choosing-an-integration.md blob f8eef66e4a41 | translated: 2026-09-17 | reviewed: - -->
+<!-- source: documentation/choosing-an-integration.md blob ec58b5fd8a4b | translated: 2026-09-17 | reviewed: - -->
 # Escolhendo uma integração
 
 [English](../choosing-an-integration.md) | [Español](../es/elegir-una-integracion.md) | **Português** | [简体中文](../zh-CN/选择集成方式.md)
@@ -28,7 +28,7 @@ Todo caminho nesta implementação se conecta em um **limite de interface** — 
 não há tecelagem de bytecode nem instrumentação sem código (a linha
 acima). A pergunta real é *como* você alcança essa chamada de interface:
 
-```
+```text
 Você está escrevendo um teste?
   sim -> xUnit?  -> NarrativeFixture
          NUnit?  -> NarrativeTestBase (derive dela)

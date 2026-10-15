@@ -22,7 +22,7 @@ Start with the minimum and add only what you need.
 
 ```xml
 <!-- Minimum: capture + render -->
-<PackageReference Include="NarrativeTrace.Proxy" Version="0.3.0" />
+<PackageReference Include="NarrativeTrace.Proxy" Version="0.4.0" />
 ```
 
 `NarrativeTrace.Proxy` depends on `.Runtime`, which depends on `.Core` — one
@@ -195,7 +195,7 @@ See the [Clarity Guide](clarity.md) for the scoring model and CI gate.
 Add the build-only package to run the clarity gate as part of your build:
 
 ```xml
-<PackageReference Include="NarrativeTrace.MSBuild" Version="0.3.0"
+<PackageReference Include="NarrativeTrace.MSBuild" Version="0.4.0"
                   PrivateAssets="all" />
 ```
 

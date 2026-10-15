@@ -31,5 +31,5 @@ dotnet_diagnostic.CS1591.severity = warning
 # deliberate test style, shared with every runtime. CA1707 firing on each of
 # them buried a release-run failure under thousands of warnings
 # (2026-09-06 publish run) — the rule simply does not apply to tests.
-[tests/**/*.cs]
+[{tests,recipes}/**/*.cs]
 dotnet_diagnostic.CA1707.severity = none

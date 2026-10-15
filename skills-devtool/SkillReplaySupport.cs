@@ -164,6 +164,7 @@ internal static class SkillReplayRegistry
             ["dotnet test"] = (repoRoot, _) => RunSixtySecondsTests(repoRoot).ExitCode == 0,
             [VerifyCommands.RunThePath] = (repoRoot, _) => VerifyReplay.RunThePathWritesTheStructuralTrace(repoRoot),
             [DebugCommands.RunTheReproduction] = (repoRoot, _) => VerifyReplay.RunThePathWritesTheStructuralTrace(repoRoot),
+            [ExplainCommands.RunTheScenario] = (repoRoot, _) => VerifyReplay.RunThePathWritesTheStructuralTrace(repoRoot),
             [VerifyCommands.Approve] = (repoRoot, _) => VerifyReplay.ApprovePromotesAReviewCopy(repoRoot),
         };
 

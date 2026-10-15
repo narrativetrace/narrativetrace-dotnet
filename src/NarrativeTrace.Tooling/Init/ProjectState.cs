@@ -26,6 +26,8 @@ public sealed class ProjectState
 
     private readonly string? _agentsMd;
     private readonly string? _claudeMd;
+    private readonly IReadOnlyDictionary<string, string> _pointerFiles;
+    private readonly IReadOnlySet<string> _pointersBehindLinks;
 
     private ProjectState(Builder builder)
     {
@@ -37,6 +39,10 @@ public sealed class ProjectState
             new Dictionary<SkillFlavour, string>(builder.LinkedInstallRootsMap));
         MarkedRuleFiles = new ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>(builder.MarkedRuleFilesMap, StringComparer.Ordinal));
+        DetectedPlatforms = new ReadOnlyCollection<string>([.. builder.DetectedPlatformsList]);
+        _pointerFiles = new ReadOnlyDictionary<string, string>(
+            new Dictionary<string, string>(builder.PointerFilesMap, StringComparer.Ordinal));
+        _pointersBehindLinks = new HashSet<string>(builder.PointersBehindLinksSet, StringComparer.Ordinal);
         OutputDirectory = builder.OutputDirectoryValue;
         ResolvedFamilyVersion = builder.ResolvedFamilyVersionValue;
         if (!Invariant())
@@ -72,6 +78,21 @@ public sealed class ProjectState
     /// never CREATES one of these; it keeps an existing block up to date.
     /// </summary>
     public IReadOnlyDictionary<string, string> MarkedRuleFiles { get; }
+
+    /// <summary>
+    /// The ids of the platform-table rows whose marker the project carries — <c>.cursor/</c>,
+    /// <c>replit.md</c>, … — read by exact path, so a near miss such as <c>.cursorx/</c> proves nothing.
+    /// </summary>
+    public IReadOnlyList<string> DetectedPlatforms { get; }
+
+    /// <summary>
+    /// An existing platform pointer file, byte for byte, by project-relative path; <see langword="null"/>
+    /// when there is none, or when the path runs through a symbolic link (<see cref="PointerBehindLink"/>).
+    /// </summary>
+    public string? PointerFile(string path) => _pointerFiles.TryGetValue(path, out var text) ? text : null;
+
+    /// <summary>Whether the pointer file's path, or a directory above it, is a symbolic link.</summary>
+    public bool PointerBehindLink(string path) => _pointersBehindLinks.Contains(path);
 
     /// <summary>Where this project's rendered traces land, detected or <see cref="DefaultOutputDirectory"/>.</summary>
     public string OutputDirectory { get; }
@@ -124,6 +145,12 @@ public sealed class ProjectState
 
         internal Dictionary<string, string> MarkedRuleFilesMap { get; } = new(StringComparer.Ordinal);
 
+        internal List<string> DetectedPlatformsList { get; } = [];
+
+        internal Dictionary<string, string> PointerFilesMap { get; } = new(StringComparer.Ordinal);
+
+        internal HashSet<string> PointersBehindLinksSet { get; } = new(StringComparer.Ordinal);
+
         internal string OutputDirectoryValue { get; private set; } = DefaultOutputDirectory;
 
         internal string? ResolvedFamilyVersionValue { get; private set; }
@@ -167,6 +194,31 @@ public sealed class ProjectState
         public Builder MarkedRuleFile(string relativePath, string content)
         {
             MarkedRuleFilesMap[relativePath] = content;
+            return this;
+        }
+
+        /// <summary>Records that the project carries the marker of one platform-table row.</summary>
+        public Builder DetectedPlatform(string platformId)
+        {
+            if (!DetectedPlatformsList.Contains(platformId))
+            {
+                DetectedPlatformsList.Add(platformId);
+            }
+
+            return this;
+        }
+
+        /// <summary>Records an existing platform pointer file and its text.</summary>
+        public Builder PointerFile(string path, string content)
+        {
+            PointerFilesMap[path] = content;
+            return this;
+        }
+
+        /// <summary>Records that a pointer file's path runs through a symbolic link.</summary>
+        public Builder PointerBehindLink(string path)
+        {
+            PointersBehindLinksSet.Add(path);
             return this;
         }
 

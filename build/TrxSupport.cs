@@ -71,6 +71,19 @@ public static class TrxSupport
         return new TrxTestResult(className, testName, outcome, duration);
     }
 
+    /// <summary>
+    /// The failure message of every <c>Failed</c> result in <paramref name="trxPath"/>, keyed by
+    /// the result's <c>testName</c>, line endings normalised to <c>\n</c>. What the test runner
+    /// itself reported — the recipe pages embed it rather than a paraphrase.
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> FailureMessages(string trxPath) =>
+        XDocument.Load(trxPath).Descendants(Ns + "UnitTestResult")
+            .Where(result => (string?)result.Attribute("outcome") == "Failed")
+            .ToDictionary(
+                result => (string)result.Attribute("testName")!,
+                result => ((string?)result.Descendants(Ns + "Message").FirstOrDefault() ?? "")
+                    .Replace("\r\n", "\n", StringComparison.Ordinal));
+
     /// <summary>VSTest writes <c>duration</c> as <c>hh:mm:ss.fffffff</c>; a missing or malformed
     /// value reads as <c>0</c> rather than throwing — a timing gap must never abort the aggregate.</summary>
     private static double ParseDuration(string? text) =>

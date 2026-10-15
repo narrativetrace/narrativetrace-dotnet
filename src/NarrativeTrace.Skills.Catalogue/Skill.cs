@@ -131,7 +131,7 @@ public sealed record SkillStep(
 /// The stable, platform-neutral name (e.g. <c>narrativetrace-doctor</c>) — the single source for
 /// both the frontmatter <c>name:</c> and the directory a skill renders under on every platform
 /// (<c>.claude/skills/&lt;CanonicalName&gt;/</c>, <c>.agents/skills/&lt;CanonicalName&gt;/</c>).
-/// Skill names must be globally self-identifying: Codex and Gemini have flat namespaces with no
+/// Skill names must be globally self-identifying: Codex and Antigravity have flat namespaces with no
 /// qualified fallback, and a repo-level <c>.claude/skills/</c> directory is a flat namespace too —
 /// it is not a plugin, so a shortened segment like <c>doctor</c> would collide with every other
 /// vendor's <c>doctor</c> skill (skills-design ruling, 2026-09-04, reaffirmed 2026-09-13).

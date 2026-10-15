@@ -16,7 +16,7 @@ public sealed class QuotaMarkdownTests
         + "| platform | plan tier | weekly allowance |\n"
         + "|---|---|---|\n"
         + "| codex | basic | 4 |\n"
-        + "| gemini | not installed | 0 |\n\n"
+        + "| antigravity | not installed | 0 |\n\n"
         + "## Spend log\n\n"
         + "| date | platform | skill | case | week |\n"
         + "|---|---|---|---|---|\n";
@@ -74,7 +74,7 @@ public sealed class QuotaMarkdownTests
     [Fact]
     public void A_platform_with_no_allowance_row_is_refused()
     {
-        // gemini has a 0 allowance here; a platform absent from the table entirely is refused too.
+        // antigravity has a 0 allowance here; a platform absent from the table entirely is refused too.
         var ledger = new QuotaLedger([], []);
 
         var decision = QuotaMarkdown.CheckQuota(ledger, Platform.Codex, new DateOnly(2026, 9, 28));

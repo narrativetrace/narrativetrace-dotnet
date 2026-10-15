@@ -3,6 +3,7 @@
 // Copyright (c) 2026 Empower Agile
 using System.Text;
 using System.Text.Json;
+using NarrativeTrace.Tooling.Platforms;
 
 namespace NarrativeTrace.Tooling.Init;
 
@@ -54,6 +55,7 @@ public static class ProjectStateReader
         Set(TextOf(Path.Combine(projectDirectory, "AGENTS.md")), builder.AgentsMd);
         Set(TextOf(Path.Combine(projectDirectory, "CLAUDE.md")), builder.ClaudeMd);
         ReadRuleFiles(projectDirectory, builder);
+        ReadPlatforms(projectDirectory, builder);
         foreach (var flavour in new[] { SkillFlavour.Agents, SkillFlavour.Claude })
         {
             ReadInstallRoot(projectDirectory, flavour, maxSkillDirectories, builder);
@@ -80,6 +82,63 @@ public static class ProjectStateReader
                 builder.MarkedRuleFile(relative, content);
             }
         }
+    }
+
+    /// <summary>
+    /// Which platform-table rows the project is on, and what each row's pointer file says now. Markers
+    /// are exact paths looked up without following a link; a pointer file is read only when no element
+    /// of its path is a symbolic link, because nothing is ever written through one.
+    /// </summary>
+    private static void ReadPlatforms(string projectDirectory, ProjectState.Builder builder)
+    {
+        foreach (var row in PlatformTable.Rows)
+        {
+            if (row.MarkerPaths.Any(marker => Exists(Absolute(projectDirectory, marker))))
+            {
+                builder.DetectedPlatform(row.Id);
+            }
+
+            ReadPointer(projectDirectory, row.Pointer.Path, builder);
+        }
+    }
+
+    private static void ReadPointer(string projectDirectory, string pointer, ProjectState.Builder builder)
+    {
+        if (pointer.Length == 0)
+        {
+            return;
+        }
+
+        if (BehindLink(projectDirectory, pointer))
+        {
+            builder.PointerBehindLink(pointer);
+        }
+        else if (TextOf(Absolute(projectDirectory, pointer)) is { } text)
+        {
+            builder.PointerFile(pointer, text);
+        }
+    }
+
+    private static string Absolute(string projectDirectory, string relative) =>
+        Path.Combine(projectDirectory, relative.Replace('/', Path.DirectorySeparatorChar));
+
+    /// <summary>Whether anything is at the path, a dangling or directory link included.</summary>
+    private static bool Exists(string path) =>
+        File.Exists(path) || Directory.Exists(path) || LinkTarget(path) is not null;
+
+    private static bool BehindLink(string projectDirectory, string relative)
+    {
+        var walked = projectDirectory;
+        foreach (var element in relative.Split('/'))
+        {
+            walked = Path.Combine(walked, element);
+            if (LinkTarget(walked) is not null)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool CarriesMarkers(string content)

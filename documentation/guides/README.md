@@ -16,6 +16,16 @@ value proposition and a 60-second quick start, see the
 | [Clarity](clarity.md) | Score naming quality and enforce it as a CI gate. |
 | [MSBuild & CLI](msbuild-cli.md) | Run the `dotnet-narrativetrace` verbs and wire the clarity gate into `dotnet build` / `dotnet test`. |
 
+## Recipes
+
+One page per problem, in the words a user would type, each with a real run's code and output.
+
+- [Add logging to this service](../recipes/add-logging-to-this-service.md) — Get every call, with parameter names and results, into the project's own `ILogger` without writing a log statement.
+- [Help me debug and fix this bug](../recipes/help-me-debug-and-fix-this-bug.md) — Find the call a flow is missing, fix it, and pin the fixed flow as an approved baseline.
+- [Why did this test fail](../recipes/why-did-this-test-fail.md) — Read a red test's narrative against its assertion and tell a code bug from a stale expectation.
+- [Review a complex flow before changing it](../recipes/review-a-complex-flow-before-changing-it.md) — See what a flow does at `Detail` and `Summary`, and the value-free `.nt` an agent reads.
+- [Review a refactoring: did behaviour change](../recipes/review-a-refactoring-did-behaviour-change.md) — Catch a dropped call the green tests missed, with the approval diff.
+
 ## For AI agents
 
 - [`llms.txt`](llms.txt) — concise index of the library for LLM consumers.

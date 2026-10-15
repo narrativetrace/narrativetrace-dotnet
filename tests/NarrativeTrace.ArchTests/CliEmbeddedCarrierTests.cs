@@ -55,12 +55,14 @@ public class CliEmbeddedCarrierTests
             "NarrativeTrace.Skills/agents/add-narrativetrace-clarity/SKILL.md",
             "NarrativeTrace.Skills/agents/narrativetrace-verify/SKILL.md",
             "NarrativeTrace.Skills/agents/narrativetrace-debug/SKILL.md",
+            "NarrativeTrace.Skills/agents/narrativetrace-explain/SKILL.md",
             "NarrativeTrace.Skills/claude/narrativetrace-doctor/SKILL.md",
             "NarrativeTrace.Skills/claude/add-narrative-tracing/SKILL.md",
             "NarrativeTrace.Skills/claude/narrativetrace-feedback/SKILL.md",
             "NarrativeTrace.Skills/claude/add-narrativetrace-clarity/SKILL.md",
             "NarrativeTrace.Skills/claude/narrativetrace-verify/SKILL.md",
             "NarrativeTrace.Skills/claude/narrativetrace-debug/SKILL.md",
+            "NarrativeTrace.Skills/claude/narrativetrace-explain/SKILL.md",
             "NarrativeTrace.Skills/catalogue.json",
         };
 
@@ -77,12 +79,14 @@ public class CliEmbeddedCarrierTests
     [InlineData("agents/add-narrativetrace-clarity/SKILL.md")]
     [InlineData("agents/narrativetrace-verify/SKILL.md")]
     [InlineData("agents/narrativetrace-debug/SKILL.md")]
+    [InlineData("agents/narrativetrace-explain/SKILL.md")]
     [InlineData("claude/narrativetrace-doctor/SKILL.md")]
     [InlineData("claude/add-narrative-tracing/SKILL.md")]
     [InlineData("claude/narrativetrace-feedback/SKILL.md")]
     [InlineData("claude/add-narrativetrace-clarity/SKILL.md")]
     [InlineData("claude/narrativetrace-verify/SKILL.md")]
     [InlineData("claude/narrativetrace-debug/SKILL.md")]
+    [InlineData("claude/narrativetrace-explain/SKILL.md")]
     [InlineData("catalogue.json")]
     public void Each_embedded_page_is_byte_identical_to_the_carrier_source(string relative)
     {

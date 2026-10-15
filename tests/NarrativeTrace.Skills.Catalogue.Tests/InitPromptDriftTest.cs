@@ -42,6 +42,7 @@ public sealed class InitPromptDriftTest
         "skills-evals/add-narrative-tracing/init-prompt-aspnetcore-project/prompt.md",
         "skills-evals/add-narrative-tracing/registry-claude-marketplace/prompt.md",
         "skills-evals/add-narrative-tracing/registry-npx-skills/prompt.md",
+        "skills-evals/add-narrative-tracing/fresh-session-after-the-prompt/prompt.md",
     };
 
     private const string TriggerYamlPage = "skills-evals/add-narrative-tracing/trigger.yaml";

@@ -1,12 +1,14 @@
 # Agent Skills
 
-Six packaged agent playbooks ship with this repository for Claude Code and
-Codex CLI: `narrativetrace-doctor` (read-only diagnosis),
+Seven packaged agent playbooks ship with this repository for Claude Code and every agent that reads
+the open Agent Skills layout (Codex CLI, Cursor, Antigravity, Replit, GitHub Copilot — see
+[Use NarrativeTrace with your agent](use-with-your-agent.md)): `narrativetrace-doctor` (read-only diagnosis),
 `add-narrative-tracing` (setup, end to end), `narrativetrace-feedback`
 (report a defect in NarrativeTrace itself, with your approval),
 `add-narrativetrace-clarity` (a first naming report, and the renames that clear the gate),
 `narrativetrace-verify` (read what a change did before reporting it, and pin it behind your yes) and
-`narrativetrace-debug` (find where a value goes wrong by reading the trace, fix it there, pin the regression). All are generated — never
+`narrativetrace-debug` (find where a value goes wrong by reading the trace, fix it there, pin the regression) and
+`narrativetrace-explain` (say what a flow actually does by running one scenario and reading its trace). All are generated — never
 hand-edited — from a typed catalogue in
 [`NarrativeTrace.Skills.Catalogue`](../src/NarrativeTrace.Skills.Catalogue), the same way
 `glossary.md` is generated from `glossary.json`.
@@ -20,22 +22,24 @@ hand-edited — from a typed catalogue in
   `.claude/skills/add-narrative-tracing/SKILL.md`,
   `.claude/skills/narrativetrace-feedback/SKILL.md`,
   `.claude/skills/add-narrativetrace-clarity/SKILL.md`,
-  `.claude/skills/narrativetrace-verify/SKILL.md` and
-  `.claude/skills/narrativetrace-debug/SKILL.md` — the exact files Claude Code discovers. The
-  same catalogue also renders Codex CLI's repository-level layout at
+  `.claude/skills/narrativetrace-verify/SKILL.md`,
+  `.claude/skills/narrativetrace-debug/SKILL.md` and
+  `.claude/skills/narrativetrace-explain/SKILL.md` — the exact files Claude Code discovers. The
+  same catalogue also renders the open-standard layout at
   `.agents/skills/narrativetrace-doctor/SKILL.md`,
   `.agents/skills/add-narrative-tracing/SKILL.md`,
   `.agents/skills/narrativetrace-feedback/SKILL.md`,
   `.agents/skills/add-narrativetrace-clarity/SKILL.md`,
-  `.agents/skills/narrativetrace-verify/SKILL.md` and
-  `.agents/skills/narrativetrace-debug/SKILL.md` — Codex scans
-  `.agents/skills` from the working directory up to the repository root
-  (developers.openai.com/codex/skills, redirects to learn.chatgpt.com/docs/build-skills; fetched
-  2026-09-13). Every rendered page's directory name — on every platform — is the skill's own
-  `CanonicalName`: skill names must be globally self-identifying, since Codex and Gemini have flat
-  namespaces with no qualified fallback and a repo-level `.claude/skills/` directory is a flat
-  namespace too, not a plugin (skills-design ruling, 2026-09-04, reaffirmed 2026-09-13). Committed
-  build output; see [What to Commit](what-to-commit.md).
+  `.agents/skills/narrativetrace-verify/SKILL.md`,
+  `.agents/skills/narrativetrace-debug/SKILL.md` and
+  `.agents/skills/narrativetrace-explain/SKILL.md`, which Codex, Cursor, Antigravity, Replit and
+  GitHub Copilot all read — per platform, in
+  [Use NarrativeTrace with your agent](use-with-your-agent.md). Every rendered page's directory name
+  — on every platform — is the skill's own `CanonicalName`: skill names must be globally
+  self-identifying, since several platforms have flat namespaces with no qualified fallback and a
+  repo-level `.claude/skills/` directory is a flat namespace too, not a plugin (skills-design
+  ruling, 2026-09-04, reaffirmed 2026-09-13). Committed build output; see
+  [What to Commit](what-to-commit.md).
 - **Regenerate**: `dotnet run --project skills-devtool -- render`.
 - **Lint**: `dotnet run --project skills-devtool -- lint` — part
   of `./build.sh Verify`, every commit. Fails if a rendered page drifts from
@@ -49,8 +53,8 @@ hand-edited — from a typed catalogue in
 
 The published `NarrativeTrace.Cli` tool carries the same four skills this repository renders for
 itself, plus a versionless `catalogue.json` — its `init` verb copies them into `.agents/skills/`
-(and `.claude/skills/` too, once it detects `.claude/` or `CLAUDE.md`) and writes one marked
-section into `AGENTS.md`. Zero network: the carrier travels inside the package already installed.
+and `.claude/skills/` (Claude Code loads project skills from that directory only; `--vendor none`
+leaves it out) and writes one marked section into `AGENTS.md`. Zero network: the carrier travels inside the package already installed.
 
 ```bash
 dotnet new tool-manifest
@@ -64,14 +68,22 @@ written by the `--dry-run` form. Against a fresh project the preview looks like 
 <!-- snippet: artifacts/agent-skills/init-preview.json -->
 ```json
 {
-  "carrier": "NarrativeTrace.Skills/0.3.0",
+  "carrier": "NarrativeTrace.Skills/0.4.0",
   "actions": [
     {"kind": "create", "path": ".agents/skills/narrativetrace-doctor/SKILL.md", "status": "planned"},
+    {"kind": "create", "path": ".claude/skills/narrativetrace-doctor/SKILL.md", "status": "planned"},
     {"kind": "create", "path": ".agents/skills/add-narrative-tracing/SKILL.md", "status": "planned"},
+    {"kind": "create", "path": ".claude/skills/add-narrative-tracing/SKILL.md", "status": "planned"},
     {"kind": "create", "path": ".agents/skills/narrativetrace-feedback/SKILL.md", "status": "planned"},
+    {"kind": "create", "path": ".claude/skills/narrativetrace-feedback/SKILL.md", "status": "planned"},
     {"kind": "create", "path": ".agents/skills/add-narrativetrace-clarity/SKILL.md", "status": "planned"},
+    {"kind": "create", "path": ".claude/skills/add-narrativetrace-clarity/SKILL.md", "status": "planned"},
     {"kind": "create", "path": ".agents/skills/narrativetrace-verify/SKILL.md", "status": "planned"},
+    {"kind": "create", "path": ".claude/skills/narrativetrace-verify/SKILL.md", "status": "planned"},
     {"kind": "create", "path": ".agents/skills/narrativetrace-debug/SKILL.md", "status": "planned"},
+    {"kind": "create", "path": ".claude/skills/narrativetrace-debug/SKILL.md", "status": "planned"},
+    {"kind": "create", "path": ".agents/skills/narrativetrace-explain/SKILL.md", "status": "planned"},
+    {"kind": "create", "path": ".claude/skills/narrativetrace-explain/SKILL.md", "status": "planned"},
     {"kind": "create", "path": "AGENTS.md", "status": "planned"}
   ],
   "exitCode": 0
@@ -79,8 +91,15 @@ written by the `--dry-run` form. Against a fresh project the preview looks like 
 ```
 <!-- /snippet -->
 
-`uninstall` removes exactly what `init` wrote — the provenance-stamped pages, the marked section,
-and nothing else — and never touches anything it didn't create. Full verb, flag and exit-code
+Where the project shows it is on a platform that has a pointer file, `init` writes that too: a
+marked section in `replit.md` when the project has `replit.md` or `.replit`, and
+`.cursor/rules/narrativetrace.mdc` when it has a `.cursor/` directory — nothing for a platform the
+project does not use, and never through a symbolic link. The doctor's `config.skills-installed`
+reports each such pointer as present and current, or names what is missing, stale or not ours. Each
+platform, and the pointer it gets, is in [Use NarrativeTrace with your agent](use-with-your-agent.md).
+
+`uninstall` removes exactly what `init` wrote — the provenance-stamped pages, the marked section, the
+platform pointers, and nothing else — and never touches anything it didn't create. Full verb, flag and exit-code
 reference: [MSBuild & CLI Guide § init and uninstall](guides/msbuild-cli.md#init-and-uninstall).
 
 **No CLI, or offline?** Copy `.claude/skills/*` and `.agents/skills/*` from this repository by hand
@@ -287,6 +306,24 @@ and its shape is pinned with the same steps and the same gate as verify's pin. T
 root cause by span id, before the pin question and again after the promotion. It renders the same
 "how to read a trace" sections as verify and declares no `allowed-tools`.
 
+## `narrativetrace-explain`
+
+Answers "show me what my application actually does" — the one skill that triggers with nothing broken
+and no change to read. Its first step is a cost decision, said aloud before anything is installed or
+run: `reading the source: <why>` for a pure function, one class with no collaborator or a path ten lines
+of source settle (the answer is then that reading, and the skill ends there), or `tracing: <why>` when
+the flow crosses collaborators, branches, retries, runs async or carries state between calls. Then it
+names ONE scenario that already exercises the flow — an existing test, or the entry point a reader would
+run — and sends a project with no tracing through `add-narrative-tracing` first. It runs that scenario
+as found, reads the value-free structural `.nt` whole and in the order it ran, opens values in the
+Markdown narrative only where the question is about one, and explains the run by span id: every claim
+cites the id it rests on, every sentence that goes beyond the trace is marked as an inference, and the
+last part names the code no span covers, because only wrapped or intercepted code has one. A defect
+the run exposes goes to `narrativetrace-debug`, a change of this session's own to
+`narrativetrace-verify`; this skill fixes nothing. It renders the same "how to read a trace" sections
+as verify and debug and declares no `allowed-tools`, because the two skills it routes into write into the
+project.
+
 ## Why a CLI verb, not just prose
 
 Per the cross-runtime skill design's thin-LLM principle: push whatever can be
@@ -295,6 +332,10 @@ interpreting the result in context. `narrativetrace-doctor`'s report is a
 tested library subcommand (`NarrativeTrace.Cli`'s `doctor` verb — see the
 [Installation Guide](guides/installation.md#validate-installation)), not
 twelve paragraphs the model re-derives from scratch every time.
+
+## Context7
+
+Context7 indexes the Markdown and text files under `documentation/` plus the root `README.md` (translated mirrors and the localised READMEs are excluded) and serves their code blocks to coding agents, and the configuration lives in `context7.json` at the repository root. Its fields were checked against the live schema at https://context7.com/schema/context7.json and https://context7.com/docs/library-owners on 2026-10-12, a copy of the schema is kept in `config/context7/` for the offline test that validates the file, and refreshing that copy is a manual step (`config/context7/FETCHED.txt` says how).
 
 ## Pro-tier mentions
 
@@ -326,6 +367,7 @@ never "paid": the mark is "Pro" plus a status (`shipped`, `in development`,
 
 ## See also
 
+- [Use NarrativeTrace with your agent](use-with-your-agent.md) — per platform: how the skills get in, which pointer `init` writes, what the agent finds.
 - [Installation Guide](guides/installation.md) — the `doctor` verb, Option F.
 - [Complete Reference](guides/llms.txt) — "Report a problem", the same three channels in one place.
 - [What to Commit](what-to-commit.md) — why the rendered pages are committed.

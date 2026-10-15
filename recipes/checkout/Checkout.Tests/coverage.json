@@ -1,0 +1,218 @@
+{
+  "Checkout.dll": {
+    "/workspace/recipes/checkout/Checkout/DefaultOrderService.cs": {
+      "Checkout.DefaultOrderService": {
+        "System.String Checkout.DefaultOrderService::PlaceOrder(System.String,System.String,System.Int32,System.String)": {
+          "Lines": {
+            "11": 4,
+            "12": 3,
+            "15": 3,
+            "16": 2,
+            "17": 1,
+            "19": 1,
+            "20": 1,
+            "23": 2,
+            "24": 2,
+            "25": 2
+          },
+          "Branches": []
+        },
+        "System.Void Checkout.DefaultOrderService::.ctor(Checkout.IInventoryService,Checkout.IPaymentService,Checkout.IOrderRepository)": {
+          "Lines": {
+            "4": 4,
+            "5": 4
+          },
+          "Branches": []
+        }
+      }
+    },
+    "/workspace/recipes/checkout/Checkout/InMemoryServices.cs": {
+      "Checkout.InMemoryInventory": {
+        "System.Int32 Checkout.InMemoryInventory::AvailableUnits(System.String)": {
+          "Lines": {
+            "7": 7
+          },
+          "Branches": [
+            {
+              "Line": 7,
+              "Offset": 12,
+              "EndOffset": 14,
+              "Path": 0,
+              "Ordinal": 0,
+              "Hits": 1
+            },
+            {
+              "Line": 7,
+              "Offset": 12,
+              "EndOffset": 16,
+              "Path": 1,
+              "Ordinal": 1,
+              "Hits": 6
+            }
+          ]
+        },
+        "System.Void Checkout.InMemoryInventory::Reserve(System.String,System.Int32)": {
+          "Lines": {
+            "11": 7,
+            "13": 2,
+            "16": 5,
+            "17": 5
+          },
+          "Branches": [
+            {
+              "Line": 11,
+              "Offset": 12,
+              "EndOffset": 14,
+              "Path": 0,
+              "Ordinal": 0,
+              "Hits": 6
+            },
+            {
+              "Line": 11,
+              "Offset": 12,
+              "EndOffset": 23,
+              "Path": 1,
+              "Ordinal": 1,
+              "Hits": 2
+            },
+            {
+              "Line": 11,
+              "Offset": 21,
+              "EndOffset": 23,
+              "Path": 0,
+              "Ordinal": 2,
+              "Hits": 2
+            },
+            {
+              "Line": 11,
+              "Offset": 21,
+              "EndOffset": 40,
+              "Path": 1,
+              "Ordinal": 3,
+              "Hits": 5
+            }
+          ]
+        },
+        "System.Void Checkout.InMemoryInventory::Release(System.String,System.Int32)": {
+          "Lines": {
+            "21": 2,
+            "23": 1,
+            "25": 2
+          },
+          "Branches": [
+            {
+              "Line": 21,
+              "Offset": 12,
+              "EndOffset": 14,
+              "Path": 0,
+              "Ordinal": 0,
+              "Hits": 1
+            },
+            {
+              "Line": 21,
+              "Offset": 12,
+              "EndOffset": 28,
+              "Path": 1,
+              "Ordinal": 1,
+              "Hits": 2
+            }
+          ]
+        },
+        "System.Void Checkout.InMemoryInventory::.ctor(System.String,System.Int32)": {
+          "Lines": {
+            "3": 7,
+            "5": 7
+          },
+          "Branches": []
+        }
+      },
+      "Checkout.InMemoryOrderRepository": {
+        "System.Collections.Generic.IReadOnlyList`1<Checkout.Order> Checkout.InMemoryOrderRepository::get_Saved()": {
+          "Lines": {
+            "32": 5
+          },
+          "Branches": []
+        },
+        "System.Void Checkout.InMemoryOrderRepository::Save(Checkout.Order)": {
+          "Lines": {
+            "34": 3
+          },
+          "Branches": []
+        },
+        "System.Void Checkout.InMemoryOrderRepository::.ctor()": {
+          "Lines": {
+            "30": 7
+          },
+          "Branches": []
+        }
+      },
+      "Checkout.CardPaymentService": {
+        "System.String Checkout.CardPaymentService::Charge(System.String,System.Int32,System.String)": {
+          "Lines": {
+            "43": 5,
+            "44": 5,
+            "45": 5
+          },
+          "Branches": [
+            {
+              "Line": 43,
+              "Offset": 11,
+              "EndOffset": 13,
+              "Path": 0,
+              "Ordinal": 0,
+              "Hits": 3
+            },
+            {
+              "Line": 43,
+              "Offset": 11,
+              "EndOffset": 70,
+              "Path": 1,
+              "Ordinal": 1,
+              "Hits": 2
+            }
+          ]
+        }
+      }
+    },
+    "/workspace/recipes/checkout/Checkout/OrderServiceWithoutRelease.cs": {
+      "Checkout.OrderServiceWithoutRelease": {
+        "System.String Checkout.OrderServiceWithoutRelease::PlaceOrder(System.String,System.String,System.Int32,System.String)": {
+          "Lines": {
+            "16": 2,
+            "17": 2,
+            "18": 2,
+            "19": 1,
+            "20": 1,
+            "21": 1
+          },
+          "Branches": []
+        },
+        "System.Void Checkout.OrderServiceWithoutRelease::.ctor(Checkout.IInventoryService,Checkout.IPaymentService,Checkout.IOrderRepository)": {
+          "Lines": {
+            "9": 2,
+            "10": 2
+          },
+          "Branches": []
+        }
+      }
+    },
+    "/workspace/recipes/checkout/Checkout/Services.cs": {
+      "Checkout.Order": {
+        "System.String Checkout.Order::get_OrderId()": {
+          "Lines": {
+            "25": 4
+          },
+          "Branches": []
+        }
+      },
+      "Checkout.PaymentDeclinedException": {
+        "System.Void Checkout.PaymentDeclinedException::.ctor(System.String)": {
+          "Lines": {
+            "27": 2
+          },
+          "Branches": []
+        }
+      }
+    }
+  }
+}

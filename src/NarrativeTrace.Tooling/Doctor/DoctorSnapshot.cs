@@ -71,6 +71,13 @@ public sealed record DoctorSnapshot(
         new Dictionary<string, string>();
 
     /// <summary>
+    /// One reading per detected platform whose row has a pointer file, in platform-table order — the
+    /// installer's own reading, so the doctor and <c>init</c> agree on what "present" means. Empty by
+    /// default: a project on no platform that needs a pointer has nothing to be missing.
+    /// </summary>
+    public IReadOnlyList<PointerReading> PointerReadings { get; init; } = [];
+
+    /// <summary>
     /// Every project manifest's text, each stripped of its own comments and CDATA sections, then joined
     /// — what a framework-table marker or a package reference is looked for in. Stripped one file at a
     /// time, so an unterminated comment in one manifest cannot hide a reference in the next.

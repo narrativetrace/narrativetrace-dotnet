@@ -28,6 +28,15 @@ public static class CaseTurns
 {
     private const string Field = "turns";
 
+    /// <summary>
+    /// The turns that open a NEW session rather than resuming the conversation:
+    /// <c>"freshTurns": [2]</c>. Written for one question — what does a LATER session find? — which
+    /// the install cases cannot ask: an install that goes green in the session that ran it says
+    /// nothing about the next session, and on 2026-10-10 the next session listed no skill at all
+    /// (item 166).
+    /// </summary>
+    private const string FreshField = "freshTurns";
+
     /// <summary>The replies <paramref name="caseDir"/> declares, in turn order; empty for a single-turn case.</summary>
     /// <exception cref="InvalidOperationException">the declaration cannot be driven as written.</exception>
     public static IReadOnlyList<string> ScriptedRepliesFor(string caseDir)
@@ -50,6 +59,69 @@ public static class CaseTurns
         }
 
         return OrderedReplies(manifest, turns);
+    }
+
+    /// <summary>
+    /// The turn numbers <paramref name="caseDir"/> declares as fresh sessions, ascending; empty when it
+    /// declares none. Each must be a scripted turn — a fresh turn with nothing to say cannot be driven
+    /// — and never turn 1, which is a fresh session by definition.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">the declaration cannot be driven as written.</exception>
+    public static IReadOnlyList<int> FreshTurnsFor(string caseDir)
+    {
+        var manifest = Path.Combine(caseDir, "case.json");
+        if (!File.Exists(manifest))
+        {
+            return [];
+        }
+
+        using var document = Parse(manifest);
+        if (document.RootElement.ValueKind != JsonValueKind.Object
+            || !document.RootElement.TryGetProperty(FreshField, out var declared))
+        {
+            return [];
+        }
+
+        return OrderedFreshTurns(manifest, declared, ScriptedRepliesFor(caseDir).Count + 1);
+    }
+
+    private static List<int> OrderedFreshTurns(string manifest, JsonElement declared, int lastTurn)
+    {
+        if (declared.ValueKind != JsonValueKind.Array)
+        {
+            throw new InvalidOperationException($"{manifest} declares \"{FreshField}\" as something other than an array of turn numbers");
+        }
+
+        var fresh = new SortedSet<int>();
+        foreach (var entry in declared.EnumerateArray())
+        {
+            var turn = FreshTurnNumber(manifest, entry, lastTurn);
+            if (!fresh.Add(turn))
+            {
+                throw new InvalidOperationException($"{manifest} declares fresh turn {turn} twice");
+            }
+        }
+
+        return [.. fresh];
+    }
+
+    private static int FreshTurnNumber(string manifest, JsonElement entry, int lastTurn)
+    {
+        if (entry.ValueKind != JsonValueKind.Number || !entry.TryGetInt32(out var turn))
+        {
+            throw new InvalidOperationException($"{manifest} declares a \"{FreshField}\" entry that is not a turn number: {entry.GetRawText()}");
+        }
+
+        if (turn < 2)
+        {
+            throw new InvalidOperationException(
+                $"{manifest} declares turn {turn} in \"{FreshField}\" — turn 1 is a fresh session already, so only a later turn can be listed");
+        }
+
+        return turn <= lastTurn
+            ? turn
+            : throw new InvalidOperationException(
+                $"{manifest} declares turn {turn} in \"{FreshField}\" but scripts no reply for it — a fresh turn with nothing to say cannot be driven");
     }
 
     private static JsonDocument Parse(string manifest)

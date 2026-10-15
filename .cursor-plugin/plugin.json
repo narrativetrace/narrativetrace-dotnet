@@ -1,0 +1,18 @@
+{
+  "name": "narrativetrace-dotnet",
+  "description": "Install NarrativeTrace in a .NET project and reach a first trace, diagnose an install that traces nothing, score the names a trace renders, verify a change by reading what the code actually did, debug a wrong result from its values, and explain what an application actually does from a run of it.",
+  "author": {
+    "name": "NarrativeTrace"
+  },
+  "license": "Apache-2.0",
+  "homepage": "https://narrativetrace.ai",
+  "keywords": [
+    "narrativetrace",
+    "dotnet",
+    "tracing",
+    "observability",
+    "agent-skills"
+  ],
+  "skills": "./.agents/skills/",
+  "rules": "./.cursor/rules/narrativetrace.mdc"
+}

@@ -34,8 +34,8 @@ run `ClarityScan` / `ClarityCheck`.
 
 ### `init` and `uninstall`
 
-Copies the two agent skills into `.agents/skills/` (and `.claude/skills/` too, once it detects
-`.claude/` or `CLAUDE.md`) and writes one marked section into `AGENTS.md`; `uninstall` removes
+Copies the two agent skills into `.agents/skills/` and `.claude/skills/` (Claude Code loads
+project skills from that directory only; `--vendor none` leaves it out) and writes one marked section into `AGENTS.md`; `uninstall` removes
 exactly what `init` wrote and nothing else. Zero network — the carrier travels inside this package.
 
 ```bash
@@ -64,6 +64,21 @@ Exit codes:
 | `2` | The command line could not be parsed. |
 
 See [Agent Skills](../agent-skills.md) for what gets written and why.
+
+### `doctor`
+
+Read-only diagnosis of the install. Fails the build on a failing finding — the report is written
+first (`--report` leaves the JSON at `TestResults/narrativetrace/doctor-report.json`), so "doctor
+green" is exit `0`.
+
+| Code | When |
+|---|---|
+| `0` | Every check passed. |
+| `1` | At least one finding failed. |
+| `2` | The doctor could not run (no such directory, no `.csproj`). |
+
+A pipeline that reads the report itself opts out by ignoring the exit code of that one step (for
+example `dotnet-narrativetrace doctor --report || true`) and reading the JSON.
 
 ### `clarity-scan`
 
@@ -157,7 +172,7 @@ Add the build-only package. `PrivateAssets="all"` keeps it out of your
 package's transitive dependencies:
 
 ```xml
-<PackageReference Include="NarrativeTrace.MSBuild" Version="0.3.0"
+<PackageReference Include="NarrativeTrace.MSBuild" Version="0.4.0"
                   PrivateAssets="all" />
 ```
 
@@ -254,7 +269,7 @@ When `NarrativeTraceOutput=true`, the `_NarrativeTraceExportEnv` target (run
 before `VSTest`) appends the runtime configuration to
 `VSTestEnvironmentVariables`, so the test host sees:
 
-```
+```text
 NARRATIVETRACE_OUTPUT=true
 NARRATIVETRACE_OUTPUT_DIR=$(NarrativeTraceOutputDir)
 NARRATIVETRACE_FORMAT=$(NarrativeTraceFormat)

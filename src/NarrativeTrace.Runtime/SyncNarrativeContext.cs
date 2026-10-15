@@ -49,6 +49,8 @@ public sealed class SyncNarrativeContext
 {
     private readonly NarrativeTraceConfig _config;
     private readonly IEventPipeline? _sink;
+    private const int SampledFlag = 1;
+
     private readonly object _lock = new();
     private readonly AsyncLocal<SpanId?> _scopedParent = new();
     private readonly AsyncLocal<State?> _activated = new();
@@ -445,6 +447,21 @@ public sealed class SyncNarrativeContext
             var state = Current;
             state.TraceId = traceparent.TraceId;
             state.RemoteParentSpanId = traceparent.ParentSpanId;
+        }
+    }
+
+    /// <inheritdoc/>
+    public Traceparent? OutboundTraceparent()
+    {
+        lock (_lock)
+        {
+            var state = Current;
+            if (state.TraceId is not { } traceId || ResolveParent() is not { } parent)
+            {
+                return null;
+            }
+
+            return new Traceparent(traceId, parent, SampledFlag);
         }
     }
 

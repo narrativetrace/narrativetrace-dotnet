@@ -32,29 +32,47 @@ and its two auto-wrap entry points accept a different policy:
 
 ## What the deny-list catches, and what outranks it
 
-`RedactionPolicy.Default` matches 26 case-insensitive name patterns, not the
+`RedactionPolicy.Default` matches a multilingual list of case-insensitive
+name patterns — Spanish, Portuguese, French, German and Chinese words
+beside the English ones, always on, with no locale to select — not the
 shorter "password, cvv, ssn, token, secret, authorization" set you might
 guess from a quick skim of the FAQ:
 
-```
-password, passwd, secret, token, apikey, api_key, cvv, ssn, authorization,
-credential, privatekey, private_key, cardnumber, card_number, jwt, cookie,
-setcookie, set_cookie, sessionid, session_id, accountnumber, account_number,
-routingnumber, routing_number, pan, iban
+```text
+English: password, passwd, secret, token, apikey, api_key, cvv, ssn,
+  authorization, credential, privatekey, private_key, cardnumber,
+  card_number, jwt, cookie, setcookie, set_cookie, sessionid, session_id,
+  accountnumber, account_number, routingnumber, routing_number, pan, iban,
+  passphrase, otp, bearer, accesskey, access_key, socialsecurity,
+  social_security, socialsecuritynumber, taxid, tax_id
+Short national-id words (token-boundary match, below): rut, cuit, dni,
+  senha, cpf, cnpj, nir, mima
+Spanish: contrasena, tarjeta, cedula, claveacceso, clave_acceso,
+  clavesecreta, clave_secreta
+Portuguese: cartao
+French: motdepasse, mot_de_passe, cartebancaire, carte_bancaire,
+  numerocarte, numero_carte
+Chinese: 密码, 身份证, shenfenzheng
+German: passwort, kennwort
 ```
 
-Matching is substring-based and deliberately biased toward over-redaction
-(a pattern of `token` also catches `apiTokenValue`) — except `pan` and
-`iban`, which would otherwise redact ordinary business fields
-(`companyName`, `planId`, `spanCount`, `japaneseAddress`) as substrings, so
-those two are matched on identifier-token boundaries instead.
+Names are folded before matching, so `contraseña` and `contrasena` are one
+pattern. Matching is substring-based and deliberately biased toward
+over-redaction (a pattern of `token` also catches `apiTokenValue`) — except
+`pan`, `iban` and the short national-id words in the second group, which
+would otherwise redact ordinary business fields (`companyName`, `planId`,
+`spanCount`, `japaneseAddress`, `midnight`, `truth`) as substrings, so
+those are matched on identifier-token boundaries instead.
 
-Independent of any field name, a second axis recognizes three **value
-shapes** and redacts them regardless of what the field is called: a JWT
-(three base64url segments starting `eyJ`), a Luhn-valid 13–19 digit payment
-card number, and an HTTP `Set-Cookie`-shaped string. This is why a field
-named `data` or `note` still gets redacted when it happens to hold something
-that looks like a card number or a bearer token.
+Independent of any field name, a second axis recognizes **value shapes**
+and redacts them regardless of what the field is called: a JWT (three
+base64url segments starting `eyJ`), a Luhn-valid 13–19 digit payment card
+number, an HTTP `Set-Cookie`-shaped string, and a national identity number
+that passes its own check digits — a Chilean RUT, a Brazilian CPF or CNPJ,
+a Spanish DNI/NIE, a French NIR, a Chinese resident identity number, or a US
+Social Security number in the dashed form. This is why a field named `data`
+or `note` still gets redacted when it happens to hold something that looks
+like a card number, a bearer token or a CPF.
 
 `[NotTraced]` on a parameter, property, or field always wins, independent of
 the deny-list:
@@ -103,8 +121,8 @@ Every rendered value is capped and sanitized, regardless of redaction:
 
 - **Redaction is unconditional by default in every shipped integration**,
   and stays that way unless application code deliberately opts a proxy out
-  in its own source: `[NotTraced]` and the 26-pattern deny-list (plus the
-  three value shapes) apply to every output path this runtime ships —
+  in its own source: `[NotTraced]` and the name deny-list (plus the
+  value shapes) apply to every output path this runtime ships —
   proxy capture, DI auto-wrap, ASP.NET Core middleware, xUnit/NUnit test
   output, template placeholders, and every export format — unless that
   specific proxy was constructed with `new ProxyOptions(Redaction: ...)`.

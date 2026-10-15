@@ -92,6 +92,69 @@ public sealed class OutputDirectoryResolverTests
         Assert.Equal(Path.Combine("out", "traces", "A_B", "runs.md"), file);
     }
 
+    /// <summary>
+    /// U+FFFE and U+FFFF are legal UTF-8 but permanently unassigned, and APFS refuses a file name carrying
+    /// them where ext4 does not — so every writer threw on macOS and nowhere else. The security suite's
+    /// hostile-corpus <c>noncharacter</c> names row is the replay.
+    /// </summary>
+    [Fact]
+    public void A_class_name_carrying_a_noncharacter_resolves_with_it_replaced_like_a_control_character()
+    {
+        var resolver = new OutputDirectoryResolver("out");
+
+        var file = resolver.TraceFile("com.example.name\uFFFE\uFFFFhere", "runs");
+
+        Assert.Equal(Path.Combine("out", "traces", "name__here", "runs.md"), file);
+    }
+
+    [Theory]
+    [InlineData('\uFDD0')]
+    [InlineData('\uFDEF')]
+    public void A_class_name_carrying_a_noncharacter_of_the_arabic_block_is_replaced_too(char noncharacter)
+    {
+        var resolver = new OutputDirectoryResolver("out");
+
+        var file = resolver.TraceFile("com.example.name" + noncharacter + "here", "runs");
+
+        Assert.Equal(Path.Combine("out", "traces", "name_here", "runs.md"), file);
+    }
+
+    [Theory]
+    [InlineData('\uFDCF')]
+    [InlineData('\uFDF0')]
+    public void A_class_name_carrying_the_neighbours_of_the_arabic_noncharacter_block_keeps_them(char neighbour)
+    {
+        var resolver = new OutputDirectoryResolver("out");
+
+        var file = resolver.TraceFile("com.example.name" + neighbour + "here", "runs");
+
+        Assert.Equal(Path.Combine("out", "traces", "name" + neighbour + "here", "runs.md"), file);
+    }
+
+    /// <summary>A supplementary noncharacter arrives as a well-formed pair, which the pair rule would wave through; it folds to ONE placeholder.</summary>
+    [Theory]
+    [InlineData(0x1FFFE)]
+    [InlineData(0x10FFFF)]
+    public void A_class_name_carrying_a_supplementary_noncharacter_is_replaced_as_one_character(int codePoint)
+    {
+        var resolver = new OutputDirectoryResolver("out");
+
+        var file = resolver.TraceFile("com.example.name" + char.ConvertFromUtf32(codePoint) + "here", "runs");
+
+        Assert.Equal(Path.Combine("out", "traces", "name_here", "runs.md"), file);
+    }
+
+    [Fact]
+    public void A_class_name_carrying_the_neighbour_of_a_supplementary_noncharacter_keeps_it()
+    {
+        var resolver = new OutputDirectoryResolver("out");
+        var neighbour = char.ConvertFromUtf32(0x1FFFD);
+
+        var file = resolver.TraceFile("com.example.name" + neighbour + "here", "runs");
+
+        Assert.Equal(Path.Combine("out", "traces", "name" + neighbour + "here", "runs.md"), file);
+    }
+
     [Fact]
     public void A_class_name_carrying_a_well_formed_surrogate_pair_keeps_it()
     {
