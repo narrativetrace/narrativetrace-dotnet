@@ -84,6 +84,8 @@
              Link="RecipeArtifactsSupport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../build/FenceAuditSupport.cs"
              Link="FenceAuditSupport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../../build/Context7PreviousVersionsSupport.cs"
+             Link="Context7PreviousVersionsSupport.cs" />
   </ItemGroup>
 
   <ItemGroup>

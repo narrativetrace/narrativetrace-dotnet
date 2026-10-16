@@ -13,7 +13,7 @@ namespace Build.Tests;
 
 /// <summary>
 /// The repository-root <c>context7.json</c> that tells Context7 what to index: it must validate
-/// against the committed copy of Context7's live schema, carry the version tags as
+/// against the committed copy of Context7's live schema, carry the version tags plus this build's version as
 /// <c>previousVersions</c>, hold only factual text, and index no code fence without a language tag.
 /// </summary>
 public sealed class Context7ConfigTests
@@ -96,14 +96,131 @@ public sealed class Context7ConfigTests
     }
 
     [SkippableFact]
-    public void Previous_versions_are_exactly_the_version_tags()
+    public void Previous_versions_are_the_version_tags_plus_this_builds_version()
     {
-        var tags = VersionTags();
-        Skip.If(tags is null, "no git history with version tags (public snapshot)");
-
         var listed = Config()["previousVersions"]!.AsArray().Select(n => n!["tag"]!.GetValue<string>()).ToArray();
 
-        Assert.Equal(tags, listed);
+        var problems = Context7PreviousVersionsSupport.Check(Root, listed);
+
+        Skip.If(problems is null, "no git history with version tags (public snapshot)");
+        Assert.Empty(problems!);
+    }
+
+    [Fact]
+    public void The_builds_own_version_is_listed_before_its_tag_exists()
+    {
+        using var repo = TaggedRepo("0.3.0", "v0.1.0", "v0.2.0");
+
+        var problems = Context7PreviousVersionsSupport.Check(repo.Path, ["v0.3.0", "v0.2.0", "v0.1.0"]);
+
+        Assert.Empty(problems!);
+    }
+
+    [Fact]
+    public void A_file_that_omits_the_builds_own_version_is_reported()
+    {
+        using var repo = TaggedRepo("0.3.0", "v0.1.0", "v0.2.0");
+
+        var problems = Context7PreviousVersionsSupport.Check(repo.Path, ["v0.2.0", "v0.1.0"]);
+
+        Assert.Contains(problems!, p => p.Contains("v0.3.0", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void The_release_tags_own_checkout_is_clean_when_the_file_lists_it()
+    {
+        using var repo = TaggedRepo("0.2.0", "v0.1.0", "v0.2.0");
+
+        var problems = Context7PreviousVersionsSupport.Check(repo.Path, ["v0.2.0", "v0.1.0"]);
+
+        Assert.Empty(problems!);
+    }
+
+    [Fact]
+    public void A_tagged_checkout_without_the_version_source_is_a_misconfigured_gate_not_a_skip()
+    {
+        using var repo = TaggedRepo(null, "v0.1.0");
+
+        Assert.Throws<InvalidOperationException>(() => Context7PreviousVersionsSupport.Check(repo.Path, ["v0.1.0"]));
+    }
+
+    [Fact]
+    public void A_checkout_without_tags_is_a_skip()
+    {
+        using var repo = TaggedRepo("0.1.0");
+
+        Assert.Null(Context7PreviousVersionsSupport.Check(repo.Path, ["v0.1.0"]));
+    }
+
+    [Fact]
+    public void A_tree_without_git_is_a_skip()
+    {
+        using var dir = new TempDir();
+
+        Assert.Null(Context7PreviousVersionsSupport.Check(dir.Path, []));
+    }
+
+    [Fact]
+    public void Versions_order_numerically_so_ten_follows_nine()
+    {
+        var problems = Context7PreviousVersionsSupport.Problems(["v0.9.0", "v0.2.0"], "0.10.0", ["v0.10.0", "v0.9.0", "v0.2.0"]);
+
+        Assert.Empty(problems);
+    }
+
+    [Fact]
+    public void A_version_between_two_tags_is_listed_in_numeric_position()
+    {
+        var problems = Context7PreviousVersionsSupport.Problems(["v0.3.0", "v0.1.0"], "0.2.0", ["v0.3.0", "v0.2.0", "v0.1.0"]);
+
+        Assert.Empty(problems);
+    }
+
+    [Fact]
+    public void A_stale_extra_entry_is_reported()
+    {
+        var problems = Context7PreviousVersionsSupport.Problems(["v0.1.0"], "0.1.0", ["v9.9.9", "v0.1.0"]);
+
+        Assert.Single(problems);
+    }
+
+    [Fact]
+    public void A_blank_build_version_is_refused()
+    {
+        Assert.Throws<ArgumentException>(() => Context7PreviousVersionsSupport.Problems(["v0.1.0"], " ", []));
+    }
+
+    private sealed class TempDir : IDisposable
+    {
+        public string Path { get; } = Directory.CreateTempSubdirectory("c7prev").FullName;
+
+        public void Dispose() => Directory.Delete(Path, recursive: true);
+    }
+
+    private static TempDir TaggedRepo(string? version, params string[] tags)
+    {
+        var dir = new TempDir();
+        if (version is not null)
+            File.WriteAllText(System.IO.Path.Combine(dir.Path, "Directory.Build.props"),
+                $"<Project><PropertyGroup><VersionPrefix>{version}</VersionPrefix></PropertyGroup></Project>");
+        Git(dir.Path, "init", "-q");
+        foreach (var tag in tags)
+        {
+            File.WriteAllText(System.IO.Path.Combine(dir.Path, $"marker-{tag}.txt"), tag);
+            Git(dir.Path, "add", ".");
+            Git(dir.Path, "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "commit", "-q", "-m", tag);
+            Git(dir.Path, "-c", "tag.gpgsign=false", "tag", tag);
+        }
+        return dir;
+    }
+
+    private static void Git(string workingDirectory, params string[] args)
+    {
+        var info = new ProcessStartInfo("git", args) { WorkingDirectory = workingDirectory, RedirectStandardOutput = true, RedirectStandardError = true };
+        using var git = Process.Start(info)!;
+        git.StandardOutput.ReadToEnd();
+        git.WaitForExit();
+        Assert.Equal(0, git.ExitCode);
     }
 
     [Fact]
@@ -175,20 +292,5 @@ public sealed class Context7ConfigTests
             matcher.AddInclude(line + "/**");
         }
         return matcher;
-    }
-
-    private static string[]? VersionTags()
-    {
-        if (!Directory.Exists(Path.Combine(Root, ".git")))
-            return null;
-        var info = new ProcessStartInfo("git", ["tag", "--list", "v*", "--sort=-v:refname"])
-        {
-            WorkingDirectory = Root,
-            RedirectStandardOutput = true,
-        };
-        using var git = Process.Start(info)!;
-        var tags = git.StandardOutput.ReadToEnd().Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        git.WaitForExit();
-        return tags.Length == 0 ? null : tags;
     }
 }
