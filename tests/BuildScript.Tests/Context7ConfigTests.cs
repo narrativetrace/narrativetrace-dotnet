@@ -52,12 +52,12 @@ public sealed class Context7ConfigTests
     }
 
     [Fact]
-    public void Config_leaves_ownership_verification_to_the_owner()
+    public void Config_carries_the_owner_supplied_claim()
     {
         var config = Config();
 
-        Assert.False(config.ContainsKey("url"));
-        Assert.False(config.ContainsKey("public_key"));
+        Assert.Equal("https://context7.com/narrativetrace/narrativetrace-dotnet", config["url"]!.GetValue<string>());
+        Assert.Matches(@"^pk_[A-Za-z0-9]+$", config["public_key"]!.GetValue<string>());
     }
 
     [Fact]

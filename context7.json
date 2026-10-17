@@ -1,4 +1,6 @@
 {
+  "url": "https://context7.com/narrativetrace/narrativetrace-dotnet",
+  "public_key": "pk_zCHnG7S67Jp8QHoo0SDw8",
   "projectTitle": "NarrativeTrace for .NET",
   "description": "NarrativeTrace for .NET records each traced interface call, its parameters and its result as log lines through the Microsoft.Extensions.Logging bridge, and writes a value-free structural trace per test. Install the NarrativeTrace.Proxy package from NuGet, add NarrativeTrace.Logging for the logging bridge, and install the NarrativeTrace.Cli tool.",
   "folders": [
