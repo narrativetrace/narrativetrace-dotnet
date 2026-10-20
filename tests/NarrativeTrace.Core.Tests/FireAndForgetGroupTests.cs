@@ -37,6 +37,30 @@ public class FireAndForgetGroupTests
     }
 
     [Fact]
+    public async Task Launched_branch_root_carries_the_launching_span_as_its_parent()
+    {
+        var ctx = new SyncNarrativeContext(
+            new NarrativeTraceConfig());
+        var h0 = ctx.EnterMethod("Parent", "Run", []);
+        var launching = ctx.CaptureTrace().Roots[0].SpanContext!.SpanId;
+        var done = new TaskCompletionSource<bool>();
+
+        var group = FireAndForgetGroup.Create(ctx);
+        group.Launch(iso =>
+        {
+            iso.EnterMethod("Bg", "Work", []);
+            iso.ExitMethodWithReturn(null);
+            done.SetResult(true);
+        });
+        await done.Task;
+        await ChildRootBarrier.WaitForChildRoots(group);
+        ctx.ExitMethodWithReturn(null, h0);
+
+        var branch = group.ChildRoots()[0].Roots[0];
+        Assert.Equal(launching, branch.SpanContext!.ParentSpanId);
+    }
+
+    [Fact]
     public async Task Launched_task_runs_on_isolated_context()
     {
         var ctx = new SyncNarrativeContext(

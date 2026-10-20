@@ -1,4 +1,4 @@
-<!-- source: documentation/sixty-seconds.md blob 0d08d50c6065 | translated: 2026-10-15 | reviewed: - -->
+<!-- source: documentation/sixty-seconds.md blob 017bafd9e53b | translated: 2026-10-20 | reviewed: - -->
 # Ve una traza en 60 segundos
 
 [English](../sixty-seconds.md) | **Español** | [Português](../pt-BR/sessenta-segundos.md) | [简体中文](../zh-CN/60秒.md)
@@ -29,6 +29,10 @@ esto: deja `initialTraceparent` sin establecer y una ejecución real genera
 un id de traza aleatorio cada vez, y el nombre de tres palabras de abajo se
 deriva de él, nunca de un nombre que tú elijas.
 
+El mismo `NarrativeTraceConfig` nombra el servicio (`serviceIdentity: new ServiceIdentity("hello-service")`).
+Si lo omites, cada span se atribuye a `unknown_service:dotnet`; en un proyecto
+real establécelo en código o con `NARRATIVETRACE_SERVICE_NAME`.
+
 ```csharp
 using NarrativeTrace.Core;
 using NarrativeTrace.Proxy;
@@ -43,7 +47,9 @@ const string DemoTraceparent = "00-a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4-a1b2c3d4a1b2
 // snippet:end fixedTraceparent
 
 var context = new SyncNarrativeContext(
-    new NarrativeTraceConfig(initialTraceparent: Traceparent.Parse(DemoTraceparent)));
+    new NarrativeTraceConfig(
+        serviceIdentity: new ServiceIdentity("hello-service"), // nombra el servicio; sin él, los spans se leen unknown_service:dotnet
+        initialTraceparent: Traceparent.Parse(DemoTraceparent)));
 var orders = NarrativeTraceProxy.Create<IOrderService>(new OrderService(), context);
 
 orders.PlaceOrder("cust-1", "book-123", 2);
@@ -123,7 +129,9 @@ using NarrativeTrace.Runtime;
 const string DemoTraceparent = "00-a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4-a1b2c3d4a1b2c3d4-01";
 
 var context = new SyncNarrativeContext(
-    new NarrativeTraceConfig(initialTraceparent: Traceparent.Parse(DemoTraceparent)));
+    new NarrativeTraceConfig(
+        serviceIdentity: new ServiceIdentity("hello-service"), // nombra el servicio; sin él, los spans se leen unknown_service:dotnet
+        initialTraceparent: Traceparent.Parse(DemoTraceparent)));
 var orders = NarrativeTraceProxy.Create<IOrderService>(new OrderService(), context);
 
 orders.PlaceOrder("cust-1", "book-123", 2);

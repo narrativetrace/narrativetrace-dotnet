@@ -25,6 +25,11 @@ One page per problem, in the words a user would type, each with a real run's cod
 - [Why did this test fail](../recipes/why-did-this-test-fail.md) — Read a red test's narrative against its assertion and tell a code bug from a stale expectation.
 - [Review a complex flow before changing it](../recipes/review-a-complex-flow-before-changing-it.md) — See what a flow does at `Detail` and `Summary`, and the value-free `.nt` an agent reads.
 - [Review a refactoring: did behaviour change](../recipes/review-a-refactoring-did-behaviour-change.md) — Catch a dropped call the green tests missed, with the approval diff.
+- [Follow one request across services (distributed tracing)](../recipes/follow-one-request-across-services.md) — Carry one trace id and the caller's span across an HTTP hop, so two services' lines read as one request.
+- [Keep secrets out of the logs](../recipes/keep-secrets-out-of-the-logs.md) — See a password and a card number redacted by name and by value, and prove it with a test that reads the log back.
+- [Follow a flow across threads](../recipes/follow-a-flow-across-threads.md) — Keep background work inside the trace with a fork-join group, and see what it looks like without one.
+- [Send traces to the observability stack you already run](../recipes/send-traces-to-the-observability-stack-you-already-run.md) — Feed the same run to your logger and to OpenTelemetry spans, side by side.
+- [Trace in production without the cost](../recipes/trace-in-production-without-the-cost.md) — Keep only the runs that failed with the `Errors` level, and know what that drops.
 
 ## For AI agents
 

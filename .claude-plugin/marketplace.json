@@ -9,7 +9,7 @@
     {
       "name": "narrativetrace-dotnet",
       "source": "./.claude",
-      "description": "Install NarrativeTrace in a .NET project and reach a first trace, diagnose an install that traces nothing, score the names a trace renders, verify a change by reading what the code actually did, debug a wrong result from its values, and explain what an application actually does from a run of it.",
+      "description": "Install NarrativeTrace in a .NET project and reach a first trace, diagnose an install that traces nothing, add or verify a Clarity naming report, verify a change by reading what the code actually did, debug a wrong result from its values, explain what an application actually does from a run of it, and report a defect in NarrativeTrace itself with your approval.",
       "license": "Apache-2.0",
       "homepage": "https://narrativetrace.ai",
       "keywords": [

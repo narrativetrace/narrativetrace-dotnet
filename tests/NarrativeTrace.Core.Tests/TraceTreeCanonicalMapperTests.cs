@@ -332,6 +332,80 @@ public class TraceTreeCanonicalMapperTests
         Assert.NotEmpty(entries);
     }
 
+    [Fact]
+    public void Root_under_an_adopted_trace_maps_with_the_adopted_parent_on_enter_and_exit()
+    {
+        var entries = TraceTreeCanonicalMapper.FromTree(Adopted("00f067aa0ba902b7", withChild: false));
+
+        Assert.Equal("00f067aa0ba902b7", entries[0].ParentSpanId);
+        Assert.Equal("00f067aa0ba902b7", entries[1].ParentSpanId);
+    }
+
+    [Fact]
+    public void Child_of_an_adopted_root_names_the_root_not_the_remote_parent()
+    {
+        var entries = TraceTreeCanonicalMapper.FromTree(Adopted("00f067aa0ba902b7", withChild: true));
+
+        Assert.Equal(entries[0].SpanId, entries[1].ParentSpanId);
+        Assert.Equal(entries[0].SpanId, entries[2].ParentSpanId);
+    }
+
+    [Fact]
+    public void Root_with_a_span_context_but_no_parent_maps_with_none()
+    {
+        var entries = TraceTreeCanonicalMapper.FromTree(Adopted(null, withChild: false));
+
+        Assert.Null(entries[0].ParentSpanId);
+        Assert.Null(entries[1].ParentSpanId);
+    }
+
+    [Fact]
+    public void Structural_array_export_carries_the_adopted_parent_of_a_root()
+    {
+        var json = CanonicalEntryArrayExporter.Structural(Adopted("00f067aa0ba902b7", withChild: false));
+
+        Assert.Contains("\"parent_span_id\":\"00f067aa0ba902b7\"", json.Replace(" ", string.Empty));
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(0)]
+    public void Span_contexts_under_an_adopted_trace_carry_the_adopted_trace_flags(int flags)
+    {
+        var context = new SyncNarrativeContext(new NarrativeTraceConfig());
+        context.AdoptTraceparent(new Traceparent(
+            new TraceId(TraceHex), new SpanId("00f067aa0ba902b7"), flags));
+        var outer = context.EnterMethod("Svc", "Run", []);
+        var inner = context.EnterMethod("Repo", "Save", []);
+        context.ExitMethodWithReturn("\"s\"", inner);
+        context.ExitMethodWithReturn("\"ok\"", outer);
+
+        var root = context.CaptureTrace().Roots[0];
+
+        Assert.Equal(flags, root.SpanContext!.TraceFlags);
+        Assert.Equal(flags, root.Children[0].SpanContext!.TraceFlags);
+    }
+
+    private static TraceTree Adopted(string? remoteParent, bool withChild)
+    {
+        var context = new SyncNarrativeContext(new NarrativeTraceConfig());
+        if (remoteParent is not null)
+        {
+            context.AdoptTraceparent(new Traceparent(
+                new TraceId(TraceHex), new SpanId(remoteParent), 1));
+        }
+
+        var outer = context.EnterMethod("Svc", "Run", []);
+        if (withChild)
+        {
+            var inner = context.EnterMethod("Repo", "Save", []);
+            context.ExitMethodWithReturn("\"s\"", inner);
+        }
+
+        context.ExitMethodWithReturn("\"ok\"", outer);
+        return context.CaptureTrace();
+    }
+
     private static TraceNode Node(string className, string methodName) =>
         Node(new MethodSignature(className, methodName, []), new Returned("\"done\""));
 

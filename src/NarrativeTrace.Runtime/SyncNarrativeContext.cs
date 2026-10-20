@@ -279,6 +279,7 @@ public sealed class SyncNarrativeContext
         {
             SpanName =
                 $"{signature.ClassName}.{signature.MethodName}",
+            TraceFlags = state.TraceFlags,
             StoryId = state.StoryId,
             ChapterId = state.ChapterId,
             HttpMethod = state.HttpMethod,
@@ -447,6 +448,7 @@ public sealed class SyncNarrativeContext
             var state = Current;
             state.TraceId = traceparent.TraceId;
             state.RemoteParentSpanId = traceparent.ParentSpanId;
+            state.TraceFlags = traceparent.TraceFlags;
         }
     }
 
@@ -534,6 +536,9 @@ public sealed class SyncNarrativeContext
     /// (level + service identity) and streaming sink. The child captures into a
     /// fresh stack whose roots graft back under the parent span, so concurrent
     /// spans stay correlated to the parent trace instead of starting a new one.
+    /// Those roots also carry the launching span as their parent span id from
+    /// their first event, so a live consumer that follows parent ids sees the
+    /// branch under the call that forked it.
     /// </summary>
     public INarrativeContext CreateConcurrentChild()
     {
@@ -541,9 +546,11 @@ public sealed class SyncNarrativeContext
         {
             var state = Current;
             state.TraceId ??= SpanIdGenerator.GenerateTraceId();
+            var seed = state.ForkSeed();
+            seed.SnapshotParentSpanId = ResolveParent();
             return new SyncNarrativeContext(_config, _sink)
             {
-                _state = state.ForkSeed(),
+                _state = seed,
             };
         }
     }
@@ -699,6 +706,9 @@ public sealed class SyncNarrativeContext
         /// active stack and any snapshot parent are both empty.
         /// </summary>
         public SpanId? RemoteParentSpanId { get; set; }
+
+        /// <summary>W3C trace flags of the adopted traceparent; 0 when none was adopted.</summary>
+        public int TraceFlags { get; set; }
 
         /// <summary>Whether this capture was opened by activating a snapshot.</summary>
         public bool FromSnapshot { get; set; }

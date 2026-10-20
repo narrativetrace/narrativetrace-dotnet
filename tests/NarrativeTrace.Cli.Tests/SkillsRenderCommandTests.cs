@@ -177,6 +177,33 @@ public sealed class SkillsRenderCommandTests : IDisposable
     }
 
     [Fact]
+    public void Renders_the_openai_plugin_manifest_into_the_catalogue_package_without_a_version()
+    {
+        SeedFixtureFiles();
+
+        var exit = SkillsRenderCommand.Run(_root, _out, _err);
+
+        Assert.Equal(0, exit);
+        var path = Path.Combine(_root, "src", "NarrativeTrace.Skills.Catalogue", "openai-plugin", "plugin.json");
+        var json = File.ReadAllText(path);
+        Assert.Contains("\"name\": \"narrativetrace-dotnet\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"version\"", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Does_not_rewrite_a_byte_identical_openai_plugin_manifest()
+    {
+        SeedFixtureFiles();
+        SkillsRenderCommand.Run(_root, _out, _err);
+        var path = Path.Combine(_root, "src", "NarrativeTrace.Skills.Catalogue", "openai-plugin", "plugin.json");
+        var before = File.GetLastWriteTimeUtc(path);
+
+        SkillsRenderCommand.Run(_root, _out, _err);
+
+        Assert.Equal(before, File.GetLastWriteTimeUtc(path));
+    }
+
+    [Fact]
     public void Renders_the_cursor_plugin_manifests_and_the_one_rule_at_the_repo_root()
     {
         SeedFixtureFiles();

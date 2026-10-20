@@ -20,9 +20,19 @@ namespace NarrativeTrace.Skills.Catalogue;
 /// </remarks>
 public static class NarrativeTraceVerifySkill
 {
-    /// <summary>Values, the fix and the re-read happen only when the structural read found a mismatch.</summary>
-    public const string OnlyOnAMismatch =
-        "only when the structural read named a span that does not match the intent; otherwise go on to the pin";
+    /// <summary>
+    /// Values are opened on a shape mismatch, OR on a shape match a symptom still points at — one span,
+    /// chosen by the symptom.
+    /// </summary>
+    public const string OpenValuesWhen =
+        "when the structural read named a span that does not match the intent, or the shape matches but a " +
+        "symptom points at data — an assertion failed on a value, the output is wrong — then open the one " +
+        "span the symptom points at; otherwise go on to the pin";
+
+    /// <summary>The fix and the re-read happen only on a structural mismatch, or a wrong value step 5 found.</summary>
+    public const string FixAndRerunWhen =
+        "only when the structural read named a span that does not match the intent, or the value read in " +
+        "step 5 was wrong; otherwise go on to the pin";
 
     /// <summary>The full skill definition.</summary>
     public static readonly Skill Definition = new(
@@ -91,7 +101,7 @@ public static class NarrativeTraceVerifySkill
         Body: new CommandStep([]),
         Verify: "only the flagged span was read in the .md narrative under " + VerifyCommands.OutputDir +
             "/traces, found by the id the .nt gave it — not the whole file; a [REDACTED] value stays redacted",
-        Condition: OnlyOnAMismatch);
+        Condition: OpenValuesWhen);
 
     private static SkillStep FixAndReread() => new(
         Title: "Fix, re-run, read again",
@@ -99,7 +109,7 @@ public static class NarrativeTraceVerifySkill
         Verify: "the same test ran again after the fix and its new .nt was read whole: the span that was " +
             "wrong now matches the intent, and a fix that changed the shape was read again from the " +
             "structural read",
-        Condition: OnlyOnAMismatch);
+        Condition: FixAndRerunWhen);
 
     private static SkillStep Decide() => new(
         Title: "Decide whether to trace, and say so",
@@ -120,7 +130,7 @@ public static class NarrativeTraceVerifySkill
         [
             new FailureNote(
                 Symptom: "no .nt for the test appears under " + VerifyCommands.OutputDir + "/structural",
-                Cause: "the test does not call WriteArtifacts, the collaborators on the path are not wrapped with " +
+                Cause: VerifyCommands.NoTestWriteCause + ", the collaborators on the path are not wrapped with " +
                     "the fixture's context, or NARRATIVETRACE_OUTPUT=false turned the files off",
                 Fix: "write the test as the listing does; run narrativetrace-doctor and apply its fix, then run the " +
                     "test again"),
@@ -132,8 +142,10 @@ public static class NarrativeTraceVerifySkill
     private static SkillStep Report() => new(
         Title: "Report what the trace showed, before the question",
         Body: new CommandStep([]),
-        Verify: "two sentences on what the trace showed, every claim citing the span id it rests on — a claim " +
-            "without an id is not a claim, and only ids in the .nt that was read count — with the .nt attached " +
-            "or quoted; 'tests pass' alone is not the report. It is written in this reply, after the review copy " +
+        Verify: "two sentences on what the trace showed on the path this run took, every claim citing the span " +
+            "id it rests on — a claim without an id is not a claim, and only ids in the .nt that was read " +
+            "count — with the .nt attached or quoted; the report names the branches and inputs this run did " +
+            "not exercise, because one trace shows one path, not every execution; 'tests pass' alone is not " +
+            "the report. It is written in this reply, after the review copy " +
             "and before the pin question");
 }

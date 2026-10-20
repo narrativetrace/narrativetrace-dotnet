@@ -29,9 +29,11 @@ dotnet tool run dotnet-narrativetrace doctor --json
 
 **failure:** the same framework finding fails again after its fix was applied — the snippet was pasted as printed instead of adapted to this project — its service and namespace names are the fixture's, not this project's — fix: keep the printed calls, swap in this project's own services and namespaces, rerun the doctor; if it still fails, report it with the narrativetrace-feedback skill
 
+**failure:** a service under an included namespace is not traced by AddNarrativeTracing — generated code is never traced, and the shipped default exclude list leaves framework, mocking and test-runner namespaces alone; an exclude always wins over an include — fix: read the doctor's config.exclude finding for the effective list; ExcludeNamespaces(...) or NARRATIVETRACE_EXCLUDE replaces that default as a whole, so repeat any prefix you still want
+
 ## 3. First trace: wrap the service, call it, render the tree, run it
 
-**when:** if the project already has an application entry point — a Main method or top-level program it already runs, a web or application framework the doctor reports — do not add a demo program: run the application the way it already runs, exercise one real boundary, and read that request's trace; the verify below is for the console app, and in an existing application the step is done when that request's trace is in the output; otherwise create the smallest console app as follows
+**when:** if the project already has tests — a test project in the solution, a test SDK among its package references — and the doctor reports a test integration for that runner, do not add a demo program: run one existing test through that integration with output on, which writes that test's narrative files, `.md` and `.nt`, under the integration's output directory — the files narrativetrace-doctor, narrativetrace-verify, narrativetrace-debug and narrativetrace-explain read; print the rendered file so the trace is also on the console; the step is done when that test's files exist; a project whose runner has no integration keeps that runner and takes the console path below; otherwise, if the project already has an application entry point — a Main method or top-level program it already runs, a web or application framework the doctor reports — do not add a demo program: run the application the way it already runs, exercise one real boundary, and read that request's trace; the verify below is for the console app, and in an existing application the step is done when that request's trace is in the output; otherwise create the smallest console app as follows; nothing is written to disk by this program — the application's log is the record once the logging provider in the later step is wired; this page never adds a test runner or a test to a project that has none
 
 <!-- snippet: examples/NarrativeTrace.Examples.SixtySeconds/Program.cs -->
 ```csharp
@@ -47,7 +49,9 @@ const string DemoTraceparent = "00-a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4-a1b2c3d4a1b2
 // snippet:end fixedTraceparent
 
 var context = new SyncNarrativeContext(
-    new NarrativeTraceConfig(initialTraceparent: Traceparent.Parse(DemoTraceparent)));
+    new NarrativeTraceConfig(
+        serviceIdentity: new ServiceIdentity("hello-service"), // names the service; unset, spans read unknown_service:dotnet
+        initialTraceparent: Traceparent.Parse(DemoTraceparent)));
 var orders = NarrativeTraceProxy.Create<IOrderService>(new OrderService(), context);
 
 orders.PlaceOrder("cust-1", "book-123", 2);
@@ -71,7 +75,21 @@ public sealed class OrderService : IOrderService
 
 **failure:** no trace line appears — the wrapped target was called directly instead of the proxy returned by NarrativeTraceProxy.Create<T> — fix: call the proxy instance everywhere the service is used, never the wrapped target
 
-## 4. Send it to your logger — one call, same captured tree
+**failure:** a span is named after the interface, not the class that implements it — the proxy wraps an interface and names its spans after it; there is no typeless target to name — fix: keep the interface name, or pass `new ProxyOptions(ClassName: "OrderService")` to the proxy to name the span yourself
+
+**failure:** a parameter renders as arg0, arg1 — reflection reads parameter names from the interface method, and this one carries none (an interface emitted at run time without parameter names) — fix: put `[Traced("customerId", "productId")]` on the interface method, one name per parameter
+
+## 4. Name the service: set NARRATIVETRACE_SERVICE_NAME, or `new ServiceIdentity("order-service")` in the config the context is built from
+
+```bash
+dotnet tool run dotnet-narrativetrace doctor --json
+```
+
+**verify:** the doctor's config.service-identity finding reports "passed": true
+
+**failure:** spans show the service as unknown_service:dotnet, on the platform or in a trace backend — no service name was set, and NarrativeTrace never guesses one from the assembly — fix: set NARRATIVETRACE_SERVICE_NAME (and NARRATIVETRACE_SERVICE_VERSION, NARRATIVETRACE_ENVIRONMENT) in the environment, or pass `new NarrativeTraceConfig(serviceIdentity: new ServiceIdentity("order-service"))` to the context, `options.ServiceIdentity` to AddNarrativeTracing or AddNarrativeTrace, or `NarrativeTrace:ServiceName` in appsettings.json
+
+## 5. Send it to your logger — one call, same captured tree
 
 <!-- snippet: examples/NarrativeTrace.Examples.SixtySeconds.WithLogger/Program.cs -->
 ```csharp
@@ -88,7 +106,9 @@ using NarrativeTrace.Runtime;
 const string DemoTraceparent = "00-a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4-a1b2c3d4a1b2c3d4-01";
 
 var context = new SyncNarrativeContext(
-    new NarrativeTraceConfig(initialTraceparent: Traceparent.Parse(DemoTraceparent)));
+    new NarrativeTraceConfig(
+        serviceIdentity: new ServiceIdentity("hello-service"), // names the service; unset, spans read unknown_service:dotnet
+        initialTraceparent: Traceparent.Parse(DemoTraceparent)));
 var orders = NarrativeTraceProxy.Create<IOrderService>(new OrderService(), context);
 
 orders.PlaceOrder("cust-1", "book-123", 2);
@@ -115,7 +135,7 @@ public sealed class OrderService : IOrderService
 
 **verify:** the console logger prints one Information-level record per trace node
 
-## 5. Run the doctor and resolve every finding it reports
+## 6. Run the doctor and resolve every finding it reports
 
 ```bash
 dotnet tool run dotnet-narrativetrace doctor --json
@@ -125,7 +145,7 @@ dotnet tool run dotnet-narrativetrace doctor --json
 
 **failure:** the doctor CLI exits 1 — at least one finding failed — fix: read its "fix" field and doc URL, resolve it, then rerun doctor
 
-## 6. Install the skills for next time
+## 7. Install the skills for next time
 
 ```bash
 dotnet tool run dotnet-narrativetrace init --dry-run

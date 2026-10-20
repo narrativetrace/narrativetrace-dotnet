@@ -72,6 +72,63 @@ public class JsonExporterTests
     }
 
     [Fact]
+    public void Root_under_an_adopted_trace_carries_the_adopted_parent_on_enter_and_exit()
+    {
+        var tree = Adopted("00f067aa0ba902b7");
+
+        var events = ParseEvents(tree);
+
+        Assert.Equal("00f067aa0ba902b7", events[0].GetProperty("parentSpanId").GetString());
+        Assert.Equal("00f067aa0ba902b7", events[1].GetProperty("parentSpanId").GetString());
+        Assert.False(events[0].TryGetProperty("parentId", out _));
+    }
+
+    [Fact]
+    public void Child_of_an_adopted_root_names_the_root_not_the_remote_parent()
+    {
+        var events = ParseEvents(AdoptedWithChild());
+
+        Assert.Equal(
+            events[0].GetProperty("spanId").GetString(),
+            events[1].GetProperty("parentSpanId").GetString());
+    }
+
+    [Fact]
+    public void Root_with_a_span_context_but_no_parent_writes_no_parent_key()
+    {
+        var events = ParseEvents(Adopted(null));
+
+        Assert.False(events[0].TryGetProperty("parentSpanId", out _));
+        Assert.False(events[1].TryGetProperty("parentSpanId", out _));
+    }
+
+    private static TraceTree Adopted(string? remoteParent)
+    {
+        var context = new SyncNarrativeContext(new NarrativeTraceConfig());
+        if (remoteParent is not null)
+        {
+            context.AdoptTraceparent(new Traceparent(
+                new TraceId("4bf92f3577b34da6a3ce929d0e0e4736"), new SpanId(remoteParent), 1));
+        }
+
+        var handle = context.EnterMethod("Svc", "Run", []);
+        context.ExitMethodWithReturn("\"ok\"", handle);
+        return context.CaptureTrace();
+    }
+
+    private static TraceTree AdoptedWithChild()
+    {
+        var context = new SyncNarrativeContext(new NarrativeTraceConfig());
+        context.AdoptTraceparent(new Traceparent(
+            new TraceId("4bf92f3577b34da6a3ce929d0e0e4736"), new SpanId("00f067aa0ba902b7"), 1));
+        var outer = context.EnterMethod("Svc", "Run", []);
+        var inner = context.EnterMethod("Repo", "Save", []);
+        context.ExitMethodWithReturn("\"s\"", inner);
+        context.ExitMethodWithReturn("\"ok\"", outer);
+        return context.CaptureTrace();
+    }
+
+    [Fact]
     public void Parameters_serialized_in_event()
     {
         var tree = new TraceTree([

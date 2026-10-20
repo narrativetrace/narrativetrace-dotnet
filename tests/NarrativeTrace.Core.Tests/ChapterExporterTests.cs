@@ -118,6 +118,25 @@ public class ChapterExporterTests
     }
 
     [Fact]
+    public void Chapter_tree_root_enter_carries_the_adopted_parent_span_id()
+    {
+        var tree = Capture(ctx =>
+        {
+            ctx.AdoptTraceparent(new Traceparent(
+                new TraceId("4bf92f3577b34da6a3ce929d0e0e4736"), new SpanId("00f067aa0ba902b7"), 1));
+            ctx.EnterMethod("OrderService", "PlaceOrder", []);
+            ctx.ExitMethodWithReturn("\"OK\"");
+        });
+
+        var chapterTree = JsonDocument.Parse(
+            Exporter.ExportChapter(tree, new TraceMetadata("order", ScenarioResult.Success)))
+            .RootElement.GetProperty("nt.chapterTree").GetString();
+        var enter = JsonDocument.Parse(chapterTree!).RootElement.GetProperty("events")[0];
+
+        Assert.Equal("00f067aa0ba902b7", enter.GetProperty("parentSpanId").GetString());
+    }
+
+    [Fact]
     public void Failed_trace_has_error_level_and_failure_outcome()
     {
         var tree = Capture(ctx =>

@@ -9,7 +9,7 @@ and request/user context.
 ## Package
 
 ```xml
-<PackageReference Include="NarrativeTrace.AspNetCore" Version="0.4.0" />
+<PackageReference Include="NarrativeTrace.AspNetCore" Version="0.4.1" />
 ```
 
 ## 1. Register and wire the middleware

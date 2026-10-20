@@ -6,6 +6,10 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="default-exclude.txt"
+                      LogicalName="NarrativeTrace.DependencyInjection.default-exclude.txt" />
+  </ItemGroup>
+  <ItemGroup>
     <InternalsVisibleTo Include="NarrativeTrace.DependencyInjection.Tests" />
   </ItemGroup>
   <ItemGroup>

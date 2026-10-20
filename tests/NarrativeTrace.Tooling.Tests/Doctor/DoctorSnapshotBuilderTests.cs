@@ -126,6 +126,15 @@ public sealed class DoctorSnapshotBuilderTests : IDisposable
     }
 
     [Fact]
+    public void Reads_the_service_name_variable()
+    {
+        var snapshot = DoctorSnapshotBuilder.Build(_root, key =>
+            key == "NARRATIVETRACE_SERVICE_NAME" ? "order-service" : null);
+
+        Assert.Equal("order-service", snapshot.Env["NARRATIVETRACE_SERVICE_NAME"]);
+    }
+
+    [Fact]
     public void Reads_the_narrativetrace_environment_variables()
     {
         var snapshot = DoctorSnapshotBuilder.Build(_root, key =>

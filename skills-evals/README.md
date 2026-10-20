@@ -20,6 +20,8 @@ skills-evals/
 │   ├── empty-project/            cold-install start: nothing installed yet
 │   ├── existing-project/         a project that already exists, one real
 │   │                             service boundary, no NarrativeTrace
+│   ├── existing-project-xunit/   the same service WITH an xUnit test project,
+│   │                             still no NarrativeTrace (existing-service)
 │   ├── feedback-false-positive/  configured correctly; the doctor's
 │   │                             trap.redaction-proof about it is a GENUINE
 │   │                             false positive (resolves from the local feed)
@@ -37,9 +39,14 @@ skills-evals/
 │       └── graders/verify.sh       world-state assertion, not text equality
 ├── add-narrative-tracing/
 │   ├── trigger.yaml               (includes the published init prompt itself)
-│   ├── happy-path/
+│   ├── happy-path/                 the no-tests premise: console trace, graded by running the program
+│   │   ├── case.json               → fixtures/empty-project
 │   │   ├── prompt.md
 │   │   └── graders/verify.sh
+│   ├── existing-service/           the tests premise: one existing test, the .md and .nt files left behind
+│   │   ├── case.json               → fixtures/existing-project-xunit
+│   │   ├── prompt.md
+│   │   └── graders/verify.sh       runs `dotnet test` itself; files under the integration's output dir
 │   ├── init-prompt-empty-project/  THE PUBLISHED PROMPT, byte for byte
 │   │   ├── case.json               → fixtures/empty-project
 │   │   ├── prompt.md               pinned identical by InitPromptDriftTest

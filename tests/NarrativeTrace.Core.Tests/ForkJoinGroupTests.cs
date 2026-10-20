@@ -47,6 +47,120 @@ public class ForkJoinGroupTests
     }
 
     [Fact]
+    public async Task Joined_branch_roots_carry_the_launching_span_as_their_parent()
+    {
+        var ctx = new SyncNarrativeContext(
+            new NarrativeTraceConfig());
+        var h0 = ctx.EnterMethod("Parent", "Run", []);
+        var group = ForkJoinGroup.Create(ctx);
+        group.Fork(iso =>
+        {
+            iso.EnterMethod("A", "Do", []);
+            iso.ExitMethodWithReturn(null);
+            return 1;
+        });
+        group.Fork(iso =>
+        {
+            iso.EnterMethod("B", "Do", []);
+            iso.ExitMethodWithReturn(null);
+            return 2;
+        });
+        await group.JoinAsync();
+        ctx.ExitMethodWithReturn(null, h0);
+
+        var root = ctx.CaptureTrace().Roots[0];
+        Assert.Equal(2, root.Children.Count);
+        Assert.All(root.Children, branch =>
+            Assert.Equal(
+                root.SpanContext!.SpanId,
+                branch.SpanContext!.ParentSpanId));
+    }
+
+    [Fact]
+    public async Task Joined_branch_keeps_its_own_nested_parentage()
+    {
+        var ctx = new SyncNarrativeContext(
+            new NarrativeTraceConfig());
+        var h0 = ctx.EnterMethod("Parent", "Run", []);
+        var group = ForkJoinGroup.Create(ctx);
+        group.Fork(iso =>
+        {
+            var outer = iso.EnterMethod("A", "Do", []);
+            iso.EnterMethod("A", "Inner", []);
+            iso.ExitMethodWithReturn(null);
+            iso.ExitMethodWithReturn(null, outer);
+            return 1;
+        });
+        await group.JoinAsync();
+        ctx.ExitMethodWithReturn(null, h0);
+
+        var branch = ctx.CaptureTrace().Roots[0].Children[0];
+        Assert.Equal(
+            branch.SpanContext!.SpanId,
+            branch.Children[0].SpanContext!.ParentSpanId);
+    }
+
+    [Fact]
+    public async Task A_fork_joined_between_two_calls_renders_between_them_in_run_order()
+    {
+        var ctx = new SyncNarrativeContext(
+            new NarrativeTraceConfig());
+        var h0 = ctx.EnterMethod("Parent", "Run", []);
+        ctx.ExitMethodWithReturn(null, ctx.EnterMethod("Step", "First", []));
+        var group = ForkJoinGroup.Create(ctx);
+        group.Fork(iso => ForkedCall(iso, "Reserve"));
+        group.Fork(iso => ForkedCall(iso, "Approve"));
+        await group.JoinAsync();
+        ctx.ExitMethodWithReturn(null, ctx.EnterMethod("Step", "Last", []));
+        ctx.ExitMethodWithReturn(null, h0);
+
+        var rendered = StructuralTraceRenderer.Render(ctx.CaptureTrace());
+
+        Assert.Equal(
+            ["#1 - Parent.Run()",
+             "  #1.1 - Step.First()",
+             "  ~ fork [2]",
+             "    #1.2 - Branch.Approve()",
+             "    #1.3 - Branch.Reserve()",
+             "  #1.4 - Step.Last()"],
+            rendered.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Select(line => line.TrimEnd('\r'))
+                .Where(line => !line.StartsWith("scenario:", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public async Task Two_forks_joined_around_a_call_keep_their_places_around_it()
+    {
+        var ctx = new SyncNarrativeContext(
+            new NarrativeTraceConfig());
+        var h0 = ctx.EnterMethod("Parent", "Run", []);
+        await ForkOne(ctx, "Early");
+        ctx.ExitMethodWithReturn(null, ctx.EnterMethod("Step", "Middle", []));
+        await ForkOne(ctx, "Late");
+        ctx.ExitMethodWithReturn(null, h0);
+
+        var children = ctx.CaptureTrace().Roots[0].Children;
+
+        Assert.Equal(
+            ["Branch.Early", "Step.Middle", "Branch.Late"],
+            children.Select(n => $"{n.Signature.ClassName}.{n.Signature.MethodName}"));
+    }
+
+    private static async Task ForkOne(INarrativeContext ctx, string method)
+    {
+        var group = ForkJoinGroup.Create(ctx);
+        group.Fork(iso => ForkedCall(iso, method));
+        await group.JoinAsync();
+    }
+
+    private static int ForkedCall(INarrativeContext iso, string method)
+    {
+        iso.EnterMethod("Branch", method, []);
+        iso.ExitMethodWithReturn(null);
+        return 1;
+    }
+
+    [Fact]
     public async Task Fork_returns_task_that_resolves_with_result()
     {
         var ctx = new SyncNarrativeContext(

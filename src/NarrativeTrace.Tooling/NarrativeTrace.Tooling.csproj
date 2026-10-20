@@ -34,6 +34,12 @@
                       LogicalName="NarrativeTrace.Tooling.Frameworks.wiring-snippets.md" />
   </ItemGroup>
   <ItemGroup>
+    <!-- The shipped default exclude list is ONE file, owned by NarrativeTrace.DependencyInjection and embedded
+         there too; the doctor reads this copy of it to report the effective list without a project reference. -->
+    <EmbeddedResource Include="../NarrativeTrace.DependencyInjection/default-exclude.txt"
+                      LogicalName="NarrativeTrace.Tooling.default-exclude.txt" />
+  </ItemGroup>
+  <ItemGroup>
     <InternalsVisibleTo Include="NarrativeTrace.Tooling.Tests" />
   </ItemGroup>
 </Project>

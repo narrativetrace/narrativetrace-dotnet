@@ -115,4 +115,22 @@ public sealed class OrderServiceTests : NarrativeTestBase
 
         Assert.That(frontmatter, Does.Contain($"run: {runName}\n"));
     }
+
+    /// <summary>
+    /// The per-test files the install page promises "with output on": the
+    /// tests above call nothing, and each still leaves its <c>.md</c> and its
+    /// last-green <c>.nt</c> behind, written by the real engine's
+    /// <c>[TearDown]</c> — the parity Java's JUnit 5 extension sets.
+    /// </summary>
+    [Test]
+    [Order(5)]
+    public void A_test_that_calls_nothing_leaves_its_md_and_nt_files()
+    {
+        var resolver = new OutputDirectoryResolver(
+            TestArtifactSettings.Resolve(Environment.GetEnvironmentVariable).Directory);
+        var identity = ArtifactIdentity.OfMethod(nameof(OrderServiceTests), nameof(Cancels_an_order));
+
+        Assert.That(File.Exists(resolver.TraceArtifact(identity, ".md")), Is.True);
+        Assert.That(File.Exists(resolver.StructuralFile(identity)), Is.True);
+    }
 }

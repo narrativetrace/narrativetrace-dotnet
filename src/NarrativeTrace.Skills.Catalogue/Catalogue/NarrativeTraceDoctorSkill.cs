@@ -21,7 +21,7 @@ public static class NarrativeTraceDoctorSkill
         Description:
             "Diagnoses a NarrativeTrace .NET install without changing anything: runs the doctor " +
             "CLI and explains every failing check and its fix — including whether the " +
-            "NarrativeTrace agent skills are installed and current — proves redaction with a " +
+            "NarrativeTrace agent skills are installed in this project and current — proves redaction with a " +
             "real test, opens the newest rendered trace before trusting any assertion against " +
             "it, and — flagged unstudied — walks an approval-trace diff. Use when traces aren't " +
             "appearing, output looks wrong, a value that should be redacted shows up in a " +
@@ -32,7 +32,9 @@ public static class NarrativeTraceDoctorSkill
         WhenToUse:
             "A NarrativeTrace install already exists in the project and something needs " +
             "diagnosing — no traces are appearing, a check is failing, or a value that should be " +
-            "redacted appears in output.",
+            "redacted appears in output; or a user who installed these skills as a personal plugin in " +
+            "their agent rather than in this project — a plugin install is invisible to this check by " +
+            "design, and only a project install reaches teammates and other agents.",
         Fixture: Fixture,
         Steps:
         [

@@ -49,7 +49,7 @@ public sealed record EvalRunnerArgs(
             ? 1
             : int.Parse(trialsArg, CultureInfo.InvariantCulture);
         var args = new EvalRunnerArgs(
-            skill, caseName, platform.Value, model, ValueOf(argv, "--agent-command"), trials);
+            skill, caseName, platform.Value, ModelIds.Resolve(platform.Value, model), ValueOf(argv, "--agent-command"), trials);
         args.Validate();
         return args;
     }

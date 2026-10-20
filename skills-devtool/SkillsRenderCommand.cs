@@ -39,10 +39,11 @@ public static class SkillsRenderCommand
         Directory.CreateDirectory(Path.GetDirectoryName(marketplacePath)!);
         WriteIfChanged(marketplacePath, MarketplaceJsonRenderer.Render(SkillCatalogue.Marketplace));
         RenderCursorFiles(repoRoot);
+        RenderOpenAiPlugin(repoRoot);
         RenderPage(repoRoot, FrameworkTableDocs.LlmsFull, FrameworkTableDocs.RenderLlmsFull);
         RenderPage(repoRoot, FrameworkTableDocs.LlmsTxt, FrameworkTableDocs.RenderLlmsTxt);
         RenderPage(repoRoot, PlatformTableDocs.Page, PlatformTableDocs.Splice);
-        output.WriteLine($"Rendered {SkillCatalogue.Skills.Count} skill page(s) (Claude + Codex), the carrier, the AGENTS.md section, the marketplace file, the Cursor plugin files and the framework and platform tables' documentation blocks.");
+        output.WriteLine($"Rendered {SkillCatalogue.Skills.Count} skill page(s) (Claude + Codex), the carrier, the AGENTS.md section, the marketplace file, the Cursor plugin files, the OpenAI plugin manifest and the framework and platform tables' documentation blocks.");
         return 0;
     }
 
@@ -54,6 +55,13 @@ public static class SkillsRenderCommand
     /// </summary>
     private static string MarketplaceJsonPath(string repoRoot) =>
         Path.Combine(repoRoot, ".claude-plugin", "marketplace.json");
+
+    private static void RenderOpenAiPlugin(string repoRoot)
+    {
+        var path = OpenAiPluginFile.Path(repoRoot);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        WriteIfChanged(path, OpenAiPluginFile.Render());
+    }
 
     /// <summary>The Cursor plugin manifests and the one rule, each at its fixed repository path.</summary>
     private static void RenderCursorFiles(string repoRoot)

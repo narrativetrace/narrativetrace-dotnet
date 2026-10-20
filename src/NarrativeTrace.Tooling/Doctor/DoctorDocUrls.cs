@@ -37,6 +37,14 @@ public static class DoctorDocUrls
     public const string ConfigurationEnvVars =
         Base + "documentation/guides/configuration.md#2-environment-variables-configresolver";
 
+    /// <summary>Naming the service: the identity every span is stamped with.</summary>
+    public const string ConfigurationServiceIdentity =
+        Base + "documentation/guides/configuration.md#service-identity";
+
+    /// <summary>The two instrumentation-exclusion lists and the <c>NARRATIVETRACE_EXCLUDE</c> variable.</summary>
+    public const string InstrumentationExclusions =
+        Base + "documentation/guides/dependency-injection.md#instrumentation-exclusions";
+
     /// <summary>Registering and wiring the ASP.NET Core middleware.</summary>
     public const string AspNetCoreRegistration =
         Base + "documentation/guides/aspnetcore.md#1-register-and-wire-the-middleware";

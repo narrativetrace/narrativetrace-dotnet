@@ -20,7 +20,7 @@ public sealed class EvalRunnerArgsTests
         Assert.Equal("add-narrative-tracing", args.Skill);
         Assert.Equal("init-prompt-empty-project", args.CaseName);
         Assert.Equal(Platform.Claude, args.Platform);
-        Assert.Equal("haiku", args.Model);
+        Assert.Equal("claude-haiku-5-5", args.Model);
         Assert.Null(args.AgentCommand);
         Assert.Equal(1, args.Trials);
     }

@@ -66,7 +66,17 @@ public static class SkillsLintCommand
             .Concat(CarrierDriftProblems(repoRoot))
             .Concat(CarrierExhaustivenessProblems(repoRoot))
             .Concat(MarketplaceJsonDriftProblems(repoRoot))
-            .Concat(CursorFileDriftProblems(repoRoot));
+            .Concat(CursorFileDriftProblems(repoRoot))
+            .Concat(OpenAiPluginDriftProblems(repoRoot));
+    }
+
+    private static IEnumerable<string> OpenAiPluginDriftProblems(string repoRoot)
+    {
+        var path = OpenAiPluginFile.Path(repoRoot);
+        if (!File.Exists(path) || File.ReadAllText(path) != OpenAiPluginFile.Render())
+        {
+            yield return $"{OpenAiPluginFile.ManifestPath} is stale — run `dotnet run --project skills-devtool -- render`";
+        }
     }
 
     private static IEnumerable<string> CursorFileDriftProblems(string repoRoot)

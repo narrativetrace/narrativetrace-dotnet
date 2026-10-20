@@ -24,6 +24,8 @@ public static class DoctorChecks
         ToolchainPackageVersionsAlignedCheck.Run,
         ToolchainCompanionPackagesCheck.Run,
         ConfigOutputEnvCheck.Run,
+        ConfigExcludeCheck.Run,
+        ConfigServiceIdentityCheck.Run,
         .. FrameworkTable.RowsWithWiringChecks().Select(row => (DoctorCheck)new FrameworkWiringCheck(row).Run),
         ConfigAppSettingsKeysCheck.Run,
         TrapSilentSinkCheck.Run,

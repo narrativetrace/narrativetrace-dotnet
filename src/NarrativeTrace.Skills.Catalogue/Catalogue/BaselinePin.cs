@@ -84,7 +84,8 @@ public static class BaselinePin
         [
             new FailureNote(
                 Symptom: "the suite still passes and no .received.nt appears under narratives/",
-                Cause: "the run settings are not referenced, or no test calls WriteArtifacts, so nothing is compared",
+                Cause: "the run settings are not referenced, or no xUnit test runs its body through " +
+                    "NarrativeFixture.Run or calls WriteArtifacts, so nothing is compared",
                 Fix: "check the doctor's config.approval-mode finding and apply its fix; write the flow test as the " +
                     "listing above does, then run the suite again"),
         ],

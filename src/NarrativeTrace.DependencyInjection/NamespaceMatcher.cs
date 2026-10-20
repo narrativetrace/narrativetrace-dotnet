@@ -17,26 +17,33 @@ internal sealed class NamespaceMatcher
         _baseNamespaces = baseNamespaces;
     }
 
-    public bool Matches(string? ns)
+    /// <summary>The longest configured prefix that matches, or null when none does.</summary>
+    public string? MatchingPrefix(string? ns)
     {
         if (string.IsNullOrEmpty(ns))
         {
-            return false;
+            return null;
         }
 
+        string? longest = null;
         // S3267: LINQ allocates a closure on a per-resolved-type hot path.
 #pragma warning disable S3267
         foreach (var @base in _baseNamespaces)
         {
-            if (ns == @base
-                || ns!.StartsWith(
-                    @base + ".", StringComparison.Ordinal))
+            if (Covers(@base, ns!) && (longest is null || @base.Length > longest.Length))
             {
-                return true;
+                longest = @base;
             }
         }
 #pragma warning restore S3267
 
-        return false;
+        return longest;
+    }
+
+    public bool Matches(string? ns) => MatchingPrefix(ns) is not null;
+
+    private static bool Covers(string @base, string ns)
+    {
+        return ns == @base || ns.StartsWith(@base + ".", StringComparison.Ordinal);
     }
 }

@@ -62,8 +62,8 @@ public sealed class VerifySkillTests
 
         Assert.True(structural < values && values < fix);
         Assert.Contains("span id", Verify.Steps[structural].Verify, StringComparison.Ordinal);
-        Assert.Equal(NarrativeTraceVerifySkill.OnlyOnAMismatch, Verify.Steps[values].Condition);
-        Assert.Equal(NarrativeTraceVerifySkill.OnlyOnAMismatch, Verify.Steps[fix].Condition);
+        Assert.Equal(NarrativeTraceVerifySkill.OpenValuesWhen, Verify.Steps[values].Condition);
+        Assert.Equal(NarrativeTraceVerifySkill.FixAndRerunWhen, Verify.Steps[fix].Condition);
     }
 
     [Fact]

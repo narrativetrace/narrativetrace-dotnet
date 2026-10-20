@@ -38,9 +38,10 @@ public class FailingTestNarrativeTests
     }
 
     [Fact]
-    public void A_passing_checkout_prints_nothing()
+    public void A_passing_checkout_prints_no_failure_narrative()
     {
-        using var fixture = new NarrativeFixture();
+        // Output off: with it on, the written trace is echoed — that is the write's report, not this one.
+        using var fixture = new NarrativeFixture(key => key == ConfigResolver.OutputKey ? "false" : null);
         var writer = new StringWriter();
 
         fixture.Run("Checkout_succeeds", ctx =>

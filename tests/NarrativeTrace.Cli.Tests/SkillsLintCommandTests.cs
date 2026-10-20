@@ -121,6 +121,20 @@ public sealed class SkillsLintCommandTests : IDisposable
         Assert.Contains("marketplace.json", _err.ToString(), StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Fails_when_the_openai_plugin_manifest_is_hand_edited_or_missing_and_names_it()
+    {
+        SkillsRenderCommand.Run(_root, _out, _err);
+        var path = Path.Combine(_root, "src", "NarrativeTrace.Skills.Catalogue", "openai-plugin", "plugin.json");
+        File.WriteAllText(path, "{}");
+
+        Assert.Equal(1, SkillsLintCommand.Run(_root, _out, _err));
+        Assert.Contains("openai-plugin/plugin.json is stale", _err.ToString(), StringComparison.Ordinal);
+
+        File.Delete(path);
+        Assert.Equal(1, SkillsLintCommand.Run(_root, _out, new StringWriter()));
+    }
+
     [Theory]
     [InlineData(".cursor-plugin/plugin.json")]
     [InlineData(".cursor-plugin/marketplace.json")]

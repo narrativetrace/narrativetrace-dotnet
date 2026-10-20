@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/dependency-injection.md blob 53811e39d11b | translated: 2026-09-17 | reviewed: - -->
+<!-- source: documentation/guides/dependency-injection.md blob 44d0598f0add | translated: 2026-10-19 | reviewed: - -->
 # Guía de envoltura automática con inyección de dependencias
 
 [English](../dependency-injection.md) | **Español** | [Português](../pt-BR/guia-de-injecao-de-dependencias.md) | [简体中文](../zh-CN/依赖注入指南.md)
@@ -13,7 +13,7 @@ decora in situ los servicios que coinciden.
 ## Paquete
 
 ```xml
-<PackageReference Include="NarrativeTrace.DependencyInjection" Version="0.4.0" />
+<PackageReference Include="NarrativeTrace.DependencyInjection" Version="0.4.1" />
 ```
 
 ## 1. Registrar y envolver automáticamente
@@ -67,11 +67,12 @@ delegado de configuración. `NarrativeTracingDiOptions` expone:
 |---|---|---|---|
 | `Level` | `TracingLevel` | `Detail` | Nivel de captura del contexto scoped compartido. |
 | `Namespaces(params string[])` | fluida | (vacío) | Namespaces base a envolver automáticamente. |
-| `ExcludeNamespaces(params string[])` | fluida | (vacío) | Namespaces de interfaz a excluir, incluso cuando su namespace de implementación esté incluido. |
+| `ExcludeNamespaces(params string[])` | fluida | la [lista por defecto incluida](#exclusiones-de-instrumentación) | Namespaces que nunca se trazan, incluso cuando están incluidos. Darle un valor **reemplaza** la lista por defecto; llámalo una sola vez. |
 | `Redaction` | `RedactionPolicy?` | `null` | La política de ocultación con la que cada servicio que esta llamada envuelve renderiza parámetros y valores de retorno. Ver más abajo. |
 
-`Namespaces` y `ExcludeNamespaces` son aditivos y encadenables, y cada uno
-devuelve la instancia de opciones:
+`Namespaces` es aditivo; `ExcludeNamespaces` se da una sola vez y
+reemplaza la lista por defecto en su conjunto. Ambos son encadenables y
+devuelven la instancia de opciones:
 
 ```csharp
 services.AddNarrativeTracing(options =>
@@ -95,9 +96,11 @@ diferentes:
   **implementación** — el del tipo concreto (consulta la
   [sección 5](#5-cómo-se-resuelve-el-namespace-de-implementación)).
 - La **exclusión** (`ExcludeNamespaces`) se comprueba contra el namespace
-  de la **interfaz** (el tipo de servicio). Esto te permite incluir un
-  namespace de implementación de forma amplia y luego excluir las
-  interfaces de framework/SPI que viven en otro namespace.
+  de la **interfaz** (el tipo de servicio), el de la **implementación** y,
+  en el momento de resolver, el de la instancia que devolvió una factory.
+  Esto te permite incluir un namespace de forma amplia y luego excluir los
+  tipos de framework/SPI que viven en otro. Una exclusión siempre gana a
+  una inclusión.
 
 Ambas usan la misma regla de **frontera por punto**: un candidato coincide
 con una base cuando es exactamente igual a ella, o cuando empieza por la
@@ -130,11 +133,20 @@ Un descriptor se envuelve solo cuando se cumple **todo** lo siguiente:
   `DispatchProxy` no puede envolver genéricos abiertos;
 - **no es un registro keyed** — los servicios keyed se toleran y se dejan
   sin envolver (sin excepción); aún no están soportados;
-- su **namespace de interfaz no está excluido** por `ExcludeNamespaces`;
+- ni su namespace de interfaz ni el de implementación están **excluidos**
+  (`ExcludeNamespaces`, o la lista por defecto incluida);
+- **no es código generado** — los tipos generados por el compilador, los
+  de un ensamblado dinámico (mocks, proxies de `DispatchProxy`) y todo lo
+  que ya sea un `DispatchProxy` nunca se envuelven, consulta
+  [Exclusiones de instrumentación](#exclusiones-de-instrumentación);
 - su **namespace de implementación está incluido** por `Namespaces`.
 
 Todo lo que falle una comprobación se deja exactamente como estaba
-registrado, así que resolverlo devuelve la implementación cruda.
+registrado, así que resolverlo devuelve la implementación cruda. Un
+servicio que supera todas las comprobaciones pero no se puede proxificar
+(por ejemplo, una interfaz con un `[NotTraced]` a nivel de método) también
+se devuelve sin envolver en lugar de hacer fallar el `GetService` del
+host; una línea en el error estándar lo nombra, una sola vez.
 
 > **Divergencia con múltiples interfaces.** `DispatchProxy` soporta una
 > interfaz por proxy. Una clase registrada bajo dos interfaces (por
@@ -208,6 +220,67 @@ registra en la misma colección de servicios, así que la auto-envoltura de
 `AddNarrativeTracing` la recoge como respaldo para cada servicio que
 envuelve — sin que esa llamada necesite repetir su propio `Redaction`.
 Consulta [Guía de configuración §6](guia-de-configuracion.md#6-ocultación).
+
+## Exclusiones de instrumentación
+
+Dos listas deciden qué nunca traza la auto-envoltura, y tienen dueños distintos.
+
+1. **Integrada, no configurable: el código generado.** Un tipo que ninguna
+   persona escribió nunca es una frontera de negocio, así que se omite
+   diga lo que diga la lista de inclusión, y ninguna opción lo desactiva.
+   La prueba es estructural, nunca un nombre de proveedor: el tipo (o un
+   tipo que lo contiene) es `[CompilerGenerated]` (closures, clases de
+   display, máquinas de estado async e iteradoras, tipos anónimos); su
+   nombre contiene `<`, que ningún identificador del código fuente puede
+   tener; su ensamblado es dinámico (un proxy de `DispatchProxy`, un mock
+   de Castle DynamicProxy); o él mismo es un `DispatchProxy`. Los
+   servicios keyed y los genéricos abiertos se omiten de la misma forma,
+   en silencio.
+2. **Configurable, con una lista por defecto incluida: internos de
+   bibliotecas y frameworks.** Prefijos de namespace que son
+   infraestructura y no tu código. Define tu propia lista con
+   `ExcludeNamespaces(...)`, o con la variable de entorno
+   `NARRATIVETRACE_EXCLUDE` (prefijos separados por `;`). **Dar cualquiera
+   de las dos reemplaza la lista por defecto en su conjunto** — decide la
+   presencia de la clave, un valor vacío desactiva la lista por defecto, y
+   la opción gana a la variable de entorno. Para ampliar la lista por
+   defecto, copia sus prefijos en tu propia lista. Una exclusión siempre
+   gana a una inclusión, y la coincidencia es de frontera por punto
+   (`Acme` nunca coincide con `Acmex`).
+
+Inclusión y exclusión juntas:
+
+```csharp
+services.AddNarrativeTracing(options => options
+    .Namespaces("MyApp")
+    .ExcludeNamespaces("MyApp.Generated", "Moq", "Xunit"));
+```
+
+Cada prefijo de exclusión que descarta algo que tu lista de inclusión
+seleccionó se informa una sola vez en el error estándar — nunca una vez por
+tipo. La comprobación `config.exclude` del doctor imprime la lista efectiva.
+
+La lista por defecto incluida (publicada tal cual desde `InstrumentationExclusions.DefaultExclude`):
+
+| Prefijo de namespace | Por qué se excluye |
+|---|---|
+| `Microsoft.Extensions` | DI, logging, opciones, hosting y configuración: los tipos propios del contenedor |
+| `Microsoft.AspNetCore` | Servicios propios del framework web y su cadena de interceptores |
+| `Microsoft.AI` | SDK de Application Insights |
+| `Microsoft.ApplicationInsights` | SDK de Application Insights |
+| `Microsoft.Build` | Tipos propios de MSBuild |
+| `Microsoft.CSharp` | Runtime del dynamic binder |
+| `System` | La biblioteca de clases base |
+| `Datadog` | Runtime de otro tracer APM; evita la instrumentación recursiva cuando se despliegan juntos |
+| `OpenTelemetry` | El otro APM con más probabilidad de desplegarse junto |
+| `Moq` | Biblioteca de mocking |
+| `NSubstitute` | Biblioteca de mocking |
+| `FakeItEasy` | Biblioteca de mocking |
+| `Castle` | Castle.Core y DynamicProxy, bajo Moq, NSubstitute y FakeItEasy |
+| `Xunit` | Helpers del ejecutor de pruebas |
+| `NUnit` | Helpers del ejecutor de pruebas |
+| `Microsoft.VisualStudio.TestPlatform` | Host de VSTest |
+| `Microsoft.VisualStudio.TestTools` | MSTest |
 
 ## Véase también
 

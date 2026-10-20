@@ -130,7 +130,7 @@ public static class NarrativeTraceExplainSkill
         [
             new FailureNote(
                 Symptom: "the scenario runs but nothing appears under " + Out,
-                Cause: "the test does not call WriteArtifacts, or the collaborators on the flow are not wrapped " +
+                Cause: VerifyCommands.NoTestWriteCause + ", or the collaborators on the flow are not wrapped " +
                     "with the test's NarrativeContext, so there is nothing to read",
                 Fix: "run narrativetrace-doctor and apply its fix, then run the scenario again"),
         ],
@@ -173,5 +173,5 @@ public static class NarrativeTraceExplainSkill
             "ids in the .nt or .md read in this session count — the branch it took, and where the time went " +
             "when that was the question. Every sentence that goes beyond what the trace shows is marked as an " +
             "inference, and the last part names what was NOT observed: the code no span covers, because only " +
-            "wrapped or intercepted code has one");
+            "wrapped or intercepted code has one, and the branches this run did not take");
 }

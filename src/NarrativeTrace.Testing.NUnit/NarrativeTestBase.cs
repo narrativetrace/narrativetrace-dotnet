@@ -61,12 +61,13 @@ public abstract class NarrativeTestBase
     }
 
     /// <summary>
-    /// Builds the config for each test. Defaults to the level resolved from the
+    /// Builds the config for each test. Defaults to the level and service identity resolved from the
     /// <c>NARRATIVETRACE_*</c> environment; override to inject a fixed config.
     /// </summary>
     protected virtual NarrativeTraceConfig CreateConfig()
     {
-        return new NarrativeTraceConfig(ConfigResolver.Resolve(ReadEnvironment).Level);
+        var resolved = ConfigResolver.Resolve(ReadEnvironment);
+        return new NarrativeTraceConfig(resolved.Level, resolved.Identity);
     }
 
     /// <summary>

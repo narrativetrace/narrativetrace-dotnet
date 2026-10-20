@@ -27,6 +27,13 @@ public static class VerifyCommands
     /// <summary>Where a run writes its artifacts, under the test project — named once for every step.</summary>
     public const string OutputDir = "bin/<configuration>/<tfm>/TestResults/narrativetrace";
 
+    /// <summary>
+    /// Why a run left no files for its test — the cause every step's failure note names. An NUnit test
+    /// deriving from <c>NarrativeTestBase</c> always writes; an xUnit test writes when its body ends.
+    /// </summary>
+    public const string NoTestWriteCause =
+        "the xUnit test neither runs its body through NarrativeFixture.Run nor calls WriteArtifacts";
+
     /// <summary>Where the committed baselines and their review copies live, beside the test project.</summary>
     public const string ApprovedDir = "narratives/<TestClass>/<scenario>";
 }

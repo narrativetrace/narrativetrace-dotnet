@@ -17,6 +17,8 @@ public sealed class DoctorFindingSkillsTests
     [InlineData("toolchain.package-versions-aligned", "add-narrative-tracing")]
     [InlineData("toolchain.companion-packages", "add-narrative-tracing")]
     [InlineData("config.output-env", "narrativetrace-doctor")]
+    [InlineData("config.exclude", "narrativetrace-doctor")]
+    [InlineData("config.service-identity", "add-narrative-tracing")]
     [InlineData("config.registration-pair", "add-narrative-tracing")]
     [InlineData("config.appsettings-keys", "narrativetrace-doctor")]
     [InlineData("trap.silent-sink", "narrativetrace-doctor")]

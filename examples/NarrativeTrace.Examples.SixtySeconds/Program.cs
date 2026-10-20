@@ -13,7 +13,9 @@ const string DemoTraceparent = "00-a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4-a1b2c3d4a1b2
 // snippet:end fixedTraceparent
 
 var context = new SyncNarrativeContext(
-    new NarrativeTraceConfig(initialTraceparent: Traceparent.Parse(DemoTraceparent)));
+    new NarrativeTraceConfig(
+        serviceIdentity: new ServiceIdentity("hello-service"), // names the service; unset, spans read unknown_service:dotnet
+        initialTraceparent: Traceparent.Parse(DemoTraceparent)));
 var orders = NarrativeTraceProxy.Create<IOrderService>(new OrderService(), context);
 
 orders.PlaceOrder("cust-1", "book-123", 2);

@@ -1,0 +1,3 @@
+scenario: Redacts a deny listed parameter
+
+#1 - IAccountService.Pay(policyId, paymentToken) → value

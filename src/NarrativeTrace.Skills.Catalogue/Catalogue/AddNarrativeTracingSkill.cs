@@ -25,6 +25,29 @@ public static class AddNarrativeTracingSkill
         "trace; the verify below is for the console app, and in an existing application the step is done " +
         "when that request's trace is in the output; otherwise create the smallest console app as follows";
 
+    /// <summary>
+    /// The first-trace step's tests premise (B-92). Names no runner: whether the doctor reports a test
+    /// integration for the project's runner is read from its report, never from a list on this page.
+    /// </summary>
+    internal const string FirstTraceHasTests =
+        "if the project already has tests — a test project in the solution, a test SDK among its package " +
+        "references — and the doctor reports a test integration for that runner, do not add a demo program: " +
+        "run one existing test through that integration with output on, which writes that test's narrative " +
+        "files, `.md` and `.nt`, under the integration's output directory — the files " +
+        "narrativetrace-doctor, narrativetrace-verify, narrativetrace-debug and narrativetrace-explain read; " +
+        "print the rendered file so the trace is also on the console; the step is done when that test's " +
+        "files exist; a project whose runner has no integration keeps that runner and takes the console " +
+        "path below";
+
+    /// <summary>The console branch's closing sentence: what the program does not do, and why (B-92).</summary>
+    internal const string FirstTraceWritesNothingWithoutTests =
+        "; nothing is written to disk by this program — the application's log is the record once the " +
+        "logging provider in the later step is wired; this page never adds a test runner or a test to a " +
+        "project that has none";
+
+    private const string FirstTraceCondition =
+        FirstTraceHasTests + "; otherwise, " + EntryPointRunsItself + FirstTraceWritesNothingWithoutTests;
+
     /// <summary>The full skill definition.</summary>
     public static readonly Skill Definition = new(
         CanonicalName: "add-narrative-tracing",
@@ -70,6 +93,12 @@ public static class AddNarrativeTracingSkill
                             "its service and namespace names are the fixture's, not this project's",
                         Fix: "keep the printed calls, swap in this project's own services and namespaces, " +
                             "rerun the doctor; if it still fails, report it with the narrativetrace-feedback skill"),
+                    new FailureNote(
+                        Symptom: "a service under an included namespace is not traced by AddNarrativeTracing",
+                        Cause: "generated code is never traced, and the shipped default exclude list leaves " +
+                            "framework, mocking and test-runner namespaces alone; an exclude always wins over an include",
+                        Fix: "read the doctor's config.exclude finding for the effective list; ExcludeNamespaces(...) " +
+                            "or NARRATIVETRACE_EXCLUDE replaces that default as a whole, so repeat any prefix you still want"),
                 ]),
             new SkillStep(
                 Title: "First trace: wrap the service, call it, render the tree, run it",
@@ -85,8 +114,36 @@ public static class AddNarrativeTracingSkill
                             "returned by NarrativeTraceProxy.Create<T>",
                         Fix: "call the proxy instance everywhere the service is used, never the " +
                             "wrapped target"),
+                    new FailureNote(
+                        Symptom: "a span is named after the interface, not the class that implements it",
+                        Cause: "the proxy wraps an interface and names its spans after it; there is no " +
+                            "typeless target to name",
+                        Fix: "keep the interface name, or pass `new ProxyOptions(ClassName: \"OrderService\")` " +
+                            "to the proxy to name the span yourself"),
+                    new FailureNote(
+                        Symptom: "a parameter renders as arg0, arg1",
+                        Cause: "reflection reads parameter names from the interface method, and this one " +
+                            "carries none (an interface emitted at run time without parameter names)",
+                        Fix: "put `[Traced(\"customerId\", \"productId\")]` on the interface method, one name per " +
+                            "parameter"),
                 ],
-                Condition: EntryPointRunsItself),
+                Condition: FirstTraceCondition),
+            new SkillStep(
+                Title: "Name the service: set NARRATIVETRACE_SERVICE_NAME, or `new ServiceIdentity(\"order-service\")` " +
+                    "in the config the context is built from",
+                Body: new CommandStep(["dotnet tool run dotnet-narrativetrace doctor --json"]),
+                Verify: "the doctor's config.service-identity finding reports \"passed\": true",
+                Failure:
+                [
+                    new FailureNote(
+                        Symptom: "spans show the service as unknown_service:dotnet, on the platform or in a trace backend",
+                        Cause: "no service name was set, and NarrativeTrace never guesses one from the assembly",
+                        Fix: "set NARRATIVETRACE_SERVICE_NAME (and NARRATIVETRACE_SERVICE_VERSION, " +
+                            "NARRATIVETRACE_ENVIRONMENT) in the environment, or pass " +
+                            "`new NarrativeTraceConfig(serviceIdentity: new ServiceIdentity(\"order-service\"))` to the " +
+                            "context, `options.ServiceIdentity` to AddNarrativeTracing or AddNarrativeTrace, or " +
+                            "`NarrativeTrace:ServiceName` in appsettings.json"),
+                ]),
             new SkillStep(
                 Title: "Send it to your logger — one call, same captured tree",
                 Body: new SnippetStep(

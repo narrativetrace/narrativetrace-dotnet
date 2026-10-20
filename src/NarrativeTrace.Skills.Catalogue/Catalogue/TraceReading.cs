@@ -30,8 +30,9 @@ public static class TraceReading
         Use the cheapest flavour that answers the question, and look at values only where the
         shape says to look. A span id (`#1`, `#1.3`, `#1.3.2`) is the span's position in the tree
         and the same in every flavour: find in the `.md` the span the `.nt` flagged by its id. A
-        test writes these files when it calls `WriteArtifacts` (the listing above does); a red run
-        writes the `.md` and the diagram and keeps the last green `.nt`. Redaction stays on — the
+        test writes these files when it ends: an NUnit test deriving from `NarrativeTestBase` always,
+        an xUnit test when its body runs through `NarrativeFixture.Run` or it calls `WriteArtifacts`
+        (the listing above does); a red run writes the `.md` and the diagram and keeps the last green `.nt`. Redaction stays on — the
         deny-list and `[REDACTED]` are never turned off to see more; a redacted value that matters
         is reasoned about by its parameter name and the shape around it.
         """);

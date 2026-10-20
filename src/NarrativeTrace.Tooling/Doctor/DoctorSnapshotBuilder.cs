@@ -18,7 +18,8 @@ public static class DoctorSnapshotBuilder
     private static readonly string[] EnvKeys =
     [
         "NARRATIVETRACE_OUTPUT", "NARRATIVETRACE_OUTPUT_DIR", "NARRATIVETRACE_APPROVED_DIR",
-        "NARRATIVETRACE_LEVEL", "NARRATIVETRACE_FORMAT", "NARRATIVETRACE_APPROVAL",
+        "NARRATIVETRACE_LEVEL", "NARRATIVETRACE_FORMAT", "NARRATIVETRACE_APPROVAL", "NARRATIVETRACE_EXCLUDE",
+        "NARRATIVETRACE_SERVICE_NAME",
     ];
     private const int MaxFiles = 5000;
     private static readonly string[] ManifestFilePatterns =

@@ -36,7 +36,7 @@ internal static class RecipeArtifactsSupport
         IReadOnlyDictionary<string, string> Environment,
         IReadOnlyList<string> ExpectedFailures);
 
-    /// <summary>The runs the five recipe pages read, in dependency order.</summary>
+    /// <summary>The runs the recipe pages read, in dependency order.</summary>
     public static IReadOnlyList<Scenario> Scenarios(string outputRoot) =>
     [
         new("help-me-debug-and-fix-this-bug", "", "DeclinedPaymentFixture",
@@ -50,6 +50,12 @@ internal static class RecipeArtifactsSupport
             []),
         new("review-a-complex-flow-before-changing-it", "summary", "CheckoutReviewFixture",
             Env(outputRoot, "review-a-complex-flow-before-changing-it", "summary", approval: false, level: "Summary"),
+            []),
+        new("trace-in-production-without-the-cost", "detail", "CostFixture",
+            Env(outputRoot, "trace-in-production-without-the-cost", "detail", approval: false, level: "Detail"),
+            []),
+        new("trace-in-production-without-the-cost", "errors", "CostFixture",
+            Env(outputRoot, "trace-in-production-without-the-cost", "errors", approval: false, level: "Errors"),
             []),
         new("review-a-refactoring-did-behaviour-change", "approved-before-the-refactoring", "RefactoredCheckoutFixture",
             Env(outputRoot, "review-a-refactoring-did-behaviour-change", "approved-before-the-refactoring", approval: true),

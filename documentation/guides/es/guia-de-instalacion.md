@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/installation.md blob 2ae9acbce941 | translated: 2026-10-09 | reviewed: - -->
+<!-- source: documentation/guides/installation.md blob 2fe96d66a7d2 | translated: 2026-10-19 | reviewed: - -->
 # NarrativeTrace .NET — Guía de instalación
 
 [English](../installation.md) | **Español** | [Português](../pt-BR/guia-de-instalacao.md) | [简体中文](../zh-CN/安装指南.md)
@@ -25,7 +25,7 @@ id. Empieza por el mínimo y añade solo lo que necesites.
 
 ```xml
 <!-- Mínimo: captura + renderizado -->
-<PackageReference Include="NarrativeTrace.Proxy" Version="0.4.0" />
+<PackageReference Include="NarrativeTrace.Proxy" Version="0.4.1" />
 ```
 
 `NarrativeTrace.Proxy` depende de `.Runtime`, que depende de `.Core` — un
@@ -157,6 +157,13 @@ Crea un `NarrativeFixture` por prueba con `using var` para que cada una
 tenga un contexto limpio (el dispose lo reinicia). `NarrativeFixture.Run`
 imprime la narrativa capturada en la consola cuando el cuerpo lanza una
 excepción y luego la relanza — así una prueba que falla se explica sola.
+Cuando el cuerpo termina, `Run` también escribe los archivos de esa
+prueba (`.md`, `.nt` y sus acompañantes) en `TestResults/narrativetrace/`,
+con el nombre de la clase y el método de prueba, sin ninguna llamada en la
+prueba. Mantén las aserciones dentro del cuerpo: un cuerpo que lanza una
+excepción es lo que marca los archivos como fallidos. Una prueba que usa
+`narrative.Context` directamente, sin `Run`, los escribe con
+`narrative.WriteArtifacts(testClass, testMethod, failed)`.
 
 ### Opción E — Contexto automático en NUnit + narrativa de fallos
 
@@ -204,7 +211,7 @@ Añade el paquete solo de build para ejecutar la puerta de claridad como
 parte de tu build:
 
 ```xml
-<PackageReference Include="NarrativeTrace.MSBuild" Version="0.4.0"
+<PackageReference Include="NarrativeTrace.MSBuild" Version="0.4.1"
                   PrivateAssets="all" />
 ```
 

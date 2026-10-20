@@ -1,0 +1,20 @@
+# The shipped default exclude list: one namespace prefix per line, then a tab, then the reason.
+# Embedded in NarrativeTrace.DependencyInjection and the doctor; documentation/guides/dependency-injection.md
+# publishes it and a test asserts the two agree. The reasons and sources per member are recorded with the list.
+Microsoft.Extensions	DI, logging, options, hosting and configuration: the container's own types
+Microsoft.AspNetCore	Web framework's own services and interceptor chain
+Microsoft.AI	Application Insights SDK
+Microsoft.ApplicationInsights	Application Insights SDK
+Microsoft.Build	MSBuild's own types
+Microsoft.CSharp	Dynamic-binder runtime
+System	The base class library
+Datadog	Another APM tracer's runtime; avoids recursive instrumentation when co-deployed
+OpenTelemetry	The other APM most likely co-deployed
+Moq	Mocking library
+NSubstitute	Mocking library
+FakeItEasy	Mocking library
+Castle	Castle.Core and DynamicProxy, underneath Moq, NSubstitute and FakeItEasy
+Xunit	Test runner helpers
+NUnit	Test runner helpers
+Microsoft.VisualStudio.TestPlatform	VSTest host
+Microsoft.VisualStudio.TestTools	MSTest

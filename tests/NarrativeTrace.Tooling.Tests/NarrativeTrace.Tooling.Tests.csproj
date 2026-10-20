@@ -27,5 +27,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/NarrativeTrace.Tooling/NarrativeTrace.Tooling.csproj" />
+    <ProjectReference Include="../../src/NarrativeTrace.DependencyInjection/NarrativeTrace.DependencyInjection.csproj" />
   </ItemGroup>
 </Project>

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "narrativetrace-dotnet",
+  "description": "Install NarrativeTrace in a .NET project and reach a first trace, diagnose an install that traces nothing, add or verify a Clarity naming report, verify a change by reading what the code actually did, debug a wrong result from its values, explain what an application actually does from a run of it, and report a defect in NarrativeTrace itself with your approval.",
+  "author": {
+    "name": "NarrativeTrace"
+  },
+  "homepage": "https://narrativetrace.ai",
+  "license": "Apache-2.0",
+  "keywords": [
+    "narrativetrace",
+    "dotnet",
+    "tracing",
+    "observability",
+    "agent-skills"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "NarrativeTrace for .NET",
+        "shortDescription": "NarrativeTrace skills for .NET",
+        "longDescription": "Install NarrativeTrace in a .NET project and reach a first trace, diagnose an install that traces nothing, add or verify a Clarity naming report, verify a change by reading what the code actually did, debug a wrong result from its values, explain what an application actually does from a run of it, and report a defect in NarrativeTrace itself with your approval. It reads what one run actually did, and needs the .NET SDK and network access for the first package restore.",
+        "developerName": "NarrativeTrace",
+        "category": "Developer Tools",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "defaultPrompt": [
+          "add narrative tracing",
+          "check my NarrativeTrace setup",
+          "debug this with the trace"
+        ],
+        "brandColor": "#00845a",
+        "websiteURL": "https://narrativetrace.ai",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/composer-icon.png"
+      }
+    }
+  }
+}

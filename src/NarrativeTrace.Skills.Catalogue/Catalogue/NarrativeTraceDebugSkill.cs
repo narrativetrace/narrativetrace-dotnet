@@ -82,7 +82,7 @@ public static class NarrativeTraceDebugSkill
         [
             new FailureNote(
                 Symptom: "no .md for the test appears under " + VerifyCommands.OutputDir + "/traces",
-                Cause: "the test does not call WriteArtifacts, or the collaborators on the path are not wrapped with " +
+                Cause: VerifyCommands.NoTestWriteCause + ", or the collaborators on the path are not wrapped with " +
                     "the fixture's context",
                 Fix: "write the test as the listing does; run narrativetrace-doctor and apply its fix, then run the " +
                     "test again"),

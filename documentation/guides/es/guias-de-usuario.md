@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/README.md blob be6db3ed5a3f | translated: 2026-10-11 | reviewed: 2026-09-03 -->
+<!-- source: documentation/guides/README.md blob bb49bcf3b400 | translated: 2026-10-18 | reviewed: 2026-09-03 -->
 # NarrativeTrace .NET — Guías de usuario
 
 [English](../README.md) | **Español** | [Português](../pt-BR/guia-de-usuario.md) | [简体中文](../zh-CN/用户指南.md)
@@ -26,6 +26,11 @@ Una página por problema, en las palabras que un usuario escribiría, cada una c
 - [Por qué falló esta prueba](../../es/recetas/por-que-fallo-esta-prueba.md) — Leer la narrativa de una prueba en rojo frente a su aserción y distinguir un error de código de una expectativa obsoleta.
 - [Revisa un flujo complejo antes de cambiarlo](../../es/recetas/revisa-un-flujo-complejo-antes-de-cambiarlo.md) — Ver qué hace un flujo en `Detail` y en `Summary`, y el `.nt` sin valores que lee un agente.
 - [Revisa una refactorización: ¿cambió el comportamiento?](../../es/recetas/revisa-una-refactorizacion-cambio-el-comportamiento.md) — Atrapar una llamada eliminada que las pruebas en verde no vieron, con el diff de aprobación.
+- [Sigue una petición entre servicios (trazado distribuido)](../../es/recetas/sigue-una-peticion-entre-servicios.md) — Llevar un mismo id de traza y el span del llamador a través de un salto HTTP, para que las líneas de dos servicios se lean como una sola petición.
+- [Mantén los secretos fuera de los logs](../../es/recetas/manten-los-secretos-fuera-de-los-logs.md) — Ver una contraseña y un número de tarjeta ocultados por nombre y por valor, y demostrarlo con una prueba que vuelve a leer el log.
+- [Sigue un flujo entre hilos](../../es/recetas/sigue-un-flujo-entre-hilos.md) — Mantener el trabajo en segundo plano dentro de la traza con un grupo fork-join, y ver cómo se ve sin él.
+- [Envía las trazas al stack de observabilidad que ya tienes](../../es/recetas/envia-las-trazas-al-stack-de-observabilidad-que-ya-tienes.md) — Alimentar la misma ejecución a tu logger y a spans de OpenTelemetry, lado a lado.
+- [Traza en producción sin el coste](../../es/recetas/traza-en-produccion-sin-el-coste.md) — Conservar solo las ejecuciones que fallaron con el nivel `Errors`, y saber qué descarta.
 
 ## Para agentes de IA
 

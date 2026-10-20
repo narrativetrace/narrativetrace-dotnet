@@ -153,6 +153,41 @@ public sealed class Context7ConfigTests
     }
 
     [Fact]
+    public void A_checked_rule_reports_that_previous_versions_match_the_tags()
+    {
+        using var repo = TaggedRepo("0.3.0", "v0.1.0", "v0.2.0");
+        var lines = new List<string>();
+
+        Context7PreviousVersionsSupport.Report(repo.Path, ["v0.3.0", "v0.2.0", "v0.1.0"], lines.Add);
+
+        Assert.Equal(["context7-check: previousVersions matches the v* tags plus this build's version"], lines);
+    }
+
+    [Fact]
+    public void A_skipped_rule_reports_that_there_were_no_tags()
+    {
+        using var dir = new TempDir();
+        var lines = new List<string>();
+
+        var problems = Context7PreviousVersionsSupport.Report(dir.Path, [], lines.Add);
+
+        Assert.Empty(problems);
+        Assert.Equal(["context7-check: previousVersions check skipped: no v* tags in this checkout"], lines);
+    }
+
+    [Fact]
+    public void A_failed_rule_returns_its_problems_and_reports_no_match()
+    {
+        using var repo = TaggedRepo("0.3.0", "v0.1.0", "v0.2.0");
+        var lines = new List<string>();
+
+        var problems = Context7PreviousVersionsSupport.Report(repo.Path, ["v0.1.0"], lines.Add);
+
+        Assert.Single(problems);
+        Assert.Empty(lines);
+    }
+
+    [Fact]
     public void A_tree_without_git_is_a_skip()
     {
         using var dir = new TempDir();

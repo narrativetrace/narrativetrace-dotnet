@@ -204,6 +204,10 @@ public static class JsonExporter
         string? parentSpanId, int depth, ref int nextId)
     {
         var spanId = ResolveSpanId(node, ref nextId);
+        // A root has no parent node in this tree, but its span context may still
+        // name one: the caller's span under an adopted traceparent, or the
+        // launching span of a forked branch.
+        parentSpanId ??= node.SpanContext?.ParentSpanId?.Value;
         WriteEnterEvent(writer, node, spanId, parentSpanId, depth);
         WriteNodeEvents(
             writer, node.Children, spanId, depth + 1,

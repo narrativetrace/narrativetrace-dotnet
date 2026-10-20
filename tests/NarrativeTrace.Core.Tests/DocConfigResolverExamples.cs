@@ -167,4 +167,19 @@ public sealed class DocConfigResolverExamples
         Write("approved-dir.txt", output);
         Assert.Equal("resolved.ApprovedDir == \"baselines\"\n", output);
     }
+
+    [Fact]
+    public void ServiceName_worked_example()
+    {
+        var output = Capture(() =>
+        {
+            // snippet:begin service-name
+            var resolved = ConfigResolver.Resolve(key => key == "NARRATIVETRACE_SERVICE_NAME" ? "order-service" : null);
+            Console.WriteLine($"resolved.Identity.ServiceName == \"{resolved.Identity?.ServiceName}\"");
+            // snippet:end service-name
+        });
+
+        Write("service-name.txt", output);
+        Assert.Equal("resolved.Identity.ServiceName == \"order-service\"\n", output);
+    }
 }

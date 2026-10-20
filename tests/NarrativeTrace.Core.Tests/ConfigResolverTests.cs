@@ -132,4 +132,38 @@ public class ConfigResolverTests
         Assert.Equal("narratives", withValue.ApprovedDir);
         Assert.Null(blank.ApprovedDir);
     }
+
+    [Fact]
+    public void Resolves_the_service_identity_from_its_three_variables()
+    {
+        var config = ConfigResolver.Resolve(Env(
+            ("NARRATIVETRACE_SERVICE_NAME", "order-service"),
+            ("NARRATIVETRACE_SERVICE_VERSION", "2.3.1"),
+            ("NARRATIVETRACE_ENVIRONMENT", "production")));
+
+        Assert.Equal(new ServiceIdentity("order-service", "2.3.1", "production"), config.Identity);
+    }
+
+    [Fact]
+    public void Resolves_no_identity_when_none_of_the_variables_is_set()
+    {
+        Assert.Null(ConfigResolver.Resolve(Env()).Identity);
+    }
+
+    [Fact]
+    public void Resolves_no_identity_when_every_variable_is_blank()
+    {
+        var config = ConfigResolver.Resolve(Env(
+            ("NARRATIVETRACE_SERVICE_NAME", "  "), ("NARRATIVETRACE_ENVIRONMENT", "")));
+
+        Assert.Null(config.Identity);
+    }
+
+    [Fact]
+    public void Resolves_an_identity_from_the_variables_that_are_set_and_trims_them()
+    {
+        var config = ConfigResolver.Resolve(Env(("NARRATIVETRACE_SERVICE_NAME", " order-service ")));
+
+        Assert.Equal(new ServiceIdentity("order-service"), config.Identity);
+    }
 }

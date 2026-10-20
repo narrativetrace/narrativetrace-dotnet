@@ -40,6 +40,28 @@ internal static class Context7PreviousVersionsSupport
         return Problems(tags, BuildVersion(repoRoot), listed);
     }
 
+    /// <summary>
+    /// The rule over a repository, reporting its outcome: one line when it matched, one when it was
+    /// skipped, none when it found problems (the caller reports those). The same sentences appear in
+    /// every runtime's build, so a rehearsal log can be judged by grepping for them.
+    /// </summary>
+    /// <param name="repoRoot">The repository root, holding <c>Directory.Build.props</c>.</param>
+    /// <param name="listed">The tags <c>previousVersions</c> lists, in file order.</param>
+    /// <param name="info">Receives the one outcome line.</param>
+    /// <returns>The problems; empty when the rule matched or was skipped.</returns>
+    /// <exception cref="InvalidOperationException">Tags exist but the version source is missing or has no <c>VersionPrefix</c>.</exception>
+    public static IReadOnlyList<string> Report(string repoRoot, IReadOnlyList<string> listed, Action<string> info)
+    {
+        if (info is null)
+            throw new ArgumentNullException(nameof(info));
+        var problems = Check(repoRoot, listed);
+        if (problems is null)
+            info("context7-check: previousVersions check skipped: no v* tags in this checkout");
+        else if (problems.Count == 0)
+            info("context7-check: previousVersions matches the v* tags plus this build's version");
+        return problems ?? [];
+    }
+
     /// <summary>The pure rule: <paramref name="listed"/> against <paramref name="tags"/> plus <paramref name="buildVersion"/>.</summary>
     /// <param name="tags">The <c>v*</c> tags in <c>git tag --sort=-v:refname</c> order.</param>
     /// <param name="buildVersion">This build's version without the <c>v</c>.</param>

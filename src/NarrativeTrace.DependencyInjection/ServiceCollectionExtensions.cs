@@ -74,32 +74,65 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         Action<NarrativeTracingDiOptions> configure)
     {
+        return services.AddNarrativeTracing(
+            configure, Environment.GetEnvironmentVariable, Console.Error);
+    }
+
+    /// <summary>
+    /// The seam: reads <see cref="InstrumentationExclusions.EnvironmentKey"/> through an injected reader
+    /// and says what it left alone to an injected writer, so a test needs neither process state nor stderr.
+    /// </summary>
+    internal static IServiceCollection AddNarrativeTracing(
+        this IServiceCollection services,
+        Action<NarrativeTracingDiOptions> configure,
+        Func<string, string?> readEnvironment,
+        TextWriter diagnostics)
+    {
         var options = new NarrativeTracingDiOptions();
         configure(options);
 
-        var config = new NarrativeTraceConfig(options.Level);
+        var config = new NarrativeTraceConfig(
+            options.Level, options.ServiceIdentity ?? ConfigResolver.Resolve(readEnvironment).Identity);
         services.TryAddSingleton(config);
         services.TryAddScoped<INarrativeContext>(
             sp => new SyncNarrativeContext(
                 sp.GetRequiredService<NarrativeTraceConfig>()));
 
-        var matcher = new NamespaceMatcher(options.BaseNamespaces);
-        var exclusions = new NamespaceMatcher(options.ExcludedNamespaces);
-        DecorateMatchingServices(
-            services, matcher, exclusions, options.Redaction);
+        var plan = new WrapPlan(
+            new NamespaceMatcher(options.BaseNamespaces),
+            new NamespaceMatcher(EffectiveExclusions(options, readEnvironment)),
+            options.Redaction,
+            new ExclusionReport(diagnostics));
+        DecorateMatchingServices(services, plan);
         return services;
     }
 
+    // The option beats the environment beats the shipped default; whichever is present is the whole list.
+    private static IReadOnlyList<string> EffectiveExclusions(
+        NarrativeTracingDiOptions options, Func<string, string?> readEnvironment)
+    {
+        if (options.ExcludedNamespaces is { } given)
+        {
+            return given;
+        }
+
+        return readEnvironment(InstrumentationExclusions.EnvironmentKey) is { } fromEnvironment
+            ? InstrumentationExclusions.Parse(fromEnvironment)
+            : InstrumentationExclusions.DefaultExclude;
+    }
+
+    private sealed record WrapPlan(
+        NamespaceMatcher Include,
+        NamespaceMatcher Exclude,
+        RedactionPolicy? Redaction,
+        ExclusionReport Report);
+
     private static void DecorateMatchingServices(
-        IServiceCollection services,
-        NamespaceMatcher matcher, NamespaceMatcher exclusions,
-        RedactionPolicy? redaction)
+        IServiceCollection services, WrapPlan plan)
     {
         for (var i = 0; i < services.Count; i++)
         {
-            if (TryBuildWrappedDescriptor(
-                    services[i], matcher, exclusions, redaction)
-                is { } wrapped)
+            if (TryBuildWrappedDescriptor(services[i], plan) is { } wrapped)
             {
                 services[i] = wrapped;
             }
@@ -107,11 +140,9 @@ public static class ServiceCollectionExtensions
     }
 
     private static ServiceDescriptor? TryBuildWrappedDescriptor(
-        ServiceDescriptor descriptor,
-        NamespaceMatcher matcher, NamespaceMatcher exclusions,
-        RedactionPolicy? redaction)
+        ServiceDescriptor descriptor, WrapPlan plan)
     {
-        if (!ShouldWrap(descriptor, matcher, exclusions))
+        if (!ShouldWrap(descriptor, plan))
         {
             return null;
         }
@@ -121,13 +152,11 @@ public static class ServiceCollectionExtensions
             serviceType,
             sp => WrapInstance(
                 sp, serviceType,
-                ResolveOriginal(sp, descriptor), redaction),
+                ResolveOriginal(sp, descriptor), plan),
             descriptor.Lifetime);
     }
 
-    private static bool ShouldWrap(
-        ServiceDescriptor descriptor,
-        NamespaceMatcher matcher, NamespaceMatcher exclusions)
+    private static bool ShouldWrap(ServiceDescriptor descriptor, WrapPlan plan)
     {
         // Keyed descriptors expose their implementation only through the
         // Keyed* members; the non-keyed getters throw. Skip them with
@@ -135,9 +164,37 @@ public static class ServiceCollectionExtensions
         return !descriptor.IsKeyedService
             && descriptor.ServiceType.IsInterface
             && !descriptor.ServiceType.IsGenericTypeDefinition
-            && !exclusions.Matches(descriptor.ServiceType.Namespace)
-            && matcher.Matches(
-                ImplementationNamespace(descriptor));
+            && !GeneratedTypes.IsGenerated(descriptor.ServiceType)
+            && !IsGeneratedImplementation(descriptor)
+            && plan.Include.Matches(ImplementationNamespace(descriptor))
+            && !IsExcluded(descriptor, plan);
+    }
+
+    // Reaches the include list's selection, so a match here is a carve-out worth saying once.
+    private static bool IsExcluded(ServiceDescriptor descriptor, WrapPlan plan)
+    {
+        var prefix = plan.Exclude.MatchingPrefix(descriptor.ServiceType.Namespace)
+            ?? plan.Exclude.MatchingPrefix(ImplementationNamespace(descriptor));
+        if (prefix is null)
+        {
+            return false;
+        }
+
+        plan.Report.Excluded(prefix, DeclaredImplementationType(descriptor) ?? descriptor.ServiceType);
+        return true;
+    }
+
+    private static bool IsGeneratedImplementation(ServiceDescriptor descriptor)
+    {
+        var implType = DeclaredImplementationType(descriptor);
+        return implType is not null && GeneratedTypes.IsGenerated(implType);
+    }
+
+    private static Type? DeclaredImplementationType(
+        ServiceDescriptor descriptor)
+    {
+        return descriptor.ImplementationType
+            ?? descriptor.ImplementationInstance?.GetType();
     }
 
     private static string? ImplementationNamespace(
@@ -147,9 +204,8 @@ public static class ServiceCollectionExtensions
         // factory-registered service the impl type is opaque at
         // registration, so fall back to the (interface) service-type
         // namespace, which is near-universally co-located with the impl.
-        var implType = descriptor.ImplementationType
-            ?? descriptor.ImplementationInstance?.GetType();
-        return implType?.Namespace ?? descriptor.ServiceType.Namespace;
+        return DeclaredImplementationType(descriptor)?.Namespace
+            ?? descriptor.ServiceType.Namespace;
     }
 
     private static object ResolveOriginal(
@@ -170,13 +226,48 @@ public static class ServiceCollectionExtensions
     }
 
     private static object WrapInstance(
-        IServiceProvider sp, Type serviceType, object original,
-        RedactionPolicy? redaction)
+        IServiceProvider sp, Type serviceType, object original, WrapPlan plan)
     {
-        return NarrativeTraceProxy.Create(
-            serviceType, original,
-            sp.GetRequiredService<INarrativeContext>(),
-            new ProxyOptions(Redaction: EffectiveRedaction(sp, redaction)));
+        // A factory hides its product's type until resolve time; a generated or
+        // excluded product (a mock, a closure) is handed back untouched.
+        if (GeneratedTypes.IsGenerated(original.GetType()) || IsExcludedInstance(original, plan))
+        {
+            return original;
+        }
+
+        return TryCreateProxy(sp, serviceType, original, plan) ?? original;
+    }
+
+    private static bool IsExcludedInstance(object original, WrapPlan plan)
+    {
+        var type = original.GetType();
+        var prefix = plan.Exclude.MatchingPrefix(type.Namespace);
+        if (prefix is not null)
+        {
+            plan.Report.Excluded(prefix, type);
+        }
+
+        return prefix is not null;
+    }
+
+    // The B-125 principle: a target that cannot be proxied is skipped and said so once, never thrown
+    // into the host's own GetService call.
+    private static object? TryCreateProxy(
+        IServiceProvider sp, Type serviceType, object original, WrapPlan plan)
+    {
+        try
+        {
+            return NarrativeTraceProxy.Create(
+                serviceType, original,
+                sp.GetRequiredService<INarrativeContext>(),
+                new ProxyOptions(Redaction: EffectiveRedaction(sp, plan.Redaction)));
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException
+            or NotSupportedException or TypeLoadException or System.Reflection.TargetInvocationException)
+        {
+            plan.Report.CannotReach(serviceType, ex);
+            return null;
+        }
     }
 
     // This call's own o.Redaction wins when set; otherwise fall back to

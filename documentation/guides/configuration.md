@@ -59,6 +59,30 @@ These surface as `service.name` / `service.version` /
 `service.environment` in JSON export, logging scopes, and OpenTelemetry
 spans.
 
+**Name the service.** With no identity set, every span is attributed to
+`unknown_service:dotnet` on the platform and in OpenTelemetry — the
+convention for "nobody said" — and NarrativeTrace never guesses a name from the
+assembly. Set it in one of these places; code beats the environment:
+
+| Where | How |
+|---|---|
+| Environment | `NARRATIVETRACE_SERVICE_NAME`, `NARRATIVETRACE_SERVICE_VERSION`, `NARRATIVETRACE_ENVIRONMENT` — read by the xUnit fixture, the NUnit base and `AddNarrativeTracing` |
+| `AddNarrativeTracing` | `options.ServiceIdentity = new ServiceIdentity("order-service")` |
+| ASP.NET Core | `options.ServiceIdentity`, or `"NarrativeTrace": { "ServiceName": "order-service" }` in `appsettings.json` (`NarrativeTrace__ServiceName` as an environment variable); the registration never reads the `NARRATIVETRACE_*` variables |
+| A context built by hand | `new NarrativeTraceConfig(serviceIdentity: new ServiceIdentity("order-service"))` |
+
+`dotnet tool run dotnet-narrativetrace doctor` fails `config.service-identity`
+when non-test code wires tracing and none of these names the service.
+
+**The other two names a trace shows.** Spans are named after the interface a
+proxy wraps (`IOrderService.PlaceOrder`); `NarrativeTraceProxy.Create<T>` rejects
+a class, so no traced target is without a type name, and
+`new ProxyOptions(ClassName: "OrderService")` renames a span. Parameter names
+are read by reflection from the interface method, with no compiler flag and
+nothing to pass; the one case it cannot read is a method whose metadata carries
+no names (an interface emitted at run time), which renders `arg0`, `arg1` —
+put `[Traced("customerId", "productId")]` on it.
+
 ### Traceparent seeding
 
 Seed a starting [W3C `traceparent`](https://www.w3.org/TR/trace-context/#traceparent-header)
@@ -87,7 +111,7 @@ own distinct trace. Do not pair the two.
 
 ## 2. Environment variables (`ConfigResolver`)
 
-`ConfigResolver` reads six variables — the `.NET`-native override
+`ConfigResolver` reads these variables — the `.NET`-native override
 channel that keeps `Core` dependency-free. Invalid values **degrade to
 the default rather than throwing**, so bad configuration never crashes
 capture.
@@ -102,6 +126,10 @@ capture.
 | `NARRATIVETRACE_STRUCTURAL_JSON` | `true` / `false` (or `1`) | `false` |
 | `NARRATIVETRACE_APPROVAL` | `true` / `false` (or `1`) | `false` |
 | `NARRATIVETRACE_APPROVED_DIR` | any writable path | `narratives` |
+| `NARRATIVETRACE_EXCLUDE` | namespace prefixes separated by `;` | the shipped default list |
+| `NARRATIVETRACE_SERVICE_NAME` | any non-blank name | *(unset — `unknown_service:dotnet`)* |
+| `NARRATIVETRACE_SERVICE_VERSION` | any non-blank version | *(unset)* |
+| `NARRATIVETRACE_ENVIRONMENT` | any non-blank deployment environment | *(unset)* |
 
 Level and format parsing is lenient (case- and punctuation-insensitive:
 `detail`, `DETAIL`, and `Detail` all resolve).
@@ -168,8 +196,17 @@ services.AddNarrativeTracing(options =>
 {
     options.Level = TracingLevel.Detail;           // default: Detail
     options.Namespaces("MyApp.Orders", "MyApp.Payments");
+    options.ExcludeNamespaces("MyApp.Orders.Spi");  // optional; replaces the shipped default list
 });
 ```
+
+Include and exclude sit side by side: a type under an included namespace is
+traced unless an exclude prefix matches it, and generated code is never
+traced. `ExcludeNamespaces` (or `NARRATIVETRACE_EXCLUDE`, `;`-separated)
+**replaces** the shipped default list of framework, mocking and test-runner
+namespaces rather than extending it. Both lists are explained, and the
+default published, in the
+[Dependency Injection guide](dependency-injection.md#instrumentation-exclusions).
 
 Behavior:
 
@@ -532,6 +569,9 @@ this section is the worked-example companion to all of them.
 | `NARRATIVETRACE_STRUCTURAL_JSON` | Whether to also write the per-test value-free entry array. | `false` |
 | `NARRATIVETRACE_APPROVAL` | Whether a passing test's structure is checked against its committed `*.approved.nt` baseline. | `false` |
 | `NARRATIVETRACE_APPROVED_DIR` | The directory approval baselines live in. | `narratives` |
+| `NARRATIVETRACE_SERVICE_NAME` | The `service.name` stamped on every span. | *(unset — spans read `unknown_service:dotnet`)* |
+| `NARRATIVETRACE_SERVICE_VERSION` | The `service.version` stamped on every span. | *(unset)* |
+| `NARRATIVETRACE_ENVIRONMENT` | The `service.environment` stamped on every span. | *(unset)* |
 | `NARRATIVETRACE_REDACTION_ADDITIONALPATTERNS` | Comma-separated field-name patterns unioned into `RedactionPolicy.Default`. | *(none)* |
 | `NARRATIVETRACE_NARRATION` | Vetoes the logging bridge when set to `off`; anything else leaves it on. | *(unset — narrating)* |
 | `NARRATIVETRACE_GLOSSARY` | An explicit glossary file path for suite harvesting, or `off` to disable harvesting outright. | Upward search from the test run for `glossary.json` |
@@ -709,6 +749,27 @@ Observable effect — approval baselines are now read from and written to `basel
 <!-- snippet: artifacts/config-envvars/approved-dir.txt -->
 ```text
 resolved.ApprovedDir == "baselines"
+```
+<!-- /snippet -->
+
+### `NARRATIVETRACE_SERVICE_NAME`
+
+```bash
+export NARRATIVETRACE_SERVICE_NAME=order-service
+```
+
+<!-- snippet: tests/NarrativeTrace.Core.Tests/DocConfigResolverExamples.cs region=service-name -->
+```csharp
+var resolved = ConfigResolver.Resolve(key => key == "NARRATIVETRACE_SERVICE_NAME" ? "order-service" : null);
+Console.WriteLine($"resolved.Identity.ServiceName == \"{resolved.Identity?.ServiceName}\"");
+```
+<!-- /snippet -->
+
+Observable effect — every span the xUnit fixture, the NUnit base or `AddNarrativeTracing` captures carries `service.name` `order-service` instead of `unknown_service:dotnet`. `NARRATIVETRACE_SERVICE_VERSION` and `NARRATIVETRACE_ENVIRONMENT` resolve the same way into `Identity.ServiceVersion` and `Identity.Environment`; a blank value is read as unset.
+
+<!-- snippet: artifacts/config-envvars/service-name.txt -->
+```text
+resolved.Identity.ServiceName == "order-service"
 ```
 <!-- /snippet -->
 

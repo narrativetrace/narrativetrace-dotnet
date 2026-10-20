@@ -1,4 +1,4 @@
-<!-- source: README.md blob 1be389f461c0 | translated: 2026-10-11 | reviewed: - -->
+<!-- source: README.md blob 70a060184fe8 | translated: 2026-10-19 | reviewed: - -->
 # NarrativeTrace .NET
 
 [English](README.md) | **Español** | [Português](LEIAME.md) | [简体中文](自述文件.md)
@@ -416,10 +416,14 @@ hardware equiparable: `./build.sh Benchmark` restaura, compila, ejecuta los
 escribiendo resultados JSON legibles por máquina en `artifacts/benchmarks/`.
 Ese único comando es el punto de entrada que invoca un job nocturno/de host;
 regenera la línea base tras un cambio de rendimiento intencionado con
-`./build.sh BenchmarkBaseline`.
+`./build.sh BenchmarkBaseline`. La puerta mide lo que ejecuta producción: el
+tiempo sale de una ejecución con la optimización guiada por perfil (PGO)
+activada, y la asignación se reduce al mínimo de dos ejecuciones, la
+ejecución adicional de ese mínimo con PGO desactivada.
 
-Cuando todos los benchmarks se ralentizan a la vez y ninguno asigna más
-memoria, eso es un host más lento, no un commit más lento: la puerta lo
+Cuando varios benchmarks se ralentizan a la vez (al menos dos por encima del
+umbral, ninguno más rápido) y ninguno asigna más memoria (crecer significa al
+menos 16 B y el 1 % de la fila), eso es un host más lento, no un commit más lento: la puerta lo
 informa en voz alta como un cambio de entorno, termina limpiamente y deja
 la línea base intacta. Un solo benchmark que regresiona mientras sus pares
 se mantienen estables sigue haciendo fallar la puerta, por grande que sea
@@ -791,15 +795,17 @@ sin importar cuál de los dos wrappers se registre primero — solo *a qué*
 frame se adjunta (interior o exterior) depende de ese orden. Una vía de
 ingesta dedicada para eventos de violación que no lanzan excepción está
 planeada pero aún no construida. Las opciones de exclusión de hoy son
-limitadas: `ExcludeNamespaces` de `AddNarrativeTracing` excluye espacios
-de nombres de interfaz del auto-wrap de DI con coincidencia de límite de
-punto, y el proxy crudo solo envuelve lo que le pasas explícitamente a
-`NarrativeTraceProxy.Create`. Todavía no existe una lista de exclusión por
-defecto para formas de maquinaria conocidas (decoradores generados, tipos
-generados por el compilador), y el diseño de `DispatchProxy` de una
-interfaz por proxy significa que una instancia envuelta no expone
-ninguna *otra* interfaz marcador que implemente — ambos siguen siendo
-elementos abiertos en la hoja de ruta.
+dos listas: el código generado (tipos generados por el compilador, de
+ensamblados dinámicos y `DispatchProxy`) nunca se traza y no se puede
+volver a activar, y `AddNarrativeTracing` deja en paz una lista por
+defecto incluida de espacios de nombres de frameworks, de mocking y de
+ejecutores de pruebas, reemplazable con `ExcludeNamespaces` o
+`NARRATIVETRACE_EXCLUDE` (coincidencia de límite de punto; la exclusión
+gana a la inclusión); el proxy crudo solo envuelve lo que le pasas
+explícitamente a `NarrativeTraceProxy.Create`. El diseño de
+`DispatchProxy` de una interfaz por proxy significa que una instancia
+envuelta no expone ninguna *otra* interfaz marcador que implemente, un
+elemento abierto en la hoja de ruta.
 
 ## Estado
 

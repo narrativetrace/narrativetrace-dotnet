@@ -397,6 +397,22 @@ class Build : NukeBuild
         });
 
     /// <summary>
+    /// Checks <c>context7.json</c> <c>previousVersions</c> against the <c>v*</c> tags
+    /// (<see cref="Context7PreviousVersionsSupport"/>) and logs whether the rule ran or was skipped,
+    /// so a graceful skip is visible in the verify log.
+    /// </summary>
+    Target Context7Check => _ => _
+        .Executes(() =>
+        {
+            var config = JsonDocument.Parse(File.ReadAllText(RootDirectory / "context7.json"));
+            var listed = config.RootElement.GetProperty("previousVersions").EnumerateArray()
+                .Select(entry => entry.GetProperty("tag").GetString()!).ToArray();
+            var problems = Context7PreviousVersionsSupport.Report(RootDirectory, listed, Log.Information);
+            if (problems.Count > 0)
+                throw new InvalidOperationException(string.Join(Environment.NewLine, problems));
+        });
+
+    /// <summary>
     /// Fails when a <c>src/**/*.cs</c> code comment carries audit-ledger history (an owner-ruling
     /// citation, a "ruled 20YY-..." phrase, a bare audit date, or shipped-release wording) or frames
     /// this runtime as secondary to a Java implementation — see
@@ -566,6 +582,25 @@ class Build : NukeBuild
             var project = RootDirectory / "skills-devtool";
             DotNet($"run --project {project} --configuration {Configuration} --no-build " +
                 $"-- replay --dir {RootDirectory}");
+        });
+
+    /// <summary>
+    /// Builds the OpenAI plugin directory's upload ZIP from the current tree
+    /// (<c>skills-devtool pack-openai</c>) and asserts it: the entry list is derived from the
+    /// catalogue and checked against the built ZIP (release rule 5), the version is the build's own
+    /// semantic <c>VersionPrefix</c>, every manifest path resolves, each icon is square and within the
+    /// vendor's bounds, and no hooks/MCP/app/class entry is present. The ZIP lands under
+    /// <c>artifacts/</c> (never committed) and is uploaded by nobody here — the owner builds the real
+    /// one by hand from a <c>v*</c> tag. Offline, seconds; rides <see cref="Verify"/> beside
+    /// <see cref="SkillsLint"/>.
+    /// </summary>
+    Target OpenAiPluginPackCheck => _ => _
+        .DependsOn(Compile)
+        .Executes(() =>
+        {
+            var project = RootDirectory / "skills-devtool";
+            DotNet($"run --project {project} --configuration {Configuration} --no-build " +
+                $"-- pack-openai --dir {RootDirectory} --out {RootDirectory / "artifacts" / "openai-plugin"}");
         });
 
     // ── Examples ──────────────────────────────────────────────────────────────
@@ -3013,8 +3048,10 @@ class Build : NukeBuild
         .DependsOn(ContractLint)
         .DependsOn(DemoWiringCheck)
         .DependsOn(SkillsLint)
+        .DependsOn(OpenAiPluginPackCheck)
         .DependsOn(SkillsReplay)
         .DependsOn(HeaderAbsenceCheck)
+        .DependsOn(Context7Check)
         .DependsOn(CommentHygieneCheck)
         .DependsOn(AssetMetadataCheck)
         .DependsOn(CoverageAccountingCheck)
@@ -3068,35 +3105,38 @@ class Build : NukeBuild
         Directory.CreateDirectory(artifactsDir);
     }
 
-    void RunBenchmarks(AbsolutePath artifactsDir, string filter = "*")
+    void RunBenchmarks(
+        AbsolutePath artifactsDir, IReadOnlyDictionary<string, string> environment, string filter = "*")
     {
         var project = RootDirectory / "benchmarks" / "NarrativeTrace.Benchmarks" / "NarrativeTrace.Benchmarks.csproj";
         // Medium job (10 warmup / 15 measured iterations): the short job's 3
         // samples cannot hold the 15% regression band on containerized CPU —
         // back-to-back identical runs differed by up to 40%.
-        BenchmarkGate.RunProcess(project, artifactsDir, filter);
+        BenchmarkGate.RunProcess(project, artifactsDir, environment, filter);
     }
 
     /// <summary>
-    /// Runs the whole benchmark job twice — an ephemeral first run, then the canonical run into
-    /// <see cref="BenchmarkArtifactsDir"/> (the location every other reader, <c>VerifyAll</c>
-    /// included, still expects real BenchmarkDotNet reports at) — and floors the two into one
-    /// result set via <see cref="BenchmarkGate.MergeRuns"/>. See
+    /// Runs the whole benchmark job twice and merges the two via <see cref="BenchmarkGate.MergeRuns"/>:
+    /// an ephemeral allocation-floor run with PGO off (<see cref="BenchmarkGate.DeterminismEnvironment"/>;
+    /// allocation only, its time is discarded), then the canonical timing run with PGO on
+    /// (<see cref="BenchmarkGate.ProductionEnvironment"/>) into <see cref="BenchmarkArtifactsDir"/> (the
+    /// location every other reader, <c>VerifyAll</c> included, still expects real BenchmarkDotNet
+    /// reports at). Time comes from the timing run, allocation is floored over both. See
     /// <see cref="BenchmarkGate.DeterminismEnvironment"/> for why a single run is never trusted.
     /// </summary>
     Dictionary<string, (double MeanNs, long AllocBytes)> RunBenchmarksTwiceAndFloorAllocation(string filter = "*")
     {
         var floorDir = ArtifactsDirectory / "benchmarks-floor";
         PrepareBenchmarkArtifacts(floorDir);
-        RunBenchmarks(floorDir, filter);
-        var firstRun = BenchmarkGate.LoadResults(floorDir);
+        RunBenchmarks(floorDir, BenchmarkGate.DeterminismEnvironment, filter);
+        var floorRun = BenchmarkGate.LoadResults(floorDir);
         Directory.Delete(floorDir, true);
 
         PrepareBenchmarkArtifacts(BenchmarkArtifactsDir);
-        RunBenchmarks(BenchmarkArtifactsDir, filter);
-        var secondRun = BenchmarkGate.LoadResults(BenchmarkArtifactsDir);
+        RunBenchmarks(BenchmarkArtifactsDir, BenchmarkGate.ProductionEnvironment, filter);
+        var timingRun = BenchmarkGate.LoadResults(BenchmarkArtifactsDir);
 
-        return BenchmarkGate.MergeRuns(firstRun, secondRun);
+        return BenchmarkGate.MergeRuns(floorRun, timingRun);
     }
 
     static int CountNcss(IEnumerable<string> lines)

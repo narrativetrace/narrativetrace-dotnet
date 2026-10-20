@@ -49,7 +49,9 @@ const string DemoTraceparent = "00-a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4-a1b2c3d4a1b2
 // snippet:end fixedTraceparent
 
 var context = new SyncNarrativeContext(
-    new NarrativeTraceConfig(initialTraceparent: Traceparent.Parse(DemoTraceparent)));
+    new NarrativeTraceConfig(
+        serviceIdentity: new ServiceIdentity("hello-service"), // names the service; unset, spans read unknown_service:dotnet
+        initialTraceparent: Traceparent.Parse(DemoTraceparent)));
 var orders = NarrativeTraceProxy.Create<IOrderService>(new OrderService(), context);
 
 orders.PlaceOrder("cust-1", "book-123", 2);
@@ -150,7 +152,9 @@ What the manifests declare, and what CI actually runs:
 - `NarrativeTrace.Proxy` pulls in `.Runtime`+`.Core`.
 - `NARRATIVETRACE_OUTPUT` defaults **on**.
 - `new ProxyOptions(Redaction: ...)` reaches the proxy, and `NarrativeTracingDiOptions.Redaction`/`NarrativeTraceOptions.Redaction` reach DI auto-wrap and ASP.NET Core auto-wrapped proxies too.
-- No compiler flag needed for parameter names.
+- **Name the service.** Spans carry the service name you give them; unset, every span is attributed to `unknown_service:dotnet` on the platform and in OpenTelemetry, and NarrativeTrace never guesses one from the assembly. Set `NARRATIVETRACE_SERVICE_NAME` (with `NARRATIVETRACE_SERVICE_VERSION` and `NARRATIVETRACE_ENVIRONMENT`), or build the identity in code as the first trace above does (`new ServiceIdentity("hello-service")`). The xUnit fixture, the NUnit base and `AddNarrativeTracing` read the variables; `NarrativeTracingDiOptions.ServiceIdentity`, `NarrativeTraceOptions.ServiceIdentity` or `NarrativeTrace:ServiceName` in `appsettings.json` set it in code (the ASP.NET Core registration never reads the variables), and code beats the environment. The doctor's `config.service-identity` fails when non-test code wires tracing and names no service. See [Configuration Guide, Service identity](configuration.md#service-identity).
+- **Span names.** A proxy is built on an interface, and its spans are named after the interface (`IOrderService.PlaceOrder`); `NarrativeTraceProxy.Create<T>` rejects a class, so no traced target is ever without a type name. To name a span differently pass `new ProxyOptions(ClassName: "OrderService")`; calling `EnterMethod(className, ...)` by hand uses the name you pass.
+- **Parameter names.** NarrativeTrace reads parameter names by reflection from the interface method: no compiler flag, nothing to pass. The one case it cannot: a method whose metadata carries no names (an interface emitted at run time), which renders as `arg0`, `arg1` — put `[Traced("customerId", "productId")]` on that method.
 - The `.nt` structural artifact is a last-green baseline with per-invocation identity, `manifest.json` and approval mode: `NARRATIVETRACE_APPROVAL=true` fails a passing test whose structure differs from its committed `*.approved.nt`, and `dotnet tool run dotnet-narrativetrace approve` promotes a reviewed `*.received.nt`. See [Structural Trace Format](../structural-trace-format.md).
 - A trace has a name (`trace: bold elk soars (a1b2c3d)`, above), and a test-suite run has one too — the console footer, `manifest.json`'s `run` object, the Markdown frontmatter's `run:` field, and `nt.runName` in the logging bridge's scope. Neither ever reaches the `.nt` text. See [Configuration Guide §7](configuration.md#7-logging-bridge-microsoftextensionslogging).
 - Every `NARRATIVETRACE_*` variable — what it sets, its default, and a runnable example of the effect — is tabulated in [Configuration Guide §10](configuration.md#10-environment-variable-worked-examples).
@@ -166,6 +170,7 @@ builder.Services.AddNarrativeTracing(o => o.Namespaces("MyApp.Services"));
 app.UseMiddleware<NarrativeTraceMiddleware>();
 ```
 
+- **Exclusions:** `AddNarrativeTracing` never traces generated code (compiler-generated, dynamic-assembly and `DispatchProxy` types), and leaves a shipped default list of framework, mocking and test-runner namespaces alone even when included; `ExcludeNamespaces(...)` or `NARRATIVETRACE_EXCLUDE` (`;`-separated) replaces that list as a whole and always wins over `Namespaces(...)`. See [Dependency Injection guide](dependency-injection.md#instrumentation-exclusions).
 - **Per-request context:** `AddNarrativeTrace` registers a *scoped* `INarrativeContext` (a `SyncNarrativeContext`), so each request gets its own and concurrent requests do not mix. The middleware stores it in `HttpContext.Items`; read it with `HttpContext.GetNarrativeContext()`. Services wrapped by `AddNarrativeTracing` resolve the same scoped context, so their calls nest into the request's trace.
 - **Where the trace is captured:** inside the middleware, in a `finally` after the rest of the pipeline returns, with the response status and elapsed milliseconds. A request that throws still produces a trace (status 500 unless an error status was already set). Work started with a `Task` during the request lands in that same trace. Put the middleware where you want the clock to start: it traces what runs after it.
 - **Cleanup:** the middleware never calls `Reset()`; the context is discarded with the request's DI scope. You do not reset a request's context yourself. Excluded paths (`options.ExcludedPaths.Add("/health")`) create no context and no trace.
@@ -209,7 +214,7 @@ Install them into this project: `dotnet tool run dotnet-narrativetrace init --dr
 They are also reachable from two registries, each landing the same pages `init` then adopts. The Claude Code plugin marketplace carries them too: `/plugin marketplace add narrativetrace/narrativetrace-dotnet`, then `/plugin install narrativetrace-dotnet@narrativetrace-dotnet` — then run `dotnet tool run dotnet-narrativetrace init --dry-run`, read the diff, and run it without the flag so `AGENTS.md` points at them. `npx skills add narrativetrace/narrativetrace-dotnet` installs the open-standard pages directly into the project — then run `dotnet tool run dotnet-narrativetrace init --dry-run`, read the diff, and run it without the flag so `AGENTS.md` points at them.
 
 ## Doctor
-Confirm the install and surface misconfigurations — among its seventeen checks, one per framework this project uses (the doctor detects which, and each failing fix prints the compiled wiring lines) and whether the agent skills above are installed and current (`config.skills-installed`):
+Confirm the install and surface misconfigurations — among its nineteen checks, one per framework this project uses (the doctor detects which, and each failing fix prints the compiled wiring lines) and whether the agent skills above are installed and current (`config.skills-installed`):
 ```bash
 dotnet tool run dotnet-narrativetrace doctor
 ```
@@ -247,6 +252,11 @@ One page per problem, in the words a user would type. Each page carries its scen
 - [Why did this test fail](../recipes/why-did-this-test-fail.md) — a red checkout test read span by span against the assertion, where every span agrees with every other and the expectation is what is stale.
 - [Review a complex flow before changing it](../recipes/review-a-complex-flow-before-changing-it.md) — one run at `Detail` and at `Summary`, with the log line that carries values beside the value-free `.nt` an agent reads.
 - [Review a refactoring: did behaviour change](../recipes/review-a-refactoring-did-behaviour-change.md) — the tests stay green, the approval diff names the dropped call, and `dotnet tool run dotnet-narrativetrace approve` is how you say yes.
+- [Follow one request across services (distributed tracing)](../recipes/follow-one-request-across-services.md) — the checkout charges through a second traced service over a real socket: the W3C `traceparent` rides with the request, so one trace id is in both services' lines and the callee's root names the caller's span as its parent.
+- [Keep secrets out of the logs](../recipes/keep-secrets-out-of-the-logs.md) — a password caught by its parameter name and a card number caught by its value, in the log and in the trace, with the test that reads the log back as the proof.
+- [Follow a flow across threads](../recipes/follow-a-flow-across-threads.md) — two branches of a `ForkJoinGroup` keep the customer's trace id and come home under the span that launched them; the same work handed to a worker without the group is a detached second root.
+- [Send traces to the observability stack you already run](../recipes/send-traces-to-the-observability-stack-you-already-run.md) — one run, two consumers: the narrative lines your logger already writes beside the OpenTelemetry spans the same events became, attribute by attribute, redactions included.
+- [Trace in production without the cost](../recipes/trace-in-production-without-the-cost.md) — one declined checkout rendered at `Detail` and at `Errors`, where a run that succeeded writes no artifact at all, and only `Off` skips interception.
 
 ## Target frameworks
 

@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/configuration.md blob fbfa73142240 | translated: 2026-09-18 | reviewed: - -->
+<!-- source: documentation/guides/configuration.md blob b3b671b7bf4d | translated: 2026-10-20 | reviewed: - -->
 # NarrativeTrace .NET — Guia de configuração
 
 [English](../configuration.md) | [Español](../es/guia-de-configuracion.md) | **Português** | [简体中文](../zh-CN/配置指南.md)
@@ -60,6 +60,32 @@ Eles aparecem como `service.name` / `service.version` /
 `service.environment` na exportação JSON, nos escopos de logging e nos
 spans do OpenTelemetry.
 
+**Nomeie o serviço.** Sem identidade, cada span é atribuído a
+`unknown_service:dotnet` na plataforma e no OpenTelemetry (a convenção para
+«ninguém disse»), e o NarrativeTrace nunca adivinha um nome a partir do
+assembly. Defina-a em um destes lugares; o código vence o ambiente:
+
+| Onde | Como |
+|---|---|
+| Ambiente | `NARRATIVETRACE_SERVICE_NAME`, `NARRATIVETRACE_SERVICE_VERSION`, `NARRATIVETRACE_ENVIRONMENT` — lidas pelo fixture do xUnit, pela base do NUnit e por `AddNarrativeTracing` |
+| `AddNarrativeTracing` | `options.ServiceIdentity = new ServiceIdentity("order-service")` |
+| ASP.NET Core | `options.ServiceIdentity`, ou `"NarrativeTrace": { "ServiceName": "order-service" }` em `appsettings.json` (`NarrativeTrace__ServiceName` como variável de ambiente); o registro nunca lê as variáveis `NARRATIVETRACE_*` |
+| Um contexto construído à mão | `new NarrativeTraceConfig(serviceIdentity: new ServiceIdentity("order-service"))` |
+
+`dotnet tool run dotnet-narrativetrace doctor` falha `config.service-identity`
+quando o código que não é de teste liga o rastreamento e nada acima nomeia o
+serviço.
+
+**Os outros dois nomes que um trace mostra.** Os spans recebem o nome da
+interface que um proxy envolve (`IOrderService.PlaceOrder`);
+`NarrativeTraceProxy.Create<T>` rejeita uma classe, então nenhum alvo
+rastreado fica sem nome de tipo, e `new ProxyOptions(ClassName: "OrderService")`
+renomeia um span. Os nomes dos parâmetros são lidos por reflexão do método da
+interface, sem flag de compilador e sem nada a passar; o único caso que não
+consegue ler é um método cujos metadados não trazem nomes (uma interface emitida
+em tempo de execução), que aparece como `arg0`, `arg1` — coloque
+`[Traced("customerId", "productId")]` nele.
+
 ### Semeadura de traceparent
 
 Semeie um [`traceparent`](https://www.w3.org/TR/trace-context/#traceparent-header)
@@ -90,7 +116,7 @@ Não combine os dois.
 
 ## 2. Variáveis de ambiente (`ConfigResolver`)
 
-`ConfigResolver` lê seis variáveis — o canal de substituição nativo do
+`ConfigResolver` lê estas variáveis — o canal de substituição nativo do
 `.NET` que mantém o `Core` livre de dependências. Valores inválidos
 **regridem para o padrão em vez de lançar uma exceção**, então uma
 configuração incorreta nunca derruba a captura.
@@ -105,6 +131,10 @@ configuração incorreta nunca derruba a captura.
 | `NARRATIVETRACE_STRUCTURAL_JSON` | `true` / `false` (ou `1`) | `false` |
 | `NARRATIVETRACE_APPROVAL` | `true` / `false` (ou `1`) | `false` |
 | `NARRATIVETRACE_APPROVED_DIR` | qualquer caminho com permissão de escrita | `narratives` |
+| `NARRATIVETRACE_EXCLUDE` | prefixos de namespace separados por `;` | a lista padrão fornecida |
+| `NARRATIVETRACE_SERVICE_NAME` | qualquer nome não vazio | *(não definida — `unknown_service:dotnet`)* |
+| `NARRATIVETRACE_SERVICE_VERSION` | qualquer versão não vazia | *(não definida)* |
+| `NARRATIVETRACE_ENVIRONMENT` | qualquer ambiente de implantação não vazio | *(não definida)* |
 
 O parsing de nível e formato é tolerante (insensível a maiúsculas/minúsculas
 e pontuação: `detail`, `DETAIL` e `Detail` resolvem igualmente).
@@ -176,8 +206,17 @@ services.AddNarrativeTracing(options =>
 {
     options.Level = TracingLevel.Detail;           // padrão: Detail
     options.Namespaces("MyApp.Orders", "MyApp.Payments");
+    options.ExcludeNamespaces("MyApp.Orders.Spi");  // opcional; substitui a lista padrão fornecida
 });
 ```
+
+Inclusão e exclusão convivem lado a lado: um tipo sob um namespace incluído
+é rastreado, a menos que um prefixo de exclusão o alcance, e o código
+gerado nunca é rastreado. `ExcludeNamespaces` (ou `NARRATIVETRACE_EXCLUDE`,
+separado por `;`) **substitui** a lista padrão fornecida de namespaces de
+framework, de mocking e de test runners, em vez de estendê-la. As duas
+listas são explicadas, e o padrão publicado, no
+[Guia de injeção de dependências](guia-de-injecao-de-dependencias.md#exclusões-de-instrumentação).
 
 Comportamento:
 
@@ -566,6 +605,9 @@ práticos de todas elas.
 | `NARRATIVETRACE_STRUCTURAL_JSON` | Se o array de entradas sem valores por teste também é gravado. | `false` |
 | `NARRATIVETRACE_APPROVAL` | Se a estrutura de um teste que passa é conferida contra sua linha de base `*.approved.nt` versionada. | `false` |
 | `NARRATIVETRACE_APPROVED_DIR` | O diretório onde vivem as linhas de base de aprovação. | `narratives` |
+| `NARRATIVETRACE_SERVICE_NAME` | O `service.name` estampado em cada span. | *(não definida — os spans aparecem como `unknown_service:dotnet`)* |
+| `NARRATIVETRACE_SERVICE_VERSION` | O `service.version` estampado em cada span. | *(não definida)* |
+| `NARRATIVETRACE_ENVIRONMENT` | O `service.environment` estampado em cada span. | *(não definida)* |
 | `NARRATIVETRACE_REDACTION_ADDITIONALPATTERNS` | Padrões de nome de campo, separados por vírgula, unidos ao `RedactionPolicy.Default`. | *(nenhum)* |
 | `NARRATIVETRACE_NARRATION` | Veta a ponte de logging quando definida como `off`; qualquer outro valor a mantém ativa. | *(não definida — narrando)* |
 | `NARRATIVETRACE_GLOSSARY` | Um caminho de arquivo de glossário explícito para a coleta da suíte, ou `off` para desabilitá-la completamente. | Busca ascendente a partir da execução do teste por `glossary.json` |
@@ -713,6 +755,23 @@ Efeito observável — as linhas de base de aprovação agora são lidas e grava
 
 ```text
 resolved.ApprovedDir == "baselines"
+```
+
+### `NARRATIVETRACE_SERVICE_NAME`
+
+```bash
+export NARRATIVETRACE_SERVICE_NAME=order-service
+```
+
+```csharp
+var resolved = ConfigResolver.Resolve(key => key == "NARRATIVETRACE_SERVICE_NAME" ? "order-service" : null);
+Console.WriteLine($"resolved.Identity.ServiceName == \"{resolved.Identity?.ServiceName}\"");
+```
+
+Efeito observável — cada span que o fixture do xUnit, a base do NUnit ou `AddNarrativeTracing` captura leva `service.name` `order-service` em vez de `unknown_service:dotnet`. `NARRATIVETRACE_SERVICE_VERSION` e `NARRATIVETRACE_ENVIRONMENT` resolvem do mesmo modo em `Identity.ServiceVersion` e `Identity.Environment`; um valor em branco é lido como não definido.
+
+```text
+resolved.Identity.ServiceName == "order-service"
 ```
 
 ### `NARRATIVETRACE_REDACTION_ADDITIONALPATTERNS`

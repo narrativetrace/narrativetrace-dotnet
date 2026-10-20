@@ -3,6 +3,7 @@
 // Copyright (c) 2026 Empower Agile
 using NarrativeTrace.Skills.Catalogue;
 using NarrativeTrace.Skills.Render;
+using System.Text.RegularExpressions;
 using Xunit;
 
 namespace NarrativeTrace.Skills.Tests;
@@ -18,6 +19,51 @@ public sealed class CatalogueMarketplaceTests
     public void The_marketplace_and_its_one_plugin_share_the_runtime_slug_name()
     {
         Assert.Equal("narrativetrace-dotnet", SkillCatalogue.Marketplace.Name);
+    }
+
+    [Fact]
+    public void The_listing_sentence_has_one_clause_for_every_skill_the_catalogue_ships()
+    {
+        var clauses = ListingClauses(SkillCatalogue.Marketplace.PluginDescription);
+        var purposes = SkillCatalogue.Skills.Select(PurposeStems).ToList();
+
+        Assert.Equal(purposes.Count, clauses.Count);
+        Assert.True(
+            EveryPurposeGetsItsOwnClause(purposes, clauses.Select(Stems).ToList()),
+            $"No one-to-one pairing of skills to clauses in: {SkillCatalogue.Marketplace.PluginDescription}");
+    }
+
+    private static List<string> ListingClauses(string sentence) =>
+        sentence.TrimEnd('.').Split(',').Select(c => c.Trim()).Where(c => c.Length > 0).ToList();
+
+    private static HashSet<string> PurposeStems(Skill skill) =>
+        Stems(skill.Description.Split(". ")[0]);
+
+    private static HashSet<string> Stems(string text) =>
+        Regex.Matches(text, "[A-Za-z]{6,}")
+            .Select(m => m.Value.ToLowerInvariant()[..6])
+            .Where(stem => stem != "narrat")
+            .ToHashSet();
+
+    private static bool EveryPurposeGetsItsOwnClause(List<HashSet<string>> purposes, List<HashSet<string>> clauses)
+    {
+        var owner = new int[clauses.Count];
+        Array.Fill(owner, -1);
+        return Enumerable.Range(0, purposes.Count).All(p => Claim(p, new bool[clauses.Count]));
+
+        bool Claim(int purpose, bool[] seen)
+        {
+            for (var c = 0; c < clauses.Count; c++)
+            {
+                if (seen[c] || !purposes[purpose].Overlaps(clauses[c])) continue;
+                seen[c] = true;
+                if (owner[c] >= 0 && !Claim(owner[c], seen)) continue;
+                owner[c] = purpose;
+                return true;
+            }
+
+            return false;
+        }
     }
 
     [Fact]

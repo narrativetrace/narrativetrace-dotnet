@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="OrdersApp/OrdersApp.csproj" />
+  <Project Path="OrdersApp.Tests/OrdersApp.Tests.csproj" />
+</Solution>

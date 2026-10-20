@@ -20,6 +20,20 @@ public interface IOrderRepository
     void Save(Order order);
 }
 
+public interface IFraudCheckService
+{
+    bool Approve(string customerId, int amountCents);
+}
+
+// snippet:begin accounts
+/// <summary>Signs a customer in before the checkout charges them. The parameter is named <c>password</c>.</summary>
+public interface ICustomerAccounts
+{
+    /// <returns>The session id the checkout carries for the rest of the request.</returns>
+    string SignIn(string customerId, string password);
+}
+// snippet:end accounts
+
 public interface IOrderService
 {
     string PlaceOrder(string customerId, string sku, int quantity, string cardNumber);

@@ -112,6 +112,56 @@ public sealed class SnippetCheckSupportTests : IDisposable
         Assert.Empty(SnippetCheckSupport.Check(_repo));
     }
 
+    [Theory]
+    [InlineData("PlaceOrder(...) — 8ms\n")]
+    [InlineData("PlaceOrder(...) — 0.5ms\n")]
+    [InlineData("duration_ms: 5\n")]
+    [InlineData("**Duration:** 5ms | **Result:** PASSED\n")]
+    public void An_embedded_wall_clock_duration_without_mask_duration_names_the_marker_and_the_mask(string source)
+    {
+        Write("out/trace.txt", source);
+        Write("documentation/quickstart.md",
+            "<!-- snippet: out/trace.txt -->\n"
+            + "```text\n"
+            + source
+            + "```\n"
+            + "<!-- /snippet -->\n");
+
+        var problem = Assert.Single(SnippetCheckSupport.Check(_repo));
+
+        Assert.Contains("documentation/quickstart.md:1", problem, StringComparison.Ordinal);
+        Assert.Contains("out/trace.txt", problem, StringComparison.Ordinal);
+        Assert.Contains("mask=duration", problem, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void An_embedded_duration_under_mask_duration_is_not_reported()
+    {
+        Write("out/trace.txt", "PlaceOrder(...) — 8ms\n");
+        Write("documentation/quickstart.md",
+            "<!-- snippet: out/trace.txt mask=duration -->\n"
+            + "```text\n"
+            + "PlaceOrder(...) — 8ms\n"
+            + "```\n"
+            + "<!-- /snippet -->\n");
+
+        Assert.Empty(SnippetCheckSupport.Check(_repo));
+    }
+
+    [Fact]
+    public void A_millisecond_figure_that_is_not_a_trace_duration_is_not_reported()
+    {
+        Write("src/Options.cs", "var timeout = \"30ms\"; // a limit, not a measurement\n");
+        Write("documentation/quickstart.md",
+            "<!-- snippet: src/Options.cs -->\n"
+            + "```csharp\n"
+            + "var timeout = \"30ms\"; // a limit, not a measurement\n"
+            + "```\n"
+            + "<!-- /snippet -->\n");
+
+        Assert.Empty(SnippetCheckSupport.Check(_repo));
+    }
+
     [Fact]
     public void Mask_duration_ignores_a_run_that_omits_the_duration_suffix_entirely()
     {
@@ -381,6 +431,42 @@ public sealed class SnippetCheckSupportTests : IDisposable
 
         Assert.Empty(changes);
         Assert.Equal(page, Read("documentation/quickstart.md"));
+    }
+
+    [Fact]
+    public void Sync_leaves_a_block_alone_that_differs_from_its_source_only_by_a_masked_duration()
+    {
+        Write("out/trace.txt", "PlaceOrder(...) — 3ms\nduration_ms: 3\n");
+        var page =
+            "<!-- snippet: out/trace.txt mask=duration -->\n"
+            + "```text\n"
+            + "PlaceOrder(...) — 5ms\n"
+            + "duration_ms: 5\n"
+            + "```\n"
+            + "<!-- /snippet -->\n";
+        Write("documentation/quickstart.md", page);
+
+        var changes = SnippetCheckSupport.Sync(_repo);
+
+        Assert.Empty(changes);
+        Assert.Equal(page, Read("documentation/quickstart.md"));
+    }
+
+    [Fact]
+    public void Sync_still_rewrites_a_masked_block_whose_unmasked_text_has_drifted()
+    {
+        Write("out/trace.txt", "PlaceOrder(...) — 3ms\nShip(...)\n");
+        Write("documentation/quickstart.md",
+            "<!-- snippet: out/trace.txt mask=duration -->\n"
+            + "```text\n"
+            + "PlaceOrder(...) — 5ms\n"
+            + "```\n"
+            + "<!-- /snippet -->\n");
+
+        var change = Assert.Single(SnippetCheckSupport.Sync(_repo));
+
+        Assert.Contains("resynced", change, StringComparison.Ordinal);
+        Assert.Contains("Ship(...)", Read("documentation/quickstart.md"), StringComparison.Ordinal);
     }
 
     [Fact]

@@ -47,7 +47,7 @@ public sealed class PlaceOrderFlowTests
 
 **verify:** dotnet test --filter "FullyQualifiedName~<the test that reproduces the symptom>"
 
-**failure:** no .md for the test appears under bin/<configuration>/<tfm>/TestResults/narrativetrace/traces — the test does not call WriteArtifacts, or the collaborators on the path are not wrapped with the fixture's context — fix: write the test as the listing does; run narrativetrace-doctor and apply its fix, then run the test again
+**failure:** no .md for the test appears under bin/<configuration>/<tfm>/TestResults/narrativetrace/traces — the xUnit test neither runs its body through NarrativeFixture.Run nor calls WriteArtifacts, or the collaborators on the path are not wrapped with the fixture's context — fix: write the test as the listing does; run narrativetrace-doctor and apply its fix, then run the test again
 
 ## 2. Find the symptom in the values
 
@@ -130,7 +130,7 @@ dotnet test --filter "FullyQualifiedName~<the test that reproduces the symptom>"
 
 **verify:** the test project's .csproj carries the PropertyGroup above, and .gitignore carries the line **/*.received.nt so a review copy is never committed
 
-**failure:** the suite still passes and no .received.nt appears under narratives/ — the run settings are not referenced, or no test calls WriteArtifacts, so nothing is compared — fix: check the doctor's config.approval-mode finding and apply its fix; write the flow test as the listing above does, then run the suite again
+**failure:** the suite still passes and no .received.nt appears under narratives/ — the run settings are not referenced, or no xUnit test runs its body through NarrativeFixture.Run or calls WriteArtifacts, so nothing is compared — fix: check the doctor's config.approval-mode finding and apply its fix; write the flow test as the listing above does, then run the suite again
 
 ## 12. Run the suite in approval mode and show every .received.nt
 
@@ -171,8 +171,9 @@ dotnet tool run dotnet-narrativetrace approve
 Use the cheapest flavour that answers the question, and look at values only where the
 shape says to look. A span id (`#1`, `#1.3`, `#1.3.2`) is the span's position in the tree
 and the same in every flavour: find in the `.md` the span the `.nt` flagged by its id. A
-test writes these files when it calls `WriteArtifacts` (the listing above does); a red run
-writes the `.md` and the diagram and keeps the last green `.nt`. Redaction stays on — the
+test writes these files when it ends: an NUnit test deriving from `NarrativeTestBase` always,
+an xUnit test when its body runs through `NarrativeFixture.Run` or it calls `WriteArtifacts`
+(the listing above does); a red run writes the `.md` and the diagram and keeps the last green `.nt`. Redaction stays on — the
 deny-list and `[REDACTED]` are never turned off to see more; a redacted value that matters
 is reasoned about by its parameter name and the shape around it.
 

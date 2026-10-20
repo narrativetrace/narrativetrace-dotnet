@@ -11,7 +11,7 @@ namespace NarrativeTrace.DependencyInjection;
 public sealed class NarrativeTracingDiOptions
 {
     private readonly List<string> _namespaces = [];
-    private readonly List<string> _excludedNamespaces = [];
+    private IReadOnlyList<string>? _excludedNamespaces;
 
     /// <summary>The tracing level for the shared context.</summary>
     public TracingLevel Level { get; set; } = TracingLevel.Detail;
@@ -34,9 +34,18 @@ public sealed class NarrativeTracingDiOptions
     /// </summary>
     public RedactionPolicy? Redaction { get; set; }
 
+    /// <summary>
+    /// The service identity stamped on every span, or <see langword="null"/> to take the one the
+    /// <c>NARRATIVETRACE_SERVICE_NAME</c>, <c>NARRATIVETRACE_SERVICE_VERSION</c> and
+    /// <c>NARRATIVETRACE_ENVIRONMENT</c> variables name. With neither, spans are attributed to
+    /// <c>unknown_service:dotnet</c>.
+    /// </summary>
+    public ServiceIdentity? ServiceIdentity { get; set; }
+
     internal IReadOnlyList<string> BaseNamespaces => _namespaces;
 
-    internal IReadOnlyList<string> ExcludedNamespaces => _excludedNamespaces;
+    /// <summary>The explicit exclude list, or null when none was given (the environment or default applies).</summary>
+    internal IReadOnlyList<string>? ExcludedNamespaces => _excludedNamespaces;
 
     /// <summary>
     /// Configures the base namespaces whose interface-registered services
@@ -50,15 +59,28 @@ public sealed class NarrativeTracingDiOptions
     }
 
     /// <summary>
-    /// Excludes interfaces whose own namespace matches one of the given
-    /// prefixes from auto-wrapping, even when their implementation namespace
-    /// is included — the carve-out for framework/infrastructure interfaces
-    /// (Spring's SPI/configuration exclusion). Dot-boundary semantics.
+    /// Sets the namespaces that are never traced even when included: a service is left alone when its
+    /// interface, its implementation or its resolved instance lives under one of these prefixes
+    /// (dot-boundary semantics, so <c>Acme</c> never matches <c>Acmex</c>; a trailing <c>.</c> or
+    /// <c>.*</c> is accepted). Exclude wins over include.
     /// </summary>
+    /// <remarks>
+    /// This <b>replaces</b> the shipped <see cref="InstrumentationExclusions.DefaultExclude"/> and the
+    /// <see cref="InstrumentationExclusions.EnvironmentKey"/> variable — passing an empty list switches
+    /// the default off. To extend the default, include its prefixes in the call. May be called once;
+    /// a second call is a duplicate and throws.
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">The exclude list was already given.</exception>
     public NarrativeTracingDiOptions ExcludeNamespaces(
         params string[] namespaces)
     {
-        _excludedNamespaces.AddRange(namespaces);
+        if (_excludedNamespaces is not null)
+        {
+            throw new InvalidOperationException(
+                "ExcludeNamespaces was already called; the exclude list replaces the default as a whole, so give it once.");
+        }
+
+        _excludedNamespaces = InstrumentationExclusions.Normalise(namespaces);
         return this;
     }
 }

@@ -67,9 +67,12 @@ namespace NarrativeTrace.Build;
 /// embedded live output fail this check on every regeneration.</item>
 /// </list>
 /// <para>
-/// <see cref="Sync"/> never masks: it writes the real captured value
-/// (present or absent), which is what the reader-visible caveat already
-/// tells the reader to expect.
+/// <see cref="Sync"/> honours the same masks when deciding whether a block is
+/// stale, so a block that differs from its source only by what its mask erases
+/// (a wall-clock duration, a trace name) is left byte-identical instead of being
+/// rewritten on every run. A block that really drifted is rewritten with the
+/// real captured value (present or absent), which is what the reader-visible
+/// caveat already tells the reader to expect.
 /// </para>
 /// <para>
 /// Translated mirrors (<see cref="TranslationCheckSupport.TranslatedFiles"/>)
@@ -273,6 +276,12 @@ internal static class SnippetCheckSupport
                 continue;
             }
 
+            if (!masks.Duration && CarriesDuration(sourceContent))
+            {
+                yield return $"{relative}:{lineNumber}: '{sourcePath}' embeds a wall-clock duration "
+                    + $"without a mask — add mask=duration to the marker, or SnippetSync rewrites the block on every run";
+            }
+
             var maskedPage = ApplyMask(pageContent, masks);
             var maskedSource = ApplyMask(sourceContent, masks);
             if (!string.Equals(maskedPage, maskedSource, StringComparison.Ordinal))
@@ -301,7 +310,7 @@ internal static class SnippetCheckSupport
             result.Add(lines[i]);
             var marker = OpenMarker.Match(lines[i]);
             if (!marker.Success
-                || !TryParseMarker(marker, out var sourcePath, out var region, out _, out _)
+                || !TryParseMarker(marker, out var sourcePath, out var region, out var masks, out _)
                 || !TryExtractFence(lines, i, out var fenceOpen, out var fenceClose, out var closeLine, out _))
             {
                 // Not a marker, or a malformed one — Check reports the latter; Sync leaves it alone.
@@ -320,16 +329,17 @@ internal static class SnippetCheckSupport
             }
 
             var pageContent = Join(lines, fenceOpen + 1, fenceClose);
-            if (!string.Equals(pageContent, sourceContent, StringComparison.Ordinal))
+            var current = string.Equals(
+                ApplyMask(pageContent, masks), ApplyMask(sourceContent, masks), StringComparison.Ordinal);
+            if (!current)
             {
                 var regionSuffix = region is null ? "" : $" region={region}";
                 changes.Add($"{relative}:{i + 1}: resynced from '{sourcePath}'{regionSuffix}");
             }
 
             result.Add(lines[fenceOpen]);
-            result.AddRange(sourceContent.Length == 0
-                ? Array.Empty<string>()
-                : sourceContent.Split('\n'));
+            var body = current ? pageContent : sourceContent;
+            result.AddRange(body.Length == 0 ? Array.Empty<string>() : body.Split('\n'));
             result.Add(lines[fenceClose]);
             result.Add(lines[closeLine]);
             i = closeLine + 1;
@@ -494,6 +504,9 @@ internal static class SnippetCheckSupport
             ? lines
             : lines.Select(l => l.Length >= shared ? l[shared..] : l).ToList();
     }
+
+    private static bool CarriesDuration(string content) =>
+        DurationMask.IsMatch(content) || ArtifactDurationMask.IsMatch(content);
 
     private static string ApplyMask(string content, SnippetMasks masks)
     {

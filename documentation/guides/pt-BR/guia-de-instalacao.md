@@ -1,4 +1,4 @@
-<!-- source: documentation/guides/installation.md blob 2ae9acbce941 | translated: 2026-10-09 | reviewed: - -->
+<!-- source: documentation/guides/installation.md blob 2fe96d66a7d2 | translated: 2026-10-19 | reviewed: - -->
 # NarrativeTrace .NET — Guia de instalação
 
 [English](../installation.md) | [Español](../es/guia-de-instalacion.md) | **Português** | [简体中文](../zh-CN/安装指南.md)
@@ -25,7 +25,7 @@ Comece com o mínimo e adicione apenas o que você precisar.
 
 ```xml
 <!-- Mínimo: captura + renderização -->
-<PackageReference Include="NarrativeTrace.Proxy" Version="0.4.0" />
+<PackageReference Include="NarrativeTrace.Proxy" Version="0.4.1" />
 ```
 
 `NarrativeTrace.Proxy` depende de `.Runtime`, que depende de `.Core` — um
@@ -157,7 +157,13 @@ Crie um `NarrativeFixture` por teste com `using var` para que cada teste
 tenha um contexto limpo (o dispose o reinicia). `NarrativeFixture.Run`
 imprime a narrativa capturada no console quando o corpo lança uma
 exceção e depois a relança — assim, um teste que falha se explica
-sozinho.
+sozinho. Quando o corpo termina, `Run` também grava os arquivos desse
+teste (`.md`, `.nt` e seus companheiros) em `TestResults/narrativetrace/`,
+com o nome da classe e do método de teste, sem nenhuma chamada no teste.
+Mantenha as asserções dentro do corpo: um corpo que lança uma exceção é o
+que marca os arquivos como falhos. Um teste que usa `narrative.Context`
+diretamente, sem `Run`, os grava com
+`narrative.WriteArtifacts(testClass, testMethod, failed)`.
 
 ### Opção E — Contexto automático no NUnit + narrativa de falha
 
@@ -205,7 +211,7 @@ Adicione o pacote somente de build para executar o quality gate de
 clareza como parte do seu build:
 
 ```xml
-<PackageReference Include="NarrativeTrace.MSBuild" Version="0.4.0"
+<PackageReference Include="NarrativeTrace.MSBuild" Version="0.4.1"
                   PrivateAssets="all" />
 ```
 

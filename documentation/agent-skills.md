@@ -68,7 +68,7 @@ written by the `--dry-run` form. Against a fresh project the preview looks like 
 <!-- snippet: artifacts/agent-skills/init-preview.json -->
 ```json
 {
-  "carrier": "NarrativeTrace.Skills/0.4.0",
+  "carrier": "NarrativeTrace.Skills/0.4.1",
   "actions": [
     {"kind": "create", "path": ".agents/skills/narrativetrace-doctor/SKILL.md", "status": "planned"},
     {"kind": "create", "path": ".claude/skills/narrativetrace-doctor/SKILL.md", "status": "planned"},

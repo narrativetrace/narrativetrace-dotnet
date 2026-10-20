@@ -55,7 +55,7 @@ public sealed class PlaceOrderFlowTests
 
 **verify:** dotnet test --filter "FullyQualifiedName~<the smallest test that drives the real path>"
 
-**failure:** no .nt for the test appears under bin/<configuration>/<tfm>/TestResults/narrativetrace/structural — the test does not call WriteArtifacts, the collaborators on the path are not wrapped with the fixture's context, or NARRATIVETRACE_OUTPUT=false turned the files off — fix: write the test as the listing does; run narrativetrace-doctor and apply its fix, then run the test again
+**failure:** no .nt for the test appears under bin/<configuration>/<tfm>/TestResults/narrativetrace/structural — the xUnit test neither runs its body through NarrativeFixture.Run nor calls WriteArtifacts, the collaborators on the path are not wrapped with the fixture's context, or NARRATIVETRACE_OUTPUT=false turned the files off — fix: write the test as the listing does; run narrativetrace-doctor and apply its fix, then run the test again
 
 ## 4. Read the structural trace first, against the intent
 
@@ -63,13 +63,13 @@ public sealed class PlaceOrderFlowTests
 
 ## 5. Open values on the span that looks wrong, and only there
 
-**when:** only when the structural read named a span that does not match the intent; otherwise go on to the pin
+**when:** when the structural read named a span that does not match the intent, or the shape matches but a symptom points at data — an assertion failed on a value, the output is wrong — then open the one span the symptom points at; otherwise go on to the pin
 
 **verify:** only the flagged span was read in the .md narrative under bin/<configuration>/<tfm>/TestResults/narrativetrace/traces, found by the id the .nt gave it — not the whole file; a [REDACTED] value stays redacted
 
 ## 6. Fix, re-run, read again
 
-**when:** only when the structural read named a span that does not match the intent; otherwise go on to the pin
+**when:** only when the structural read named a span that does not match the intent, or the value read in step 5 was wrong; otherwise go on to the pin
 
 ```bash
 dotnet test --filter "FullyQualifiedName~<the smallest test that drives the real path>"
@@ -112,7 +112,7 @@ dotnet test --filter "FullyQualifiedName~<the smallest test that drives the real
 
 **verify:** the test project's .csproj carries the PropertyGroup above, and .gitignore carries the line **/*.received.nt so a review copy is never committed
 
-**failure:** the suite still passes and no .received.nt appears under narratives/ — the run settings are not referenced, or no test calls WriteArtifacts, so nothing is compared — fix: check the doctor's config.approval-mode finding and apply its fix; write the flow test as the listing above does, then run the suite again
+**failure:** the suite still passes and no .received.nt appears under narratives/ — the run settings are not referenced, or no xUnit test runs its body through NarrativeFixture.Run or calls WriteArtifacts, so nothing is compared — fix: check the doctor's config.approval-mode finding and apply its fix; write the flow test as the listing above does, then run the suite again
 
 ## 9. Run the suite in approval mode and show every .received.nt
 
@@ -124,7 +124,7 @@ dotnet test
 
 ## 10. Report what the trace showed, before the question
 
-**verify:** two sentences on what the trace showed, every claim citing the span id it rests on — a claim without an id is not a claim, and only ids in the .nt that was read count — with the .nt attached or quoted; 'tests pass' alone is not the report. It is written in this reply, after the review copy and before the pin question
+**verify:** two sentences on what the trace showed on the path this run took, every claim citing the span id it rests on — a claim without an id is not a claim, and only ids in the .nt that was read count — with the .nt attached or quoted; the report names the branches and inputs this run did not exercise, because one trace shows one path, not every execution; 'tests pass' alone is not the report. It is written in this reply, after the review copy and before the pin question
 
 ## 11. Ask once whether to pin it, then stop the turn
 
@@ -153,8 +153,9 @@ dotnet tool run dotnet-narrativetrace approve
 Use the cheapest flavour that answers the question, and look at values only where the
 shape says to look. A span id (`#1`, `#1.3`, `#1.3.2`) is the span's position in the tree
 and the same in every flavour: find in the `.md` the span the `.nt` flagged by its id. A
-test writes these files when it calls `WriteArtifacts` (the listing above does); a red run
-writes the `.md` and the diagram and keeps the last green `.nt`. Redaction stays on — the
+test writes these files when it ends: an NUnit test deriving from `NarrativeTestBase` always,
+an xUnit test when its body runs through `NarrativeFixture.Run` or it calls `WriteArtifacts`
+(the listing above does); a red run writes the `.md` and the diagram and keeps the last green `.nt`. Redaction stays on — the
 deny-list and `[REDACTED]` are never turned off to see more; a redacted value that matters
 is reasoned about by its parameter name and the shape around it.
 

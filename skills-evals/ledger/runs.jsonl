@@ -1,9 +1,9 @@
-{"date":"2026-09-26T08:27:51.5210690Z","skill":"add-narrative-tracing","case":"init-prompt-empty-project","platform":"claude","model":"haiku","trial":1,"result":"fail"}
-{"date":"2026-09-26T08:30:01.4654547Z","skill":"add-narrative-tracing","case":"init-prompt-existing-project","platform":"claude","model":"haiku","trial":1,"result":"fail"}
-{"date":"2026-09-26T18:13:08.8466229Z","skill":"add-narrative-tracing","case":"init-prompt-empty-project","platform":"claude","model":"haiku","trial":1,"result":"fail"}
-{"date":"2026-09-26T18:16:10.4525856Z","skill":"add-narrative-tracing","case":"init-prompt-existing-project","platform":"claude","model":"haiku","trial":1,"result":"pass"}
-{"date":"2026-10-07T18:14:50.8878461Z","skill":"add-narrative-tracing","case":"registry-npx-skills","platform":"claude","model":"haiku","trial":1,"result":"fail"}
-{"date":"2026-10-07T18:17:39.1263128Z","skill":"add-narrative-tracing","case":"registry-claude-marketplace","platform":"claude","model":"haiku","trial":1,"result":"pass"}
+{"date":"2026-09-26T08:27:51.5210690Z","skill":"add-narrative-tracing","case":"init-prompt-empty-project","platform":"claude","model":"claude-haiku-5-5","trial":1,"result":"fail"}
+{"date":"2026-09-26T08:30:01.4654547Z","skill":"add-narrative-tracing","case":"init-prompt-existing-project","platform":"claude","model":"claude-haiku-5-5","trial":1,"result":"fail"}
+{"date":"2026-09-26T18:13:08.8466229Z","skill":"add-narrative-tracing","case":"init-prompt-empty-project","platform":"claude","model":"claude-haiku-5-5","trial":1,"result":"fail"}
+{"date":"2026-09-26T18:16:10.4525856Z","skill":"add-narrative-tracing","case":"init-prompt-existing-project","platform":"claude","model":"claude-haiku-5-5","trial":1,"result":"pass"}
+{"date":"2026-10-07T18:14:50.8878461Z","skill":"add-narrative-tracing","case":"registry-npx-skills","platform":"claude","model":"claude-haiku-5-5","trial":1,"result":"fail"}
+{"date":"2026-10-07T18:17:39.1263128Z","skill":"add-narrative-tracing","case":"registry-claude-marketplace","platform":"claude","model":"claude-haiku-5-5","trial":1,"result":"pass"}
 {"date":"2026-10-08T21:32:12.3268639Z","skill":"narrativetrace-feedback","case":"value-free","platform":"claude","model":"claude-haiku-5-5","trial":1,"result":"pass"}
 {"date":"2026-10-08T21:32:50.4330875Z","skill":"narrativetrace-feedback","case":"approval-gate-approved","platform":"claude","model":"claude-haiku-5-5","trial":1,"result":"fail"}
 {"date":"2026-10-08T21:35:01.0132330Z","skill":"narrativetrace-feedback","case":"approval-gate-refused","platform":"claude","model":"claude-haiku-5-5","trial":1,"result":"fail"}
@@ -41,3 +41,6 @@
 {"date":"2026-10-15T09:36:43.4693060Z","skill":"narrativetrace-explain","case":"happy-path","platform":"claude","model":"claude-haiku-5-5","trial":1,"result":"pass"}
 {"date":"2026-10-15T09:37:12.0275173Z","skill":"narrativetrace-explain","case":"happy-path","platform":"claude","model":"claude-haiku-5-5","trial":2,"result":"pass"}
 {"date":"2026-10-15T09:37:40.7048240Z","skill":"narrativetrace-explain","case":"happy-path","platform":"claude","model":"claude-haiku-5-5","trial":3,"result":"pass"}
+{"date":"2026-10-17T22:51:33.6441920Z","skill":"add-narrative-tracing","case":"happy-path","platform":"claude","model":"claude-haiku-5-5","trial":1,"result":"fail"}
+{"date":"2026-10-17T22:55:18.6840129Z","skill":"add-narrative-tracing","case":"existing-service","platform":"claude","model":"claude-haiku-5-5","trial":1,"result":"fail"}
+{"date":"2026-10-18T10:41:01.7258130Z","skill":"add-narrative-tracing","case":"happy-path","platform":"claude","model":"claude-haiku-5-5","trial":1,"result":"pass"}

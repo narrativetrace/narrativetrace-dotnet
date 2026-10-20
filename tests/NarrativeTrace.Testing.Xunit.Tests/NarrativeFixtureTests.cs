@@ -456,9 +456,10 @@ public class NarrativeFixtureTests
     }
 
     [Fact]
-    public void Run_prints_nothing_when_the_body_succeeds()
+    public void Run_prints_no_failure_narrative_when_the_body_succeeds()
     {
-        using var fixture = new NarrativeFixture();
+        // Output off: with it on, the written trace is echoed — that is the write's report, not this one.
+        using var fixture = new NarrativeFixture(key => key == ConfigResolver.OutputKey ? "false" : null);
         var writer = new StringWriter();
 
         fixture.Run("Places_an_order", ctx =>

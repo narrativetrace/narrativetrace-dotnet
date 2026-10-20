@@ -398,10 +398,13 @@ hardware: `./build.sh Benchmark` restores, builds, runs all 16 benchmarks
 writing machine-readable JSON results under `artifacts/benchmarks/`. That
 one command is the entry point a nightly/host job invokes; regenerate the
 baseline after an intentional performance change with
-`./build.sh BenchmarkBaseline`.
+`./build.sh BenchmarkBaseline`. The gate measures what production runs: time
+comes from a run with profile-guided optimisation (PGO) on, allocation is
+floored over two runs, the extra floor run with PGO off.
 
-When every benchmark slows together and none allocates more, that is a
-slower host, not a slower commit: the gate reports it loudly as an
+When benchmarks slow together (at least two past the threshold, none faster)
+and none allocates more (growth means at least 16 B and 1 % of the row), that
+is a slower host, not a slower commit: the gate reports it loudly as an
 environment shift, exits clean, and leaves the baseline untouched. A single
 benchmark regressing while its peers hold steady still fails the gate,
 however large its factor — the deterministic axis, allocation, is what a
@@ -749,14 +752,15 @@ always reaches the trace as an exception, regardless of which wrapper is
 registered first — only *which* frame it attaches to (inner or outer)
 depends on that order. A dedicated ingress seam for violation events that
 don't throw is planned but not built yet. The exclusion knobs today are
-narrow: `AddNarrativeTracing`'s `ExcludeNamespaces` carves interface
-namespaces out of DI auto-wrap with dot-boundary matching, and the raw
-proxy only ever wraps what you explicitly pass to
-`NarrativeTraceProxy.Create`. There is no default-ignore list for known
-machinery shapes (generated decorators, compiler-generated types) yet,
-and `DispatchProxy`'s one-interface-per-proxy design means a wrapped
-instance does not expose any *other* marker interface it implements —
-both remain open items on the roadmap.
+two lists: generated code (compiler-generated, dynamic-assembly and
+`DispatchProxy` types) is never traced and cannot be switched back on, and
+`AddNarrativeTracing` leaves a shipped default list of framework, mocking and
+test-runner namespaces alone, replaceable with `ExcludeNamespaces` or
+`NARRATIVETRACE_EXCLUDE` (dot-boundary matching, exclude wins over include);
+the raw proxy only ever wraps what you explicitly pass to
+`NarrativeTraceProxy.Create`. `DispatchProxy`'s one-interface-per-proxy design
+means a wrapped instance does not expose any *other* marker interface it
+implements, an open item on the roadmap.
 
 ## Status
 

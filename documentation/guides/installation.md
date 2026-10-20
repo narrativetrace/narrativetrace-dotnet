@@ -22,7 +22,7 @@ Start with the minimum and add only what you need.
 
 ```xml
 <!-- Minimum: capture + render -->
-<PackageReference Include="NarrativeTrace.Proxy" Version="0.4.0" />
+<PackageReference Include="NarrativeTrace.Proxy" Version="0.4.1" />
 ```
 
 `NarrativeTrace.Proxy` depends on `.Runtime`, which depends on `.Core` — one
@@ -150,7 +150,13 @@ public sealed class OrderServiceTests
 Create one `NarrativeFixture` per test with `using var` so each test gets
 a clean context (disposal resets it). `NarrativeFixture.Run` prints the
 captured narrative to the console when the body throws, then rethrows —
-so a failing test explains itself.
+so a failing test explains itself. When the body ends, `Run` also writes
+that test's files (`.md`, `.nt` and their companions) under
+`TestResults/narrativetrace/`, named after the test class and method, with
+no call in the test. Keep the assertions inside the body: a body that
+throws is what marks the files failed. A test that drives
+`narrative.Context` directly, without `Run`, writes them with
+`narrative.WriteArtifacts(testClass, testMethod, failed)`.
 
 ### Option E — NUnit auto context + failure narrative
 
@@ -195,7 +201,7 @@ See the [Clarity Guide](clarity.md) for the scoring model and CI gate.
 Add the build-only package to run the clarity gate as part of your build:
 
 ```xml
-<PackageReference Include="NarrativeTrace.MSBuild" Version="0.4.0"
+<PackageReference Include="NarrativeTrace.MSBuild" Version="0.4.1"
                   PrivateAssets="all" />
 ```
 

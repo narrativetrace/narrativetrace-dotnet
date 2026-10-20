@@ -1,4 +1,4 @@
-<!-- source: README.md blob 1be389f461c0 | translated: 2026-10-11 | reviewed: - -->
+<!-- source: README.md blob 70a060184fe8 | translated: 2026-10-19 | reviewed: - -->
 # NarrativeTrace .NET
 
 [English](README.md) | [Español](LEAME.md) | **Português** | [简体中文](自述文件.md)
@@ -413,10 +413,14 @@ hardware equivalente: `./build.sh Benchmark` restaura, compila, executa os
 escrevendo resultados em JSON legíveis por máquina em
 `artifacts/benchmarks/`. Esse único comando é o ponto de entrada que um job
 noturno/de host invoca; regenere a baseline depois de uma mudança de
-performance intencional com `./build.sh BenchmarkBaseline`.
+performance intencional com `./build.sh BenchmarkBaseline`. O gate mede o que
+a produção executa: o tempo vem de uma execução com a otimização guiada por
+perfil (PGO) ligada, e a alocação é reduzida ao mínimo de duas execuções, a
+execução extra desse mínimo com PGO desligada.
 
-Quando todos os benchmarks ficam mais lentos juntos e nenhum aloca mais,
-isso é um host mais lento, não um commit mais lento: o gate reporta isso
+Quando vários benchmarks ficam mais lentos juntos (ao menos dois acima do
+limite, nenhum mais rápido) e nenhum aloca mais (crescer significa ao menos
+16 B e 1 % da linha), isso é um host mais lento, não um commit mais lento: o gate reporta isso
 em voz alta como uma mudança de ambiente, encerra limpo e deixa a baseline
 intocada. Um único benchmark regredindo enquanto seus pares seguem
 estáveis ainda derruba o gate, por maior que seja o seu fator — o eixo
@@ -784,15 +788,16 @@ independentemente de qual wrapper for registrado primeiro — só *a qual*
 frame ela se anexa (interno ou externo) depende dessa ordem. Um ponto de
 entrada dedicado para eventos de violação que não lançam exceção está
 planejado, mas ainda não construído. As opções de exclusão de hoje são
-limitadas: `ExcludeNamespaces` do `AddNarrativeTracing` exclui namespaces
-de interface do auto-wrap de DI com correspondência por limite de ponto, e
-o proxy bruto só envolve o que você passa explicitamente para
-`NarrativeTraceProxy.Create`. Ainda não existe uma lista de exclusão padrão
-para formas de maquinaria conhecidas (decoradores gerados, tipos gerados
-pelo compilador), e o design de `DispatchProxy` de uma interface por proxy
-significa que uma instância envolvida não expõe nenhuma *outra* interface
-marcadora que ela implemente — ambos continuam sendo itens em aberto no
-roadmap.
+duas listas: o código gerado (tipos gerados pelo compilador, de assembly
+dinâmico e `DispatchProxy`) nunca é rastreado e não pode ser reativado, e o
+`AddNarrativeTracing` deixa em paz uma lista padrão fornecida de namespaces
+de framework, de mocking e de test runners, substituível com
+`ExcludeNamespaces` ou `NARRATIVETRACE_EXCLUDE` (correspondência por limite
+de ponto, a exclusão vence a inclusão); o proxy bruto só envolve o que você
+passa explicitamente para `NarrativeTraceProxy.Create`. O design de
+`DispatchProxy` de uma interface por proxy significa que uma instância
+envolvida não expõe nenhuma *outra* interface marcadora que ela implemente,
+um item em aberto no roadmap.
 
 ## Status
 

@@ -30,7 +30,7 @@ dotnet test --filter "FullyQualifiedName~<the test that exercises the flow you w
 
 **verify:** the scenario ran and wrote a trace of its own: bin/<configuration>/<tfm>/TestResults/narrativetrace/structural holds an .nt for it, and bin/<configuration>/<tfm>/TestResults/narrativetrace/traces the .md beside it — a run that writes nothing is the failure below, never an answer; and the scenario ran as it was found, because a scenario edited to make the flow clearer is no longer the flow
 
-**failure:** the scenario runs but nothing appears under bin/<configuration>/<tfm>/TestResults/narrativetrace — the test does not call WriteArtifacts, or the collaborators on the flow are not wrapped with the test's NarrativeContext, so there is nothing to read — fix: run narrativetrace-doctor and apply its fix, then run the scenario again
+**failure:** the scenario runs but nothing appears under bin/<configuration>/<tfm>/TestResults/narrativetrace — the xUnit test neither runs its body through NarrativeFixture.Run nor calls WriteArtifacts, or the collaborators on the flow are not wrapped with the test's NarrativeContext, so there is nothing to read — fix: run narrativetrace-doctor and apply its fix, then run the scenario again
 
 ## 5. Read the structural trace first, in the order it ran
 
@@ -50,7 +50,7 @@ dotnet test --filter "FullyQualifiedName~<the test that exercises the flow you w
 
 ## 8. Explain the run by span id, and mark what you inferred
 
-**verify:** the explanation is in the user's own words and in the trace's own order: the calls the flow made, each claim citing the span id it rests on — a claim without an id is not a claim, and only ids in the .nt or .md read in this session count — the branch it took, and where the time went when that was the question. Every sentence that goes beyond what the trace shows is marked as an inference, and the last part names what was NOT observed: the code no span covers, because only wrapped or intercepted code has one
+**verify:** the explanation is in the user's own words and in the trace's own order: the calls the flow made, each claim citing the span id it rests on — a claim without an id is not a claim, and only ids in the .nt or .md read in this session count — the branch it took, and where the time went when that was the question. Every sentence that goes beyond what the trace shows is marked as an inference, and the last part names what was NOT observed: the code no span covers, because only wrapped or intercepted code has one, and the branches this run did not take
 
 ## Which flavour answers which question
 
@@ -66,8 +66,9 @@ dotnet test --filter "FullyQualifiedName~<the test that exercises the flow you w
 Use the cheapest flavour that answers the question, and look at values only where the
 shape says to look. A span id (`#1`, `#1.3`, `#1.3.2`) is the span's position in the tree
 and the same in every flavour: find in the `.md` the span the `.nt` flagged by its id. A
-test writes these files when it calls `WriteArtifacts` (the listing above does); a red run
-writes the `.md` and the diagram and keeps the last green `.nt`. Redaction stays on — the
+test writes these files when it ends: an NUnit test deriving from `NarrativeTestBase` always,
+an xUnit test when its body runs through `NarrativeFixture.Run` or it calls `WriteArtifacts`
+(the listing above does); a red run writes the `.md` and the diagram and keeps the last green `.nt`. Redaction stays on — the
 deny-list and `[REDACTED]` are never turned off to see more; a redacted value that matters
 is reasoned about by its parameter name and the shape around it.
 

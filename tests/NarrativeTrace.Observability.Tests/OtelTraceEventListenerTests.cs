@@ -377,6 +377,46 @@ public sealed class OtelTraceEventListenerTests : IDisposable
             .Tags.ToDictionary(t => t.Key, t => t.Value);
     }
 
+    [Fact]
+    public void Root_under_an_adopted_traceparent_parents_its_activity_on_the_remote_context()
+    {
+        var sc = AdoptedRootContext();
+
+        EmitEnterExit(sc, "Svc", "Run", "\"ok\"");
+
+        var activity = Assert.Single(_stopped);
+        Assert.Equal(sc.ParentSpanId!.Value.Value, activity.ParentSpanId.ToString());
+        Assert.Equal(sc.TraceId.Value, activity.TraceId.ToString());
+        Assert.Equal($"00-{sc.TraceId.Value}-{sc.ParentSpanId.Value.Value}-01", activity.ParentId);
+    }
+
+    [Fact]
+    public void Local_child_of_an_adopted_root_keeps_its_local_parent()
+    {
+        var root = AdoptedRootContext();
+        var child = ChildContext(root);
+
+        _sut.OnEvent(new EnterEvent(root, 1_000, new MethodSignature("Svc", "Run", [])));
+        _sut.OnEvent(new EnterEvent(child, 2_000, new MethodSignature("Repo", "Save", [])));
+        _sut.OnEvent(new ExitEvent(child, 3_000, new Returned("\"s\"")));
+        _sut.OnEvent(new ExitEvent(root, 4_000, new Returned("\"ok\"")));
+
+        var inner = _stopped.Single(a => a.DisplayName == "Repo.Save");
+        var outer = _stopped.Single(a => a.DisplayName == "Svc.Run");
+        Assert.Equal(outer.SpanId, inner.ParentSpanId);
+    }
+
+    private static SpanContext AdoptedRootContext()
+    {
+        return new SpanContext(
+            SpanIdGenerator.GenerateTraceId(),
+            SpanIdGenerator.GenerateSpanId(),
+            SpanIdGenerator.GenerateSpanId())
+        {
+            TraceFlags = 1,
+        };
+    }
+
     private static SpanContext RootContext()
     {
         return new SpanContext(

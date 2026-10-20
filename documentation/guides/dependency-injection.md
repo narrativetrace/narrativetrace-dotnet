@@ -12,7 +12,7 @@ services in place.
 ## Package
 
 ```xml
-<PackageReference Include="NarrativeTrace.DependencyInjection" Version="0.4.0" />
+<PackageReference Include="NarrativeTrace.DependencyInjection" Version="0.4.1" />
 ```
 
 ## 1. Register and auto-wrap
@@ -64,11 +64,11 @@ configuration delegate. `NarrativeTracingDiOptions` exposes:
 |---|---|---|---|
 | `Level` | `TracingLevel` | `Detail` | Capture level for the shared scoped context. |
 | `Namespaces(params string[])` | fluent | (empty) | Base namespaces to auto-wrap. |
-| `ExcludeNamespaces(params string[])` | fluent | (empty) | Interface namespaces to carve out, even when their implementation namespace is included. |
+| `ExcludeNamespaces(params string[])` | fluent | the [shipped default list](#instrumentation-exclusions) | Namespaces never traced, even when included. Giving it **replaces** the default; call it once. |
 | `Redaction` | `RedactionPolicy?` | `null` | The redaction policy every service this call wraps renders parameters and return values with. See below. |
 
-`Namespaces` and `ExcludeNamespaces` are additive and chainable, and each
-returns the options instance:
+`Namespaces` is additive; `ExcludeNamespaces` is given once and replaces the
+default list as a whole. Both are chainable and return the options instance:
 
 ```csharp
 services.AddNarrativeTracing(options =>
@@ -91,9 +91,10 @@ different rule sets:
 - **Inclusion** (`Namespaces`) is tested against the **implementation**
   namespace — the concrete type's namespace (see [section 5](#5-how-the-implementation-namespace-is-resolved)).
 - **Exclusion** (`ExcludeNamespaces`) is tested against the **interface**
-  (service-type) namespace. This lets you include an implementation
-  namespace broadly, then carve out the framework/SPI interfaces that live
-  under a different namespace.
+  (service-type) namespace, the **implementation** namespace and, at resolve
+  time, the namespace of the instance a factory returned. This lets you
+  include a namespace broadly, then carve out the framework/SPI types that
+  live under another. An exclude always wins over an include.
 
 Both use the same **dot-boundary** rule: a candidate matches a base when it
 equals the base exactly, or starts with the base **followed by a dot**. A
@@ -125,11 +126,19 @@ A descriptor is wrapped only when **all** of these hold:
   cannot wrap open generics;
 - it is **not a keyed** registration — keyed services are tolerated and
   left unwrapped (no exception), not yet supported;
-- its **interface namespace is not excluded** by `ExcludeNamespaces`;
+- neither its interface nor its implementation namespace is **excluded**
+  (`ExcludeNamespaces`, or the shipped default list);
+- it is **not generated code** — compiler-generated types, types from a
+  dynamic assembly (mocks, `DispatchProxy` proxies) and anything already a
+  `DispatchProxy` are never wrapped, see
+  [Instrumentation exclusions](#instrumentation-exclusions);
 - its **implementation namespace is included** by `Namespaces`.
 
 Anything failing a check is left exactly as registered, so resolving it
-returns the raw implementation.
+returns the raw implementation. A service that passes every check but
+cannot be proxied (for instance an interface carrying a method-level
+`[NotTraced]`) is also handed back unwrapped rather than failing the
+host's `GetService`; one line on standard error names it, once.
 
 > **Multi-interface divergence.** `DispatchProxy` supports one interface
 > per proxy. A class registered under two interfaces (e.g.
@@ -196,6 +205,63 @@ a `RedactionPolicy` configured via
 same service collection, so `AddNarrativeTracing`'s auto-wrap picks it up as
 a fallback for every service it wraps — without that call's own `Redaction`
 needing to repeat it. See [Configuration Guide §6](configuration.md#6-redaction).
+
+## Instrumentation exclusions
+
+Two lists decide what auto-wrapping never traces, and they have different owners.
+
+1. **Built in, not configurable: generated code.** A type no human wrote is
+   never a business boundary, so it is skipped whatever the include list
+   says, and no option turns that off. The test is structural, never a
+   vendor name: the type (or an enclosing type) is `[CompilerGenerated]`
+   (closures, display classes, async and iterator state machines, anonymous
+   types); its name contains `<`, which no source identifier can; its
+   assembly is dynamic (a `DispatchProxy` proxy, a Castle DynamicProxy mock);
+   or it is itself a `DispatchProxy`. Keyed and open-generic services are
+   skipped the same way, silently.
+2. **Configurable, with a shipped default: library and framework
+   internals.** Namespace prefixes that are infrastructure rather than your
+   code. Set your own list with `ExcludeNamespaces(...)`, or with the
+   `NARRATIVETRACE_EXCLUDE` environment variable (prefixes separated by
+   `;`). **Giving either replaces the default list as a whole** — the key's
+   presence decides, an empty value switches the default off, and the option
+   beats the environment variable. To extend the default, copy its prefixes
+   into your own list. An exclude always wins over an include, and
+   matching is dot-boundary (`Acme` never matches `Acmex`).
+
+Include and exclude together:
+
+```csharp
+services.AddNarrativeTracing(options => options
+    .Namespaces("MyApp")
+    .ExcludeNamespaces("MyApp.Generated", "Moq", "Xunit"));
+```
+
+Each exclude prefix that carves out something your include list selected is
+reported once on standard error — never once per type. The doctor's
+`config.exclude` check prints the effective list.
+
+The shipped default list (published verbatim from `InstrumentationExclusions.DefaultExclude`):
+
+| Namespace prefix | Why it is excluded |
+|---|---|
+| `Microsoft.Extensions` | DI, logging, options, hosting and configuration: the container's own types |
+| `Microsoft.AspNetCore` | Web framework's own services and interceptor chain |
+| `Microsoft.AI` | Application Insights SDK |
+| `Microsoft.ApplicationInsights` | Application Insights SDK |
+| `Microsoft.Build` | MSBuild's own types |
+| `Microsoft.CSharp` | Dynamic-binder runtime |
+| `System` | The base class library |
+| `Datadog` | Another APM tracer's runtime; avoids recursive instrumentation when co-deployed |
+| `OpenTelemetry` | The other APM most likely co-deployed |
+| `Moq` | Mocking library |
+| `NSubstitute` | Mocking library |
+| `FakeItEasy` | Mocking library |
+| `Castle` | Castle.Core and DynamicProxy, underneath Moq, NSubstitute and FakeItEasy |
+| `Xunit` | Test runner helpers |
+| `NUnit` | Test runner helpers |
+| `Microsoft.VisualStudio.TestPlatform` | VSTest host |
+| `Microsoft.VisualStudio.TestTools` | MSTest |
 
 ## See also
 

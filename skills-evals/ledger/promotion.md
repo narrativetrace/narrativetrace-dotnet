@@ -7,7 +7,7 @@ fixture. A wording or fixture change clears that skill's row.
 | Skill | Claude | Codex | Antigravity | Cursor |
 |---|---|---|---|---|
 | narrativetrace-doctor | not yet run | not yet run | not yet run | not yet run |
-| add-narrative-tracing | green (claude-haiku-5-5, 2026-10-10) | not yet run | not yet run | not yet run |
+| add-narrative-tracing | green (claude-haiku-5-5, 2026-10-18) | not yet run | not yet run | not yet run |
 | narrativetrace-feedback | green (claude-haiku-5-5, 2026-10-08) | not yet run | not yet run | not yet run |
 | add-narrativetrace-clarity | green (claude-haiku-5-5, 2026-10-09) | not yet run | not yet run | not yet run |
 | narrativetrace-verify | green (claude-haiku-5-5, 2026-10-09) | not yet run | not yet run | not yet run |

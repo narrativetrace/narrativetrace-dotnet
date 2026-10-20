@@ -38,6 +38,11 @@ namespace NarrativeTrace.Core;
 /// Directory of committed baselines, <c>&lt;dir&gt;/&lt;TestClass&gt;/&lt;scenario&gt;.approved.nt</c>.
 /// Null uses the caller's own default.
 /// </param>
+/// <param name="Identity">
+/// The service identity the three <c>NARRATIVETRACE_SERVICE_*</c>/<c>_ENVIRONMENT</c> variables name,
+/// or null when none of them is set. Without one every span is attributed to
+/// <c>unknown_service:dotnet</c> on the platform and in OpenTelemetry.
+/// </param>
 public sealed record ResolvedConfig(
     TracingLevel Level,
     bool Output,
@@ -47,7 +52,8 @@ public sealed record ResolvedConfig(
     bool StructuralJson = false,
     bool Narration = true,
     bool Approval = false,
-    string? ApprovedDir = null);
+    string? ApprovedDir = null,
+    ServiceIdentity? Identity = null);
 
 /// <summary>
 /// Resolves configuration from <c>NARRATIVETRACE_*</c> environment
@@ -132,6 +138,24 @@ public static class ConfigResolver
     public const string ApprovedDirKey = "NARRATIVETRACE_APPROVED_DIR";
 
     /// <summary>
+    /// Environment variable naming the service, stamped as <c>service.name</c> on every span. Blank is
+    /// treated as unset. Unset, spans are attributed to <c>unknown_service:dotnet</c>.
+    /// </summary>
+    public const string ServiceNameKey = "NARRATIVETRACE_SERVICE_NAME";
+
+    /// <summary>
+    /// Environment variable naming the service version, stamped as <c>service.version</c>. A blank
+    /// value is treated as unset.
+    /// </summary>
+    public const string ServiceVersionKey = "NARRATIVETRACE_SERVICE_VERSION";
+
+    /// <summary>
+    /// Environment variable naming the deployment environment, stamped as <c>service.environment</c>.
+    /// A blank value is treated as unset.
+    /// </summary>
+    public const string EnvironmentKey = "NARRATIVETRACE_ENVIRONMENT";
+
+    /// <summary>
     /// Resolves configuration from process environment variables.
     /// </summary>
     public static ResolvedConfig Resolve(
@@ -160,7 +184,18 @@ public static class ConfigResolver
             ParseBool(read(StructuralJsonKey)),
             !IsOff(read(NarrationKey)),
             ParseBool(read(ApprovalKey)),
-            NullIfBlank(read(ApprovedDirKey)));
+            NullIfBlank(read(ApprovedDirKey)),
+            IdentityFrom(read));
+    }
+
+    private static ServiceIdentity? IdentityFrom(Func<string, string?> read)
+    {
+        var name = NullIfBlank(read(ServiceNameKey));
+        var version = NullIfBlank(read(ServiceVersionKey));
+        var environment = NullIfBlank(read(EnvironmentKey));
+        return name is null && version is null && environment is null
+            ? null
+            : new ServiceIdentity(name, version, environment);
     }
 
     private static bool ParseBool(string? value)

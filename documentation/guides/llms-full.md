@@ -50,7 +50,12 @@ into a single tree.
 - Libraries multi-target `net10.0` and `netstandard2.0`; the `Legacy`
   package additionally targets `net48`.
 - **No compiler flag required** — .NET retains method parameter names in
-  metadata by default.
+  metadata by default, and NarrativeTrace reads them by reflection from the
+  interface method. The one case it cannot: a method whose metadata carries no
+  names (an interface emitted at run time) renders `arg0`, `arg1`; put
+  `[Traced("customerId", "productId")]` on it. Spans are named after the
+  interface the proxy wraps (`NarrativeTraceProxy.Create<T>` rejects a class);
+  `new ProxyOptions(ClassName: "OrderService")` renames them.
 - Tested: the .NET 10 SDK on Linux (every test project targets `net10.0`).
   The `netstandard2.0` builds are compiled, not executed. Trimming and
   Native AOT are not declared or tested. `NarrativeTrace.AspNetCore` is
@@ -363,7 +368,17 @@ typed `RenderedValue` tree (`StringVal`, `LongVal`, `DoubleVal`,
 values are captured only at `Detail`.
 
 `ConfigResolver.Resolve()` reads env vars into
-`ResolvedConfig(Level, Output, OutputDir, Format, CanonicalJson, StructuralJson)`:
+`ResolvedConfig(Level, Output, OutputDir, Format, CanonicalJson, StructuralJson, Narration, Approval, ApprovedDir, Identity)`:
+
+- `NARRATIVETRACE_SERVICE_NAME`, `NARRATIVETRACE_SERVICE_VERSION`,
+  `NARRATIVETRACE_ENVIRONMENT` (default unset) — the `ServiceIdentity` stamped
+  on every span as `service.name`, `service.version`, `service.environment`.
+  Unset, spans are attributed to `unknown_service:dotnet`; NarrativeTrace never
+  guesses a name from the assembly. Read by the xUnit fixture, the NUnit base
+  and `AddNarrativeTracing`; the ASP.NET Core registration reads
+  `NarrativeTrace:ServiceName` from configuration instead. The doctor's
+  `config.service-identity` fails when non-test code wires tracing and names no
+  service.
 
 - `NARRATIVETRACE_LEVEL` (default `Detail`)
 - `NARRATIVETRACE_OUTPUT` (`true`/`false`/`1`/`0`, default `true` — on by
@@ -545,6 +560,13 @@ a configured prefix (dot-boundary matching). Preserves the original
 lifetime; registers a scoped `INarrativeContext`. Open generics are
 skipped. This is independent of the ASP.NET Core middleware context.
 
+Generated code (compiler-generated, dynamic-assembly and `DispatchProxy`
+types) is never traced, and a shipped default list of framework, mocking and
+test-runner namespaces is left alone even when included. `ExcludeNamespaces(...)`
+or `NARRATIVETRACE_EXCLUDE` (`;`-separated) replaces that list as a whole and
+always wins over `Namespaces(...)`; see
+[Dependency Injection guide](dependency-injection.md#instrumentation-exclusions).
+
 ## ASP.NET Core
 
 ```csharp
@@ -653,11 +675,17 @@ host.
 
 - **xUnit** (`NarrativeTrace.TestingXunit`): `using var narrative = new NarrativeFixture();`
   then `narrative.Run("Scenario", ctx => { … });` — prints the narrative on
-  failure, then rethrows. `TraceOutputWriter.Write(tree, testName, outputDir, formats…)`
+  failure, then rethrows; when the body ends it writes that test's `.md`,
+  `.nt` and companions under `TestResults/narrativetrace/` (output on by
+  default, `NARRATIVETRACE_OUTPUT=false` opts out), failed when the body
+  threw. Without `Run`, call `narrative.WriteArtifacts(testClass, testMethod,
+  failed)`; a later explicit call for the same test does not write twice.
+  `TraceOutputWriter.Write(tree, testName, outputDir, formats…)`
   with `TraceFormat.{Markdown,Mermaid,PlantUml,Json,ClarityJson}`.
 - **NUnit** (`NarrativeTrace.TestingNUnit`): derive from `NarrativeTestBase`;
-  `Context` is fresh per test; the narrative prints on failure. Override
-  `OnTraceComplete(TraceTree)` to write files.
+  `Context` is fresh per test; the narrative prints on failure, and its
+  `[TearDown]` writes the per-test files with NUnit's own outcome. Override
+  `OnTraceComplete(TraceTree)` to send the trace anywhere else.
 
 Note the namespaces omit the second dot: `NarrativeTrace.TestingXunit`,
 `NarrativeTrace.TestingNUnit`.

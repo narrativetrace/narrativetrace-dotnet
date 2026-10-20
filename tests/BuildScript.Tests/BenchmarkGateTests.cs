@@ -87,25 +87,44 @@ public sealed class BenchmarkGateTests : IDisposable
     // and the floor-of-two-runs mechanism never lets a single noisy sample decide the comparison.
 
     [Fact]
-    public void The_benchmark_process_configuration_disables_dynamic_PGO()
+    public void The_allocation_floor_run_disables_dynamic_PGO()
     {
         var psi = BenchmarkGate.BuildProcessStartInfo(
-            "benchmarks/NarrativeTrace.Benchmarks/NarrativeTrace.Benchmarks.csproj", "artifacts/x");
+            "benchmarks/NarrativeTrace.Benchmarks/NarrativeTrace.Benchmarks.csproj", "artifacts/x",
+            BenchmarkGate.DeterminismEnvironment);
 
         Assert.Equal("0", psi.Environment["DOTNET_TieredPGO"]);
     }
 
     [Fact]
-    public void The_gate_and_the_process_it_launches_read_the_determinism_setting_from_one_place()
+    public void The_timing_run_enables_dynamic_PGO_explicitly_as_production_does()
     {
-        // Not a second, hand-copied assertion of the same fact as the test above — this one
-        // fails if BuildProcessStartInfo ever stops consulting DeterminismEnvironment (the one
-        // dictionary Build.cs's RunBenchmarks and this file both build the process from) and
-        // starts hard-coding the setting instead, which would let the two quietly diverge again.
-        var psi = BenchmarkGate.BuildProcessStartInfo("proj.csproj", "artifacts/x");
+        var psi = BenchmarkGate.BuildProcessStartInfo(
+            "benchmarks/NarrativeTrace.Benchmarks/NarrativeTrace.Benchmarks.csproj", "artifacts/x",
+            BenchmarkGate.ProductionEnvironment);
 
-        foreach (var (key, value) in BenchmarkGate.DeterminismEnvironment)
-            Assert.Equal(value, psi.Environment[key]);
+        Assert.Equal("1", psi.Environment["DOTNET_TieredPGO"]);
+    }
+
+    [Fact]
+    public void Both_runs_are_built_from_one_argument_list_and_differ_only_in_environment()
+    {
+        var floor = BenchmarkGate.BuildProcessStartInfo("proj.csproj", "artifacts/x", BenchmarkGate.DeterminismEnvironment);
+        var timing = BenchmarkGate.BuildProcessStartInfo("proj.csproj", "artifacts/x", BenchmarkGate.ProductionEnvironment);
+
+        Assert.Equal(floor.ArgumentList, timing.ArgumentList);
+        Assert.NotEqual(floor.Environment["DOTNET_TieredPGO"], timing.Environment["DOTNET_TieredPGO"]);
+    }
+
+    [Fact]
+    public void The_process_environment_comes_from_the_dictionary_it_is_given()
+    {
+        // Fails if BuildProcessStartInfo hard-codes a setting instead of consulting the
+        // environment it was handed, which would let the two runs quietly diverge again.
+        var environment = new Dictionary<string, string> { ["NT_PROBE"] = "x" };
+        var psi = BenchmarkGate.BuildProcessStartInfo("proj.csproj", "artifacts/x", environment);
+
+        Assert.Equal("x", psi.Environment["NT_PROBE"]);
     }
 
     [Fact]
@@ -131,14 +150,26 @@ public sealed class BenchmarkGateTests : IDisposable
     }
 
     [Fact]
-    public void Flooring_two_runs_averages_mean_time_rather_than_flooring_or_ceiling_it()
+    public void Merging_two_runs_takes_mean_time_from_the_timing_run_alone()
     {
-        var first = new Dictionary<string, (double MeanNs, long AllocBytes)> { ["A"] = (1000.0, 100) };
-        var second = new Dictionary<string, (double MeanNs, long AllocBytes)> { ["A"] = (1200.0, 100) };
+        var floorRun = new Dictionary<string, (double MeanNs, long AllocBytes)> { ["A"] = (5950.0, 100) };
+        var timingRun = new Dictionary<string, (double MeanNs, long AllocBytes)> { ["A"] = (850.0, 100) };
 
-        var merged = BenchmarkGate.MergeRuns(first, second);
+        var merged = BenchmarkGate.MergeRuns(floorRun, timingRun);
 
-        Assert.Equal(1100.0, merged["A"].MeanNs);
+        Assert.Equal(850.0, merged["A"].MeanNs);
+    }
+
+    [Fact]
+    public void Merging_two_runs_keeps_the_allocation_minimum_whichever_run_holds_it()
+    {
+        var floorRun = new Dictionary<string, (double MeanNs, long AllocBytes)> { ["A"] = (5950.0, 100), ["B"] = (1.0, 300) };
+        var timingRun = new Dictionary<string, (double MeanNs, long AllocBytes)> { ["A"] = (850.0, 120), ["B"] = (2.0, 280) };
+
+        var merged = BenchmarkGate.MergeRuns(floorRun, timingRun);
+
+        Assert.Equal((850.0, 100L), merged["A"]);
+        Assert.Equal((2.0, 280L), merged["B"]);
     }
 
     // ── Time regressions: unreliable under host load, never counted, never silently dropped ────
@@ -293,5 +324,136 @@ public sealed class BenchmarkGateTests : IDisposable
 
         Assert.Throws<InvalidOperationException>(() =>
             BenchmarkGate.CheckRegressions(current, baseline, loadThreshold: 6.0, loadAveragePath: loadPath));
+    }
+
+    private static string RealBaselinePath()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "benchmarks", "benchmark-baseline.json")))
+            dir = dir.Parent;
+        return Path.Combine(dir!.FullName, "benchmarks", "benchmark-baseline.json");
+    }
+
+    private static Dictionary<string, (double MeanNs, long AllocBytes)> RealBaselineRows()
+    {
+        using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(RealBaselinePath()));
+        return doc.RootElement.EnumerateObject().ToDictionary(
+            p => p.Name,
+            p => (p.Value.GetProperty("meanNs").GetDouble(), p.Value.GetProperty("allocatedBytes").GetInt64()));
+    }
+
+    private string CheckVerdict(
+        Dictionary<string, (double MeanNs, long AllocBytes)> current,
+        Dictionary<string, (double MeanNs, long AllocBytes)> baselineRows)
+    {
+        var baseline = WriteBaseline(baselineRows.Select(r => (r.Key, r.Value.MeanNs, r.Value.AllocBytes)).ToArray());
+        var loadPath = WriteLoadAvg(oneMinute: 1.15, fiveMinute: 1.15, fifteenMinute: 1.15);
+        return Capture(() =>
+            BenchmarkGate.CheckRegressions(current, baseline, loadThreshold: 6.0, loadAveragePath: loadPath));
+    }
+
+    private static Dictionary<string, (double MeanNs, long AllocBytes)> Rows(
+        int count, Func<int, (double MeanNs, long AllocBytes)> row) =>
+        Enumerable.Range(0, count).ToDictionary(i => $"B{i:D2}", row);
+
+    [Fact]
+    public void The_2026_10_18_nightly_against_the_real_baseline_is_an_environment_shift()
+    {
+        // 21 rows slower by a factor (the nightly's REGRESSION lines), three RenderObject rows
+        // within noise, and ForkJoin_TwoTasks allocating 6411 B against 6409 B.
+        var baseline = RealBaselineRows();
+        var factors = new Dictionary<string, double>
+        {
+            ["ConcurrencyBenchmarks.DetectOverlapping"] = 68,
+            ["ConcurrencyBenchmarks.DetectSequential"] = 307,
+            ["ConcurrencyBenchmarks.ExportForkJoinJson"] = 11142,
+            ["ConcurrencyBenchmarks.FireAndForget_Launch"] = 1797,
+            ["ConcurrencyBenchmarks.ForkJoin_TwoTasks"] = 4008,
+            ["ConcurrencyBenchmarks.ForkJoin_WhenAll"] = 4174,
+            ["ConcurrencyBenchmarks.RenderForkJoinIndented"] = 1779,
+            ["ConcurrencyBenchmarks.RenderForkJoinMarkdown"] = 3524,
+            ["CoreBenchmarks.BuildTree(NodeCount=10)"] = 16415,
+            ["CoreBenchmarks.BuildTree(NodeCount=100)"] = 176797,
+            ["CoreBenchmarks.BuildTree(NodeCount=1000)"] = 5311801,
+            ["CoreBenchmarks.EnterExitCycle(NodeCount=10)"] = 2799,
+            ["CoreBenchmarks.EnterExitCycle(NodeCount=100)"] = 2699,
+            ["CoreBenchmarks.EnterExitCycle(NodeCount=1000)"] = 2639,
+            ["CoreBenchmarks.RenderPrimitive(NodeCount=10)"] = 74,
+            ["CoreBenchmarks.RenderPrimitive(NodeCount=100)"] = 74,
+            ["CoreBenchmarks.RenderPrimitive(NodeCount=1000)"] = 77,
+            ["RendererBenchmarks.ClaritySmall"] = 7268,
+            ["RendererBenchmarks.JsonExportSmall"] = 4414,
+            ["RendererBenchmarks.MarkdownMedium"] = 12547,
+            ["RendererBenchmarks.MarkdownSmall"] = 1921,
+        };
+        var current = baseline.ToDictionary(
+            b => b.Key,
+            b => (factors.TryGetValue(b.Key, out var ns) ? ns : b.Value.MeanNs, b.Value.AllocBytes));
+        current["ConcurrencyBenchmarks.ForkJoin_TwoTasks"] = (4008, 6411);
+
+        var output = CheckVerdict(current, baseline);
+
+        Assert.Contains("ENVIRONMENT_SHIFT", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_shift_with_a_two_byte_allocation_jitter_on_one_row_is_still_an_environment_shift()
+    {
+        var baseline = Rows(24, _ => (1000.0, 6409));
+        var current = Rows(24, i => (2500.0, i == 0 ? 6411 : 6409));
+
+        Assert.Contains("ENVIRONMENT_SHIFT", CheckVerdict(current, baseline), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_shift_where_three_rows_slow_by_less_than_the_threshold_is_still_an_environment_shift()
+    {
+        var baseline = Rows(24, _ => (1000.0, 100));
+        var current = Rows(24, i => (i < 3 ? 1050.0 : 2500.0, 100));
+
+        Assert.Contains("ENVIRONMENT_SHIFT", CheckVerdict(current, baseline), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_row_faster_past_the_threshold_among_slower_peers_is_not_a_shift()
+    {
+        var baseline = Rows(24, _ => (1000.0, 100));
+        var current = Rows(24, i => (i == 0 ? 500.0 : 2500.0, 100));
+
+        Assert.Throws<InvalidOperationException>(() => CheckVerdict(current, baseline));
+    }
+
+    [Fact]
+    public void Real_allocation_growth_on_one_row_among_slower_peers_fails_on_that_row()
+    {
+        var baseline = Rows(24, _ => (1000.0, 6409));
+        var current = Rows(24, i => (2500.0, i == 0 ? 6409 + 128 : 6409));
+        var ex = Assert.Throws<InvalidOperationException>(() => CheckVerdict(current, baseline));
+
+        Assert.Contains("Benchmark regressions", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Allocation_growth_counts_only_at_sixteen_bytes_and_one_percent_together()
+    {
+        var baseline = WriteBaseline(("A", 1000.0, 10_000), ("B", 1000.0, 10_000));
+        var within = new Dictionary<string, (double MeanNs, long AllocBytes)>
+        { ["A"] = (1000.0, 10_099), ["B"] = (1000.0, 10_000) };
+        var past = new Dictionary<string, (double MeanNs, long AllocBytes)>
+        { ["A"] = (1000.0, 10_100), ["B"] = (1000.0, 10_000) };
+
+        Assert.Equal(0, BenchmarkGate.CountRegressionsByKind(within, baseline).AllocRegressions);
+        Assert.Equal(1, BenchmarkGate.CountRegressionsByKind(past, baseline).AllocRegressions);
+        Assert.False(BenchmarkGate.AllocationGrew(1000, 1015));
+        Assert.True(BenchmarkGate.AllocationGrew(1000, 1016));
+    }
+
+    [Fact]
+    public void A_lone_slower_benchmark_is_never_an_environment_shift()
+    {
+        var baseline = Rows(1, _ => (1000.0, 100));
+        var current = Rows(1, _ => (2500.0, 100));
+
+        Assert.Throws<InvalidOperationException>(() => CheckVerdict(current, baseline));
     }
 }

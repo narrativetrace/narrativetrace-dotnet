@@ -67,6 +67,10 @@ public static class TraceTreeCanonicalMapper
         TraceIdentity identity)
     {
         var spanId = spans.Next(node);
+        // A root has no parent node in this tree, but its span context may still
+        // name one: the caller's span under an adopted traceparent, or the
+        // launching span of a forked branch.
+        parentSpanId ??= node.SpanContext?.ParentSpanId?.Value;
         entries.Add(EnterEntry(node, spanId, parentSpanId, identity));
         foreach (var child in node.Children)
         {

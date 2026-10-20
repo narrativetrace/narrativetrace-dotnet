@@ -38,6 +38,12 @@ public sealed class NoticeLicensingTests
     }
 
     [Fact]
+    public void NOTICE_names_the_OpenAI_plugin_directorys_package_root()
+    {
+        Assert.Contains("src/NarrativeTrace.Skills.Catalogue/openai-plugin/", NoticeText, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void NOTICE_still_names_every_other_package_as_BSL()
     {
         Assert.Contains("Business Source License 1.1", NoticeText, StringComparison.Ordinal);

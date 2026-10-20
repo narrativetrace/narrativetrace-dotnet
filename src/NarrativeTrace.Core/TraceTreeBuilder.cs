@@ -89,13 +89,21 @@ public static class TraceTreeBuilder
         return map;
     }
 
-    private static Dictionary<SpanId, List<TraceNode>> IndexGrafts(
+    // Each graft remembers how many enters preceded it in the stream: the
+    // position it ran at, which CollectChildren merges against the parent's
+    // own children so a joined fork renders where it joined, not after them.
+    private static Dictionary<SpanId, List<PlacedGraft>> IndexGrafts(
         IReadOnlyList<TraceEvent> events)
     {
-        var map = new Dictionary<SpanId, List<TraceNode>>();
+        var map = new Dictionary<SpanId, List<PlacedGraft>>();
+        var enterCount = 0;
         for (var i = 0; i < events.Count; i++)
         {
-            if (events[i] is GraftEvent { ParentSpanId: { } parent } g)
+            if (events[i] is EnterEvent)
+            {
+                enterCount++;
+            }
+            else if (events[i] is GraftEvent { ParentSpanId: { } parent } g)
             {
                 if (!map.TryGetValue(parent, out var list))
                 {
@@ -103,12 +111,14 @@ public static class TraceTreeBuilder
                     map[parent] = list;
                 }
 
-                list.Add(g.Node);
+                list.Add(new PlacedGraft(enterCount, g.Node));
             }
         }
 
         return map;
     }
+
+    private readonly record struct PlacedGraft(int EntersBefore, TraceNode Node);
 
     private static List<TraceNode> CollectRootGrafts(
         IReadOnlyList<TraceEvent> events)
@@ -128,7 +138,7 @@ public static class TraceTreeBuilder
     private static List<TraceNode> CollectRoots(
         Dictionary<SpanId, EnterEvent> enters,
         Dictionary<SpanId, ExitEvent> exits,
-        Dictionary<SpanId, List<TraceNode>> grafts,
+        Dictionary<SpanId, List<PlacedGraft>> grafts,
         List<TraceNode> rootGrafts)
     {
         // S3267: LINQ allocates an iterator + closure per tree build; BuildTree
@@ -157,7 +167,7 @@ public static class TraceTreeBuilder
 
     private static void AddOrphanGraftedRoots(
         List<TraceNode> roots,
-        Dictionary<SpanId, List<TraceNode>> grafts,
+        Dictionary<SpanId, List<PlacedGraft>> grafts,
         Dictionary<SpanId, EnterEvent> enters)
     {
         // S3267: see BuildRoots — same allocation-gated tree-building path.
@@ -166,7 +176,10 @@ public static class TraceTreeBuilder
         {
             if (!enters.ContainsKey(kvp.Key))
             {
-                roots.AddRange(kvp.Value);
+                foreach (var placed in kvp.Value)
+                {
+                    roots.Add(placed.Node);
+                }
             }
         }
 #pragma warning restore S3267
@@ -176,7 +189,7 @@ public static class TraceTreeBuilder
         EnterEvent enter,
         Dictionary<SpanId, EnterEvent> enters,
         Dictionary<SpanId, ExitEvent> exits,
-        Dictionary<SpanId, List<TraceNode>> grafts)
+        Dictionary<SpanId, List<PlacedGraft>> grafts)
     {
         var children = CollectChildren(
             enter.SpanContext.SpanId, enters, exits, grafts);
@@ -208,24 +221,45 @@ public static class TraceTreeBuilder
         SpanId parentSpanId,
         Dictionary<SpanId, EnterEvent> enters,
         Dictionary<SpanId, ExitEvent> exits,
-        Dictionary<SpanId, List<TraceNode>> grafts)
+        Dictionary<SpanId, List<PlacedGraft>> grafts)
     {
         var children = new List<TraceNode>();
+        grafts.TryGetValue(parentSpanId, out var placed);
+        var next = 0;
+        var ordinal = 0;
         foreach (var child in enters.Values)
         {
             if (child.SpanContext.ParentSpanId == parentSpanId)
             {
+                next = AddGraftsBefore(children, placed, next, ordinal);
                 children.Add(BuildNode(
                     child, enters, exits, grafts));
             }
+
+            ordinal++;
         }
 
-        if (grafts.TryGetValue(parentSpanId, out var g))
-        {
-            children.AddRange(g);
-        }
-
+        AddGraftsBefore(children, placed, next, int.MaxValue);
         return children;
+    }
+
+    // Grafts are indexed in stream order, so one cursor walks them in step
+    // with the enters; returns the cursor past every graft that ran before
+    // the enter at `ordinal`.
+    private static int AddGraftsBefore(
+        List<TraceNode> children,
+        List<PlacedGraft>? placed,
+        int next,
+        int ordinal)
+    {
+        while (placed is not null
+            && next < placed.Count
+            && placed[next].EntersBefore <= ordinal)
+        {
+            children.Add(placed[next++].Node);
+        }
+
+        return next;
     }
 
     private static List<TraceNode> ApplyLevelFilter(

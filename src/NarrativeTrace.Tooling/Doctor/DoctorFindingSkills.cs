@@ -47,6 +47,8 @@ public static class DoctorFindingSkills
         ["toolchain.package-versions-aligned"] = AddNarrativeTracing,
         ["toolchain.companion-packages"] = AddNarrativeTracing,
         ["config.output-env"] = NarrativeTraceDoctor,
+        ["config.exclude"] = NarrativeTraceDoctor,
+        ["config.service-identity"] = AddNarrativeTracing,
         ["config.appsettings-keys"] = NarrativeTraceDoctor,
         ["trap.silent-sink"] = NarrativeTraceDoctor,
         ["trap.proxy-interface"] = AddNarrativeTracing,

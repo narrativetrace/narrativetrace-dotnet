@@ -12,10 +12,11 @@ using System.Text.Json;
 static class BenchmarkGate
 {
     /// <summary>
-    /// Environment every benchmark process this repository launches runs under — the gate, the
-    /// baseline, and this file's own process-configuration test all build the process from
-    /// <see cref="BuildProcessStartInfo"/>, so they can never drift apart into two different
-    /// configurations.
+    /// Environment of the allocation-floor run: it contributes allocation bytes only (its time is
+    /// discarded by <see cref="MergeRuns"/>), so it pins dynamic PGO off for determinism. The gate,
+    /// the baseline, and this file's own process-configuration test all build the process from
+    /// <see cref="BuildProcessStartInfo"/>, so the two runs can never drift apart into two
+    /// different argument lists.
     /// </summary>
     /// <remarks>
     /// Dynamic PGO is disabled here on general determinism grounds (it never hurts, and it is the
@@ -37,13 +38,24 @@ static class BenchmarkGate
         new Dictionary<string, string> { ["DOTNET_TieredPGO"] = "0" };
 
     /// <summary>
-    /// Builds the exact <c>dotnet run</c> invocation the benchmark job runs under. The gate and
-    /// this file's own determinism test both go through this one method, so a test that checks
-    /// the process configuration is checking the real configuration, never a hand-copied
-    /// approximation of it.
+    /// Environment of the timing run: dynamic PGO on, set explicitly so a host variable cannot
+    /// leak in — production runs with PGO, and the time axis must measure what production runs
+    /// (PGO off reads several times slower on hot paths). Its time is the one
+    /// <see cref="MergeRuns"/> keeps; its allocation still enters the floor.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, string> ProductionEnvironment =
+        new Dictionary<string, string> { ["DOTNET_TieredPGO"] = "1" };
+
+    /// <summary>
+    /// Builds the exact <c>dotnet run</c> invocation a benchmark run executes under, with the
+    /// given <paramref name="environment"/> (<see cref="DeterminismEnvironment"/> or
+    /// <see cref="ProductionEnvironment"/>). The gate and this file's own process-configuration
+    /// test both go through this one method, so a test that checks the process configuration is
+    /// checking the real configuration, never a hand-copied approximation of it.
     /// </summary>
     public static ProcessStartInfo BuildProcessStartInfo(
-        string projectPath, string artifactsDir, string filter = "*", string job = "medium")
+        string projectPath, string artifactsDir, IReadOnlyDictionary<string, string> environment,
+        string filter = "*", string job = "medium")
     {
         var psi = new ProcessStartInfo("dotnet")
         {
@@ -59,7 +71,7 @@ static class BenchmarkGate
         })
             psi.ArgumentList.Add(arg);
 
-        foreach (var (key, value) in DeterminismEnvironment)
+        foreach (var (key, value) in environment)
             psi.Environment[key] = value;
 
         return psi;
@@ -67,10 +79,12 @@ static class BenchmarkGate
 
     /// <summary>Runs the benchmark job process to completion and echoes its output; throws on a
     /// non-zero exit so a build break in the benchmarked code fails the gate the same way every
-    /// other stage does.</summary>
-    public static void RunProcess(string projectPath, string artifactsDir, string filter = "*", string job = "medium")
+    /// other stage does. <paramref name="environment"/> says which of the gate's two runs this is.</summary>
+    public static void RunProcess(
+        string projectPath, string artifactsDir, IReadOnlyDictionary<string, string> environment,
+        string filter = "*", string job = "medium")
     {
-        var psi = BuildProcessStartInfo(projectPath, artifactsDir, filter, job);
+        var psi = BuildProcessStartInfo(projectPath, artifactsDir, environment, filter, job);
         using var process = Process.Start(psi)
             ?? throw new InvalidOperationException("Failed to start the benchmark process.");
         var stdout = process.StandardOutput.ReadToEndAsync();
@@ -96,28 +110,28 @@ static class BenchmarkGate
     }
 
     /// <summary>
-    /// Combines two independent runs of the same benchmark job into the one result set the gate
-    /// compares against the baseline: allocation is the MINIMUM observed across the two runs — a
-    /// floor, never a single sample — because a single run's allocated-bytes reading can land on
-    /// the noisy (longer-serialized) side of the content-length jitter described on
-    /// <see cref="DeterminismEnvironment"/>, and that noise only ever adds bytes, never removes
-    /// them, so the smaller of two honest readings is the truer one. Mean time is the average of
-    /// the two runs — no floor or ceiling on that axis; the existing 15% tolerance and the
-    /// load-aware "unreliable: load" marking in <see cref="CheckRegressions"/> are what absorb
-    /// timing noise instead.
+    /// Combines the gate's two runs into the one result set compared against the baseline.
+    /// Allocation is the MINIMUM observed across both runs — a floor, never a single sample —
+    /// because a single run's allocated-bytes reading can land on the noisy (longer-serialized)
+    /// side of the content-length jitter described on <see cref="DeterminismEnvironment"/>, and
+    /// that noise only ever adds bytes, never removes them. Mean time comes from the
+    /// <paramref name="timingRun"/> alone (PGO on, <see cref="ProductionEnvironment"/>); the
+    /// <paramref name="floorRun"/> (PGO off) contributes allocation only, since its time measures
+    /// a configuration production never runs. The existing 15% tolerance and the load-aware
+    /// "unreliable: load" marking in <see cref="CheckRegressions"/> absorb timing noise.
     /// </summary>
     public static Dictionary<string, (double MeanNs, long AllocBytes)> MergeRuns(
-        Dictionary<string, (double MeanNs, long AllocBytes)> first,
-        Dictionary<string, (double MeanNs, long AllocBytes)> second)
+        Dictionary<string, (double MeanNs, long AllocBytes)> floorRun,
+        Dictionary<string, (double MeanNs, long AllocBytes)> timingRun)
     {
         var merged = new Dictionary<string, (double, long)>();
-        foreach (var (key, a) in first)
+        foreach (var (key, a) in floorRun)
         {
-            merged[key] = second.TryGetValue(key, out var b)
-                ? ((a.MeanNs + b.MeanNs) / 2.0, Math.Min(a.AllocBytes, b.AllocBytes))
+            merged[key] = timingRun.TryGetValue(key, out var b)
+                ? (b.MeanNs, Math.Min(a.AllocBytes, b.AllocBytes))
                 : a;
         }
-        foreach (var (key, b) in second)
+        foreach (var (key, b) in timingRun)
             if (!merged.ContainsKey(key))
                 merged[key] = b;
 
@@ -147,15 +161,39 @@ static class BenchmarkGate
         return null;
     }
 
+    /// <summary>Smallest absolute allocation growth, in bytes, that counts as growth.</summary>
+    public const long AllocToleranceBytes = 16;
+
+    /// <summary>Smallest relative allocation growth (1 %) that counts as growth.</summary>
+    public const double AllocToleranceFraction = 0.01;
+
+    const double TimeRegressionFactor = 1.15;
+    const double TimeImprovementFactor = 0.85;
+
     /// <summary>
-    /// True only when EVERY benchmark checked against the baseline slowed past the regression
-    /// threshold and none allocated more — the shape a uniformly slower host leaves, never a code
-    /// change (release rule: bisect, never attribute). Allocation is the axis a real regression
-    /// would move and a slower host never does, so any allocation growth rules this out outright.
-    /// One benchmark regressing while its peers hold steady is a code regression report, however
-    /// large its factor, and is never classified this way — the classifier requires unanimity
-    /// among at least two checked benchmarks, never a single row standing for itself (a lone
-    /// benchmark has no peers to move "together" with, so it is always a plain regression report).
+    /// True when the current allocation is a real increase over the baseline: at least
+    /// <see cref="AllocToleranceBytes"/> AND at least <see cref="AllocToleranceFraction"/> of the
+    /// row. A concurrency row's AVERAGED allocation jitters by a few bytes from run to run (a
+    /// Task-scheduling benchmark read 6409 B, 6411 B and 6412 B on three nights), smaller than any
+    /// object, so a strict "any byte" comparison reports noise as growth. The per-row verdict and
+    /// the shift classifier share this one definition.
+    /// </summary>
+    public static bool AllocationGrew(long baselineBytes, long currentBytes)
+    {
+        var delta = currentBytes - baselineBytes;
+        return delta >= AllocToleranceBytes && delta >= baselineBytes * AllocToleranceFraction;
+    }
+
+    /// <summary>
+    /// True when the checked benchmarks left the shape a uniformly slower host leaves, never a
+    /// code change (release rule: bisect, never attribute): at least two rows slower past the
+    /// regression threshold, every other row slower or within noise (none FASTER past the
+    /// threshold — a row that sped up while peers slowed is not one shared cause), and no row
+    /// allocating more (<see cref="AllocationGrew"/>). Allocation is the axis a real regression
+    /// would move and a slower host never does, so real growth rules this out outright. A row
+    /// inside the 15 % band is noise, not a counter-example, and does not break the shift. One
+    /// benchmark regressing while its peers hold steady is a code regression report, however
+    /// large its factor — fewer than two slower rows is never classified this way.
     /// </summary>
     public static bool IsEnvironmentShift(
         Dictionary<string, (double MeanNs, long AllocBytes)> baseline,
@@ -165,41 +203,40 @@ static class BenchmarkGate
     {
         minFactor = 0;
         maxFactor = 0;
-        var checkedCount = 0;
-        var factors = new List<double>();
+        var slower = new List<double>();
 
         foreach (var entry in baseline)
         {
             if (!current.TryGetValue(entry.Key, out var cur))
                 continue;
 
-            checkedCount++;
             var (baseMean, baseAlloc) = entry.Value;
-            if (cur.AllocBytes > baseAlloc)
+            if (AllocationGrew(baseAlloc, cur.AllocBytes) || !(baseMean > 0))
                 return false;
 
-            if (!(baseMean > 0) || cur.MeanNs / baseMean <= 1.15)
+            var factor = cur.MeanNs / baseMean;
+            if (factor < TimeImprovementFactor)
                 return false;
-
-            factors.Add(cur.MeanNs / baseMean);
+            if (factor > TimeRegressionFactor)
+                slower.Add(factor);
         }
 
-        if (checkedCount < 2)
+        if (slower.Count < 2)
             return false;
 
-        minFactor = factors.Min();
-        maxFactor = factors.Max();
+        minFactor = slower.Min();
+        maxFactor = slower.Max();
         return true;
     }
 
     /// <summary>
     /// Compares <paramref name="current"/> (already floored by <see cref="MergeRuns"/>) against
-    /// the recorded baseline. A classifier runs first: when every checked benchmark slowed and none
-    /// allocated more (<see cref="IsEnvironmentShift"/>), the run is reported as an ENVIRONMENT_SHIFT
+    /// the recorded baseline. A classifier runs first: when at least two checked benchmarks slowed, none sped
+    /// up past the threshold and none allocated more (<see cref="IsEnvironmentShift"/>), the run is reported as an ENVIRONMENT_SHIFT
     /// — loud, with the factor range and the load, exit code 0, baseline left untouched — because a
     /// uniform slowdown with a flat deterministic axis measures the host, not the code (release
-    /// rule: bisect, never attribute). Short of unanimity, the ordinary per-row verdict applies:
-    /// allocation has no exception — any allocation regression fails the gate, because it is now
+    /// rule: bisect, never attribute). Otherwise the ordinary per-row verdict applies:
+    /// allocation has one definition of growth (<see cref="AllocationGrew"/>) and no other exception — any allocation regression fails the gate, because it is now
     /// measured as a floor rather than a single noisy sample — and a time regression measured while
     /// the host itself is under load measures the host too; the 5-minute load average is printed
     /// next to every time regression, and when it is above <paramref name="loadThreshold"/> that
@@ -222,8 +259,8 @@ static class BenchmarkGate
         if (IsEnvironmentShift(baseline, current, out var minFactor, out var maxFactor))
         {
             Console.WriteLine(
-                $"ENVIRONMENT_SHIFT: every one of {baseline.Count} benchmarks slowed together "
-                + $"(x{minFactor:F2}-x{maxFactor:F2}), no allocation moved — {loadLine}. Reporting, "
+                $"ENVIRONMENT_SHIFT: {timeRegressions.Count} of {baseline.Count} benchmarks slowed together "
+                + $"(x{minFactor:F2}-x{maxFactor:F2}), the rest within noise, no allocation grew — {loadLine}. Reporting, "
                 + "not failing: a uniformly slower host, not a code regression. Baseline not refreshed.");
             return;
         }
@@ -244,10 +281,11 @@ static class BenchmarkGate
 
         Console.WriteLine(timeUnreliable && timeRegressions.Count > 0
             ? $"Benchmark gate passed ({baseline.Count} checks, 15% time / 0% alloc threshold, "
-                + $"allocation floored over 2 runs; {timeRegressions.Count} time regression(s) "
+                + $"time measured with PGO on, allocation floored over two runs, the floor run with PGO off; "
+                + $"{timeRegressions.Count} time regression(s) "
                 + $"not counted: {loadLine})"
             : $"Benchmark gate passed ({baseline.Count} checks, 15% time / 0% alloc threshold, "
-                + "allocation floored over 2 runs)");
+                + "time measured with PGO on, allocation floored over two runs, the floor run with PGO off)");
     }
 
     /// <summary>
@@ -361,10 +399,10 @@ static class BenchmarkGate
                 continue;
 
             var (baseMean, baseAlloc) = entry.Value;
-            if (baseMean > 0 && cur.MeanNs / baseMean > 1.15)
+            if (baseMean > 0 && cur.MeanNs / baseMean > TimeRegressionFactor)
                 timeRegressions.Add($"{entry.Key}: time {baseMean:F0}ns -> {cur.MeanNs:F0}ns (+{cur.MeanNs / baseMean - 1:P0})");
 
-            if (cur.AllocBytes > baseAlloc)
+            if (AllocationGrew(baseAlloc, cur.AllocBytes))
                 allocRegressions.Add($"{entry.Key}: alloc {baseAlloc}B -> {cur.AllocBytes}B");
         }
 

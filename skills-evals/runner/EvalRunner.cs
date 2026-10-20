@@ -62,7 +62,23 @@ public static class EvalRunner
             return 2;
         }
 
-        return DriveTrials(args, paths, File.ReadAllText(promptPath), output);
+        return TryReadPrompt(promptPath, error, out var prompt) ? DriveTrials(args, paths, prompt, output) : 2;
+    }
+
+    /// <summary>Reads what the agent is sent for the case; a case document without a task quote is reported, not run.</summary>
+    private static bool TryReadPrompt(string promptPath, TextWriter error, out string prompt)
+    {
+        try
+        {
+            prompt = CasePrompt.TaskPrompt(promptPath, File.ReadAllText(promptPath));
+            return true;
+        }
+        catch (InvalidOperationException e)
+        {
+            error.WriteLine(e.Message);
+            prompt = "";
+            return false;
+        }
     }
 
     private static int DriveTrials(EvalRunnerArgs args, Paths paths, string prompt, TextWriter output)

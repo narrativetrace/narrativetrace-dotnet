@@ -20,9 +20,12 @@ public static class SkillsDevToolRunner
             "render" => SkillsRenderCommand.Run(dir, output, error),
             "lint" => SkillsLintCommand.Run(dir, output, error),
             "replay" => SkillsReplayCommand.Run(dir, output, error),
+            "pack-openai" => SkillsPackOpenAiCommand.Run(dir, GetOption(args, "--out") ?? DefaultPackDir(dir), output, error),
             _ => Usage(error),
         };
     }
+
+    private static string DefaultPackDir(string repoRoot) => Path.Combine(repoRoot, "artifacts", "openai-plugin");
 
     private static int Usage(TextWriter error)
     {
@@ -33,7 +36,9 @@ public static class SkillsDevToolRunner
             Environment.NewLine +
             "  lint     Tier A catalogue lints + drift check" +
             Environment.NewLine +
-            "  replay   Tier A2 mechanical replay against the sixty-seconds fixture");
+            "  replay   Tier A2 mechanical replay against the sixty-seconds fixture" +
+            Environment.NewLine +
+            "  pack-openai  build and assert the OpenAI plugin directory ZIP [--out <dir>]");
         return 2;
     }
 

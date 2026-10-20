@@ -115,7 +115,25 @@ public sealed class OtelTraceEventListener
             return parent.Context;
         }
 
-        return default;
+        return RemoteParentContext(sc);
+    }
+
+    // A parent that is not an active span here lives in another process (an
+    // adopted traceparent) or has already ended: either way the W3C parent is
+    // the remote context named by the span's own trace id, parent id and flags.
+    private static ActivityContext RemoteParentContext(SpanContext sc)
+    {
+        if (sc.ParentSpanId is not { } parentId)
+        {
+            return default;
+        }
+
+        return new ActivityContext(
+            ActivityTraceId.CreateFromString(sc.TraceId.Value.AsSpan()),
+            ActivitySpanId.CreateFromString(parentId.Value.AsSpan()),
+            (ActivityTraceFlags)sc.TraceFlags,
+            sc.TraceState,
+            isRemote: true);
     }
 
     private void HandleExit(ExitEvent exit)
